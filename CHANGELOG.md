@@ -10,6 +10,12 @@ Notable changes in each RunPad release. Downloads are on the
 - Adding a connection in Dependencies that needs new NuGet packages now asks for confirmation,
   listing the packages and versions, before writing them to the script.
 
+### Fixed
+
+- The cached description RunPad reads for a gRPC connection (its services) no longer accumulates
+  forever on disk for connections removed, renamed or changed: unused files older than 30 days are
+  reclaimed at startup.
+
 ## [0.9.2] — 2026-10-21
 
 ### Added

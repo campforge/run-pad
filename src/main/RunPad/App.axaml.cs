@@ -42,6 +42,11 @@ public class App : Application
     //.
     private static readonly TimeSpan BuildCacheMaxAge = TimeSpan.FromDays(14);
 
+    // How long a connection's cached schema (a gRPC server's services, for instance) can sit
+    // unread before PruneStale reclaims it, so %APPDATA%/RunPad/connection-schemas doesn't grow
+    // unbounded with files left behind by removed, renamed or changed connections.
+    private static readonly TimeSpan ConnectionSchemaCacheMaxAge = TimeSpan.FromDays(30);
+
     private ServiceProvider? _serviceProvider;
 
     public override void Initialize()
@@ -256,6 +261,10 @@ public class App : Application
         // Reclaim build-cache directories for files that haven't been run in a while, so
         // %TEMP%\RunPad doesn't grow unbounded now that directories persist across restarts.
         _ = Task.Run(() => provider.GetRequiredService<IBuildCacheService>().PruneStale(BuildCacheMaxAge));
+
+        // Reclaim connection schema files left behind by connections removed, renamed or changed
+        // since they were last read.
+        _ = Task.Run(() => provider.GetRequiredService<ConnectionSchemas>().Cache.PruneStale(ConnectionSchemaCacheMaxAge));
 
         return provider;
     }
