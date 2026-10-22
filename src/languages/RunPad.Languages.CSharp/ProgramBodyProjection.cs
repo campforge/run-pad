@@ -12,9 +12,14 @@ namespace RunPad.Languages.CSharp;
 /// methods (which C# allows only in a non-nested static class), every top-level static class and
 /// namespace is moved out of it. Moved classes see the nested types and the script's members
 /// through the prefix's <c>using static</c>, as far as their accessibility allows: a type a moved
-/// class uses, such as an extension's receiver, must be internal or public, as in LINQPad. Only
-/// synthetic braces and partial-class headers are inserted; the original characters stay in their
-/// original order, and no lines are inserted. The same projection is used by the compiler and editor.
+/// class uses, such as an extension's receiver, must be internal or public, as in LINQPad.
+/// Also hoists the script's own leading <c>extern alias</c>/<c>using</c> directives, which are only
+/// valid before the generated wrapper class, never inside it (CS1529) — <see cref="LeadingDirectives"/>
+/// is spliced into the prefix instead (see <see cref="RpadKindTransform.ProgramPrefixFor"/>), and the
+/// source lines they came from are replaced by whitespace here so line numbers stay put. Only
+/// synthetic braces, partial-class headers and that whitespace are introduced; no original character
+/// moves or is removed, and no line is inserted or deleted. The same projection is used by the
+/// compiler and editor.
 /// </summary>
 internal sealed class ProgramBodyProjection
 {
@@ -25,44 +30,68 @@ internal sealed class ProgramBodyProjection
     /// <summary>The declarations compiled outside the generated class, in <see cref="Original"/>.</summary>
     public IReadOnlyList<TextSpan> Moved { get; }
     public string Text { get; }
-    public bool HasChanges => _insertions.Count != 0;
+    public bool HasChanges => _insertions.Count != 0 || LeadingDirectives.Length != 0;
 
-    private ProgramBodyProjection(string code, IReadOnlyList<Insertion> insertions, IReadOnlyList<TextSpan> moved)
+    /// <summary>The script's own leading extern-alias/using directives, verbatim, or "" if none —
+    /// blanked out of <see cref="Text"/> and meant to be spliced before the wrapper class instead.</summary>
+    public string LeadingDirectives { get; }
+
+    private ProgramBodyProjection(string code, string blanked, IReadOnlyList<Insertion> insertions,
+        IReadOnlyList<TextSpan> moved, string leadingDirectives)
     {
         Original = code;
         _insertions = insertions;
         Moved = moved;
+        LeadingDirectives = leadingDirectives;
         var builder = new StringBuilder();
         var offset = 0;
         foreach (var insertion in insertions)
         {
-            builder.Append(code, offset, insertion.Offset - offset).Append(insertion.Text);
+            builder.Append(blanked, offset, insertion.Offset - offset).Append(insertion.Text);
             offset = insertion.Offset;
         }
-        Text = builder.Append(code, offset, code.Length - offset).ToString();
+        Text = builder.Append(blanked, offset, blanked.Length - offset).ToString();
     }
 
-    public static ProgramBodyProjection Identity(string code) => new(code, [], []);
+    public static ProgramBodyProjection Identity(string code) => new(code, code, [], [], "");
 
     public static ProgramBodyProjection Create(string code, CSharpParseOptions options)
     {
         var root = CSharpSyntaxTree.ParseText(code, options).GetCompilationUnitRoot();
-        if (!root.Members.OfType<GlobalStatementSyntax>().Any()
-            || !root.Members.Any(ContainsExtensionClass)) return Identity(code);
+        if (!root.Members.OfType<GlobalStatementSyntax>().Any()) return Identity(code);
+
+        // Extern aliases always precede usings, and both always precede every other declaration —
+        // the only place they can legally be in a compilation unit — so this is exactly the
+        // directives that would otherwise land inside the wrapper class and fail to compile (CS1529).
+        var directives = root.Externs.Cast<SyntaxNode>().Concat(root.Usings).ToList();
+        var leadingDirectives = "";
+        var blanked = code;
+        if (directives.Count > 0)
+        {
+            var span = TextSpan.FromBounds(directives[0].SpanStart, directives[^1].Span.End);
+            leadingDirectives = code.Substring(span.Start, span.Length);
+            blanked = string.Concat(code.AsSpan(0, span.Start), Blank(leadingDirectives), code.AsSpan(span.End));
+        }
 
         // Static classes move, extension ones or not (as in LINQPad); other types stay nested, where
         // they keep seeing the script's own members. A namespace can't be nested in a class at all.
         // Types nested inside a moved declaration stay where they are: only compilation-unit members move.
-        var declarations = root.Members.Where(m => m is NamespaceDeclarationSyntax
-            || (m is ClassDeclarationSyntax type && type.Modifiers.Any(SyntaxKind.StaticKeyword))).ToList();
+        var declarations = root.Members.Any(ContainsExtensionClass)
+            ? root.Members.Where(m => m is NamespaceDeclarationSyntax
+                || (m is ClassDeclarationSyntax type && type.Modifiers.Any(SyntaxKind.StaticKeyword))).ToList()
+            : [];
         var insertions = new List<Insertion>();
         foreach (var declaration in declarations)
         {
             insertions.Add(new Insertion(declaration.SpanStart, "}"));
             insertions.Add(new Insertion(declaration.Span.End, $"partial class {RpadKindTransform.ProgramWrapperClassName}{{"));
         }
-        return new ProgramBodyProjection(code, insertions, [.. declarations.Select(d => d.Span)]);
+        if (insertions.Count == 0 && directives.Count == 0) return Identity(code);
+        return new ProgramBodyProjection(code, blanked, insertions, [.. declarations.Select(d => d.Span)], leadingDirectives);
     }
+
+    // Keeps line/column structure (and so offsets) exactly as in the original: only '\r'/'\n' survive.
+    private static string Blank(string text) => string.Concat(text.Select(c => c is '\r' or '\n' ? c : ' '));
 
     private static bool ContainsExtensionClass(MemberDeclarationSyntax declaration) => declaration switch
     {
