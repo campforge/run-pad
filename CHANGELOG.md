@@ -15,6 +15,8 @@ Notable changes in each RunPad release. Downloads are on the
 - The cached description RunPad reads for a gRPC connection (its services) no longer accumulates
   forever on disk for connections removed, renamed or changed: unused files older than 30 days are
   reclaimed at startup.
+- A Program script whose first lines are `using` directives — including the one RunPad writes when
+  switching a script from Statements to Program — now compiles instead of failing to build.
 
 ## [0.9.2] — 2026-10-21
 

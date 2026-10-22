@@ -28,11 +28,14 @@ namespace RunPad.Languages.CSharp;
 // non-static Main) regardless of what the user wrote. The outer, single-line-glued call statement
 // (ProgramPrefixFor) targets the trampoline, never Main directly.
 //
-// ProgramPrefixFor's call statement is glued onto the very first physical line, immediately followed by
-// the class declaration's own header and opening brace on their own lines. CSharpLanguageHost.
-// CalcKindOffset counts exactly those two embedded '\n's (the call statement itself is always a single
-// physical line — the class header/brace are the only newline-bearing part, appearing identically
-// regardless of whether Main turned out to be Task-returning). CSharpIntelliSenseService.SyncDocument
+// ProgramPrefixFor's call statement is glued onto the same physical line as any hoisted leading
+// using/extern-alias directives (ProgramBodyProjection.LeadingDirectives — needed outside the wrapper
+// class, see its doc comment), immediately followed by the class declaration's own header and opening
+// brace on their own lines. CSharpLanguageHost.CalcKindOffset (via ProgramLineOffset) counts those two
+// embedded '\n's plus one per embedded '\n' in the hoisted directives (the call statement itself is
+// always glued onto the last directive's line — the class header/brace are the only other
+// newline-bearing part, appearing identically regardless of whether Main turned out to be
+// Task-returning). CSharpIntelliSenseService.SyncDocument
 // mirrors both this prefix AND ProgramSuffixFor (the trampoline plus the class's closing brace) in its
 // live-analysis document, so the two can't drift apart again — without mirroring the prefix, Roslyn
 // correctly (from its own point of view) flagged the user's Main as an unused local function (CS8321);
@@ -66,12 +69,16 @@ internal static class RpadKindTransform
         var call = $"{ProgramWrapperClassName}.{TrampolineMethodName}(args)";
         if (main.ReturnsTask) call = "await " + call;
         var callStatement = main.ReturnsInt ? $"return {call};" : $"{call};";
+        var projection = ProgramBodyProjection.Create(code, parseOptions);
         // Classes the body projection moves out of the wrapper reach its nested types and members by
         // their simple names, as LINQPad's do. On the same line, so no line moves.
-        var moved = ProgramBodyProjection.Create(code, parseOptions).HasChanges;
+        var moved = projection.Moved.Count != 0;
         var usingStatic = moved ? $"using static {ProgramWrapperClassName};" : "";
         var modifier = moved ? "partial " : "";
-        return $"{usingStatic}{callStatement}{modifier}class {ProgramWrapperClassName}\n{{\n";
+        // The script's own leading using/extern-alias directives (if any) must precede every other
+        // declaration, including the call statement below — they can't stay where the projection
+        // found them, inside the wrapper class (CS1529). See ProgramBodyProjection.LeadingDirectives.
+        return $"{projection.LeadingDirectives}{usingStatic}{callStatement}{modifier}class {ProgramWrapperClassName}\n{{\n";
     }
 
     // Appends the trampoline (always accessible from ProgramPrefixFor's call site, regardless of the
@@ -122,6 +129,11 @@ internal static class RpadKindTransform
         return code + (code.Length == 0 || code.EndsWith('\n') ? "" : "\n") + "return;\n";
     }
 
-    /// <summary>Lines <see cref="ProgramPrefixFor"/> puts before the user's first line.</summary>
-    public static int ProgramLineOffset(string code, CSharpParseOptions parseOptions) => ProgramEntryPointDetector.IsCompiledAsWritten(code, parseOptions) ? 0 : 2;
+    /// <summary>Lines <see cref="ProgramPrefixFor"/> puts before the user's first line: the call
+    /// statement, the wrapper class header and its opening brace (2 lines) plus one more for each
+    /// embedded newline in any hoisted leading directives (<see cref="ProgramBodyProjection.LeadingDirectives"/>),
+    /// since those are spliced in before the call statement rather than glued onto its line.</summary>
+    public static int ProgramLineOffset(string code, CSharpParseOptions parseOptions) =>
+        ProgramEntryPointDetector.IsCompiledAsWritten(code, parseOptions) ? 0
+        : 2 + ProgramBodyProjection.Create(code, parseOptions).LeadingDirectives.Count(c => c == '\n');
 }

@@ -66,4 +66,65 @@ public class ProgramBodyProjectionTests
         const string classic = "class Program { static void Main() {} } static class Extensions { public static int Twice(this int n) => n*2; }";
         Assert.False(ProgramBodyProjection.Create(classic, Options).HasChanges);
     }
+
+    [Fact]
+    public void LeadingUsingDirectives_Should_MoveBeforeTheWrapperClassAndBeCompilable()
+    {
+        const string code = "using System;\nusing System.Linq;\n\nvoid Main() { new[] { 1, 2 }.Sum().Dump(); }\n";
+        var projection = ProgramBodyProjection.Create(code, Options);
+        Assert.True(projection.HasChanges);
+        Assert.Equal("using System;\nusing System.Linq;", projection.LeadingDirectives);
+        Assert.DoesNotContain("using System;", projection.Text, StringComparison.Ordinal);
+        Assert.Equal(new string(' ', "using System;".Length) + "\n" + new string(' ', "using System.Linq;".Length) + "\n\nvoid Main()",
+            projection.Text[..("using System;".Length + 1 + "using System.Linq;".Length + 1 + 1 + "void Main()".Length)]);
+
+        var prefix = RpadKindTransform.ProgramPrefixFor(code, Options);
+        var suffix = RpadKindTransform.ProgramSuffixFor(code, Options);
+        var compiled = prefix + projection.Text + suffix;
+        Assert.StartsWith("using System;\nusing System.Linq;", compiled, StringComparison.Ordinal);
+        var tree = CSharpSyntaxTree.ParseText(compiled, Options, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.DoesNotContain(tree.GetDiagnostics(TestContext.Current.CancellationToken), d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
+
+        // 2 lines for the call statement's own class header/brace, plus 1 for the embedded '\n'
+        // between the two hoisted using directives.
+        Assert.Equal(3, RpadKindTransform.ProgramLineOffset(code, Options));
+
+        for (var offset = 0; offset <= code.Length; offset++)
+            Assert.Equal(offset, projection.ToOriginal(projection.ToProjected(offset)));
+    }
+
+    [Fact]
+    public void LeadingExternAliasAndUsing_Should_BothMoveAndRoundTrip()
+    {
+        const string code = "extern alias Json;\nusing System;\nvoid Main() {}\n";
+        var projection = ProgramBodyProjection.Create(code, Options);
+        Assert.Equal("extern alias Json;\nusing System;", projection.LeadingDirectives);
+        Assert.DoesNotContain("extern alias", projection.Text, StringComparison.Ordinal);
+        Assert.DoesNotContain("using System;", projection.Text, StringComparison.Ordinal);
+        Assert.Equal(code.Count(c => c == '\n'), projection.Text.Count(c => c == '\n'));
+        for (var offset = 0; offset <= code.Length; offset++)
+            Assert.Equal(offset, projection.ToOriginal(projection.ToProjected(offset)));
+    }
+
+    [Fact]
+    public void SwitchingFromStatementsToProgram_Should_ProduceACompilableTemplateWithLeadingUsings()
+    {
+        // What ProgramTemplate.CodeForKind generates for a Statements script that starts with usings,
+        // after the editor's snippet caret (${0}) is accepted and left empty.
+        const string code = "using System;\n\nvoid Main()\n{\n    \n}\n\n// Other methods, fields and types used by Main go here.\n";
+        var projection = ProgramBodyProjection.Create(code, Options);
+        var prefix = RpadKindTransform.ProgramPrefixFor(code, Options);
+        var suffix = RpadKindTransform.ProgramSuffixFor(code, Options);
+        var compiled = prefix + projection.Text + suffix;
+        var tree = CSharpSyntaxTree.ParseText(compiled, Options, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.DoesNotContain(tree.GetDiagnostics(TestContext.Current.CancellationToken), d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
+    }
+
+    [Fact]
+    public void NoLeadingDirectives_Should_LeaveLineOffsetAtTwo()
+    {
+        const string code = "void Main() {}\n";
+        Assert.Equal("", ProgramBodyProjection.Create(code, Options).LeadingDirectives);
+        Assert.Equal(2, RpadKindTransform.ProgramLineOffset(code, Options));
+    }
 }
