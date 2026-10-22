@@ -36,6 +36,9 @@ internal sealed class ProgramBodyProjection
     /// blanked out of <see cref="Text"/> and meant to be spliced before the wrapper class instead.</summary>
     public string LeadingDirectives { get; }
 
+    /// <summary>Where <see cref="LeadingDirectives"/> starts in <see cref="Original"/>.</summary>
+    public int LeadingDirectivesStart { get; }
+
     /// <summary>Whether <see cref="LeadingDirectives"/> ends with a hoisted <c>#endif</c> (detected
     /// structurally, by matching the span its <see cref="ConditionalGroups"/> entry ends at — not by
     /// matching the literal text "#endif", since a valid directive can be followed by a trailing
@@ -44,12 +47,14 @@ internal sealed class ProgramBodyProjection
     public bool LeadingDirectivesEndWithConditionalBlock { get; }
 
     private ProgramBodyProjection(string code, string blanked, IReadOnlyList<Insertion> insertions,
-        IReadOnlyList<TextSpan> moved, string leadingDirectives, bool leadingDirectivesEndWithConditionalBlock)
+        IReadOnlyList<TextSpan> moved, string leadingDirectives, int leadingDirectivesStart,
+        bool leadingDirectivesEndWithConditionalBlock)
     {
         Original = code;
         _insertions = insertions;
         Moved = moved;
         LeadingDirectives = leadingDirectives;
+        LeadingDirectivesStart = leadingDirectivesStart;
         LeadingDirectivesEndWithConditionalBlock = leadingDirectivesEndWithConditionalBlock;
         var builder = new StringBuilder();
         var offset = 0;
@@ -61,7 +66,7 @@ internal sealed class ProgramBodyProjection
         Text = builder.Append(blanked, offset, blanked.Length - offset).ToString();
     }
 
-    public static ProgramBodyProjection Identity(string code) => new(code, code, [], [], "", false);
+    public static ProgramBodyProjection Identity(string code) => new(code, code, [], [], "", 0, false);
 
     public static ProgramBodyProjection Create(string code, CSharpParseOptions options)
     {
@@ -73,6 +78,7 @@ internal sealed class ProgramBodyProjection
         // directives that would otherwise land inside the wrapper class and fail to compile (CS1529).
         var directives = root.Externs.Cast<SyntaxNode>().Concat(root.Usings).ToList();
         var leadingDirectives = "";
+        var leadingStart = 0;
         var endsInConditionalBlock = false;
         var blanked = code;
         if (directives.Count > 0)
@@ -106,6 +112,7 @@ internal sealed class ProgramBodyProjection
             endsInConditionalBlock = ConditionalGroups(root).Any(group => group.End == end);
             var span = TextSpan.FromBounds(start, end);
             leadingDirectives = code.Substring(span.Start, span.Length);
+            leadingStart = span.Start;
             blanked = string.Concat(code.AsSpan(0, span.Start), Blank(leadingDirectives), code.AsSpan(span.End));
         }
 
@@ -124,7 +131,7 @@ internal sealed class ProgramBodyProjection
         }
         if (insertions.Count == 0 && directives.Count == 0) return Identity(code);
         return new ProgramBodyProjection(code, blanked, insertions, [.. declarations.Select(d => d.Span)], leadingDirectives,
-            endsInConditionalBlock);
+            leadingStart, endsInConditionalBlock);
     }
 
     // Keeps line/column structure (and so offsets) exactly as in the original: only '\r'/'\n' survive.
