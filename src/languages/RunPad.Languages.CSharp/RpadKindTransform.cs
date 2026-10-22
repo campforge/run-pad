@@ -31,11 +31,11 @@ namespace RunPad.Languages.CSharp;
 // ProgramPrefixFor's call statement is glued onto the same physical line as any hoisted leading
 // using/extern-alias directives (ProgramBodyProjection.LeadingDirectives — needed outside the wrapper
 // class, see its doc comment), immediately followed by the class declaration's own header and opening
-// brace on their own lines. CSharpLanguageHost.CalcKindOffset (via ProgramLineOffset) counts those two
-// embedded '\n's plus one per embedded '\n' in the hoisted directives (the call statement itself is
-// always glued onto the last directive's line — the class header/brace are the only other
-// newline-bearing part, appearing identically regardless of whether Main turned out to be
-// Task-returning). CSharpIntelliSenseService.SyncDocument
+// brace on their own lines — except when the hoisted directives end in a conditional block (#endif),
+// which must be the only thing on its line, so the call statement gets its own line instead.
+// CSharpLanguageHost.CalcKindOffset (via ProgramLineOffset) counts those two embedded '\n's plus one
+// per embedded '\n' in the hoisted directives, plus the one more for that extra line when directives
+// end in #endif. CSharpIntelliSenseService.SyncDocument
 // mirrors both this prefix AND ProgramSuffixFor (the trampoline plus the class's closing brace) in its
 // live-analysis document, so the two can't drift apart again — without mirroring the prefix, Roslyn
 // correctly (from its own point of view) flagged the user's Main as an unused local function (CS8321);
@@ -78,7 +78,11 @@ internal static class RpadKindTransform
         // The script's own leading using/extern-alias directives (if any) must precede every other
         // declaration, including the call statement below — they can't stay where the projection
         // found them, inside the wrapper class (CS1529). See ProgramBodyProjection.LeadingDirectives.
-        return $"{projection.LeadingDirectives}{usingStatic}{callStatement}{modifier}class {ProgramWrapperClassName}\n{{\n";
+        // A conditional block among them (#if/#else/#endif) ends with a directive line, which must be
+        // the only thing on its line — gluing the call statement onto it the way a plain trailing
+        // `using`/`extern alias` allows would merge it into the `#endif` line and fail with CS1024.
+        var afterDirectives = projection.LeadingDirectives.EndsWith("#endif", StringComparison.Ordinal) ? "\n" : "";
+        return $"{projection.LeadingDirectives}{afterDirectives}{usingStatic}{callStatement}{modifier}class {ProgramWrapperClassName}\n{{\n";
     }
 
     // Appends the trampoline (always accessible from ProgramPrefixFor's call site, regardless of the
@@ -132,8 +136,14 @@ internal static class RpadKindTransform
     /// <summary>Lines <see cref="ProgramPrefixFor"/> puts before the user's first line: the call
     /// statement, the wrapper class header and its opening brace (2 lines) plus one more for each
     /// embedded newline in any hoisted leading directives (<see cref="ProgramBodyProjection.LeadingDirectives"/>),
-    /// since those are spliced in before the call statement rather than glued onto its line.</summary>
-    public static int ProgramLineOffset(string code, CSharpParseOptions parseOptions) =>
-        ProgramEntryPointDetector.IsCompiledAsWritten(code, parseOptions) ? 0
-        : 2 + ProgramBodyProjection.Create(code, parseOptions).LeadingDirectives.Count(c => c == '\n');
+    /// since those are spliced in before the call statement rather than glued onto its line, plus one
+    /// more still when the directives end in a conditional block (<c>#endif</c>), which forces the
+    /// call statement onto its own line instead of being glued onto the directives' last one.</summary>
+    public static int ProgramLineOffset(string code, CSharpParseOptions parseOptions)
+    {
+        if (ProgramEntryPointDetector.IsCompiledAsWritten(code, parseOptions)) return 0;
+        var leadingDirectives = ProgramBodyProjection.Create(code, parseOptions).LeadingDirectives;
+        var afterDirectives = leadingDirectives.EndsWith("#endif", StringComparison.Ordinal) ? 1 : 0;
+        return 2 + afterDirectives + leadingDirectives.Count(c => c == '\n');
+    }
 }
