@@ -17,6 +17,10 @@ Notable changes in each RunPad release. Downloads are on the
   reclaimed at startup.
 - A Program script whose first lines are `using` directives — including the one RunPad writes when
   switching a script from Statements to Program — now compiles instead of failing to build.
+- A Program script whose entry point is a `static Main` no longer shows a spurious "entry point of
+  the program is global code" warning in build results or the output panel. RunPad's generated
+  type name `__RunPadProgram` is now reserved in C# scripts; the synthetic method name
+  `__RunPadRun` is reserved in Program scripts. Declaring either produces a clear diagnostic.
 
 ## [0.9.2] — 2026-10-21
 

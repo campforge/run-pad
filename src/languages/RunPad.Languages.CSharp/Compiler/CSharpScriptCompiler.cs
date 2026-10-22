@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using RunPad.Languages.DotnetCommon;
@@ -56,6 +57,29 @@ public sealed class CSharpScriptCompiler(CompiledDotnetLanguageHostOptions optio
 
     protected override GeneratorDriver CreateGeneratorDriver(ImmutableArray<ISourceGenerator> generators, ParseOptions parseOptions) =>
         CSharpGeneratorDriver.Create(generators, parseOptions: (CSharpParseOptions)parseOptions);
+
+    // RpadKind.Program's wrapper (RpadKindTransform) glues a top-level call statement in front of a
+    // generated class, so Roslyn always treats that top-level code as the real entry point; a static
+    // Main inside the wrapper class is then a second entry-point candidate and Roslyn reports CS7022
+    // on it, even though RunPad's own trampoline is what actually calls it. Tied to Program kind and
+    // the generated wrapper/trampoline structure, not to the diagnostic's message text or class name
+    // alone, so Statements/Expression code cannot lose a genuine user-authored CS7022.
+    protected override IEnumerable<Diagnostic> FilterDiagnostics(IEnumerable<Diagnostic> diagnostics) =>
+        Options.Kind == RunPad.Format.RPad.RpadKind.Program
+            ? diagnostics.Where(d => !IsSyntheticWrapperEntryPointWarning(d))
+            : diagnostics;
+
+    // Internal rather than private: a focused test proves this structural check in isolation, against a
+    // tiny in-memory compilation, without paying for a real `dotnet build` of a whole script.
+    internal static bool IsSyntheticWrapperEntryPointWarning(Diagnostic d)
+    {
+        if (d.Id != "CS7022" || d.Location.SourceTree is not { } tree) return false;
+        var node = tree.GetRoot().FindNode(d.Location.SourceSpan);
+        var enclosingClass = node.FirstAncestorOrSelf<ClassDeclarationSyntax>();
+        return enclosingClass?.Identifier.ValueText == RpadKindTransform.ProgramWrapperClassName
+            && enclosingClass.Members.OfType<MethodDeclarationSyntax>()
+                .Any(m => m.Identifier.ValueText == RpadKindTransform.TrampolineMethodName);
+    }
 
     internal static CSharpParseOptions ParseOptions(ScriptTarget target) => ParseOptions(target.Major, target.Minor);
 

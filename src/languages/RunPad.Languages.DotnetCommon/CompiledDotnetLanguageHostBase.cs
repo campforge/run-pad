@@ -118,13 +118,28 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
     // The language's compiler: in-process Roslyn (RoslynScriptCompiler) — RunPad doesn't use MSBuild.
     protected abstract IDotnetProcessCompiler CreateCompiler(CompiledDotnetLanguageHostOptions options, ILoggerFactory loggerFactory);
 
+    /// <summary>Checks the user's source before any kind transform. Languages can reject identifiers
+    /// reserved by generated code while diagnostics still point at the original source.</summary>
+    protected virtual IReadOnlyList<ResultItem> ValidateUserCode(string code) => [];
+
     // ── Compile ──────────────────────────────────────────────────────────────
 
     public override async Task<ICompilationResult> CompileAsync(
         string code, CancellationToken cancellationToken = default)
     {
-        (CompiledDotnetCompilationResult result, _) = await CompileInternalAsync(ApplyKindTransform(code), cancellationToken);
+        (CompiledDotnetCompilationResult result, _) = await CompileUserCodeAsync(code, cancellationToken);
         return result;
+    }
+
+    private Task<(CompiledDotnetCompilationResult result, string? binaryPath)> CompileUserCodeAsync(
+        string code, CancellationToken ct)
+    {
+        var validationErrors = ValidateUserCode(code);
+        if (validationErrors.Count == 0)
+            return CompileInternalAsync(ApplyKindTransform(code), ct);
+
+        var failed = new ProcessCompilerResult("", false, validationErrors, []);
+        return Task.FromResult<(CompiledDotnetCompilationResult, string?)>((new CompiledDotnetCompilationResult(failed), null));
     }
 
     private async Task<(CompiledDotnetCompilationResult result, string? binaryPath)> CompileInternalAsync(
@@ -149,7 +164,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
         ThrowIfDisposed();
 
         (CompiledDotnetCompilationResult compilationResult, string? binaryPath) =
-            await CompileInternalAsync(ApplyKindTransform(code), cancellationToken);
+            await CompileUserCodeAsync(code, cancellationToken);
         EmitDiagnostics(compilationResult.Diagnostics, outputHandler);
         if (!compilationResult.Success || binaryPath is null) return RunResult.CompilationFailed;
 
@@ -237,7 +252,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
         var lineOffset = CalcKindOffset(code);
 
         (CompiledDotnetCompilationResult compilationResult, string? binaryPath) =
-            await CompileInternalAsync(ApplyKindTransform(code), cancellationToken);
+            await CompileUserCodeAsync(code, cancellationToken);
         EmitDiagnostics(compilationResult.Diagnostics, outputHandler);
         if (!compilationResult.Success || binaryPath is null) return;
 

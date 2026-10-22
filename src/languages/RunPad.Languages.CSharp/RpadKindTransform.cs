@@ -47,7 +47,7 @@ internal static class RpadKindTransform
     // astronomically unlikely — neither identifier is ever shown to the user (they exist only in the
     // throwaway .cs file actually handed to `dotnet build`/Roslyn, never in the .rpad source itself).
     public const string ProgramWrapperClassName = "__RunPadProgram";
-    private const string TrampolineMethodName = "__RunPadRun";
+    internal const string TrampolineMethodName = "__RunPadRun";
 
     // Cancelled when the user presses Stop; RunPad then waits a moment for the script to finish.
     private const string CancellationTokenExpression = "global::Util.CancellationToken";

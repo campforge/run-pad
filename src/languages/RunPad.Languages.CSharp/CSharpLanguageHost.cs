@@ -1,4 +1,6 @@
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Logging;
 using RunPad.Contracts;
 using RunPad.Format.RPad;
@@ -40,6 +42,40 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
 
     protected override IDotnetProcessCompiler CreateCompiler(CompiledDotnetLanguageHostOptions options, ILoggerFactory loggerFactory) =>
         new CSharpScriptCompiler(options, loggerFactory.CreateLogger<CSharpScriptCompiler>());
+
+    protected override IReadOnlyList<ResultItem> ValidateUserCode(string code)
+    {
+        var root = CSharpSyntaxTree.ParseText(code, ParseOptions()).GetRoot();
+        var reserved = root.DescendantNodes()
+            .Select(node => node switch
+            {
+                BaseTypeDeclarationSyntax type
+                    when type.Identifier.ValueText == RpadKindTransform.ProgramWrapperClassName => type.Identifier,
+                DelegateDeclarationSyntax @delegate
+                    when @delegate.Identifier.ValueText == RpadKindTransform.ProgramWrapperClassName => @delegate.Identifier,
+                MethodDeclarationSyntax method
+                    when Options.Kind == RpadKind.Program
+                         && method.Identifier.ValueText == RpadKindTransform.TrampolineMethodName => method.Identifier,
+                LocalFunctionStatementSyntax function
+                    when Options.Kind == RpadKind.Program
+                         && function.Identifier.ValueText == RpadKindTransform.TrampolineMethodName => function.Identifier,
+                _ => default,
+            })
+            .Where(identifier => identifier.RawKind != 0)
+            .ToList();
+
+        return [.. reserved.Select(ReservedIdentifierError)];
+    }
+
+    private ResultItem ReservedIdentifierError(SyntaxToken identifier)
+    {
+        var position = identifier.GetLocation().GetLineSpan().StartLinePosition;
+        return new ResultItem(
+            "RPAD1001",
+            Path.GetFileName(SourceFilePath),
+            new LineSymbol((uint)position.Line + 1, (uint)position.Character + 1),
+            $"'{identifier.ValueText}' is reserved for RunPad-generated Program code; choose a different name.");
+    }
 
     // ── Kind transform ───────────────────────────────────────────────────────
 
