@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using RunPad.Contracts;
 using RunPad.Format.RPad;
@@ -102,6 +103,34 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
         RpadKind.Program => $"{RpadKindTransform.ProgramPrefixFor(code, ParseOptions())}{ProgramBodyProjection.Create(code, ParseOptions()).Text}{RpadKindTransform.ProgramSuffixFor(code, ParseOptions())}",
         _ => RpadKindTransform.StatementsFor(code, ParseOptions()),
     };
+
+    // Program with hoisted leading using/extern-alias directives: the generated file starts with the
+    // front-matter imports, then the directives (their first line glued after the imports, the last one
+    // shared with the call statement and class header unless it ends a conditional block), then the
+    // wrapper's opening brace line, then the user's own first line. Directive lines map back to where
+    // they were written; the call statement, header and brace are generated.
+    protected override (int Line, int Column)? MapToUserPosition(string userCode, int line, int column)
+    {
+        var parseOptions = ParseOptions();
+        if (Options.Kind != RpadKind.Program || ProgramEntryPointDetector.IsCompiledAsWritten(userCode, parseOptions))
+            return base.MapToUserPosition(userCode, line, column);
+        var projection = ProgramBodyProjection.Create(userCode, parseOptions);
+        if (projection.LeadingDirectives.Length != 0)
+        {
+            var directiveLines = projection.LeadingDirectives.Count(c => c == '\n') + 1;
+            var index = line - Options.Usings.Count - 1;
+            if (index >= 0 && index < directiveLines)
+            {
+                var start = SourceText.From(userCode).Lines.GetLinePosition(projection.LeadingDirectivesStart);
+                var lastLine = projection.LeadingDirectives[(projection.LeadingDirectives.LastIndexOf('\n') + 1)..];
+                // What follows the directives on their last line (the call statement) is generated.
+                if (index == directiveLines - 1 && column > lastLine.TrimEnd('\r').Length)
+                    return null;
+                return (start.Line + 1 + index, index == 0 ? column + start.Character : column);
+            }
+        }
+        return base.MapToUserPosition(userCode, line, column);
+    }
 
     // The options the build parses with, for the target framework the script runs on.
     private CSharpParseOptions ParseOptions() =>

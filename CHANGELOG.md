@@ -21,6 +21,9 @@ Notable changes in each RunPad release. Downloads are on the
   the program is global code" warning in build results or the output panel. RunPad's generated
   type name `__RunPadProgram` is now reserved in C# scripts; the synthetic method name
   `__RunPadRun` is reserved in Program scripts. Declaring either produces a clear diagnostic.
+- Build errors and warnings now point at the matching line of your code. They used to be off by
+  the lines RunPad adds around it (front-matter namespaces, the generated Program wrapper); a
+  message about RunPad's generated text now has no line number instead of a wrong one.
 
 ## [0.9.2] — 2026-10-21
 
