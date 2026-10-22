@@ -127,4 +127,58 @@ public class ProgramBodyProjectionTests
         Assert.Equal("", ProgramBodyProjection.Create(code, Options).LeadingDirectives);
         Assert.Equal(2, RpadKindTransform.ProgramLineOffset(code, Options));
     }
+
+    [Fact]
+    public void LeadingUsingInsideActiveIfDirective_Should_MoveTheWholeBlockAndBeCompilable()
+    {
+        // DEBUG is defined by Options (see CSharpScriptCompiler.ParseOptions), so the #if is taken:
+        // "using System.Text;" is a real using directive, nested between the #if/#endif pair whose
+        // naive bounds (directives[0].SpanStart..directives[^1].Span.End) stop right after it and
+        // leave the #endif behind in the body.
+        const string code = "using System;\n#if DEBUG\nusing System.Text;\n#endif\nvoid Main() { new StringBuilder().Append(1).Dump(); }\n";
+        var projection = ProgramBodyProjection.Create(code, Options);
+        Assert.True(projection.HasChanges);
+        Assert.Equal("using System;\n#if DEBUG\nusing System.Text;\n#endif", projection.LeadingDirectives);
+        Assert.DoesNotContain("#if", projection.Text, StringComparison.Ordinal);
+        Assert.DoesNotContain("#endif", projection.Text, StringComparison.Ordinal);
+        Assert.Equal(code.Count(c => c == '\n'), projection.Text.Count(c => c == '\n'));
+
+        var prefix = RpadKindTransform.ProgramPrefixFor(code, Options);
+        var suffix = RpadKindTransform.ProgramSuffixFor(code, Options);
+        var compiled = prefix + projection.Text + suffix;
+        var tree = CSharpSyntaxTree.ParseText(compiled, Options, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.DoesNotContain(tree.GetDiagnostics(TestContext.Current.CancellationToken), d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
+
+        // 2 lines for the class header/brace, 3 for the embedded '\n's inside the hoisted block, plus
+        // 1 more because the block ends in '#endif' and so can't share the call statement's line.
+        Assert.Equal(6, RpadKindTransform.ProgramLineOffset(code, Options));
+
+        for (var offset = 0; offset <= code.Length; offset++)
+            Assert.Equal(offset, projection.ToOriginal(projection.ToProjected(offset)));
+    }
+
+    [Fact]
+    public void LeadingUsingInsideIfElseDirective_Should_MoveTheWholeBlockAndBeCompilable()
+    {
+        // DEBUG is defined, so the #if branch is taken and the #else branch is disabled text; both
+        // still have to move as a single block, including the #else itself.
+        const string code = "using System;\n#if DEBUG\nusing System.Text;\n#else\nusing System.Linq;\n#endif\nvoid Main() { new StringBuilder().Append(1).Dump(); }\n";
+        var projection = ProgramBodyProjection.Create(code, Options);
+        Assert.Equal("using System;\n#if DEBUG\nusing System.Text;\n#else\nusing System.Linq;\n#endif", projection.LeadingDirectives);
+        Assert.DoesNotContain('#', projection.Text);
+        Assert.Equal(code.Count(c => c == '\n'), projection.Text.Count(c => c == '\n'));
+
+        var prefix = RpadKindTransform.ProgramPrefixFor(code, Options);
+        var suffix = RpadKindTransform.ProgramSuffixFor(code, Options);
+        var compiled = prefix + projection.Text + suffix;
+        var tree = CSharpSyntaxTree.ParseText(compiled, Options, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.DoesNotContain(tree.GetDiagnostics(TestContext.Current.CancellationToken), d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
+
+        // 2 for the class header/brace, 5 for the embedded '\n's inside the hoisted block, plus 1
+        // more because the block ends in '#endif' and so can't share the call statement's line.
+        Assert.Equal(8, RpadKindTransform.ProgramLineOffset(code, Options));
+
+        for (var offset = 0; offset <= code.Length; offset++)
+            Assert.Equal(offset, projection.ToOriginal(projection.ToProjected(offset)));
+    }
 }

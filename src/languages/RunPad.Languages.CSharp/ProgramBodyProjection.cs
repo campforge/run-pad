@@ -68,7 +68,30 @@ internal sealed class ProgramBodyProjection
         var blanked = code;
         if (directives.Count > 0)
         {
-            var span = TextSpan.FromBounds(directives[0].SpanStart, directives[^1].Span.End);
+            var start = directives[0].SpanStart;
+            var end = directives[^1].Span.End;
+            // A using/extern can sit inside #if/#elif/#else/#endif (e.g. a platform-specific
+            // import). The bounds above stop at the directive nodes themselves and exclude the
+            // surrounding trivia, so they can split such a block in half: the #if ends up before
+            // `start` (it's leading trivia of the first using inside it) while the #endif ends up
+            // after `end` (trailing trivia of the last using inside it) — moving one without the
+            // other leaves both the prefix and the body unable to compile. Grow the span so every
+            // #if/#endif pair straddling it is pulled in whole instead.
+            bool grew;
+            do
+            {
+                grew = false;
+                foreach (var (groupStart, groupEnd) in ConditionalGroups(root))
+                {
+                    if (groupStart < end && groupEnd > start && (groupStart < start || groupEnd > end))
+                    {
+                        start = Math.Min(start, groupStart);
+                        end = Math.Max(end, groupEnd);
+                        grew = true;
+                    }
+                }
+            } while (grew);
+            var span = TextSpan.FromBounds(start, end);
             leadingDirectives = code.Substring(span.Start, span.Length);
             blanked = string.Concat(code.AsSpan(0, span.Start), Blank(leadingDirectives), code.AsSpan(span.End));
         }
@@ -92,6 +115,27 @@ internal sealed class ProgramBodyProjection
 
     // Keeps line/column structure (and so offsets) exactly as in the original: only '\r'/'\n' survive.
     private static string Blank(string text) => string.Concat(text.Select(c => c is '\r' or '\n' ? c : ' '));
+
+    // Every #if...#endif pair in the tree (however nested), as the span from the #if to its
+    // matching #endif. #elif/#else branches in between don't change the nesting depth, so they
+    // need no special handling: whichever #if opened the block is still the one its #endif closes.
+    private static IEnumerable<(int Start, int End)> ConditionalGroups(CompilationUnitSyntax root)
+    {
+        var opens = new Stack<int>();
+        foreach (var trivia in root.DescendantTrivia(descendIntoTrivia: true))
+        {
+            if (!trivia.IsDirective) continue;
+            switch (trivia.Kind())
+            {
+                case SyntaxKind.IfDirectiveTrivia:
+                    opens.Push(trivia.SpanStart);
+                    break;
+                case SyntaxKind.EndIfDirectiveTrivia when opens.Count > 0:
+                    yield return (opens.Pop(), trivia.Span.End);
+                    break;
+            }
+        }
+    }
 
     private static bool ContainsExtensionClass(MemberDeclarationSyntax declaration) => declaration switch
     {
