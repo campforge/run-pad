@@ -36,13 +36,21 @@ internal sealed class ProgramBodyProjection
     /// blanked out of <see cref="Text"/> and meant to be spliced before the wrapper class instead.</summary>
     public string LeadingDirectives { get; }
 
+    /// <summary>Whether <see cref="LeadingDirectives"/> ends with a hoisted <c>#endif</c> (detected
+    /// structurally, by matching the span its <see cref="ConditionalGroups"/> entry ends at — not by
+    /// matching the literal text "#endif", since a valid directive can be followed by a trailing
+    /// comment or spaces on the same line). A directive must be the only thing on its line, so callers
+    /// that glue more text after <see cref="LeadingDirectives"/> need to start a new line instead.</summary>
+    public bool LeadingDirectivesEndWithConditionalBlock { get; }
+
     private ProgramBodyProjection(string code, string blanked, IReadOnlyList<Insertion> insertions,
-        IReadOnlyList<TextSpan> moved, string leadingDirectives)
+        IReadOnlyList<TextSpan> moved, string leadingDirectives, bool leadingDirectivesEndWithConditionalBlock)
     {
         Original = code;
         _insertions = insertions;
         Moved = moved;
         LeadingDirectives = leadingDirectives;
+        LeadingDirectivesEndWithConditionalBlock = leadingDirectivesEndWithConditionalBlock;
         var builder = new StringBuilder();
         var offset = 0;
         foreach (var insertion in insertions)
@@ -53,7 +61,7 @@ internal sealed class ProgramBodyProjection
         Text = builder.Append(blanked, offset, blanked.Length - offset).ToString();
     }
 
-    public static ProgramBodyProjection Identity(string code) => new(code, code, [], [], "");
+    public static ProgramBodyProjection Identity(string code) => new(code, code, [], [], "", false);
 
     public static ProgramBodyProjection Create(string code, CSharpParseOptions options)
     {
@@ -65,6 +73,7 @@ internal sealed class ProgramBodyProjection
         // directives that would otherwise land inside the wrapper class and fail to compile (CS1529).
         var directives = root.Externs.Cast<SyntaxNode>().Concat(root.Usings).ToList();
         var leadingDirectives = "";
+        var endsInConditionalBlock = false;
         var blanked = code;
         if (directives.Count > 0)
         {
@@ -91,6 +100,10 @@ internal sealed class ProgramBodyProjection
                     }
                 }
             } while (grew);
+            // Structural, not textual: a hoisted #endif's trivia span includes any trailing comment
+            // or spaces on its line, so the span's end lands exactly on a conditional group's end
+            // whether or not the directive text itself ends in "#endif".
+            endsInConditionalBlock = ConditionalGroups(root).Any(group => group.End == end);
             var span = TextSpan.FromBounds(start, end);
             leadingDirectives = code.Substring(span.Start, span.Length);
             blanked = string.Concat(code.AsSpan(0, span.Start), Blank(leadingDirectives), code.AsSpan(span.End));
@@ -110,7 +123,8 @@ internal sealed class ProgramBodyProjection
             insertions.Add(new Insertion(declaration.Span.End, $"partial class {RpadKindTransform.ProgramWrapperClassName}{{"));
         }
         if (insertions.Count == 0 && directives.Count == 0) return Identity(code);
-        return new ProgramBodyProjection(code, blanked, insertions, [.. declarations.Select(d => d.Span)], leadingDirectives);
+        return new ProgramBodyProjection(code, blanked, insertions, [.. declarations.Select(d => d.Span)], leadingDirectives,
+            endsInConditionalBlock);
     }
 
     // Keeps line/column structure (and so offsets) exactly as in the original: only '\r'/'\n' survive.

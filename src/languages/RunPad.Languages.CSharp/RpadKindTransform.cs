@@ -81,7 +81,9 @@ internal static class RpadKindTransform
         // A conditional block among them (#if/#else/#endif) ends with a directive line, which must be
         // the only thing on its line — gluing the call statement onto it the way a plain trailing
         // `using`/`extern alias` allows would merge it into the `#endif` line and fail with CS1024.
-        var afterDirectives = projection.LeadingDirectives.EndsWith("#endif", StringComparison.Ordinal) ? "\n" : "";
+        // Detected structurally (LeadingDirectivesEndWithConditionalBlock), not by matching the text
+        // "#endif", since a valid directive can carry a trailing comment or spaces on the same line.
+        var afterDirectives = projection.LeadingDirectivesEndWithConditionalBlock ? "\n" : "";
         return $"{projection.LeadingDirectives}{afterDirectives}{usingStatic}{callStatement}{modifier}class {ProgramWrapperClassName}\n{{\n";
     }
 
@@ -142,8 +144,8 @@ internal static class RpadKindTransform
     public static int ProgramLineOffset(string code, CSharpParseOptions parseOptions)
     {
         if (ProgramEntryPointDetector.IsCompiledAsWritten(code, parseOptions)) return 0;
-        var leadingDirectives = ProgramBodyProjection.Create(code, parseOptions).LeadingDirectives;
-        var afterDirectives = leadingDirectives.EndsWith("#endif", StringComparison.Ordinal) ? 1 : 0;
-        return 2 + afterDirectives + leadingDirectives.Count(c => c == '\n');
+        var projection = ProgramBodyProjection.Create(code, parseOptions);
+        var afterDirectives = projection.LeadingDirectivesEndWithConditionalBlock ? 1 : 0;
+        return 2 + afterDirectives + projection.LeadingDirectives.Count(c => c == '\n');
     }
 }
