@@ -45,7 +45,7 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
 
     protected override IReadOnlyList<ResultItem> ValidateUserCode(string code)
     {
-        var root = CSharpSyntaxTree.ParseText(code, ParseOptions()).GetRoot();
+        var root = CSharpSyntaxTree.ParseText(code, ParseOptions()).GetCompilationUnitRoot();
         var reserved = root.DescendantNodes()
             .Select(node => node switch
             {
@@ -53,16 +53,33 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
                     when type.Identifier.ValueText == RpadKindTransform.ProgramWrapperClassName => type.Identifier,
                 DelegateDeclarationSyntax @delegate
                     when @delegate.Identifier.ValueText == RpadKindTransform.ProgramWrapperClassName => @delegate.Identifier,
-                MethodDeclarationSyntax method
-                    when Options.Kind == RpadKind.Program
-                         && method.Identifier.ValueText == RpadKindTransform.TrampolineMethodName => method.Identifier,
-                LocalFunctionStatementSyntax function
-                    when Options.Kind == RpadKind.Program
-                         && function.Identifier.ValueText == RpadKindTransform.TrampolineMethodName => function.Identifier,
                 _ => default,
             })
             .Where(identifier => identifier.RawKind != 0)
             .ToList();
+
+        if (Options.Kind == RpadKind.Program)
+        {
+            foreach (var member in root.Members)
+            {
+                IEnumerable<SyntaxToken> identifiers = member switch
+                {
+                    GlobalStatementSyntax { Statement: LocalFunctionStatementSyntax function } => [function.Identifier],
+                    GlobalStatementSyntax { Statement: LocalDeclarationStatementSyntax declaration } =>
+                        declaration.Declaration.Variables.Select(variable => variable.Identifier),
+                    BaseTypeDeclarationSyntax type => [type.Identifier],
+                    DelegateDeclarationSyntax @delegate => [@delegate.Identifier],
+                    MethodDeclarationSyntax method => [method.Identifier],
+                    PropertyDeclarationSyntax property => [property.Identifier],
+                    EventDeclarationSyntax @event => [@event.Identifier],
+                    BaseFieldDeclarationSyntax field =>
+                        field.Declaration.Variables.Select(variable => variable.Identifier),
+                    _ => [],
+                };
+                reserved.AddRange(identifiers.Where(identifier =>
+                    identifier.ValueText == RpadKindTransform.TrampolineMethodName));
+            }
+        }
 
         return [.. reserved.Select(ReservedIdentifierError)];
     }

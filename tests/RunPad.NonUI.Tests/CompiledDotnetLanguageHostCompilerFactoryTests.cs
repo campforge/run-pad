@@ -144,6 +144,41 @@ public class CompiledDotnetLanguageHostCompilerFactoryTests
     }
 
     [Fact]
+    public async Task CompileAsync_Should_RejectTheReservedProgramTrampolineField()
+    {
+        var result = new ProcessCompilerResult("out.dll", true, [], []);
+        var (host, compiler) = CreateHost(RpadKind.Program, result, out var outputDir);
+        try
+        {
+            var compilation = await host.CompileAsync(
+                "int __RunPadRun;\nvoid Main() { }", TestContext.Current.CancellationToken);
+
+            Assert.False(compilation.Success);
+            var diagnostic = Assert.Single(compilation.Diagnostics);
+            Assert.Equal("RPAD1001", diagnostic.Code);
+            Assert.Contains("'__RunPadRun' is reserved", diagnostic.Message, StringComparison.Ordinal);
+            Assert.Null(compiler.ReceivedCode);
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
+    [Fact]
+    public async Task CompileAsync_Should_AllowTheTrampolineName_ForAProgramLocalFunction()
+    {
+        var result = new ProcessCompilerResult("out.dll", true, [], []);
+        var (host, compiler) = CreateHost(RpadKind.Program, result, out var outputDir);
+        try
+        {
+            const string code = "void Main() { void __RunPadRun() { } __RunPadRun(); }";
+            var compilation = await host.CompileAsync(code, TestContext.Current.CancellationToken);
+
+            Assert.True(compilation.Success);
+            Assert.NotNull(compiler.ReceivedCode);
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
+    [Fact]
     public async Task CompileAsync_Should_NotRejectReservedNamesInsideStringsOrComments()
     {
         var result = new ProcessCompilerResult("out.dll", true, [], []);
