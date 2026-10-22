@@ -63,6 +63,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private string? _version;
     private List<RpadConnection>? _pendingImport;
     private string? _pendingVersion;
+    private RpadConnection? _pendingAdd;
     // The script's packages as drafted in the window, and how to add or remove one there.
     private Func<IReadOnlySet<string>> _scriptPackages = () => new HashSet<string>();
     private Action<string, string> _addPackage = (_, _) => { };
@@ -81,7 +82,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     public RpadConnection? SelectedAvailable
     {
         get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
+        set { if (ReferenceEquals(field, value)) return; this.RaiseAndSetIfChanged(ref field, value); CancelAddConfirmation(); }
     }
 
     public ScriptConnectionItemViewModel? SelectedItem
@@ -115,6 +116,23 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
 
     public ReactiveCommand<Unit, Unit> ConfirmImportCommand { get; }
     public ReactiveCommand<Unit, Unit> CancelImportCommand { get; }
+
+    // Set while Add is waiting for the user to accept the NuGet packages the connection's driver
+    // needs; nothing in the script changes until ConfirmAddCommand runs.
+    public bool IsAddConfirmationPending
+    {
+        get;
+        private set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    public string? AddMessage
+    {
+        get;
+        private set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    public ReactiveCommand<Unit, Unit> ConfirmAddCommand { get; }
+    public ReactiveCommand<Unit, Unit> CancelAddCommand { get; }
 
     // Why the user's list couldn't be read; Import is off until it can be.
     public string? ReadError
@@ -154,12 +172,14 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         _secrets = secrets;
         _drivers = drivers ?? new ConnectionDriverRegistry();
         Items.CollectionChanged += (_, _) => this.RaisePropertyChanged(nameof(HasItems));
-        AddCommand = ReactiveCommand.Create(AddSelected, this.WhenAnyValue(x => x.SelectedAvailable, (RpadConnection? c) => c is not null));
+        AddCommand = ReactiveCommand.Create(RequestAdd, this.WhenAnyValue(x => x.SelectedAvailable, (RpadConnection? c) => c is not null));
         RemoveCommand = ReactiveCommand.Create(RemoveSelected, this.WhenAnyValue(x => x.SelectedItem, (ScriptConnectionItemViewModel? i) => i is not null));
         ImportCommand = ReactiveCommand.Create(ImportSelected,
             this.WhenAnyValue(x => x.SelectedItem, x => x.HasReadError, (ScriptConnectionItemViewModel? i, bool error) => i is not null && !error && _store is not null));
         ConfirmImportCommand = ReactiveCommand.Create(ConfirmImport, this.WhenAnyValue(x => x.IsImportConfirmationPending));
         CancelImportCommand = ReactiveCommand.Create(CancelImportConfirmation, this.WhenAnyValue(x => x.IsImportConfirmationPending));
+        ConfirmAddCommand = ReactiveCommand.Create(ConfirmAdd, this.WhenAnyValue(x => x.IsAddConfirmationPending));
+        CancelAddCommand = ReactiveCommand.Create(CancelAddConfirmation, this.WhenAnyValue(x => x.IsAddConfirmationPending));
     }
 
     // The Dependencies window's own package draft, which connections add their packages to.
@@ -183,6 +203,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     internal void Load(RpadFrontMatter? frontMatter)
     {
         SelectedItem = null;
+        CancelAddConfirmation();
         _addedPackages.Clear();
         WriteError = null;
         _original = frontMatter?.Connections ?? [];
@@ -214,9 +235,40 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         }
     }
 
-    private void AddSelected()
+    // Packages already in the script's draft (in any version) are left alone, so adding never
+    // overwrites a version the user set; only packages the driver would newly bring are asked about.
+    private void RequestAdd()
     {
         if (SelectedAvailable is not { } connection) return;
+        var driver = _drivers.Find(connection.Driver);
+        var needed = driver is null ? [] : driver.Packages.Where(p => !_scriptPackages().Contains(p.Key)).ToList();
+        if (needed.Count == 0)
+        {
+            ApplyAdd(connection);
+            return;
+        }
+        _pendingAdd = connection;
+        AddMessage = $"Add '{connection.Name}'? This also adds the NuGet package{(needed.Count == 1 ? "" : "s")} it needs: "
+            + string.Join(", ", needed.Select(p => $"{p.Key} {p.Value}")) + ".";
+        IsAddConfirmationPending = true;
+    }
+
+    private void ConfirmAdd()
+    {
+        if (_pendingAdd is not { } connection) return;
+        CancelAddConfirmation();
+        ApplyAdd(connection);
+    }
+
+    private void CancelAddConfirmation()
+    {
+        _pendingAdd = null;
+        IsAddConfirmationPending = false;
+        AddMessage = null;
+    }
+
+    private void ApplyAdd(RpadConnection connection)
+    {
         var item = new ScriptConnectionItemViewModel(Clone(connection));
         Items.Add(item);
         SelectedItem = item;

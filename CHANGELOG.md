@@ -3,6 +3,13 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [Unreleased]
+
+### Changed
+
+- Adding a connection in Dependencies that needs new NuGet packages now asks for confirmation,
+  listing the packages and versions, before writing them to the script.
+
 ## [0.9.2] — 2026-10-21
 
 ### Added
