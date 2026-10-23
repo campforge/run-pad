@@ -558,7 +558,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         Volatile.Write(ref _runStageValue, -1);
         _vm.DebugPanel.ClearStop();
         s.ElapsedText = "";
-        IlOutput.Text = "";
+        // The IL of the last build stays until a new one replaces it (Compiled): a run that fails to
+        // compile or start has no IL of its own and must not take the previous one away.
         SetStatus("Process", "RunPad.Status.RunningBrush");
         s.RunStopwatch.Restart();
         if (s.RpadDocument is { } doc && TargetSdkResolver.Warning(doc.FrontMatter.TargetSdk, platform) is { } sdkWarning)
