@@ -25,7 +25,7 @@ using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
 
 namespace RunPad.Languages.CSharp.IntelliSense;
 
-public sealed class CSharpIntelliSenseService : IIntelliSenseService
+public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
 {
     // Default usings the synthetic script document is built with, so completion/diagnostics work
     // without the user typing them — must match the compiler's own implicit usings exactly (see
@@ -702,7 +702,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             // object-creation expression) is handled — a nested initializer with no `new` of its own
             // ("new Outer { Inner = { | } }") and `with { }` expressions are a different, rarer shape
             // not covered here.
-            if (TryFindObjectInitializer(root, pos) is { } initializer &&
+            // A property's value (`new Foo { P = |`) is not a member position: it takes the expected-type
+            // completion below.
+            var expected = GetExpectedTypeContext(model, root, pos);
+            if (expected is null && TryFindObjectInitializer(root, pos) is { } initializer &&
                 initializer.Parent is BaseObjectCreationExpressionSyntax objectCreation)
             {
                 var initializerItems = BuildObjectInitializerCompletions(model, pos, objectCreation, initializer);
@@ -718,14 +721,21 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             // the user descend into it with '.' to reach the type they actually want.
             IEnumerable<ISymbol> symbols = model.LookupSymbols(pos);
             if (isTypeArgumentPosition)
+            {
                 symbols = symbols.Where(s => s is INamedTypeSymbol or ITypeParameterSymbol or INamespaceSymbol);
+                expected = null;
+            }
+            else if (expected is not null)
+                symbols = symbols.Where(s => FitsExpectedType(s, expected, model, pos));
 
             var currentType = GetEnclosingType(model, pos);
             var visible = GroupByDisplayText(symbols
                 .Select(s => ToItem(s, currentType))
                 .Where(i => i != null)
                 .Cast<ICompletionItem>()
-                .Concat(_keywords.Where(k => IsKeywordApplicable(k, root, pos, isTypeArgumentPosition))));
+                .Concat(_keywords.Where(k => IsKeywordApplicable(k, root, pos, isTypeArgumentPosition)
+                    && (expected is null || FitsExpectedType(k.DisplayText, expected, model.Compilation))))
+                .Concat(expected is null ? [] : ExpectedTypeSuggestions(expected, model, pos)));
 
             // Auto-import: types from an added NuGet package that aren't in
             // scope yet don't just fail silently — they're offered too, prefixed-matched against
@@ -738,6 +748,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var prefix = GetIdentifierPrefix(code, position);
             var alreadyVisible = new HashSet<string>(visible.Select(i => i.DisplayText), StringComparer.Ordinal);
             var importable = FindImportableTypes(model.Compilation, prefix, alreadyVisible)
+                .Where(t => expected is not { AfterNew: true } || (IsCreatable(t, model, pos)
+                    && expected.Types.Any(w => CouldBeAssignedTo(model.Compilation, t, w))))
                 .Select(BuildImportableTypeItem)
                 .ToList();
 
@@ -1227,44 +1239,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var argCount = argumentList.Arguments.Count;
             var isArgumentSlotEmpty = IsArgumentSlotEmpty(argumentList, argIndex, pos);
 
-            var symInfo = model.GetSymbolInfo(callLike);
-            var methods = (symInfo.Symbol is IMethodSymbol s ? [s] : Array.Empty<IMethodSymbol>())
-                .Concat(symInfo.CandidateSymbols.OfType<IMethodSymbol>())
-                .ToList();
-
-            // Roslyn only populates CandidateSymbols when
-            // resolution is ambiguous — a call already typed correctly and unambiguously resolves
-            // straight to one Symbol, which used to collapse "all overloads" down to just that one
-            // even when the method has siblings (the insight window's up/down cycling had nothing
-            // to cycle through for the single most common case: sitting inside an already-valid
-            // call). Always try the full member/constructor group instead of only when methods is
-            // still empty, falling back to whatever GetSymbolInfo alone found only if the group
-            // lookup itself comes up empty (e.g. invoking through a delegate-typed local, which has
-            // no "group" to speak of). SelectBestOverloadIndex below re-derives which entry actually
-            // matches what's typed, so widening this list doesn't change what starts out highlighted.
-            if (callLike is InvocationExpressionSyntax { Expression: { } target })
-            {
-                var group = model.GetMemberGroup(target).OfType<IMethodSymbol>().ToList();
-                if (group.Count > 0) methods = group;
-            }
-            else if (callLike is BaseObjectCreationExpressionSyntax objectCreation)
-            {
-                // GetTypeInfo on the object-creation EXPRESSION itself, not its .Type child node —
-                // the latter (what this used to read) comes back null for a type declared in the
-                // same document being analyzed (reproduced by TryGetSignatureHelpAsync's own tests:
-                // a locally-declared class's constructor overloads never showed up at all, only a
-                // referenced-assembly type's like System.Text.StringBuilder's did) — apparently a
-                // quirk of this in-memory AdhocWorkspace setup, not something specific to
-                // target-typed `new(...)` (which has no .Type node to read in the first place, the
-                // original reason this expression-based lookup existed at all, just not used
-                // unconditionally).
-                var createdType = model.GetTypeInfo(objectCreation).Type;
-                if (createdType is INamedTypeSymbol namedType)
-                {
-                    var ctors = namedType.Constructors.Where(c => !c.IsImplicitlyDeclared).ToList();
-                    if (ctors.Count > 0) methods = ctors;
-                }
-            }
+            var methods = GetCandidateMethods(model, callLike);
 
             if (methods.Count == 0) return null;
 
