@@ -24,6 +24,8 @@ public partial class DependenciesWindow : Window
         if (connectionsWindowFactory is not null)
         {
             viewModel.Connections.ConnectionsEditor = driverId => EditConnectionsAsync(connectionsWindowFactory, driverId);
+            viewModel.Connections.AddConfirmationDialog = async message =>
+                await new ConnectionPackageConfirmationDialog(message).ShowDialog<bool?>(this) == true;
             // One entry per driver this RunPad has, in registration order.
             var menu = new MenuFlyout();
             foreach (var driver in viewModel.Connections.Drivers)
