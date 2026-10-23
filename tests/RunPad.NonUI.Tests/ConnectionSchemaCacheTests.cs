@@ -178,6 +178,30 @@ public sealed class ConnectionSchemaCacheTests : IDisposable
         Assert.Empty(Directory.GetFiles(cache.Folder));
     }
 
+    // An editor showing a connection's classes learns of a read it didn't start (another window's
+    // Refresh) from Changed: raised with the key for a schema written and for a read that failed.
+    [Fact]
+    public async Task Changed_Should_NameTheKey_OfASchemaWritten_OrAReadThatFailed()
+    {
+        var (schemas, driver) = Create();
+        var keys = new List<string>();
+        schemas.Cache.Changed += key => { lock (keys) keys.Add(key); };
+        driver.Release.SetResult();
+
+        Assert.True(await schemas.EnsureAsync([Connection], null, ConnectionSchemaRefresh.All, TestContext.Current.CancellationToken));
+        Assert.Equal([schemas.Cache.KeyOf(Connection)], keys);
+
+        var withSecret = new RpadConnection
+        {
+            Name = "secret",
+            Driver = "slow",
+            Params = new(StringComparer.Ordinal) { ["address"] = RpadValue.Of("http://${secret:missing}:5000") },
+        };
+        Assert.True(await schemas.EnsureAsync([withSecret], null, ConnectionSchemaRefresh.All, TestContext.Current.CancellationToken));
+        Assert.Equal([schemas.Cache.KeyOf(Connection), schemas.Cache.KeyOf(withSecret)], keys);
+        Assert.NotNull(schemas.Cache.ErrorFor(withSecret));
+    }
+
     [Fact]
     public void PruneStale_Should_DoNothing_WhenTheFolderWasNeverCreated()
     {

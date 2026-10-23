@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using ICSharpCode.Decompiler.CSharp;
 using RunPad.Avalonia.CodeTextEditor;
@@ -52,6 +53,16 @@ public partial class AssemblyExplorerWindow : Window
     // The tree's assemblies, in the order they were added (ILSpy's assembly list).
     private readonly List<LoadedAssembly> _assemblies = [];
     private int _assemblySetVersion;
+
+    // A large assembly's rows are built in slices so the UI thread keeps pumping input between them;
+    // a load already running for a path is joined by later requests for the same path, and closing the
+    // window abandons the ones still building.
+    internal static int TreeBuildSliceSize { get; set; } = 400;
+    private readonly Dictionary<string, Task<TreeViewItem?>> _pendingLoads =
+        new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+    private readonly CancellationTokenSource _closedCts = new();
+    private int _openVersion; // bumped by every request that selects a loaded assembly and by user selection
+    internal Func<int, Task>? TreeSliceBuilt { get; set; } // test hook: awaited after each slice of rows
     private bool _suppressSelection;
     private DecompilerView _view = DecompilerView.Default;
     private bool _syncingViewBoxes;
@@ -287,7 +298,9 @@ public partial class AssemblyExplorerWindow : Window
             // the context menu follows the selected row however it gets opened (right-click, Menu key,
             // ContextMenu.Open — the last doesn't raise Opening)
             BuildTreeContextMenu();
-            if (!_suppressSelection && TypeTree.SelectedItem is TreeViewItem { Header: AssemblyTreeNode node } item)
+            if (_suppressSelection) return;
+            ++_openVersion; // an assembly still loading must not take the selection from the user
+            if (TypeTree.SelectedItem is TreeViewItem { Header: AssemblyTreeNode node } item)
                 _ = SelectNodeAsync(node, item);
         };
         // A References row opens its assembly on double-click or Enter; Delete removes an assembly row.
@@ -318,7 +331,7 @@ public partial class AssemblyExplorerWindow : Window
         AnalysisResults.SelectionChanged += (_, _) =>
         {
             if (AnalysisResults.SelectedItem is AssemblyTreeNode result)
-                _ = OpenSearchResultAsync(result);
+                _openingResult = OpenSearchResultAsync(result);
         };
         RemoveAssemblyMenuItem.Click += (_, _) =>
         {
@@ -369,7 +382,7 @@ public partial class AssemblyExplorerWindow : Window
         SearchResults.SelectionChanged += (_, _) =>
         {
             if (SearchResults.SelectedItem is AssemblyTreeNode result)
-                _ = OpenSearchResultAsync(result);
+                _openingResult = OpenSearchResultAsync(result);
         };
         AddHandler(PointerPressedEvent, (_, e) =>
         {
@@ -432,6 +445,7 @@ public partial class AssemblyExplorerWindow : Window
         }
         themeService.ThemeChanged += OnThemeChanged;
         Closed += (_, _) => themeService.ThemeChanged -= OnThemeChanged;
+        Closed += (_, _) => _closedCts.Cancel();
 
         EventHandler<VisualTreeAttachmentEventArgs>? onAttached = null;
         onAttached = (_, _) =>
@@ -463,7 +477,15 @@ public partial class AssemblyExplorerWindow : Window
     {
         var path = await _windowService.ShowOpenAssemblyFileDialogAsync(_startFolder);
         if (path is null) return;
-        if (await LoadAssemblyAsync(path) is { } item)
+        await OpenAssemblyAsync(path);
+    }
+
+    // Loads an assembly into the tree and selects it, unless a newer request (another assembly, a row
+    // the user clicked meanwhile) was made while it was loading: then it is only added.
+    internal async Task OpenAssemblyAsync(string path)
+    {
+        var version = ++_openVersion;
+        if (await LoadAssemblyAsync(path) is { } item && version == _openVersion)
             SelectAndOpen(item);
     }
 
@@ -472,40 +494,76 @@ public partial class AssemblyExplorerWindow : Window
     /// the tree holds any number of assemblies (Browse, a References row, F12 into another assembly).
     /// Null if the file isn't a readable assembly (an error dialog has been shown).
     /// </summary>
-    internal async Task<TreeViewItem?> LoadAssemblyAsync(string assemblyPath)
+    internal Task<TreeViewItem?> LoadAssemblyAsync(string assemblyPath)
     {
-        if (FindAssembly(assemblyPath) is { } existing) return existing.Item;
+        if (FindAssembly(assemblyPath) is { } existing) return Task.FromResult<TreeViewItem?>(existing.Item);
+        if (_pendingLoads.TryGetValue(assemblyPath, out var pending)) return pending;
 
-        AssemblyDescription description;
-        IReadOnlyList<AssemblyTypeEntry> types;
-        try
-        {
-            (description, types) = await Task.Run(() => (
-                CSharpDecompilerService.DescribeAssembly(assemblyPath),
-                CSharpDecompilerService.EnumerateTypes(assemblyPath)));
-        }
-        catch (Exception ex) when (ex is BadImageFormatException or IOException or UnauthorizedAccessException)
-        {
-            await _windowService.ShowErrorAsync(
-                "Browse Assembly Failed", $"Could not load '{Path.GetFileName(assemblyPath)}':\n{ex.Message}");
-            return null;
-        }
-
-        // another load of the same file may have finished while this one was reading it
-        if (FindAssembly(assemblyPath) is { } loadedMeanwhile) return loadedMeanwhile.Item;
-
-        var item = BuildAssemblyItem(description, types, assemblyPath);
-        _assemblies.Add(new LoadedAssembly(assemblyPath, description, item));
-        TypeTree.Items.Add(item);
-        item.IsExpanded = true;
-        AssemblyPathBlock.Text = assemblyPath;
-        OnAssembliesChanged();
-        return item;
+        var load = LoadAssemblyCoreAsync(assemblyPath);
+        _pendingLoads[assemblyPath] = load;
+        return load;
     }
 
+    private async Task<TreeViewItem?> LoadAssemblyCoreAsync(string assemblyPath)
+    {
+        try
+        {
+            var cancellationToken = _closedCts.Token;
+            AssemblyDescription description;
+            IReadOnlyList<NamespaceGroup> groups;
+            try
+            {
+                (description, groups) = await Task.Run(() =>
+                {
+                    var assemblyDescription = CSharpDecompilerService.DescribeAssembly(assemblyPath);
+                    return (assemblyDescription, GroupByNamespace(CSharpDecompilerService.EnumerateTypes(assemblyPath)));
+                }, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                return null;
+            }
+            catch (Exception ex) when (ex is BadImageFormatException or IOException or UnauthorizedAccessException)
+            {
+                await _windowService.ShowErrorAsync(
+                    "Browse Assembly Failed", $"Could not load '{Path.GetFileName(assemblyPath)}':\n{ex.Message}");
+                return null;
+            }
+
+            // The rows are built away from the tree and attached at once, so the tree never shows a
+            // half-built assembly.
+            var item = await BuildAssemblyItemAsync(description, groups, assemblyPath, cancellationToken);
+            if (item is null || cancellationToken.IsCancellationRequested) return null;
+
+            _assemblies.Add(new LoadedAssembly(assemblyPath, description, item));
+            TypeTree.Items.Add(item);
+            item.IsExpanded = true;
+            AssemblyPathBlock.Text = assemblyPath;
+            OnAssembliesChanged();
+            return item;
+        }
+        finally
+        {
+            _pendingLoads.Remove(assemblyPath);
+        }
+    }
+
+    private sealed record NamespaceGroup(string Namespace, IReadOnlyList<AssemblyTypeEntry> Types);
+
+    // The grouping and ordering of every type is the part of the tree that scales with the assembly, so
+    // it is done on a worker; only the controls have to be created on the UI thread.
+    private static List<NamespaceGroup> GroupByNamespace(IReadOnlyList<AssemblyTypeEntry> types) =>
+        types.GroupBy(t => t.Namespace)
+            .OrderBy(g => g.Key, StringComparer.Ordinal)
+            .Select(g => new NamespaceGroup(g.Key, g.OrderBy(e => e.Text, StringComparer.Ordinal).ToList()))
+            .ToList();
+
     // An assembly row: References (each referenced assembly, loadable from there), then its namespaces.
-    private TreeViewItem BuildAssemblyItem(
-        AssemblyDescription description, IReadOnlyList<AssemblyTypeEntry> types, string assemblyPath)
+    // The type rows are created in slices of TreeBuildSliceSize with the dispatcher given a turn between
+    // them; null when the window closed meanwhile.
+    private async Task<TreeViewItem?> BuildAssemblyItemAsync(
+        AssemblyDescription description, IReadOnlyList<NamespaceGroup> groups, string assemblyPath,
+        CancellationToken cancellationToken)
     {
         var text = description.Version is { } version ? $"{description.Name} ({version})" : description.Name;
         var item = new TreeViewItem { Header = Node(AssemblyNodeKind.Assembly, text, assemblyPath: assemblyPath) };
@@ -536,18 +594,33 @@ public partial class AssemblyExplorerWindow : Window
             item.Items.Add(resources);
         }
 
-        foreach (var group in types.GroupBy(t => t.Namespace).OrderBy(g => g.Key, StringComparer.Ordinal))
+        var built = 0;
+        var slice = 0;
+        foreach (var group in groups)
         {
             var nsItem = new TreeViewItem
             {
-                Header = Node(AssemblyNodeKind.Namespace, string.IsNullOrEmpty(group.Key) ? "-" : group.Key),
+                Header = Node(AssemblyNodeKind.Namespace, string.IsNullOrEmpty(group.Namespace) ? "-" : group.Namespace),
             };
-            foreach (var entry in group.OrderBy(e => e.Text, StringComparer.Ordinal))
+            foreach (var entry in group.Types)
+            {
                 nsItem.Items.Add(CreateTypeItem(entry, assemblyPath));
+                if (++built % Math.Max(1, TreeBuildSliceSize) != 0) continue;
+
+                await EndSliceAsync(++slice, cancellationToken);
+                if (cancellationToken.IsCancellationRequested) return null;
+            }
 
             item.Items.Add(nsItem);
         }
         return item;
+    }
+
+    private async Task EndSliceAsync(int slice, CancellationToken cancellationToken)
+    {
+        if (TreeSliceBuilt is { } hook) await hook(slice);
+        if (!cancellationToken.IsCancellationRequested)
+            await Dispatcher.Yield(DispatcherPriority.Background);
     }
 
     internal IReadOnlyList<string> LoadedAssemblyPaths => _assemblies.Select(a => a.Path).ToList();
@@ -558,12 +631,13 @@ public partial class AssemblyExplorerWindow : Window
     // selected, like Browse. Other files are ignored; an unreadable assembly gets Browse's error dialog.
     internal async Task OpenDroppedFilesAsync(IEnumerable<string> paths)
     {
+        var version = ++_openVersion;
         TreeViewItem? last = null;
         foreach (var path in paths.Where(p => AssemblyExtensions.Contains(Path.GetExtension(p), StringComparer.OrdinalIgnoreCase)))
         {
             if (await LoadAssemblyAsync(path) is { } item) last = item;
         }
-        if (last is not null) SelectAndOpen(last);
+        if (last is not null && version == _openVersion) SelectAndOpen(last);
     }
 
     private LoadedAssembly? FindAssembly(string assemblyPath) =>
@@ -608,8 +682,7 @@ public partial class AssemblyExplorerWindow : Window
     internal async Task OpenReferenceAsync(AssemblyReferenceEntry reference)
     {
         if (reference.ResolvedPath is not { } path) return;
-        if (await LoadAssemblyAsync(path) is { } item)
-            SelectAndOpen(item);
+        await OpenAssemblyAsync(path);
     }
 
     // Selects a row the normal way, so the selection decompiles it.
@@ -979,6 +1052,11 @@ public partial class AssemblyExplorerWindow : Window
 
     internal ListBox SearchResultList => SearchResults;
 
+    // The open started by the latest pick in the search or analysis results: it completes once that
+    // hit is shown, or once a newer request has superseded it.
+    private Task _openingResult = Task.CompletedTask;
+    internal Task OpeningResult => _openingResult;
+
     // Like ILSpy: a search hit is revealed and selected in the tree, and decompiled from there.
     internal async Task OpenSearchResultAsync(AssemblyTreeNode result)
     {
@@ -1067,7 +1145,7 @@ public partial class AssemblyExplorerWindow : Window
         var result = await RenderAsync(target, view);
         if (version != _requestVersion) return;
         _activeTab.Current = current with { Result = result, CaretLine = result.Line, View = view };
-        ApplyResult(result, result.Line);
+        ApplyResult(result, result.Line, view);
     }
 
     private static async Task<DecompiledMemberResult> RenderAsync(PageTarget target, DecompilerView view)
@@ -1324,7 +1402,7 @@ public partial class AssemblyExplorerWindow : Window
     {
         ++_requestVersion; // a decompile still running for the page we're leaving must not land
         _activeTab.Current = entry;
-        ApplyResult(entry.Result, entry.CaretLine);
+        ApplyResult(entry.Result, entry.CaretLine, entry.View);
         SelectSilently(entry.Item);
         UpdateHistoryButtons();
         _ = RefreshCurrentAsync(); // rendered in another language/version than the current one
@@ -1341,7 +1419,7 @@ public partial class AssemblyExplorerWindow : Window
             _activeTab.Forward.Clear();
         }
         _activeTab.Current = new HistoryEntry(result, item, result.Line, target, view ?? _view);
-        ApplyResult(result, result.Line);
+        ApplyResult(result, result.Line, _activeTab.Current.View);
         UpdateHistoryButtons();
     }
 
@@ -1401,13 +1479,13 @@ public partial class AssemblyExplorerWindow : Window
 
         if (tab.Current is { } page)
         {
-            ApplyResult(page.Result, page.CaretLine);
+            ApplyResult(page.Result, page.CaretLine, page.View);
             SelectSilently(page.Item);
             _ = RefreshCurrentAsync(); // rendered in another language/version than the current one
         }
         else
         {
-            ApplyResult(new DecompiledMemberResult("", 1, "Assembly Explorer"), 1);
+            ApplyResult(new DecompiledMemberResult("", 1, "Assembly Explorer"), 1, DecompilerView.Default);
             SelectSilently(null);
         }
         UpdateHistoryButtons();
@@ -1505,17 +1583,30 @@ public partial class AssemblyExplorerWindow : Window
         return name.Length == 0 ? "Decompiled" : name;
     }
 
-    private void ApplyResult(DecompiledMemberResult result, int caretLine)
+    private void ApplyResult(DecompiledMemberResult result, int caretLine, DecompilerView view)
     {
         Title = result.Title;
         UpdateReferenceHover(null); // its offsets belong to the text being replaced
         _currentTree = result.SyntaxTree;
+        ApplyGrammar(view);
 
         Editor.Text = result.Text;
         Editor.TextArea.Caret.Line = caretLine;
         Editor.TextArea.Caret.Column = 1;
         Editor.ScrollToLine(caretLine);
     }
+
+    // The text is IL in the IL view and C# otherwise; the grammar follows the page, so a page restored from
+    // the history or another tab is coloured as the language it was rendered in. Done before the text is
+    // replaced so the new text is tokenized once.
+    private void ApplyGrammar(DecompilerView view)
+    {
+        if (view.Language == DecompilerLanguage.IL) Editor.SetIlGrammar();
+        else Editor.SetGrammarByExtension(".cs");
+    }
+
+    /// <summary>Test-only observability: the TextMate scope the code pane is highlighted with.</summary>
+    internal string? GrammarScope => Editor.GrammarScope;
 
     internal sealed record HistoryEntry(
         DecompiledMemberResult Result, TreeViewItem? Item, int CaretLine, PageTarget? Target, DecompilerView View);

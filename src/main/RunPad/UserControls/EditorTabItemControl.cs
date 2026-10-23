@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
 using Microsoft.Extensions.Logging;
@@ -27,6 +28,7 @@ using RunPad.Services.Preferences;
 using RunPad.Services.Recovery;
 using RunPad.Services.Scaling;
 using RunPad.UserControls.Models;
+using TextMateSharp.Grammars;
 using ContractSeverity = RunPad.Contracts.IntelliSense.DiagnosticSeverity;
 
 namespace RunPad.UserControls;
@@ -65,6 +67,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private IDisposable? _selectedSdkSub;
     private bool _disposed;
     private bool _runInProgress;
+
+    // The stage the current (or last) run reached, -1 before the first: names the stage that failed.
+    // Written as the host reports it, on whichever thread that is, so it is already current when the
+    // run ends even if the status update posted for it has not been processed yet.
+    private int _runStageValue = -1;
+
+    private RunStage? RunStageReached => _runStageValue < 0 ? null : (RunStage)Volatile.Read(ref _runStageValue);
     private Task? _activeRun;
     private bool _restarting;
     private bool _restartRequested;
@@ -110,6 +119,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         _connectionDrivers = connectionDrivers ?? new ConnectionDriverRegistry();
         _connectionSchemas = connectionSchemas;
+        if (connectionSchemas is not null) connectionSchemas.Cache.Changed += OnConnectionSchemaChanged;
         _themeService = themeService;
         _windowService = windowService;
         _registry = registry;
@@ -199,6 +209,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             StatusLine.Text = $"Line {editor.TextArea.Caret.Line}  Col {editor.TextArea.Caret.Column}";
 
         EditorHost.Content = editor;
+        // The IL tab's content only joins the visual tree when the tab is first shown.
+        IlOutput.AttachedToVisualTree += (_, _) => EnsureIlHighlighting();
         SetupPreview();
         _vm.CaptureRecovery = CaptureRecovery;
         _vm.RecoveryReady.TrySetResult();
@@ -293,6 +305,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void ApplyThemeNow(ActiveTheme theme)
     {
         State.Editor.SetTheme(theme.Editor.TextMateName);
+        _ilHighlighting?.SetTheme(theme.Editor.TextMateName);
         _semanticHighlighter?.SetDark(theme.Editor.IsDark);
         var editorBg = _themeService!.GetBrush("RunPad.Editor.BackgroundBrush");
 
@@ -399,8 +412,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             frontMatter.References = rebased;
             _metadataBaseline = FrontMatterSnapshot();
         }
-        RefreshIntelliSensePackages();
-        _intelliSense?.NotifyTextChanged(State.Editor.Text);
+        RefreshIntelliSenseContext(reanalyze: true);
         UpdatePreviewNow();
     }
 
@@ -543,6 +555,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         s.DumpContainerBlocks.Clear();
         s.HadRunError = false;
         s.UnhandledDebugException = null;
+        Volatile.Write(ref _runStageValue, -1);
         _vm.DebugPanel.ClearStop();
         s.ElapsedText = "";
         IlOutput.Text = "";
@@ -575,6 +588,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 List<RpadConnection> list = [.. connections];
                 var scriptDirectory = ScriptDirectory;
                 var token = runCts.Token;
+                Volatile.Write(ref _runStageValue, (int)RunStage.ReadingConnectionSchemas);
+                ShowRunStage(RunStage.ReadingConnectionSchemas, null);
                 await Task.Run(() => schemas.EnsureAsync(list, scriptDirectory, ConnectionSchemaRefresh.Failed, token), token);
             }
             var request = BuildRunRequest(platform, workDir);
@@ -611,6 +626,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     // versions and transitive packages it resolved.
                     PostRun(RefreshIntelliSensePackages);
                 };
+                host.StageChanged += (stage, detail) =>
+                {
+                    Volatile.Write(ref _runStageValue, (int)stage);
+                    PostRun(() => ShowRunStage(stage, detail));
+                };
                 host.InputRequested += (prompt, isPassword) =>
                     PostRun(() => ShowInputPrompt(prompt, isPassword));
 
@@ -643,7 +663,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         catch (Exception ex)
         {
             _runLogger.LogError(ex, "Script host failed");
-            if (!_disposed) AppendError(ex);
+            if (!_disposed)
+            {
+                // The stage is named in the message and the status; the exception text is kept as is.
+                if (RunStageReached == RunStage.ReadingConnectionSchemas)
+                    s.Output.Append("\n<div class=\"error\">Reading the connection schemas failed.</div>");
+                AppendError(ex, RunStageReached == RunStage.ReadingConnectionSchemas ? "Connection schemas failed" : "Error");
+            }
         }
         finally
         {
@@ -703,11 +729,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _disposed = true;
         _prefs.Changed -= OnPreferencesChanged;
         _viewScale.Changed -= OnViewScaleChanged;
+        if (_connectionSchemas is not null) _connectionSchemas.Cache.Changed -= OnConnectionSchemaChanged;
         State.Editor.ZoomRequested -= OnEditorZoomRequested;
+        _ilHighlighting?.Dispose();
+        _ilHighlighting = null;
         _selectedKindSub?.Dispose();
         _filePathSub?.Dispose();
         _selectedSdkSub?.Dispose();
         _vm.DebugPanel.WatchExpressions.CollectionChanged -= OnWatchExpressionsCollectionChanged;
+        _contextRefreshCts?.Cancel();
         DisposePreview();
         Cancel();
         // The run owns its CTS until its asynchronous cleanup has finished.
@@ -1171,7 +1201,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             return;
         }
 
-        if (kind == OutputKind.StandardError)
+        if (kind is OutputKind.StandardError or OutputKind.StandardErrorPartial)
             State.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(data)}</div>");
         else
             State.Output.Append($"\n<div>{HttpUtility.HtmlEncode(data)}</div>");
@@ -1230,7 +1260,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             RunOutcome.CompilationFailed when selection => (
                 "Execute Selection compiles only the selected statements: methods, types and variables declared outside the selection are not available.",
                 "Compilation failed"),
-            RunOutcome.CompilationFailed => (null, "Compilation failed"),
+            RunOutcome.CompilationFailed => (null, RunStageReached switch
+            {
+                RunStage.RestoringPackages => "Package restore failed",
+                RunStage.GeneratingConnections => "Connection contract failed",
+                _ => "Compilation failed",
+            }),
             RunOutcome.StartFailed => ("Failed to start the compiled script.", "Error"),
             _ => ($"Process exited with code {result.ExitCode}.", $"Exit code {result.ExitCode}"),
         };
@@ -1243,13 +1278,31 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         });
     }
 
-    private void AppendError(Exception ex)
+    // Shows the stage a run has reached; the status keeps its running color until the run ends.
+    // Only the stage's own progress is shown, never a percentage.
+    private void ShowRunStage(RunStage stage, string? detail)
+    {
+        // A stage reported just before the run ended must not replace its outcome.
+        if (_vm.RunState == RunState.Idle) return;
+        var text = stage switch
+        {
+            RunStage.ReadingConnectionSchemas => "Reading connection schemas…",
+            RunStage.RestoringPackages => "Restoring packages…",
+            RunStage.GeneratingConnections => "Generating connections…",
+            RunStage.Compiling => "Compiling…",
+            _ => "Process",
+        };
+        if (detail is not null && stage != RunStage.Running) text = text[..^1] + $" ({detail})…";
+        SetStatus(text, "RunPad.Status.RunningBrush");
+    }
+
+    private void AppendError(Exception ex, string status = "Error")
     {
         State.HadRunError = true;
         State.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(ex.Message)}</div>");
         if (ex.StackTrace is { } st)
             State.Output.Append($"\n<pre class=\"stacktrace\">{HttpUtility.HtmlEncode(st)}</pre>");
-        SetStatus("Error", "RunPad.Status.ErrorBrush");
+        SetStatus(status, "RunPad.Status.ErrorBrush");
         UpdateOutputUi();
     }
 
@@ -1270,7 +1323,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // Runs on the ILanguageHost.Compiled event, itself raised on the RunAsync's own Task.Run
     // background thread (not the UI thread) — so the disassembly work below happens off-UI already;
     // only the resulting string needs to be marshalled back for display.
-    private void UpdateIlOutput(string binaryPath, int generation)
+    internal void UpdateIlOutput(string binaryPath, int generation)
     {
         string il;
         try
@@ -1282,7 +1335,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             il = $"// Failed to disassemble '{binaryPath}': {ex.Message}";
         }
 
-        // Build the line index off-thread too; the UI only adopts the finished document.
+        AttachIlDocument(il, generation);
+    }
+
+    // Safe on any thread: builds the line index here, then the UI thread only adopts the finished document
+    // (and highlights it) — and only if no newer run has started meanwhile.
+    internal void AttachIlDocument(string il, int generation)
+    {
         var document = new AvaloniaEdit.Document.TextDocument(il);
         document.SetOwnerThread(null);
         Dispatcher.Post(() =>
@@ -1291,9 +1350,26 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 document.SetOwnerThread(Thread.CurrentThread);
                 IlOutput.Document = document;
+                EnsureIlHighlighting();
             }
         });
     }
+
+    private IlHighlighting? _ilHighlighting;
+
+    // The IL tab is highlighted with the IL grammar in the current editor theme. Installed once, when the
+    // tab is in the visual tree (TextMate redraws on install), and kept for every later document: the
+    // highlighter follows the editor's document, so the finished document is attached just once.
+    private void EnsureIlHighlighting()
+    {
+        if (_disposed || _ilHighlighting is not null || !IlOutput.IsAttachedToVisualTree()) return;
+        _ilHighlighting = IlHighlighting.Install(
+            IlOutput, _themeService?.CurrentTheme.Editor.TextMateName ?? ThemeName.DarkPlus);
+    }
+
+    internal string? IlGrammarScope => _ilHighlighting?.GrammarScope;
+    internal IlHighlighting? IlHighlightingForTests => _ilHighlighting;
+    internal int RunGenerationForTests => _runGeneration;
 
     // ILanguageHost.InputRequested (Util.ReadLine/
     // GetPassword). Always called on the UI thread (see the Dispatcher.Post at the
@@ -2119,7 +2195,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // keystroke; for a file with front-matter packages/usings, spurious "type not found"
         // squiggles for anything only resolvable through them.
         RefreshIntelliSenseKind();
-        RefreshIntelliSensePackages();
+        // Applied off the UI thread now, so the text is analysed again once the context is in rather
+        // than trusting the first pass to come after it.
+        RefreshIntelliSenseContext(reanalyze: true);
         if (rpad?.FrontMatter.Namespaces is { Count: > 0 })
             RefreshIntelliSenseUsings();
     }
@@ -2179,24 +2257,75 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     /// after the Dependencies window closes (it mutates the same RpadFrontMatter in place without any
     /// change notification of its own), after each successful build and when the SDK changes.
     /// </summary>
-    internal void RefreshIntelliSensePackages()
+    internal void RefreshIntelliSensePackages() => RefreshIntelliSenseContext(reanalyze: false);
+
+    // The latest refresh of the IntelliSense context; an older one still running is cancelled.
+    private CancellationTokenSource? _contextRefreshCts;
+
+    // Only the request is put together on the UI thread, from copies of the state it reads: the
+    // connections' code (the schemas come from disk), the contract assembly lookup and the reference
+    // resolution take as long as the script's schemas are large, so they run on a worker and the
+    // editor keeps typing meanwhile. A refresh that is overtaken by a newer one is dropped, never
+    // applied over it. The text is analysed again, once, only when asked and only for the newest.
+    private void RefreshIntelliSenseContext(bool reanalyze)
     {
         if (_disposed || _intelliSense is not { } intelliSense) return;
+        _contextRefreshCts?.Cancel();
+        var refresh = _contextRefreshCts = new CancellationTokenSource();
+        var token = refresh.Token;
+        var frontMatter = State.RpadDocument?.FrontMatter;
         // The same request a run makes, so the editor reads the references and packages as the build does.
-        intelliSense.UpdateExecutionContext(ExecutionRequest.For(State.RpadDocument?.FrontMatter, _vm.FilePath) with
+        // The lists are copied: the Dependencies window edits the front matter in place.
+        var baseRequest = ExecutionRequest.For(frontMatter, _vm.FilePath) with
         {
-            Connections = GeneratedConnectionsFor(State.RpadDocument?.FrontMatter),
             ReferenceBasePath = _vm.ReferenceAnchorPath,
             Platform = _vm.SelectedSdk ?? _vm.AvailableSdks.FirstOrDefault(),
             OutputDirectory = State.OutputDirectory,
             RuntimePath = _prefs.Debugger?.DotnetPath,
-        });
+        };
+        baseRequest = baseRequest with { Usings = [.. baseRequest.Usings], References = [.. baseRequest.References] };
+        List<RpadConnection> connections = [.. frontMatter?.Connections ?? []];
+        var language = frontMatter?.Language ?? RpadLanguage.CSharp;
+        List<string> packageIds = frontMatter is null ? [] : [.. frontMatter.Packages.Keys];
+        var scriptDirectory = ScriptDirectory;
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                var generated = frontMatter is null ? null
+                    : GeneratedConnections.For(connections, language, packageIds, _connectionDrivers, _connectionSchemas?.Cache, scriptDirectory);
+                token.ThrowIfCancellationRequested();
+                intelliSense.ApplyExecutionContext(baseRequest with { Connections = generated }, token);
+                if (reanalyze)
+                    Dispatcher.Post(() =>
+                    {
+                        // The classes the script's code refers to are new: analyse it again now rather than at the next keystroke.
+                        if (!_disposed && !token.IsCancellationRequested) _intelliSense?.NotifyTextChanged(State.Editor.Text);
+                    });
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                _runLogger.LogWarning(ex, "Updating the editor's references failed");
+            }
+        }, token);
         EnsureConnectionSchemasInBackground();
     }
 
-    // Reads the schemas of connections that have never been read (a gRPC server's services) and
-    // then lets the editor know their classes. One that fails isn't asked again here: its error is
-    // what the editor shows, and a run or the Connections window tries again.
+    // A schema read elsewhere (Dependencies' Refresh, the Connections window, a run in another tab)
+    // changes the classes of this script's connection with the same key: catch up, as after an edit.
+    private void OnConnectionSchemaChanged(string key) => Dispatcher.Post(() =>
+    {
+        if (_disposed || _connectionSchemas is not { } schemas
+            || State.RpadDocument?.FrontMatter.Connections is not { Count: > 0 } connections) return;
+        var scriptDirectory = ScriptDirectory;
+        if (!connections.Any(c => schemas.Cache.KeyOf(c, scriptDirectory) == key)) return;
+        RefreshIntelliSenseContext(reanalyze: true);
+    });
+
+    // Reads the schemas of connections that have never been read (a gRPC server's services); the
+    // cache's Changed event then lets the editor know their classes. One that fails isn't asked again
+    // here: its error is what the editor shows, and a run, Refresh or the Connections window tries again.
     private void EnsureConnectionSchemasInBackground()
     {
         if (_connectionSchemas is not { } schemas || State.RpadDocument?.FrontMatter.Connections is not { Count: > 0 } connections) return;
@@ -2206,15 +2335,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             try
             {
-                if (await schemas.EnsureAsync(list, scriptDirectory, ConnectionSchemaRefresh.Missing, CancellationToken.None).ConfigureAwait(false))
-                    Dispatcher.Post(() =>
-                    {
-                        if (_disposed) return;
-                        RefreshIntelliSensePackages();
-                        // The new classes (or error) change what the code already in the editor
-                        // means: analyse it again now rather than at the next keystroke.
-                        _intelliSense?.NotifyTextChanged(State.Editor.Text);
-                    });
+                await schemas.EnsureAsync(list, scriptDirectory, ConnectionSchemaRefresh.Missing, CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -2344,10 +2465,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private void OnSelectedSdkChanged(DotnetSdk? sdk)
     {
-        RefreshIntelliSensePackages();
         // The new target's references, C# version and symbols apply to the text already in the
-        // editor: analyse it again now, as the squiggles would otherwise wait for the next edit.
-        if (!_disposed) _intelliSense?.NotifyTextChanged(State.Editor.Text);
+        // editor: analyse it again once they are in, as the squiggles would otherwise wait for the next edit.
+        RefreshIntelliSenseContext(reanalyze: true);
         if (_syncingSdk || sdk is null || State.RpadDocument is not { } rpad) return;
 
         var target = ReferenceEquals(sdk, _vm.LatestSdk) ? TargetSdk.Default : TargetSdkResolver.ToTarget(sdk);

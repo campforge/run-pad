@@ -55,7 +55,8 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private readonly IConnectionStore? _store;
     private readonly ISecretStore? _secrets;
     private readonly ConnectionDriverRegistry _drivers;
-    private readonly ConnectionSchemaCache? _schemas;
+    private readonly ConnectionSchemas? _connectionSchemas;
+    private ConnectionSchemaCache? _schemas => _connectionSchemas?.Cache;
     // The script's folder, which a database file's relative path is read from.
     private string? _scriptDirectory;
     private IReadOnlyList<RpadConnection> _original = [];
@@ -88,7 +89,13 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     public ScriptConnectionItemViewModel? SelectedItem
     {
         get;
-        set { if (ReferenceEquals(field, value)) return; this.RaiseAndSetIfChanged(ref field, value); CancelImportConfirmation(); }
+        set
+        {
+            if (ReferenceEquals(field, value)) return;
+            this.RaiseAndSetIfChanged(ref field, value);
+            this.RaisePropertyChanged(nameof(CanRefreshSelected));
+            CancelImportConfirmation();
+        }
     }
 
     public bool IsCSharp
@@ -134,6 +141,35 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     public ReactiveCommand<Unit, Unit> ConfirmAddCommand { get; }
     public ReactiveCommand<Unit, Unit> CancelAddCommand { get; }
 
+    // The window that edits the user's connection list (Tools → Connections): given the id of a driver
+    // to start a new connection of it, or null to just open the list; completes with true when the
+    // user saved the list. Null when there is none, which turns the commands below off.
+    internal Func<string?, Task<bool>>? ConnectionsEditor
+    {
+        get;
+        set { field = value; this.RaisePropertyChanged(nameof(CanEditConnections)); }
+    }
+
+    // One New Connection entry per driver this RunPad has.
+    public IReadOnlyList<IConnectionDriver> Drivers => _drivers.Drivers;
+
+    public bool CanEditConnections => ConnectionsEditor is not null && _store is not null && !HasReadError;
+
+    // Why a connection wasn't added, or what creating one led to; no confirmation is waiting.
+    public string? CreateMessage
+    {
+        get;
+        private set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    // Starts a new connection of the chosen driver in the Connections window. A connection the user
+    // saves there is chosen in the list and offered to the script through the same confirmation as any
+    // other Add; the script's draft is not touched until that is confirmed.
+    public ReactiveCommand<IConnectionDriver, Unit> NewCommand { get; }
+
+    // Opens the Connections window on the user's list, to edit or create several.
+    public ReactiveCommand<Unit, Unit> ManageCommand { get; }
+
     // Why the user's list couldn't be read; Import is off until it can be.
     public string? ReadError
     {
@@ -156,6 +192,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private void OnStoreErrorChanged()
     {
         this.RaisePropertyChanged(nameof(HasReadError));
+        this.RaisePropertyChanged(nameof(CanEditConnections));
         this.RaisePropertyChanged(nameof(StoreError));
         this.RaisePropertyChanged(nameof(HasStoreError));
     }
@@ -164,10 +201,29 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     public ReactiveCommand<Unit, Unit> RemoveCommand { get; }
     public ReactiveCommand<Unit, Unit> ImportCommand { get; }
 
-    public ScriptConnectionsViewModel(IConnectionStore? store, ISecretStore? secrets, ConnectionDriverRegistry? drivers,
-        ConnectionSchemaCache? schemas = null)
+    // Reads the selected connection's description (a gRPC server's services) again: a server whose
+    // contract changed is otherwise read only when its description is missing or failed.
+    public ReactiveCommand<Unit, Unit> RefreshCommand { get; }
+
+    public bool CanRefreshSelected => SelectedItem is { } item && _connectionSchemas is not null
+        && _drivers.Find(item.Connection.Driver) is IConnectionSchemaDriver;
+
+    public bool IsRefreshing
     {
-        _schemas = schemas;
+        get;
+        private set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    public string? RefreshMessage
+    {
+        get;
+        private set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    public ScriptConnectionsViewModel(IConnectionStore? store, ISecretStore? secrets, ConnectionDriverRegistry? drivers,
+        ConnectionSchemas? schemas = null)
+    {
+        _connectionSchemas = schemas;
         _store = store;
         _secrets = secrets;
         _drivers = drivers ?? new ConnectionDriverRegistry();
@@ -176,8 +232,13 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         RemoveCommand = ReactiveCommand.Create(RemoveSelected, this.WhenAnyValue(x => x.SelectedItem, (ScriptConnectionItemViewModel? i) => i is not null));
         ImportCommand = ReactiveCommand.Create(ImportSelected,
             this.WhenAnyValue(x => x.SelectedItem, x => x.HasReadError, (ScriptConnectionItemViewModel? i, bool error) => i is not null && !error && _store is not null));
+        RefreshCommand = ReactiveCommand.CreateFromTask(RefreshSelectedAsync, this.WhenAnyValue(
+            x => x.SelectedItem, x => x.IsRefreshing, (ScriptConnectionItemViewModel? _, bool refreshing) => CanRefreshSelected && !refreshing));
         ConfirmImportCommand = ReactiveCommand.Create(ConfirmImport, this.WhenAnyValue(x => x.IsImportConfirmationPending));
         CancelImportCommand = ReactiveCommand.Create(CancelImportConfirmation, this.WhenAnyValue(x => x.IsImportConfirmationPending));
+        var canEdit = this.WhenAnyValue(x => x.CanEditConnections, x => x.HasReadError, (can, error) => can && !error);
+        NewCommand = ReactiveCommand.CreateFromTask<IConnectionDriver>(driver => EditConnectionsAsync(driver.Id), canEdit);
+        ManageCommand = ReactiveCommand.CreateFromTask(() => EditConnectionsAsync(null), canEdit);
         ConfirmAddCommand = ReactiveCommand.Create(ConfirmAdd, this.WhenAnyValue(x => x.IsAddConfirmationPending));
         CancelAddCommand = ReactiveCommand.Create(CancelAddConfirmation, this.WhenAnyValue(x => x.IsAddConfirmationPending));
     }
@@ -204,11 +265,13 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     {
         SelectedItem = null;
         CancelAddConfirmation();
+        RefreshMessage = null;
         _addedPackages.Clear();
         WriteError = null;
         _original = frontMatter?.Connections ?? [];
         IsCSharp = frontMatter?.Language is null or RpadLanguage.CSharp;
         LoadMine();
+        ReadSecretNames();
         Items.Clear();
         foreach (var connection in _original) Items.Add(new ScriptConnectionItemViewModel(Clone(connection)));
         Refresh();
@@ -240,17 +303,62 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private void RequestAdd()
     {
         if (SelectedAvailable is not { } connection) return;
+        CreateMessage = null;
         var driver = _drivers.Find(connection.Driver);
-        var needed = driver is null ? [] : driver.Packages.Where(p => !_scriptPackages().Contains(p.Key)).ToList();
+        if (driver is null)
+        {
+            // Nothing is added: the script would list a connection no build could use.
+            CreateMessage = $"'{connection.Name}' can't be added: it uses the '{connection.Driver}' driver, which this RunPad doesn't have. "
+                + "Use a RunPad version that has it, or choose another connection.";
+            return;
+        }
+        var needed = driver.Packages.Where(p => !_scriptPackages().Contains(p.Key)).ToList();
         if (needed.Count == 0)
         {
             ApplyAdd(connection);
             return;
         }
         _pendingAdd = connection;
-        AddMessage = $"Add '{connection.Name}'? This also adds the NuGet package{(needed.Count == 1 ? "" : "s")} it needs: "
-            + string.Join(", ", needed.Select(p => $"{p.Key} {p.Value}")) + ".";
+        AddMessage = $"Add '{connection.Name}' ({driver.DisplayName}) to this script? Its client is built into the script, "
+            + $"which also gets the NuGet package{(needed.Count == 1 ? "" : "s")} the connection needs: "
+            + string.Join(", ", needed.Select(p => $"{p.Key} {p.Value}")) + ". Cancel leaves the script as it is.";
         IsAddConfirmationPending = true;
+    }
+
+    private async Task EditConnectionsAsync(string? newDriverId)
+    {
+        if (ConnectionsEditor is not { } editor) return;
+        CreateMessage = null;
+        // Both would be about a list that is about to change.
+        CancelAddConfirmation();
+        CancelImportConfirmation();
+        var before = _mine.ToList();
+        bool saved;
+        try
+        {
+            saved = await editor(newDriverId);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            CreateMessage = $"The Connections window couldn't be opened: {ex.Message}";
+            return;
+        }
+        // Closed without saving: the list and the script are as they were.
+        if (!saved) return;
+        LoadMine();
+        Refresh();
+        if (HasReadError) return;
+        // Managing the list only reloads it; the script changes only for a connection created here.
+        if (newDriverId is null) return;
+        var created = FindCreated(before, _mine);
+        if (created is null) return;
+        if (Available.FirstOrDefault(c => string.Equals(c.Name, created.Name, StringComparison.OrdinalIgnoreCase)) is not { } offered)
+        {
+            CreateMessage = $"Saved '{created.Name}'. This script already has a connection called {RpadConnection.CodeName(created.Name)} in code, so it was not added.";
+            return;
+        }
+        SelectedAvailable = offered;
+        RequestAdd();
     }
 
     private void ConfirmAdd()
@@ -305,6 +413,26 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
             }
         Refresh();
         Edited?.Invoke();
+    }
+
+    private async Task RefreshSelectedAsync()
+    {
+        if (SelectedItem is not { } item || _connectionSchemas is not { } schemas) return;
+        var connection = item.Connection;
+        IsRefreshing = true;
+        RefreshMessage = $"Reading the description of '{item.Name}'…";
+        try
+        {
+            await schemas.EnsureAsync([connection], _scriptDirectory, ConnectionSchemaRefresh.All, CancellationToken.None);
+            RefreshMessage = schemas.Cache.ErrorFor(connection, _scriptDirectory) is { } error
+                ? $"The description of '{item.Name}' couldn't be read: {error}"
+                : $"'{item.Name}' read again: {schemas.Cache.Get(connection, _scriptDirectory)?.Summary}";
+        }
+        finally
+        {
+            IsRefreshing = false;
+            Refresh();
+        }
     }
 
     // Writes the script's connection into the user's list at once (replacing one of the same name);
@@ -439,11 +567,50 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         this.RaisePropertyChanged(nameof(AvailableHint));
     }
 
+    // Reading the store decrypts every value (DPAPI on Windows) to learn the names, so it is read once
+    // per Load rather than on each refresh, which every package edit triggers.
+    private HashSet<string>? _secretNames;
+    private bool _secretNamesRead;
+
     private HashSet<string>? SecretNames()
     {
-        if (_secrets is null) return null;
-        try { return new HashSet<string>(_secrets.LoadSnapshot().Secrets.Select(s => s.Name), StringComparer.OrdinalIgnoreCase); }
-        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { return null; }
+        if (!_secretNamesRead) ReadSecretNames();
+        return _secretNames;
+    }
+
+    private void ReadSecretNames()
+    {
+        _secretNamesRead = true;
+        _secretNames = null;
+        if (_secrets is null) return;
+        try { _secretNames = new HashSet<string>(_secrets.LoadSnapshot().Secrets.Select(s => s.Name), StringComparer.OrdinalIgnoreCase); }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { }
+    }
+
+    // The window may also rename or delete connections, so "a name that wasn't there" isn't enough: a
+    // renamed connection has a new name too. One that only changed its name keeps its driver and
+    // parameters, so it is matched to a connection that disappeared with the same content; what is
+    // left over (the last one, if several) was created.
+    internal static RpadConnection? FindCreated(IReadOnlyList<RpadConnection> before, IReadOnlyList<RpadConnection> after)
+    {
+        var known = before.Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var current = after.Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var vanished = before.Where(c => !current.Contains(c.Name)).Select(Content).ToList();
+        RpadConnection? created = null;
+        foreach (var connection in after.Where(c => !known.Contains(c.Name)))
+        {
+            var index = vanished.IndexOf(Content(connection));
+            if (index >= 0) vanished.RemoveAt(index); // renamed
+            else created = connection;
+        }
+        return created;
+    }
+
+    private static string Content(RpadConnection connection)
+    {
+        var copy = Clone(connection);
+        copy.Name = "";
+        return JsonSerializer.Serialize(copy);
     }
 
     private static string Json(IReadOnlyList<RpadConnection> connections) => JsonSerializer.Serialize(connections);

@@ -204,6 +204,66 @@ public class RpadConnectionsTests
         Assert.Equal(doc.FrontMatter.UnknownEntries, again.FrontMatter.UnknownEntries);
     }
 
+    // A value of the front matter as YAML reads it (aliases resolved), to compare a file before and
+    // after a save by meaning rather than by text.
+    private static object? YamlValue(string document, string key)
+    {
+        var yaml = document.ReplaceLineEndings("\n").Split("---\n")[1];
+        return new YamlDotNet.Serialization.Deserializer().Deserialize<Dictionary<string, object?>>(yaml).GetValueOrDefault(key);
+    }
+
+    // "|+" keeps the value's final line breaks; trimming the entry like any other dropped them, in
+    // the middle of the front matter and at its end alike.
+    [Theory]
+    [InlineData("---\nversion: \"1.0\"\nfuture: |+\n  text\n\n\nkind: Statements\n---\n```csharp run\n1.Dump();\n```\n")]
+    [InlineData("---\nversion: \"1.0\"\nkind: Statements\nfuture: >+ # folded, kept\n  text\n\n---\n```csharp run\n1.Dump();\n```\n")]
+    [InlineData("---\r\nversion: \"1.0\"\r\nkind: Statements\r\nfuture: |+\r\n  text\r\n\r\n\r\n---\r\n```csharp run\r\n1.Dump();\r\n```\r\n")]
+    public void AnUnknownBlockScalarThatKeepsLineBreaks_Should_KeepThemThroughSaves(string text)
+    {
+        var written = RpadWriter.Write(Parse(text));
+
+        Assert.Equal(YamlValue(text, "future"), YamlValue(written, "future"));
+        Assert.Equal(written, RpadWriter.Write(Parse(written)));
+    }
+
+    // RpadWriter writes the known keys from the model, without their anchors: an unknown entry's
+    // alias of one would point at nothing. It is saved as the value it stood for.
+    [Fact]
+    public void AnUnknownKeysAliasOfAKnownKeysAnchor_Should_BeSavedAsItsValue()
+    {
+        var text = "---\nversion: &v \"1.0\"\nkind: Statements\nfuture: [*v, 2]\n---\n```csharp run\n1.Dump();\n```\n";
+        var written = RpadWriter.Write(Parse(text));
+
+        Assert.DoesNotContain("*v", written);
+        Assert.Equal(YamlValue(text, "future"), YamlValue(written, "future"));
+        Assert.Equal(written, RpadWriter.Write(Parse(written)));
+    }
+
+    // The deserializer skips unknown keys, anchors and all: a known key's alias of an anchor in one
+    // stopped the file opening. So did any alias in a connection; both now read as their values.
+    [Fact]
+    public void AKnownKeysAliasOfAnUnknownKeysAnchor_AndAConnectionsAlias_Should_Load()
+    {
+        var text = "---\nversion: \"1.0\"\nfuture: &k Program\nkind: *k\nhost: &h https://a.example/\n"
+            + "connections:\n  - name: a\n    driver: http\n    params:\n      baseAddress: *h\n"
+            + "---\n```csharp run\nvoid Main() { }\n```\n";
+        var doc = Parse(text);
+
+        Assert.Equal(RpadKind.Program, doc.FrontMatter.Kind);
+        Assert.Equal("https://a.example/", doc.FrontMatter.Connections.Single().Params["baseAddress"].Text);
+        var again = Parse(RpadWriter.Write(doc));
+        Assert.Equal(RpadKind.Program, again.FrontMatter.Kind);
+        Assert.Equal(doc.FrontMatter.UnknownEntries, again.FrontMatter.UnknownEntries);
+    }
+
+    // Without an alias the front matter is read as written, comments in unknown entries included.
+    [Fact]
+    public void AnchorsWithoutAliases_Should_LeaveUnknownEntriesAsWritten()
+    {
+        var doc = Parse("---\nversion: \"1.0\"\nfuture: &f # note\n  x: 1\nkind: Statements\n---\n```csharp run\n1.Dump();\n```\n");
+        Assert.Equal(["future: &f # note\n  x: 1"], doc.FrontMatter.UnknownEntries);
+    }
+
     [Theory]
     [InlineData("connections:\n  - orders\n")]
     [InlineData("connections:\n  - name: a\n    driver: http\n    params: text\n")]

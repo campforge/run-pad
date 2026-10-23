@@ -1019,12 +1019,12 @@ public sealed class DapSession : IDapSession
     {
         if (_stdoutBuf.Length > 0)
         {
-            _outputHandler?.Invoke(_stdoutBuf.ToString(), OutputKind.StandardOutput);
+            _outputHandler?.Invoke(_stdoutBuf.ToString(), OutputKind.StandardOutputPartial);
             _stdoutBuf.Clear();
         }
         if (_stderrBuf.Length > 0)
         {
-            _outputHandler?.Invoke(_stderrBuf.ToString(), OutputKind.StandardError);
+            _outputHandler?.Invoke(_stderrBuf.ToString(), OutputKind.StandardErrorPartial);
             _stderrBuf.Clear();
         }
     }
