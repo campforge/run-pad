@@ -199,7 +199,7 @@ public class ScriptConnectionsViewModelTests
     }
 
     [Fact]
-    public void FailedContractRead_Should_BlockAddAndPreserveTheError()
+    public async Task FailedContractRead_Should_BlockAddAndPreserveTheError()
     {
         var folder = Directory.CreateTempSubdirectory("runpad-add-schema").FullName;
         try
@@ -216,13 +216,13 @@ public class ScriptConnectionsViewModelTests
             secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([], null));
             var vm = new ScriptConnectionsViewModel(store.Object, secrets.Object, drivers, schemas);
             vm.Load(new RpadFrontMatter());
-            schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.Missing, CancellationToken.None).GetAwaiter().GetResult();
+            await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.Missing, CancellationToken.None);
 
-            vm.Connections.SelectedAvailable = Assert.Single(vm.Connections.Available);
-            Execute(vm.Connections.AddCommand);
+            vm.SelectedAvailable = Assert.Single(vm.Available);
+            Execute(vm.AddCommand);
 
-            Assert.Empty(vm.Connections.Items);
-            Assert.Contains("Server unavailable.", vm.Connections.CreateMessage);
+            Assert.Empty(vm.Items);
+            Assert.Contains("Server unavailable.", vm.CreateMessage);
             Assert.False(vm.HasChanges);
         }
         finally { Directory.Delete(folder, true); }
