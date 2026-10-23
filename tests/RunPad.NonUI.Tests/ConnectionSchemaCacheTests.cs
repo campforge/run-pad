@@ -137,4 +137,51 @@ public sealed class ConnectionSchemaCacheTests : IDisposable
         Assert.True(failure is IOException or UnauthorizedAccessException, failure.ToString());
         Assert.Empty(Directory.GetFiles(cache.Folder));
     }
+
+    // A connection removed, renamed or changed since leaves its old key's file behind forever
+    // otherwise: PruneStale is what reclaims it, by age, since nothing else ever revisits that key.
+    [Fact]
+    public void PruneStale_Should_DeleteOnlyFilesOlderThanMaxAge()
+    {
+        var (schemas, _) = Create();
+        var cache = schemas.Cache;
+        var other = new RpadConnection
+        {
+            Name = "other",
+            Driver = "slow",
+            Params = new(StringComparer.Ordinal) { ["address"] = RpadValue.Of("http://localhost:5001") },
+        };
+        cache.Put(Connection, new ConnectionSchema("stale", [], ""));
+        cache.Put(other, new ConnectionSchema("fresh", [], ""));
+        File.SetLastWriteTimeUtc(Path.Combine(cache.Folder, cache.KeyOf(Connection) + ".json"), DateTime.UtcNow - TimeSpan.FromDays(10));
+
+        cache.PruneStale(TimeSpan.FromDays(5));
+
+        Assert.Null(cache.Get(Connection));
+        Assert.Equal("fresh", cache.Get(other)!.Summary);
+        Assert.Equal([cache.KeyOf(other) + ".json"], Directory.GetFiles(cache.Folder).Select(Path.GetFileName));
+    }
+
+    // A temp file left by a write interrupted mid-rename (the process killed) is never read by
+    // anything, so it goes regardless of age.
+    [Fact]
+    public void PruneStale_Should_DeleteLeftoverTempFiles_RegardlessOfAge()
+    {
+        var (schemas, _) = Create();
+        var cache = schemas.Cache;
+        Directory.CreateDirectory(cache.Folder);
+        var temp = Path.Combine(cache.Folder, cache.KeyOf(Connection) + "." + Guid.NewGuid().ToString("N") + ".tmp");
+        File.WriteAllText(temp, "{}");
+
+        cache.PruneStale(TimeSpan.FromDays(365));
+
+        Assert.Empty(Directory.GetFiles(cache.Folder));
+    }
+
+    [Fact]
+    public void PruneStale_Should_DoNothing_WhenTheFolderWasNeverCreated()
+    {
+        var cache = new ConnectionSchemaCache(Path.Combine(_folder, "never-created"));
+        cache.PruneStale(TimeSpan.FromDays(1)); // must not throw
+    }
 }

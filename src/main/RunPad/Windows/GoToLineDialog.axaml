@@ -8,7 +8,9 @@
         CanResize="False"
         SizeToContent="Manual"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
+        WindowDecorations="None"
+        TransparencyLevelHint="Transparent"
+        Background="Transparent"
         Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
     <Window.Resources>
         <ResourceDictionary>
@@ -18,35 +20,40 @@
         </ResourceDictionary>
     </Window.Resources>
 
+    <Border x:Name="DialogSurface" Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
+            BorderBrush="{DynamicResource RunPad.Border.BackgroundBrush}"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="16">
+        <Grid RowDefinitions="Auto,Auto,Auto">
 
-    <Grid RowDefinitions="Auto,Auto,Auto" Margin="16">
+            <TextBlock x:Name="PromptText"
+                       Grid.Row="0"
+                       FontSize="{DynamicResource RunPad.Type.Caption}"
+                       Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
+                       Margin="0,0,0,6"/>
 
-        <TextBlock x:Name="PromptText"
-                   Grid.Row="0"
-                   FontSize="{DynamicResource RunPad.Type.Caption}"
-                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
-                   Margin="0,0,0,6"/>
+            <NumericUpDown x:Name="LineBox"
+                           Grid.Row="1"
+                           Minimum="1"
+                           FormatString="0"
+                           Margin="0,0,0,12"/>
 
-        <NumericUpDown x:Name="LineBox"
-                        Grid.Row="1"
-                        Minimum="1"
-                        FormatString="0"
-                        Margin="0,0,0,12"/>
+            <StackPanel Grid.Row="2"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="{DynamicResource RunPad.Space.Control}">
+                <Button Content="OK"
+                        Width="80"
+                        Click="OkButton_Click"
+                        IsDefault="True"/>
+                <Button Content="Cancel"
+                        Width="80"
+                        Click="CancelButton_Click"
+                        IsCancel="True"/>
+            </StackPanel>
 
-        <StackPanel Grid.Row="2"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    Spacing="{DynamicResource RunPad.Space.Control}">
-            <Button Content="OK"
-                    Width="80"
-                    Click="OkButton_Click"
-                    IsDefault="True"/>
-            <Button Content="Cancel"
-                    Width="80"
-                    Click="CancelButton_Click"
-                    IsCancel="True"/>
-        </StackPanel>
-
-    </Grid>
+        </Grid>
+    </Border>
 
 </Window>

@@ -48,6 +48,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private IIntelliSenseService? _intelliSense;
     internal IIntelliSenseService? IntelliSenseForTests => _intelliSense;
     private bool _runPadAnalyzers;
+    private bool _resultsWordWrap;
 
     // Raw (unfiltered) lightbulb candidate lists — see UpdateLightbulb's own doc comment for why
     // filtering happens at render time instead of once when each list is produced.
@@ -125,8 +126,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var editor = new CodeTextEditor { Background = _themeService.GetBrush("RunPad.Editor.BackgroundBrush") };
         State = new EditorTabState(editor);
         ResultsOutput.DataContext = State.Output;
+        _resultsWordWrap = prefs.Editor.ResultsWordWrap;
         State.Output.Css = HtmlThemeStylesheet.Generate(themeService.CurrentTheme.Interface.Variant,
-            themeService.CurrentTheme.Interface.IsDark);
+            themeService.CurrentTheme.Interface.IsDark, _resultsWordWrap);
 
         _viewScale = ViewScale.For(prefs);
         ApplyEditorSettings(editor, prefs.Editor, _viewScale.CodeZoom);
@@ -300,7 +302,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
 
         ApplySelectionColor(State.Editor);
-        State.Output.Css = HtmlThemeStylesheet.Generate(theme.Interface.Variant, theme.Interface.IsDark);
+        State.Output.Css = HtmlThemeStylesheet.Generate(theme.Interface.Variant, theme.Interface.IsDark, _resultsWordWrap);
         UpdateOutputUi();
         ApplyPreviewThemeNow(theme);
     }
@@ -710,7 +712,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         Cancel();
         // The run owns its CTS until its asynchronous cleanup has finished.
         if (!_runInProgress) State.RunCts?.Dispose();
-        _breakpointPopup?.Close();
+        _breakpointDialog?.Close();
         _intelliSense?.Dispose(); // owned by this tab — see EditorTabsControl.OnTabsCollectionChanged
         GC.SuppressFinalize(this);
     }
@@ -793,53 +795,47 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
     }
 
-    private global::Avalonia.Controls.Primitives.Popup? _breakpointPopup;
-    internal global::Avalonia.Controls.Primitives.Popup? BreakpointPopup => _breakpointPopup;
+    private Windows.BreakpointConditionDialog? _breakpointDialog;
+    internal Windows.BreakpointConditionDialog? BreakpointDialog => _breakpointDialog;
 
-    private void OnBreakpointRightClicked(int line, RunPad.Avalonia.CodeTextEditor.IBreakpoint? bp)
+    private async void OnBreakpointRightClicked(int line, RunPad.Avalonia.CodeTextEditor.IBreakpoint? bp)
     {
-        _breakpointPopup?.Close();
+        try { await EditBreakpointOptionsAsync(line, bp); }
+        catch (Exception ex)
+        {
+            _runLogger.LogError(ex, "Editing breakpoint options failed");
+            if (!_disposed) AppendError(ex);
+        }
+    }
+
+    private async Task EditBreakpointOptionsAsync(int line, RunPad.Avalonia.CodeTextEditor.IBreakpoint? bp)
+    {
+        if (_disposed) return;
+        _breakpointDialog?.Close();
         var editor = State.Editor;
         var offset = editor.Document.GetLineByNumber(line).Offset;
-        var panel = new BreakpointConditionEditor(bp?.Condition, bp?.HitCondition, bp?.IsEnabled ?? true,
+        using var panel = new BreakpointConditionEditor(bp?.Condition, bp?.HitCondition, bp?.IsEnabled ?? true,
             (expression, ct) =>
             {
                 var code = editor.Text;
                 return Task.Run(() => _intelliSense?.AnalyzeBreakpointConditionAsync(code, offset, expression, ct)
                     ?? Task.FromResult<BreakpointConditionAnalysis?>(null), ct);
             });
-        var view = editor.TextArea.TextView;
-        var position = view.GetVisualPosition(new AvaloniaEdit.TextViewPosition(line, 1), VisualYPosition.LineBottom)
-            - view.ScrollOffset;
-        var anchor = view.TranslatePoint(position, editor) ?? new Point(0, 0);
-        var margin = editor.TextArea.LeftMargins.OfType<BreakPointMargin>().FirstOrDefault();
-        var markerX = margin?.TranslatePoint(new Point(margin.Bounds.Width / 2, 0), editor)?.X ?? 28;
-        var popup = new global::Avalonia.Controls.Primitives.Popup
+        if (TopLevel.GetTopLevel(this) is not Window owner) return;
+
+        var dialog = new Windows.BreakpointConditionDialog(panel, owner);
+        _breakpointDialog = dialog;
+        try
         {
-            PlacementTarget = editor,
-            Placement = global::Avalonia.Controls.PlacementMode.BottomEdgeAlignedLeft,
-            PlacementRect = new Rect(new Point(markerX - 28, anchor.Y), new Size(1, 1)),
-            IsLightDismissEnabled = true,
-            Child = panel,
-        };
-        panel.Finished += result =>
-        {
+            var result = await dialog.ShowDialog<(string? Condition, string? HitCondition, bool Enabled)?>(owner);
             if (result is { } value && !_disposed)
                 ApplyBreakpointOptions(line, value.Condition, value.HitCondition, value.Enabled);
-            popup.Close();
-        };
-        popup.Closed += (_, _) =>
+        }
+        finally
         {
-            panel.Dispose();
-            popup.Child = null;
-            if (ReferenceEquals(_breakpointPopup, popup)) _breakpointPopup = null;
-        };
-        // A detached Popup does not inherit the owner's theme/resources or control templates.
-        var popupOwner = (Panel)Content!;
-        popupOwner.Children.Add(popup);
-        popup.Closed += (_, _) => popupOwner.Children.Remove(popup);
-        _breakpointPopup = popup;
-        popup.Open();
+            if (ReferenceEquals(_breakpointDialog, dialog)) _breakpointDialog = null;
+            dialog.Close();
+        }
     }
 
     internal void ApplyBreakpointOptions(int line, string? condition, string? hitCondition, bool enabled)
@@ -1450,6 +1446,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         => Dispatcher.Post(() =>
         {
             ApplyEditorSettings(State.Editor, _prefs.Editor, _viewScale.CodeZoom);
+            // Only a changed value regenerates the stylesheet, so unrelated settings don't reload the results view.
+            if (_prefs.Editor.ResultsWordWrap != _resultsWordWrap)
+            {
+                _resultsWordWrap = _prefs.Editor.ResultsWordWrap;
+                var theme = _themeService.CurrentTheme.Interface;
+                State.Output.Css = HtmlThemeStylesheet.Generate(theme.Variant, theme.IsDark, _resultsWordWrap);
+            }
+
             _intelliSense?.UpdateIndentation(_prefs.Editor.UseTabs, _prefs.Editor.IndentationSize);
             _prefs.Keyboard.ApplyTo(State.Editor);
             ApplyPreviewCodeFont();

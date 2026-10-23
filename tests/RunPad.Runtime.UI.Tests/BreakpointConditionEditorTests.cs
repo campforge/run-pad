@@ -24,7 +24,7 @@ public class BreakpointConditionEditorTests
         host.Show();
         try
         {
-            await Task.Delay(250, TestContext.Current.CancellationToken);
+            await TestWait.WhileAsync(() => editor.FindControl<TextBlock>("ErrorText")!.Text is null);
             Assert.True(editor.FindControl<Button>("DoneButton")!.IsEnabled);
             host.KeyPressQwerty(cancel ? PhysicalKey.Escape : PhysicalKey.Enter, RawInputModifiers.None);
             Assert.True(finished);
@@ -49,7 +49,7 @@ public class BreakpointConditionEditorTests
         host.Show();
         try
         {
-            await Task.Delay(250, TestContext.Current.CancellationToken);
+            await TestWait.WhileAsync(() => editor.FindControl<TextBlock>("ErrorText")!.Text is null);
             host.KeyPressQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None);
             host.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
             Assert.Equal("count", editor.FindControl<TextBox>("ConditionBox")!.Text);
@@ -58,18 +58,24 @@ public class BreakpointConditionEditorTests
         finally { host.Close(); }
     }
 
-    [AvaloniaFact]
-    public async Task InvalidCondition_Should_ShowError_AndPreventApply()
+    [AvaloniaTheory]
+    [InlineData(0)]
+    [InlineData(500)]
+    public async Task InvalidCondition_Should_ShowError_AndPreventApply(int analysisDelay)
     {
         using var editor = new BreakpointConditionEditor("unknown > 2", null, true,
-            (_, _) => Task.FromResult<BreakpointConditionAnalysis?>(new("Unknown identifier", [])));
+            async (_, ct) =>
+            {
+                await Task.Delay(analysisDelay, ct);
+                return new("Unknown identifier", []);
+            });
         var host = new Window { Content = editor };
         var finished = false;
         editor.Finished += _ => finished = true;
         host.Show();
         try
         {
-            await Task.Delay(250, TestContext.Current.CancellationToken);
+            await TestWait.WhileAsync(() => editor.FindControl<TextBlock>("ErrorText")!.Text is null);
             Assert.False(editor.FindControl<Button>("DoneButton")!.IsEnabled);
             Assert.Equal("Unknown identifier", editor.FindControl<TextBlock>("ErrorText")!.Text);
             host.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);

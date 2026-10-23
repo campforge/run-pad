@@ -118,26 +118,86 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
     // The language's compiler: in-process Roslyn (RoslynScriptCompiler) — RunPad doesn't use MSBuild.
     protected abstract IDotnetProcessCompiler CreateCompiler(CompiledDotnetLanguageHostOptions options, ILoggerFactory loggerFactory);
 
+    /// <summary>Checks the user's source before any kind transform. Languages can reject identifiers
+    /// reserved by generated code while diagnostics still point at the original source.</summary>
+    protected virtual IReadOnlyList<ResultItem> ValidateUserCode(string code) => [];
+
     // ── Compile ──────────────────────────────────────────────────────────────
 
     public override async Task<ICompilationResult> CompileAsync(
         string code, CancellationToken cancellationToken = default)
     {
-        (CompiledDotnetCompilationResult result, _) = await CompileInternalAsync(ApplyKindTransform(code), cancellationToken);
+        (CompiledDotnetCompilationResult result, _) = await CompileUserCodeAsync(code, cancellationToken);
         return result;
     }
 
-    private async Task<(CompiledDotnetCompilationResult result, string? binaryPath)> CompileInternalAsync(
+    private Task<(CompiledDotnetCompilationResult result, string? binaryPath)> CompileUserCodeAsync(
         string code, CancellationToken ct)
+    {
+        var validationErrors = ValidateUserCode(code);
+        if (validationErrors.Count == 0)
+            return CompileInternalAsync(code, ApplyKindTransform(code), ct);
+
+        var failed = new ProcessCompilerResult("", false, validationErrors, []);
+        return Task.FromResult<(CompiledDotnetCompilationResult, string?)>((new CompiledDotnetCompilationResult(failed), null));
+    }
+
+    private async Task<(CompiledDotnetCompilationResult result, string? binaryPath)> CompileInternalAsync(
+        string userCode, string code, CancellationToken ct)
     {
         using var compiler = _compilerFactory(ProjectProfile, _options, _loggerFactory);
 
         ProcessCompilerResult raw = await compiler.Compilation(code, ct);
-        CompiledDotnetCompilationResult result = new(raw);
+        CompiledDotnetCompilationResult result = new(MapToUserCode(userCode, raw));
         if (raw.Success)
             OnCompiled(raw.OutputBinaryFile);
         return (result, raw.Success ? raw.OutputBinaryFile : null);
     }
+
+    // The compiler reports positions in the generated script file: the front-matter imports and the
+    // kind transform's wrapper lines come before the user's first line. Only diagnostics located in
+    // that file are translated; the generated and connection sources, generator output and
+    // position-less messages keep what the compiler reported.
+    private ProcessCompilerResult MapToUserCode(string userCode, ProcessCompilerResult raw)
+    {
+        if (raw.Errors.Count == 0 && raw.Warnings.Count == 0) return raw;
+        return raw with
+        {
+            Errors = [.. raw.Errors.Select(item => MapToUserCode(userCode, item))],
+            Warnings = [.. raw.Warnings.Select(item => MapToUserCode(userCode, item))],
+        };
+    }
+
+    private ResultItem MapToUserCode(string userCode, ResultItem item)
+    {
+        if (item.LineSymbol.Line == 0 || !IsScriptFile(item.File)) return item;
+        var mapped = MapToUserPosition(userCode, (int)item.LineSymbol.Line, (int)item.LineSymbol.Symbol);
+        // A position in generated text has no counterpart in the user's code: report the message
+        // without a location rather than a misleading one.
+        var position = mapped is { } p ? new LineSymbol((uint)p.Line, (uint)p.Column) : new LineSymbol(0, 0);
+        return item with { LineSymbol = position };
+    }
+
+    // The compiler names the script file relative to OutputDirectory, with a leading separator.
+    private bool IsScriptFile(string file) =>
+        string.Equals(file.TrimStart('/', '\\'), Path.GetFileName(SourceFilePath), StringComparison.Ordinal);
+
+    /// <summary>
+    /// Translates a 1-based position in the compiled script file to the same position in the user's
+    /// code (<paramref name="userCode"/>, before <see cref="ApplyKindTransform"/>), or null when it
+    /// lies in text RunPad generated: the front-matter imports and the kind transform's wrapper.
+    /// The default assumes the transform only inserts whole lines before the user's code, as
+    /// <see cref="CalcKindOffset"/> counts them; a language whose transform moves user lines overrides it.
+    /// </summary>
+    protected virtual (int Line, int Column)? MapToUserPosition(string userCode, int line, int column)
+    {
+        var userLine = line - CalcKindOffset(userCode);
+        return userLine >= 1 && userLine <= UserLineCount(userCode) ? (userLine, column) : null;
+    }
+
+    // The lines the kind transform keeps from the user's code: Expression drops trailing whitespace.
+    private int UserLineCount(string userCode) =>
+        1 + (Options.Kind == RpadKind.Expression ? userCode.TrimEnd() : userCode).Count(c => c == '\n');
 
     // ── Run ──────────────────────────────────────────────────────────────────
 
@@ -149,7 +209,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
         ThrowIfDisposed();
 
         (CompiledDotnetCompilationResult compilationResult, string? binaryPath) =
-            await CompileInternalAsync(ApplyKindTransform(code), cancellationToken);
+            await CompileUserCodeAsync(code, cancellationToken);
         EmitDiagnostics(compilationResult.Diagnostics, outputHandler);
         if (!compilationResult.Success || binaryPath is null) return RunResult.CompilationFailed;
 
@@ -237,7 +297,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
         var lineOffset = CalcKindOffset(code);
 
         (CompiledDotnetCompilationResult compilationResult, string? binaryPath) =
-            await CompileInternalAsync(ApplyKindTransform(code), cancellationToken);
+            await CompileUserCodeAsync(code, cancellationToken);
         EmitDiagnostics(compilationResult.Diagnostics, outputHandler);
         if (!compilationResult.Success || binaryPath is null) return;
 

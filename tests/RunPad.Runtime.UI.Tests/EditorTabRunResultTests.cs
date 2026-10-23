@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
@@ -6,6 +7,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Microsoft.Extensions.Logging;
 using Moq;
+using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
 using RunPad.Contracts.Models;
@@ -69,7 +71,7 @@ public class EditorTabRunResultTests
     }
 
     [AvaloniaFact]
-    public void BreakpointPopover_Should_InheritTemplatesAndTrackTheOwnersPalette()
+    public void BreakpointConditionDialog_Should_InheritTemplatesAndTrackTheOwnersPalette()
     {
         var theme = new RunPadTheme();
         global::Avalonia.Application.Current!.Styles.Add(theme);
@@ -79,8 +81,9 @@ public class EditorTabRunResultTests
         {
             window.RequestedThemeVariant = RunPadThemeVariants.RiderDark;
             ctrl.State.Editor.RaiseBreakpointRightClicked(1, null);
-            var popup = ctrl.BreakpointPopup!;
-            var panel = Assert.IsType<BreakpointConditionEditor>(popup.Child);
+            var dialog = Assert.IsType<global::RunPad.Windows.BreakpointConditionDialog>(ctrl.BreakpointDialog);
+            Assert.True(dialog.IsVisible);
+            var panel = dialog.ConditionEditor;
             foreach (var variant in new[] { RunPadThemeVariants.RiderDark, RunPadThemeVariants.RiderLight,
                 RunPadThemeVariants.RunPadMidnight, RunPadThemeVariants.RunPadWarmLight,
                 RunPadThemeVariants.VsCodeDark, RunPadThemeVariants.VsCodeLight,
@@ -90,9 +93,9 @@ public class EditorTabRunResultTests
                 Dispatcher.UIThread.RunJobs();
                 Assert.Equal(variant, panel.ActualThemeVariant);
                 theme.TryGetResource("RunPad.Panel.BackgroundBrush", variant, out var expected);
-                var surface = panel.FindControl<Border>("PopoverSurface")!;
                 Assert.Equal(Assert.IsAssignableFrom<ISolidColorBrush>(expected).Color,
-                    Assert.IsAssignableFrom<ISolidColorBrush>(surface.Background).Color);
+                    Assert.IsAssignableFrom<ISolidColorBrush>(dialog.FindControl<Border>("DialogSurface")!.Background).Color);
+                Assert.NotNull(panel.FindControl<StackPanel>("ContentLayout"));
                 var input = panel.FindControl<TextBox>("ConditionBox")!;
                 Assert.NotEmpty(input.GetVisualDescendants());
                 theme.TryGetResource("RunPad.Editor.BackgroundBrush", variant, out var expectedInput);
@@ -109,18 +112,43 @@ public class EditorTabRunResultTests
     }
 
     [AvaloniaFact]
-    public void BreakpointEditor_Should_OpenAtTheEditor_AndCloseWithItsTab()
+    public async Task BreakpointApplyFailure_ShouldBeLogged_WithoutEscapingTheUIBoundary()
+    {
+        var logger = new Mock<ILogger<EditorsTabItemControl>>();
+        var ctrl = CreateControl(RunResult.Exited(0), logger: logger.Object);
+        var host = new Mock<ILanguageHost>();
+        host.Setup(h => h.Supports(LanguageHostCapabilities.Breakpoints)).Returns(true);
+        host.Setup(h => h.RemoveBreakpoint(It.IsAny<RunPad.Contracts.IBreakpoint>()))
+            .Throws(new InvalidOperationException("breakpoint update failed"));
+        ctrl.State.RunningHost = host.Object;
+        ctrl.State.SourceFilePath = "RunPadQuery.cs";
+        try
+        {
+            ctrl.State.Editor.RaiseBreakpointRightClicked(1, null);
+            var dialog = Assert.IsType<global::RunPad.Windows.BreakpointConditionDialog>(ctrl.BreakpointDialog);
+            dialog.Close(((string?)null, (string?)null, true));
+            await TestWait.WhileAsync(() => !logger.Invocations.Any(i => i.Method.Name == nameof(ILogger.Log)));
+            Assert.Single(logger.Invocations, i => i.Method.Name == nameof(ILogger.Log)
+                && Equals(i.Arguments[0], LogLevel.Error));
+            Assert.Contains("breakpoint update failed", ctrl.State.Output.Content);
+            Assert.Null(ctrl.BreakpointDialog);
+        }
+        finally { ctrl.Dispose(); ((Window)TopLevel.GetTopLevel(ctrl)!).Close(); }
+    }
+
+    [AvaloniaFact]
+    public void BreakpointEditor_Should_OpenInAnOwnedDialog_AndCloseWithItsTab()
     {
         var ctrl = CreateControl(RunResult.Exited(0));
         try
         {
             ctrl.State.Editor.RaiseBreakpointRightClicked(1, null);
-            var popup = Assert.IsType<global::Avalonia.Controls.Primitives.Popup>(ctrl.BreakpointPopup);
-            Assert.True(popup.IsOpen);
-            Assert.Same(ctrl.State.Editor, popup.PlacementTarget);
-            Assert.IsType<BreakpointConditionEditor>(popup.Child);
+            var dialog = Assert.IsType<global::RunPad.Windows.BreakpointConditionDialog>(ctrl.BreakpointDialog);
+            Assert.True(dialog.IsVisible);
+            Assert.Same(TopLevel.GetTopLevel(ctrl), dialog.Owner);
+            Assert.IsType<BreakpointConditionEditor>(dialog.ConditionEditor);
             ctrl.Dispose();
-            Assert.False(popup.IsOpen);
+            Assert.False(dialog.IsVisible);
             Assert.Empty(ctrl.State.Editor.Breakpoints);
         }
         finally { ((Window)TopLevel.GetTopLevel(ctrl)!).Close(); }

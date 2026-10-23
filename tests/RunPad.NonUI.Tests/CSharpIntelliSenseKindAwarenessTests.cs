@@ -76,6 +76,25 @@ public class CSharpIntelliSenseKindAwarenessTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Main", StringComparison.Ordinal));
     }
 
+    // A static Main (also valid Program-kind, LINQPad-style, input — RpadKindTransform calls it via
+    // __RunPadProgram.Main() rather than new __RunPadProgram().Main()) is wrapped the same way, so the
+    // synced document contains the same synthetic second entry point the real build does. Unlike the
+    // real build, this workspace's compilation is always a library (CompilationOptions above,
+    // OutputKind.DynamicallyLinkedLibrary) — entry-point resolution, and so CS7022, only exists for an
+    // executable — so Roslyn's live analysis can never report it here regardless of CSharpScriptCompiler's
+    // own structural filter; this guards that assumption rather than a separate fix.
+    [Fact]
+    public async Task NotifyTextChanged_Should_NotFlagCS7022_ForAStaticMain_WhenKindIsProgram()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Program);
+        const string code = "static void Main()\n{\n    Console.WriteLine(\"hi\");\n}\n";
+
+        var diagnostics = await WaitForDiagnosticsAsync(service, code);
+
+        Assert.DoesNotContain(diagnostics, d => d.Message.Contains("entry point", StringComparison.OrdinalIgnoreCase));
+    }
+
     // Position math sanity check: HeaderLength now includes the mirrored "Main();" prefix for
     // RpadKind.Program, so a completion request at a position *inside* the user's own code must still
     // resolve against the right character offset in the live-analysis document, not one shifted by the
