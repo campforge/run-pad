@@ -22,6 +22,19 @@ namespace RunPad.Runtime.UI.Tests;
 // Connections window as Tools → Connections over the Dependencies window, whose draft is left alone.
 public class DependenciesConnectionsEditorTests
 {
+    private sealed class PackageDriver : IConnectionDriver
+    {
+        public string Id => "package";
+        public string DisplayName => "Package";
+        public ConnectionCategory Category => ConnectionCategory.Database;
+        public IReadOnlyList<ConnectionParam> Params { get; } = [];
+        public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string> { ["Package.Client"] = "1.0.0" };
+        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+            Task.FromResult(new ConnectionTestResult(true, ""));
+        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) => new("");
+    }
+
     private sealed class Fixture
     {
         public List<RpadConnection> Mine { get; } = [];
@@ -70,6 +83,28 @@ public class DependenciesConnectionsEditorTests
             Assert.Equal(["HTTP"], menu.Items.Cast<MenuItem>().Select(i => i.Header));
             Assert.True(window.FindControl<Button>("NewConnectionButton")!.IsEnabled);
             Assert.True(window.FindControl<Button>("ManageConnectionsButton")!.IsEnabled);
+        }
+        finally { window.Close(); owner.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task ClosingDependenciesWindow_Should_InvalidatePendingAddConfirmation()
+    {
+        var fixture = new Fixture();
+        fixture.Drivers.Register(new PackageDriver());
+        fixture.Mine.Add(new RpadConnection { Name = "local", Driver = "package" });
+        var (window, vm, owner) = fixture.CreateWindow();
+        var completion = new TaskCompletionSource<bool>();
+        vm.Connections.AddConfirmationDialog = _ => completion.Task;
+        try
+        {
+            vm.Connections.SelectedAvailable = Assert.Single(vm.Connections.Available);
+            Assert.True(vm.Connections.AddCommand.CanExecute(null));
+            vm.Connections.AddCommand.Execute().Subscribe();
+            window.Close();
+            completion.SetResult(true);
+            await Task.Yield();
+            Assert.Empty(vm.Connections.Items);
         }
         finally { window.Close(); owner.Close(); }
     }
