@@ -168,7 +168,7 @@ public class ScriptConnectionsViewModelTests
         vm.SetFrontMatter(fm);
         Execute(vm.Connections.AddCommand);
         Assert.True(vm.Connections.IsAddConfirmationPending);
-        Assert.Equal("Add 'local'? This also adds the NuGet package it needs: Microsoft.Data.Sqlite 9.0.0.", vm.Connections.AddMessage);
+        Assert.Equal("Add 'local' (SQL-ish) to this script? Its client is built into the script, which also gets the NuGet package the connection needs: Microsoft.Data.Sqlite 9.0.0. Cancel leaves the script as it is.", vm.Connections.AddMessage);
         Assert.Empty(vm.Connections.Items); // nothing changes before confirming
         Execute(vm.Connections.ConfirmAddCommand);
         Assert.False(vm.Connections.IsAddConfirmationPending);
@@ -220,6 +220,202 @@ public class ScriptConnectionsViewModelTests
         Assert.Single(vm.Connections.Items);
         Assert.True(vm.ApplyChanges());
         Assert.Equal("8.0.0", fm.Packages["Microsoft.Data.Sqlite"].Version); // kept, not overwritten
+    }
+
+    // ── New Connection / Manage Connections ──────────────────────────────────
+
+    private static void UseEditor(DependenciesWindowViewModel vm, List<RpadConnection> mine, Func<string?, IReadOnlyList<RpadConnection>?> edit,
+        List<string?>? opened = null)
+    {
+        vm.Connections.ConnectionsEditor = driverId =>
+        {
+            opened?.Add(driverId);
+            // The window saved a new list, or closed without saving.
+            if (edit(driverId) is not { } saved) return Task.FromResult(false);
+            mine.Clear();
+            mine.AddRange(saved);
+            return Task.FromResult(true);
+        };
+    }
+
+    [Fact]
+    public async Task ANewConnection_Should_BeOfferedToTheScript_ThroughTheSameConfirmation()
+    {
+        var (vm, _, mine) = CreateVm(Http("github", "https://api.github.com/"));
+        var fm = new RpadFrontMatter();
+        vm.SetFrontMatter(fm);
+        var opened = new List<string?>();
+        UseEditor(vm, mine, _ => [.. mine, new RpadConnection { Name = "local", Driver = "sqlish" }], opened);
+        var connections = vm.Connections;
+        var sqlish = Assert.Single(connections.Drivers, d => d.Id == "sqlish");
+
+        await connections.NewCommand.Execute(sqlish);
+
+        Assert.Equal(["sqlish"], opened);
+        Assert.Equal(["github", "local"], connections.Available.Select(c => c.Name));
+        Assert.True(connections.IsAddConfirmationPending);
+        Assert.Contains("'local'", connections.AddMessage);
+        Assert.Contains("Microsoft.Data.Sqlite 9.0.0", connections.AddMessage);
+        Assert.Empty(connections.Items); // the script is untouched until the user confirms
+        Assert.False(vm.HasChanges);
+
+        Execute(connections.CancelAddCommand);
+        Assert.Empty(connections.Items);
+        Assert.False(vm.HasChanges);
+        Assert.Contains(connections.Available, c => c.Name == "local"); // still saved, still addable
+
+        connections.SelectedAvailable = connections.Available.Single(c => c.Name == "local");
+        Execute(connections.AddCommand);
+        Execute(connections.ConfirmAddCommand);
+        Assert.True(vm.ApplyChanges());
+        Assert.Equal(["local"], fm.Connections.Select(c => c.Name));
+        Assert.Equal("9.0.0", fm.Packages["Microsoft.Data.Sqlite"].Version);
+    }
+
+    [Fact]
+    public async Task ANewConnectionWithNoNewPackages_Should_BeAddedWithoutAskingAgain()
+    {
+        var (vm, _, mine) = CreateVm();
+        var fm = new RpadFrontMatter { Packages = new() { ["Microsoft.Data.Sqlite"] = new Package("8.0.0") } };
+        vm.SetFrontMatter(fm);
+        UseEditor(vm, mine, _ => [new RpadConnection { Name = "second", Driver = "sqlish" }]);
+
+        await vm.Connections.NewCommand.Execute(Assert.Single(vm.Connections.Drivers, d => d.Id == "sqlish"));
+
+        Assert.False(vm.Connections.IsAddConfirmationPending);
+        Assert.Equal(["second"], vm.Connections.Items.Select(i => i.Name));
+        Assert.True(vm.ApplyChanges());
+        Assert.Equal("8.0.0", fm.Packages["Microsoft.Data.Sqlite"].Version); // the version the script chose is kept
+    }
+
+    [Fact]
+    public async Task ClosingTheConnectionsWindowWithoutSaving_Should_ChangeNothing()
+    {
+        var (vm, store, mine) = CreateVm(Http("github", "https://api.github.com/"));
+        vm.SetFrontMatter(new RpadFrontMatter());
+        UseEditor(vm, mine, _ => null);
+        var loads = store.Invocations.Count;
+
+        await vm.Connections.NewCommand.Execute(Assert.Single(vm.Connections.Drivers, d => d.Id == "sqlish"));
+
+        Assert.Equal(loads, store.Invocations.Count); // the list wasn't read again
+        Assert.False(vm.Connections.IsAddConfirmationPending);
+        Assert.Empty(vm.Connections.Items);
+        Assert.Equal(["github"], vm.Connections.Available.Select(c => c.Name));
+        Assert.False(vm.HasChanges);
+        Assert.Null(vm.Connections.CreateMessage);
+    }
+
+    [Fact]
+    public async Task OpeningTheEditor_Should_DropAPendingConfirmation_AndKeepTheDraft()
+    {
+        var (vm, _, mine) = CreateVm(Http("github", "https://api.github.com/"), new RpadConnection { Name = "local", Driver = "sqlish" });
+        var fm = new RpadFrontMatter();
+        vm.SetFrontMatter(fm);
+        Execute(vm.Connections.AddCommand); // github: no confirmation, a pending edit of the draft
+        vm.Connections.SelectedAvailable = vm.Connections.Available.Single(c => c.Name == "local");
+        Execute(vm.Connections.AddCommand);
+        Assert.True(vm.Connections.IsAddConfirmationPending);
+        UseEditor(vm, mine, _ => null);
+
+        await vm.Connections.ManageCommand.Execute();
+
+        Assert.False(vm.Connections.IsAddConfirmationPending);
+        Assert.Equal(["github"], vm.Connections.Items.Select(i => i.Name));
+        Assert.True(vm.HasChanges); // the connection added before is still a pending edit
+        Assert.True(vm.ApplyChanges());
+        Assert.Equal(["github"], fm.Connections.Select(c => c.Name));
+        Assert.True(fm.Packages is null or { Count: 0 }); // the pending SQL connection brought none
+    }
+
+    [Fact]
+    public async Task ManagingConnections_Should_ReloadTheList_WithoutAddingAnythingToTheScript()
+    {
+        var (vm, _, mine) = CreateVm(Http("github", "https://api.github.com/"));
+        vm.SetFrontMatter(new RpadFrontMatter());
+        UseEditor(vm, mine, _ => [.. mine, new RpadConnection { Name = "local", Driver = "sqlish" }]);
+
+        await vm.Connections.ManageCommand.Execute();
+
+        Assert.Equal(["github", "local"], vm.Connections.Available.Select(c => c.Name));
+        Assert.False(vm.Connections.IsAddConfirmationPending);
+        Assert.Empty(vm.Connections.Items);
+        Assert.False(vm.HasChanges);
+    }
+
+    [Fact]
+    public async Task ANewConnectionWhoseCodeNameTheScriptHas_Should_NotBeAdded_AndSayWhy()
+    {
+        var (vm, _, mine) = CreateVm(Http("my-api", "https://one/"));
+        vm.SetFrontMatter(new RpadFrontMatter { Connections = [Http("my-api", "https://one/")] });
+        UseEditor(vm, mine, _ => [.. mine, Http("my_api", "https://two/")]);
+
+        await vm.Connections.NewCommand.Execute(Assert.Single(vm.Connections.Drivers, d => d.Id == "http"));
+
+        Assert.Single(vm.Connections.Items);
+        Assert.Contains("'my_api'", vm.Connections.CreateMessage);
+        Assert.Contains("already has", vm.Connections.CreateMessage);
+        Assert.False(vm.HasChanges);
+    }
+
+    [Fact]
+    public async Task AnEditorThatFails_Should_BeReported_WithoutChangingTheScript()
+    {
+        var (vm, _, _) = CreateVm(Http("github", "https://api.github.com/"));
+        vm.SetFrontMatter(new RpadFrontMatter());
+        vm.Connections.ConnectionsEditor = _ => throw new InvalidOperationException("no window");
+
+        await vm.Connections.ManageCommand.Execute();
+
+        Assert.Contains("no window", vm.Connections.CreateMessage);
+        Assert.Empty(vm.Connections.Items);
+        Assert.False(vm.HasChanges);
+    }
+
+    [Fact]
+    public void TheEditorCommands_Should_BeOff_WithoutAnEditor_OrWhenTheListCantBeRead()
+    {
+        var (vm, store, _) = CreateVm();
+        vm.SetFrontMatter(new RpadFrontMatter());
+        Assert.False(vm.Connections.CanEditConnections);
+        Assert.False(((ICommand)vm.Connections.ManageCommand).CanExecute(null));
+
+        vm.Connections.ConnectionsEditor = _ => Task.FromResult(false);
+        Assert.True(vm.Connections.CanEditConnections);
+
+        store.Setup(s => s.LoadSnapshot()).Throws(new InvalidDataException("broken"));
+        vm.SetFrontMatter(new RpadFrontMatter());
+        Assert.True(vm.Connections.HasReadError);
+        Assert.False(vm.Connections.CanEditConnections);
+    }
+
+    [Fact]
+    public void AConnectionWithADriverThisRunPadLacks_Should_NotBeAdded_AndExplainWhatIsMissing()
+    {
+        var (vm, _, _) = CreateVm(new RpadConnection { Name = "legacy", Driver = "oracle" });
+        vm.SetFrontMatter(new RpadFrontMatter());
+
+        Execute(vm.Connections.AddCommand);
+
+        Assert.Empty(vm.Connections.Items);
+        Assert.False(vm.Connections.IsAddConfirmationPending);
+        Assert.Contains("'oracle' driver", vm.Connections.CreateMessage);
+        Assert.False(vm.HasChanges);
+    }
+
+    [Fact]
+    public void AddingAnotherConnectionOfADriverWhosePackagesCameEarlier_Should_NotAskAgain()
+    {
+        var (vm, _, _) = CreateVm(new RpadConnection { Name = "one", Driver = "sqlish" }, new RpadConnection { Name = "two", Driver = "sqlish" });
+        vm.SetFrontMatter(new RpadFrontMatter());
+        Execute(vm.Connections.AddCommand);
+        Assert.True(vm.Connections.IsAddConfirmationPending);
+        Execute(vm.Connections.ConfirmAddCommand);
+
+        Execute(vm.Connections.AddCommand);
+
+        Assert.False(vm.Connections.IsAddConfirmationPending);
+        Assert.Equal(["one", "two"], vm.Connections.Items.Select(i => i.Name));
     }
 
     // Reading the Secret Store decrypts every value; the tab needs only the names, once per opening,

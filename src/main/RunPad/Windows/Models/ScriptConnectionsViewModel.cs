@@ -141,6 +141,35 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     public ReactiveCommand<Unit, Unit> ConfirmAddCommand { get; }
     public ReactiveCommand<Unit, Unit> CancelAddCommand { get; }
 
+    // The window that edits the user's connection list (Tools → Connections): given the id of a driver
+    // to start a new connection of it, or null to just open the list; completes with true when the
+    // user saved the list. Null when there is none, which turns the commands below off.
+    internal Func<string?, Task<bool>>? ConnectionsEditor
+    {
+        get;
+        set { field = value; this.RaisePropertyChanged(nameof(CanEditConnections)); }
+    }
+
+    // One New Connection entry per driver this RunPad has.
+    public IReadOnlyList<IConnectionDriver> Drivers => _drivers.Drivers;
+
+    public bool CanEditConnections => ConnectionsEditor is not null && _store is not null && !HasReadError;
+
+    // Why a connection wasn't added, or what creating one led to; no confirmation is waiting.
+    public string? CreateMessage
+    {
+        get;
+        private set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    // Starts a new connection of the chosen driver in the Connections window. A connection the user
+    // saves there is chosen in the list and offered to the script through the same confirmation as any
+    // other Add; the script's draft is not touched until that is confirmed.
+    public ReactiveCommand<IConnectionDriver, Unit> NewCommand { get; }
+
+    // Opens the Connections window on the user's list, to edit or create several.
+    public ReactiveCommand<Unit, Unit> ManageCommand { get; }
+
     // Why the user's list couldn't be read; Import is off until it can be.
     public string? ReadError
     {
@@ -206,6 +235,9 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
             x => x.SelectedItem, x => x.IsRefreshing, (ScriptConnectionItemViewModel? _, bool refreshing) => CanRefreshSelected && !refreshing));
         ConfirmImportCommand = ReactiveCommand.Create(ConfirmImport, this.WhenAnyValue(x => x.IsImportConfirmationPending));
         CancelImportCommand = ReactiveCommand.Create(CancelImportConfirmation, this.WhenAnyValue(x => x.IsImportConfirmationPending));
+        var canEdit = this.WhenAnyValue(x => x.CanEditConnections, x => x.HasReadError, (can, error) => can && !error);
+        NewCommand = ReactiveCommand.CreateFromTask<IConnectionDriver>(driver => EditConnectionsAsync(driver.Id), canEdit);
+        ManageCommand = ReactiveCommand.CreateFromTask(() => EditConnectionsAsync(null), canEdit);
         ConfirmAddCommand = ReactiveCommand.Create(ConfirmAdd, this.WhenAnyValue(x => x.IsAddConfirmationPending));
         CancelAddCommand = ReactiveCommand.Create(CancelAddConfirmation, this.WhenAnyValue(x => x.IsAddConfirmationPending));
     }
@@ -270,17 +302,62 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private void RequestAdd()
     {
         if (SelectedAvailable is not { } connection) return;
+        CreateMessage = null;
         var driver = _drivers.Find(connection.Driver);
-        var needed = driver is null ? [] : driver.Packages.Where(p => !_scriptPackages().Contains(p.Key)).ToList();
+        if (driver is null)
+        {
+            // Nothing is added: the script would list a connection no build could use.
+            CreateMessage = $"'{connection.Name}' can't be added: it uses the '{connection.Driver}' driver, which this RunPad doesn't have. "
+                + "Use a RunPad version that has it, or choose another connection.";
+            return;
+        }
+        var needed = driver.Packages.Where(p => !_scriptPackages().Contains(p.Key)).ToList();
         if (needed.Count == 0)
         {
             ApplyAdd(connection);
             return;
         }
         _pendingAdd = connection;
-        AddMessage = $"Add '{connection.Name}'? This also adds the NuGet package{(needed.Count == 1 ? "" : "s")} it needs: "
-            + string.Join(", ", needed.Select(p => $"{p.Key} {p.Value}")) + ".";
+        AddMessage = $"Add '{connection.Name}' ({driver.DisplayName}) to this script? Its client is built into the script, "
+            + $"which also gets the NuGet package{(needed.Count == 1 ? "" : "s")} the connection needs: "
+            + string.Join(", ", needed.Select(p => $"{p.Key} {p.Value}")) + ". Cancel leaves the script as it is.";
         IsAddConfirmationPending = true;
+    }
+
+    private async Task EditConnectionsAsync(string? newDriverId)
+    {
+        if (ConnectionsEditor is not { } editor) return;
+        CreateMessage = null;
+        // Both would be about a list that is about to change.
+        CancelAddConfirmation();
+        CancelImportConfirmation();
+        var before = _mine.Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        bool saved;
+        try
+        {
+            saved = await editor(newDriverId);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            CreateMessage = $"The Connections window couldn't be opened: {ex.Message}";
+            return;
+        }
+        // Closed without saving: the list and the script are as they were.
+        if (!saved) return;
+        LoadMine();
+        Refresh();
+        if (HasReadError) return;
+        // Managing the list only reloads it; the script changes only for a connection created here.
+        if (newDriverId is null) return;
+        var created = _mine.FirstOrDefault(c => !before.Contains(c.Name));
+        if (created is null) return;
+        if (Available.FirstOrDefault(c => string.Equals(c.Name, created.Name, StringComparison.OrdinalIgnoreCase)) is not { } offered)
+        {
+            CreateMessage = $"Saved '{created.Name}'. This script already has a connection called {RpadConnection.CodeName(created.Name)} in code, so it was not added.";
+            return;
+        }
+        SelectedAvailable = offered;
+        RequestAdd();
     }
 
     private void ConfirmAdd()

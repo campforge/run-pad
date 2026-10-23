@@ -491,8 +491,19 @@
                         </ComboBox>
                         <Button x:Name="AddConnectionButton" Grid.Column="2" Content="Add to Script" Command="{Binding AddCommand}"/>
                     </Grid>
-                    <TextBlock Grid.Row="1" Classes="hint" TextWrapping="Wrap"
-                               Text="Add a connection to use its client in this script. Its secrets stay out of the script: the script reads them when it runs."/>
+                    <StackPanel Grid.Row="1" Spacing="6">
+                        <TextBlock Classes="hint" TextWrapping="Wrap"
+                                   Text="Add a connection to use its client in this script. Its secrets stay out of the script: the script reads them when it runs."/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="NewConnectionButton" Content="New Connection…" IsEnabled="{Binding CanEditConnections}"
+                                    AutomationProperties.Name="New connection"
+                                    ToolTip.Tip="Creates a connection of the chosen type in Tools → Connections, then offers it to this script"/>
+                            <Button x:Name="ManageConnectionsButton" Content="Manage Connections…" Command="{Binding ManageCommand}"
+                                    ToolTip.Tip="Opens Tools → Connections to edit your saved connections; this script doesn't change"/>
+                        </StackPanel>
+                        <TextBlock x:Name="CreateMessage" Text="{Binding CreateMessage}" TextWrapping="Wrap"
+                                   IsVisible="{Binding CreateMessage, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    </StackPanel>
                     <StackPanel Grid.Row="2" Spacing="6" IsVisible="{Binding IsAddConfirmationPending}">
                         <TextBlock x:Name="AddMessage" Text="{Binding AddMessage}" TextWrapping="Wrap"/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
