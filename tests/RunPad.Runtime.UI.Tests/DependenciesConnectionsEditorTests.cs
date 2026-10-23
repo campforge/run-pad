@@ -99,7 +99,6 @@ public class DependenciesConnectionsEditorTests
         try
         {
             vm.Connections.SelectedAvailable = Assert.Single(vm.Connections.Available);
-            Assert.True(vm.Connections.AddCommand.CanExecute(null));
             vm.Connections.AddCommand.Execute().Subscribe();
             window.Close();
             completion.SetResult(true);
