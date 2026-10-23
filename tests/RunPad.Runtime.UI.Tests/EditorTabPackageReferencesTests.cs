@@ -62,14 +62,14 @@ public class EditorTabPackageReferencesTests
     }
 
     [AvaloniaFact]
-    public void ANewTabWithoutPackages_Should_SetItsTargetReferences_BeforeAnyRun()
+    public async Task ANewTabWithoutPackages_Should_SetItsTargetReferences_BeforeAnyRun()
     {
         var (ctrl, intelliSense) = CreateControl(RunResult.Exited(0), compiled: false);
         try
         {
-            intelliSense.Verify(s => s.UpdatePackageReferences(
+            await TestWait.EventuallyAsync(() => intelliSense.Verify(s => s.UpdatePackageReferences(
                 It.Is<IReadOnlyDictionary<string, Package>>(p => p.Count == 0),
-                It.Is<PackageReferenceContext>(c => c.TargetFramework == "net10.0")), Times.AtLeastOnce());
+                It.Is<PackageReferenceContext>(c => c.TargetFramework == "net10.0")), Times.AtLeastOnce()));
         }
         finally
         {
@@ -89,9 +89,9 @@ public class EditorTabPackageReferencesTests
         Dispatcher.UIThread.RunJobs();
 
         Assert.NotNull(ctrl.State.OutputDirectory);
-        intelliSense.Verify(s => s.UpdatePackageReferences(
+        await TestWait.EventuallyAsync(() => intelliSense.Verify(s => s.UpdatePackageReferences(
             It.IsAny<IReadOnlyDictionary<string, Package>>(),
             It.Is<PackageReferenceContext>(c => c.TargetFramework == "net10.0" && c.OutputDirectory == ctrl.State.OutputDirectory)),
-            Times.AtLeastOnce());
+            Times.AtLeastOnce()));
     }
 }

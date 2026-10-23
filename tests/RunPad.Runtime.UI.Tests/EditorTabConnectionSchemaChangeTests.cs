@@ -82,17 +82,22 @@ public sealed class EditorTabConnectionSchemaChangeTests : IDisposable
         try
         {
             tab.State.RpadDocument = new RpadDocument { FrontMatter = new RpadFrontMatter { Connections = [listed] }, RunCode = "" };
+            // The refresh the new document starts has landed before the test counts.
+            await TestWait.WhileAsync(() => intelliSense.Invocations.All(i => i.Method.Name != nameof(IIntelliSenseService.NotifyTextChanged)));
+            await TestWait.SettleAsync(() => intelliSense.Invocations.Count); // and any further ones it started
             intelliSense.Invocations.Clear();
 
             await Task.Run(() => schemas.Cache.Put(other, new ConnectionSchema("1 service", [], "")),
                 TestContext.Current.CancellationToken);
             await TestWait.WhileAsync(() => false, TimeSpan.FromMilliseconds(200)); // let a wrong refresh show
-            intelliSense.Verify(s => s.UpdateExecutionContext(It.IsAny<ExecutionRequest>()), Times.Never);
+            intelliSense.Verify(s => s.ApplyExecutionContext(It.IsAny<ExecutionRequest>(), It.IsAny<CancellationToken>()), Times.Never);
 
             await Task.Run(() => schemas.Cache.Put(listed, new ConnectionSchema("2 services", [], "")),
                 TestContext.Current.CancellationToken);
-            await TestWait.WhileAsync(() => intelliSense.Invocations.All(i => i.Method.Name != nameof(IIntelliSenseService.UpdateExecutionContext)));
-            intelliSense.Verify(s => s.UpdateExecutionContext(It.IsAny<ExecutionRequest>()), Times.Once);
+            await TestWait.WhileAsync(() => intelliSense.Invocations.All(i => i.Method.Name != nameof(IIntelliSenseService.ApplyExecutionContext)));
+            // The text is analysed again once the new classes are in, which happens off the UI thread.
+            await TestWait.WhileAsync(() => intelliSense.Invocations.All(i => i.Method.Name != nameof(IIntelliSenseService.NotifyTextChanged)));
+            intelliSense.Verify(s => s.ApplyExecutionContext(It.IsAny<ExecutionRequest>(), It.IsAny<CancellationToken>()), Times.Once);
             intelliSense.Verify(s => s.NotifyTextChanged(It.IsAny<string>()), Times.Once);
 
             tab.Dispose();
@@ -100,7 +105,7 @@ public sealed class EditorTabConnectionSchemaChangeTests : IDisposable
             await Task.Run(() => schemas.Cache.Put(listed, new ConnectionSchema("3 services", [], "")),
                 TestContext.Current.CancellationToken);
             await TestWait.WhileAsync(() => false, TimeSpan.FromMilliseconds(200));
-            Assert.DoesNotContain(intelliSense.Invocations, i => i.Method.Name == nameof(IIntelliSenseService.UpdateExecutionContext));
+            Assert.DoesNotContain(intelliSense.Invocations, i => i.Method.Name == nameof(IIntelliSenseService.ApplyExecutionContext));
         }
         finally { host.Close(); }
     }

@@ -150,6 +150,15 @@ public interface IIntelliSenseService : IDisposable
     /// </summary>
     void UpdateExecutionContext(ExecutionRequest request);
 
+    /// <summary>
+    /// <see cref="UpdateExecutionContext"/> for a caller that may ask again before
+    /// the answer is ready: it can run on a worker thread, and a request cancelled by the time its
+    /// slow work is done is dropped (throwing <see cref="OperationCanceledException"/>) rather than
+    /// applied over the newer one. The default applies the request regardless.
+    /// </summary>
+    void ApplyExecutionContext(ExecutionRequest request, CancellationToken cancellationToken)
+        => UpdateExecutionContext(request);
+
     // Call when the tab's .rpad front-matter `namespaces:` list changes (including once at initial
     // load) so completion/diagnostics/quick-fix ranking see the same global usings the compiler
     // will add — see IMaterializedFix.UsingsToAdd.

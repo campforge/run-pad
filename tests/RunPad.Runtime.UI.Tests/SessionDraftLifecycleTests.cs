@@ -63,8 +63,8 @@ public sealed class SessionDraftLifecycleTests : IDisposable
             registry.Setup(r => r.Create(It.IsAny<string>(), It.IsAny<ExecutionRequest>()))
                 .Callback<string, ExecutionRequest>((_, r) => Runs.Add(r)).Returns(host.Object);
             var intelliSense = new Mock<IIntelliSenseService>();
-            intelliSense.Setup(i => i.UpdateExecutionContext(It.IsAny<ExecutionRequest>()))
-                .Callback<ExecutionRequest>(EditorContexts.Add);
+            intelliSense.Setup(i => i.ApplyExecutionContext(It.IsAny<ExecutionRequest>(), It.IsAny<CancellationToken>()))
+                .Callback<ExecutionRequest, CancellationToken>((r, _) => EditorContexts.Add(r));
             var cache = new Mock<IBuildCacheService>();
             cache.Setup(c => c.EnsureOutputDirectory(It.IsAny<string>(), It.IsAny<string>()))
                 .Returns(() => Directory.CreateDirectory(Path.Combine(root, "build")).FullName);

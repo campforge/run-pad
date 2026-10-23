@@ -71,24 +71,27 @@ public class EditorTabSdkChangeAnalysisTests
     // The trigger itself: after the new target's context reaches IntelliSense, the unchanged text is
     // analysed again — away and back.
     [AvaloniaFact]
-    public void SelectingAnotherSdk_Should_ReanalyseTheUnchangedText_AfterApplyingItsContext()
+    public async Task SelectingAnotherSdk_Should_ReanalyseTheUnchangedText_AfterApplyingItsContext()
     {
-        var calls = new List<string>();
+        var calls = new System.Collections.Concurrent.ConcurrentQueue<string>();
         var intelliSense = new Mock<IIntelliSenseService>().ForwardingExecutionContext();
         intelliSense.Setup(s => s.UpdatePackageReferences(It.IsAny<IReadOnlyDictionary<string, Package>>(), It.IsAny<PackageReferenceContext>()))
-            .Callback<IReadOnlyDictionary<string, Package>, PackageReferenceContext>((_, c) => calls.Add("context " + c.TargetFramework));
-        intelliSense.Setup(s => s.NotifyTextChanged(It.IsAny<string>())).Callback<string>(t => calls.Add("analyse " + t));
+            .Callback<IReadOnlyDictionary<string, Package>, PackageReferenceContext>((_, c) => calls.Enqueue("context " + c.TargetFramework));
+        intelliSense.Setup(s => s.NotifyTextChanged(It.IsAny<string>())).Callback<string>(t => calls.Enqueue("analyse " + t));
         var (ctrl, vm) = CreateControl(intelliSense.Object);
         try
         {
             ctrl.State.Editor.Text = Code;
+            await TestWait.WhileAsync(() => false, TimeSpan.FromMilliseconds(300)); // the opening refresh settles
 
             calls.Clear();
             vm.SelectedSdk = Older;
+            await TestWait.WhileAsync(() => calls.Count < 2);
             Assert.Equal(["context net5.0", "analyse " + Code], calls);
 
             calls.Clear();
             vm.SelectedSdk = Current;
+            await TestWait.WhileAsync(() => calls.Count < 2);
             Assert.Equal(["context net10.0", "analyse " + Code], calls);
             Assert.Equal(Code, ctrl.State.Editor.Text);
         }
