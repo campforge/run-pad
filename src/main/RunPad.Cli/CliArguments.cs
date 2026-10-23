@@ -23,6 +23,10 @@ internal sealed record CliArguments
 
     public TargetSdk? TargetSdk { get; init; }
     public bool CompileOnly { get; init; }
+
+    /// <summary>Read every connection's description (a gRPC server's services) again before the build,
+    /// not only those never read or that failed.</summary>
+    public bool RefreshConnections { get; init; }
     public bool ShowHelp { get; init; }
     public bool ShowVersion { get; init; }
 
@@ -113,6 +117,8 @@ internal sealed record CliArguments
                 return (current with { ShowVersion = true }, null);
             case "compileonly" or "compile-only":
                 return (current with { CompileOnly = true }, null);
+            case "refresh-connections":
+                return (current with { RefreshConnections = true }, null);
             case "lang" or "kind" or "k":
                 {
                     if (!TryTakeValue(name, inlineValue, args, ref index, out var value, out var error))

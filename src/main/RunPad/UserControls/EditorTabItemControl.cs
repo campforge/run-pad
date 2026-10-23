@@ -110,6 +110,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         _connectionDrivers = connectionDrivers ?? new ConnectionDriverRegistry();
         _connectionSchemas = connectionSchemas;
+        if (connectionSchemas is not null) connectionSchemas.Cache.Changed += OnConnectionSchemaChanged;
         _themeService = themeService;
         _windowService = windowService;
         _registry = registry;
@@ -703,6 +704,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _disposed = true;
         _prefs.Changed -= OnPreferencesChanged;
         _viewScale.Changed -= OnViewScaleChanged;
+        if (_connectionSchemas is not null) _connectionSchemas.Cache.Changed -= OnConnectionSchemaChanged;
         State.Editor.ZoomRequested -= OnEditorZoomRequested;
         _selectedKindSub?.Dispose();
         _filePathSub?.Dispose();
@@ -2194,9 +2196,23 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         EnsureConnectionSchemasInBackground();
     }
 
-    // Reads the schemas of connections that have never been read (a gRPC server's services) and
-    // then lets the editor know their classes. One that fails isn't asked again here: its error is
-    // what the editor shows, and a run or the Connections window tries again.
+    // A schema read elsewhere (Dependencies' Refresh, the Connections window, a run in another tab)
+    // changes the classes of this script's connection with the same key: catch up, as after an edit.
+    private void OnConnectionSchemaChanged(string key) => Dispatcher.Post(() =>
+    {
+        if (_disposed || _connectionSchemas is not { } schemas
+            || State.RpadDocument?.FrontMatter.Connections is not { Count: > 0 } connections) return;
+        var scriptDirectory = ScriptDirectory;
+        if (!connections.Any(c => schemas.Cache.KeyOf(c, scriptDirectory) == key)) return;
+        RefreshIntelliSensePackages();
+        // The new classes (or error) change what the code already in the editor means: analyse it
+        // again now rather than at the next keystroke.
+        _intelliSense?.NotifyTextChanged(State.Editor.Text);
+    });
+
+    // Reads the schemas of connections that have never been read (a gRPC server's services); the
+    // cache's Changed event then lets the editor know their classes. One that fails isn't asked again
+    // here: its error is what the editor shows, and a run, Refresh or the Connections window tries again.
     private void EnsureConnectionSchemasInBackground()
     {
         if (_connectionSchemas is not { } schemas || State.RpadDocument?.FrontMatter.Connections is not { Count: > 0 } connections) return;
@@ -2206,15 +2222,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             try
             {
-                if (await schemas.EnsureAsync(list, scriptDirectory, ConnectionSchemaRefresh.Missing, CancellationToken.None).ConfigureAwait(false))
-                    Dispatcher.Post(() =>
-                    {
-                        if (_disposed) return;
-                        RefreshIntelliSensePackages();
-                        // The new classes (or error) change what the code already in the editor
-                        // means: analyse it again now rather than at the next keystroke.
-                        _intelliSense?.NotifyTextChanged(State.Editor.Text);
-                    });
+                await schemas.EnsureAsync(list, scriptDirectory, ConnectionSchemaRefresh.Missing, CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

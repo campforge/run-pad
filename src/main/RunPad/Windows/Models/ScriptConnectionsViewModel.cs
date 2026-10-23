@@ -55,7 +55,8 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private readonly IConnectionStore? _store;
     private readonly ISecretStore? _secrets;
     private readonly ConnectionDriverRegistry _drivers;
-    private readonly ConnectionSchemaCache? _schemas;
+    private readonly ConnectionSchemas? _connectionSchemas;
+    private ConnectionSchemaCache? _schemas => _connectionSchemas?.Cache;
     // The script's folder, which a database file's relative path is read from.
     private string? _scriptDirectory;
     private IReadOnlyList<RpadConnection> _original = [];
@@ -88,7 +89,13 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     public ScriptConnectionItemViewModel? SelectedItem
     {
         get;
-        set { if (ReferenceEquals(field, value)) return; this.RaiseAndSetIfChanged(ref field, value); CancelImportConfirmation(); }
+        set
+        {
+            if (ReferenceEquals(field, value)) return;
+            this.RaiseAndSetIfChanged(ref field, value);
+            this.RaisePropertyChanged(nameof(CanRefreshSelected));
+            CancelImportConfirmation();
+        }
     }
 
     public bool IsCSharp
@@ -164,10 +171,29 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     public ReactiveCommand<Unit, Unit> RemoveCommand { get; }
     public ReactiveCommand<Unit, Unit> ImportCommand { get; }
 
-    public ScriptConnectionsViewModel(IConnectionStore? store, ISecretStore? secrets, ConnectionDriverRegistry? drivers,
-        ConnectionSchemaCache? schemas = null)
+    // Reads the selected connection's description (a gRPC server's services) again: a server whose
+    // contract changed is otherwise read only when its description is missing or failed.
+    public ReactiveCommand<Unit, Unit> RefreshCommand { get; }
+
+    public bool CanRefreshSelected => SelectedItem is { } item && _connectionSchemas is not null
+        && _drivers.Find(item.Connection.Driver) is IConnectionSchemaDriver;
+
+    public bool IsRefreshing
     {
-        _schemas = schemas;
+        get;
+        private set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    public string? RefreshMessage
+    {
+        get;
+        private set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    public ScriptConnectionsViewModel(IConnectionStore? store, ISecretStore? secrets, ConnectionDriverRegistry? drivers,
+        ConnectionSchemas? schemas = null)
+    {
+        _connectionSchemas = schemas;
         _store = store;
         _secrets = secrets;
         _drivers = drivers ?? new ConnectionDriverRegistry();
@@ -176,6 +202,8 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         RemoveCommand = ReactiveCommand.Create(RemoveSelected, this.WhenAnyValue(x => x.SelectedItem, (ScriptConnectionItemViewModel? i) => i is not null));
         ImportCommand = ReactiveCommand.Create(ImportSelected,
             this.WhenAnyValue(x => x.SelectedItem, x => x.HasReadError, (ScriptConnectionItemViewModel? i, bool error) => i is not null && !error && _store is not null));
+        RefreshCommand = ReactiveCommand.CreateFromTask(RefreshSelectedAsync, this.WhenAnyValue(
+            x => x.SelectedItem, x => x.IsRefreshing, (ScriptConnectionItemViewModel? _, bool refreshing) => CanRefreshSelected && !refreshing));
         ConfirmImportCommand = ReactiveCommand.Create(ConfirmImport, this.WhenAnyValue(x => x.IsImportConfirmationPending));
         CancelImportCommand = ReactiveCommand.Create(CancelImportConfirmation, this.WhenAnyValue(x => x.IsImportConfirmationPending));
         ConfirmAddCommand = ReactiveCommand.Create(ConfirmAdd, this.WhenAnyValue(x => x.IsAddConfirmationPending));
@@ -204,6 +232,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     {
         SelectedItem = null;
         CancelAddConfirmation();
+        RefreshMessage = null;
         _addedPackages.Clear();
         WriteError = null;
         _original = frontMatter?.Connections ?? [];
@@ -306,6 +335,26 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
             }
         Refresh();
         Edited?.Invoke();
+    }
+
+    private async Task RefreshSelectedAsync()
+    {
+        if (SelectedItem is not { } item || _connectionSchemas is not { } schemas) return;
+        var connection = item.Connection;
+        IsRefreshing = true;
+        RefreshMessage = $"Reading the description of '{item.Name}'…";
+        try
+        {
+            await schemas.EnsureAsync([connection], _scriptDirectory, ConnectionSchemaRefresh.All, CancellationToken.None);
+            RefreshMessage = schemas.Cache.ErrorFor(connection, _scriptDirectory) is { } error
+                ? $"The description of '{item.Name}' couldn't be read: {error}"
+                : $"'{item.Name}' read again: {schemas.Cache.Get(connection, _scriptDirectory)?.Summary}";
+        }
+        finally
+        {
+            IsRefreshing = false;
+            Refresh();
+        }
     }
 
     // Writes the script's connection into the user's list at once (replacing one of the same name);

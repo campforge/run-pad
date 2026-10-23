@@ -533,9 +533,14 @@
                         <Button x:Name="RemoveConnectionButton" Content="Remove from Script" Command="{Binding RemoveCommand}"/>
                         <Button x:Name="ImportConnectionButton" Content="Import to Your Connections" Command="{Binding ImportCommand}"
                                 ToolTip.Tip="Keeps this connection in Tools → Connections, replacing one of the same name; the script doesn't change"/>
+                        <Button x:Name="RefreshConnectionButton" Content="Refresh" Command="{Binding RefreshCommand}"
+                                IsVisible="{Binding CanRefreshSelected}"
+                                ToolTip.Tip="Reads this connection's description (such as a gRPC server's services) again, for a contract that changed"/>
                     </StackPanel>
                     <StackPanel Grid.Row="5" Spacing="6">
                         <TextBlock Classes="hint" Text="Imports save to your connections immediately; Save below applies changes to this script."/>
+                        <TextBlock x:Name="RefreshMessage" Text="{Binding RefreshMessage}" TextWrapping="Wrap"
+                                   IsVisible="{Binding RefreshMessage, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                         <TextBlock x:Name="ImportMessage" Text="{Binding ImportMessage}" TextWrapping="Wrap"/>
                         <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsImportConfirmationPending}">
                             <Button x:Name="CancelImportButton" Content="Keep Existing" Command="{Binding CancelImportCommand}"/>

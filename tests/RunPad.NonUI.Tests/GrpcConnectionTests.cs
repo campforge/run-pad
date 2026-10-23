@@ -446,7 +446,7 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         Assert.True(await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.Failed, TestContext.Current.CancellationToken));
 
         // Dependencies → Connections says so too.
-        var tab = new ScriptConnectionsViewModel(null, null, schemas.Drivers, schemas.Cache);
+        var tab = new ScriptConnectionsViewModel(null, null, schemas.Drivers, schemas);
         tab.UsePackages(() => new HashSet<string>(packages, StringComparer.OrdinalIgnoreCase), (_, _) => { });
         tab.Load(new RpadFrontMatter { Connections = [connection] });
         Assert.Equal("Its description couldn't be read: The server doesn't offer gRPC server reflection, which RunPad reads its services with.",

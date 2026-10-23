@@ -1,3 +1,4 @@
+using System.Reactive.Linq;
 using System.Windows.Input;
 using Moq;
 using RunPad.Connectors.Http;
@@ -244,6 +245,65 @@ public class ScriptConnectionsViewModelTests
 
         vm.SetFrontMatter(new RpadFrontMatter()); // opening the tab again reads the names again
         secrets.Verify(s => s.LoadSnapshot(), Times.Once);
+    }
+
+    private sealed class CountingSchemaDriver : IConnectionSchemaDriver
+    {
+        public int Fetches;
+        public string? Failure;
+        public string Id => "described";
+        public string DisplayName => "Described";
+        public ConnectionCategory Category => ConnectionCategory.Grpc;
+        public IReadOnlyList<ConnectionParam> Params { get; } = [];
+        public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string>();
+        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+            Task.FromResult(new ConnectionTestResult(true, ""));
+        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) => new("");
+        public Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
+            CancellationToken cancellationToken)
+        {
+            Fetches++;
+            return Failure is null ? Task.FromResult(new ConnectionSchema($"{Fetches} services", [], ""))
+                : Task.FromException<ConnectionSchema>(new InvalidOperationException(Failure));
+        }
+    }
+
+    // Refresh reads the selected connection's description again, even one already read, and says what
+    // came of it; it is offered only for a connection whose driver reads one.
+    [Fact]
+    public async Task Refresh_Should_ReadTheSelectedConnectionsDescriptionAgain()
+    {
+        var folder = Directory.CreateTempSubdirectory("runpad-refresh-schemas").FullName;
+        try
+        {
+            var driver = new CountingSchemaDriver();
+            var drivers = new ConnectionDriverRegistry();
+            drivers.Register(driver);
+            drivers.Register(new HttpConnectionDriver());
+            var schemas = new ConnectionSchemas(drivers, folder, new ConnectionTools { GetPackageFolderAsync = (_, _, _) => Task.FromResult("") }, _ => null);
+            var described = new RpadConnection { Name = "stock", Driver = "described" };
+            await schemas.EnsureAsync([described], null, ConnectionSchemaRefresh.Missing, CancellationToken.None);
+            Assert.Equal(1, driver.Fetches);
+
+            var tab = new ScriptConnectionsViewModel(null, null, drivers, schemas);
+            tab.Load(new RpadFrontMatter { Connections = [described, Http("billing", "https://billing.local/")] });
+            tab.SelectedItem = tab.Items[1];
+            Assert.False(tab.CanRefreshSelected);
+            Assert.False(((ICommand)tab.RefreshCommand).CanExecute(null));
+
+            tab.SelectedItem = tab.Items[0];
+            Assert.True(tab.CanRefreshSelected);
+            await tab.RefreshCommand.Execute();
+            Assert.Equal(2, driver.Fetches);
+            Assert.Equal("'stock' read again: 2 services", tab.RefreshMessage);
+            Assert.False(tab.IsRefreshing);
+
+            driver.Failure = "Server unavailable.";
+            await tab.RefreshCommand.Execute();
+            Assert.Equal("The description of 'stock' couldn't be read: Server unavailable.", tab.RefreshMessage);
+        }
+        finally { Directory.Delete(folder, true); }
     }
 
     // Taking a connection out again before saving takes its packages too, unless another needs them.

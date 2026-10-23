@@ -98,6 +98,15 @@ public class CliArgumentsTests
         Assert.True(CliArguments.Parse([option, "a.rpad"]).CompileOnly);
     }
 
+    [Fact]
+    public void Parse_Should_ReadRefreshConnections_BeforeOrAfterTheScript()
+    {
+        Assert.True(CliArguments.Parse(["--refresh-connections", "a.rpad"]).RefreshConnections);
+        Assert.True(CliArguments.Parse(["a.rpad", "--refresh-connections"]).RefreshConnections);
+        Assert.False(CliArguments.Parse(["a.rpad"]).RefreshConnections);
+        Assert.Equal(["--refresh-connections"], CliArguments.Parse(["a.rpad", "--", "--refresh-connections"]).ScriptArguments);
+    }
+
     [Theory]
     [InlineData("-nunuget")]
     [InlineData("--no-cache")]
