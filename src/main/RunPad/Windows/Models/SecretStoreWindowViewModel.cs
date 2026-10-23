@@ -154,9 +154,14 @@ public sealed class SecretStoreWindowViewModel : ViewModelBase
         {
             // Exception text can contain data from a serializer or encryption provider. Keep secrets
             // out of UI errors while retaining the user's edits and allowing a retry.
-            SaveError = ex is SecretStoreConflictException
-                ? "The secret store changed in another window. Reopen it before saving. Your edits have not been written."
-                : "Could not save the secret store. Check access and available disk space, then try again. Your edits are still here.";
+            SaveError = ex switch
+            {
+                SecretStoreConflictException =>
+                    "The secret store changed in another window. Reopen it before saving. Your edits have not been written.",
+                SecretStoreBusyException =>
+                    "The secret store is in use by another RunPad window or a running script. Try again in a moment. Your edits are still here.",
+                _ => "Could not save the secret store. Check access and available disk space, then try again. Your edits are still here.",
+            };
             return false;
         }
     }

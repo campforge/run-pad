@@ -200,8 +200,71 @@ public sealed class SecretStoreTests : IDisposable
         var snapshot = store.LoadSnapshot();
         var bytes = File.ReadAllBytes(StorePath);
         using var owner = new FileStream(StorePath + ".lock", FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-        Assert.Throws<IOException>(() => store.Save([new Secret("db", "changed")], snapshot.Version));
+        Assert.Throws<SecretStoreBusyException>(() => store.Save([new Secret("db", "changed")], snapshot.Version));
         Assert.Equal(bytes, File.ReadAllBytes(StorePath));
+    }
+
+    // Another window saving, or a script reading on Windows, holds the file only for a moment: the
+    // window says to try again rather than to check access and disk space, and keeps the edits.
+    [Fact]
+    public void AStoreInUse_Should_AskToTryAgain_AndSaveOnceItIsFree()
+    {
+        SaveSecrets([new Secret("db", "initial")]);
+        var vm = new SecretStoreWindowViewModel(new FileSecretStore(StorePath));
+        vm.Secrets[0].Value = "changed";
+        var owner = new FileStream(StorePath + ".lock", FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+
+        Assert.False(vm.Save());
+        Assert.Contains("in use", vm.SaveError);
+        Assert.DoesNotContain("disk space", vm.SaveError);
+        Assert.Equal("changed", vm.Secrets[0].Value);
+
+        owner.Dispose();
+        Assert.True(vm.Save());
+        Assert.Equal("changed", Assert.Single(new FileSecretStore(StorePath).Load()).Value);
+    }
+
+    // A store kept elsewhere through a symbolic link stays a link: the file it points to is updated.
+    [Fact]
+    public void AStoreThatIsASymbolicLink_Should_StayOne_AndItsTargetBeUpdated()
+    {
+        var target = Path.Combine(_folder, "synced", "secrets.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(StorePath)!);
+        new FileSecretStore(target).Save([new Secret("db", "initial")], null);
+        try
+        {
+            File.CreateSymbolicLink(StorePath, target);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Assert.Skip($"Symbolic links can't be created here: {ex.Message}");
+        }
+
+        SaveSecrets([new Secret("db", "changed")]);
+
+        Assert.NotNull(new FileInfo(StorePath).LinkTarget);
+        Assert.Equal("changed", Assert.Single(new FileSecretStore(target).Load()).Value);
+        Assert.Equal("changed", Assert.Single(new FileSecretStore(StorePath).Load()).Value);
+    }
+
+    // A save killed between writing its temporary file and moving it leaves that file (on macOS and
+    // Linux with the secrets in it); the next save removes it, and nothing else in the folder.
+    [Fact]
+    public void ASave_Should_RemoveTemporaryFilesLeftByAKilledSave_AndNothingElse()
+    {
+        SaveSecrets([new Secret("db", "initial")]);
+        var folder = Path.GetDirectoryName(StorePath)!;
+        var leftover = Path.Combine(folder, "secrets.json." + Guid.NewGuid().ToString("N") + ".tmp");
+        var unrelated = Path.Combine(folder, Guid.NewGuid().ToString("N") + ".tmp");
+        File.WriteAllText(leftover, "{\"Secrets\":{\"db\":\"stale\"}}");
+        File.WriteAllText(unrelated, "someone else's");
+
+        SaveSecrets([new Secret("db", "changed")]);
+
+        Assert.False(File.Exists(leftover));
+        Assert.True(File.Exists(unrelated));
+        Assert.Empty(Directory.GetFiles(folder, "secrets.json.*.tmp"));
     }
 
     [Fact]
