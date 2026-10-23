@@ -20,6 +20,8 @@ Notable changes in each RunPad release. Downloads are on the
   setting is saved as the value it stood for instead of a dangling reference. A script whose
   settings use such an alias, including in its connections, now opens instead of being reported as
   invalid.
+- The startup notice about drafts kept unchanged no longer says their data couldn't be read when it
+  could, and only the session that had taken them over can't be checked now; it says so instead.
 
 ## [0.9.3] — 2026-10-23
 

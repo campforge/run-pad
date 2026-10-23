@@ -458,8 +458,13 @@ public sealed class RecoveryStoreTests : IDisposable
         using var reopened = new DiskRecoveryStore(_root);
         await Assert.ThrowsAsync<InvalidDataException>(() => reopened.LoadAsync());
         Assert.Empty(reopened.Imports);
-        Assert.Contains(destination, reopened.Warning!);
-        Assert.Contains(source, reopened.Warning!);
+        // The destination couldn't be read; the source could, only its destination can't be checked.
+        var lines = reopened.Warning!.Split('\n');
+        var unreadableAt = Array.FindIndex(lines, l => l.StartsWith("Some draft data could not be read", StringComparison.Ordinal));
+        var uncheckedAt = Array.FindIndex(lines, l => l.StartsWith("Some drafts were taken over by another session that can't be checked now", StringComparison.Ordinal));
+        Assert.True(unreadableAt >= 0 && uncheckedAt > unreadableAt, reopened.Warning);
+        Assert.Contains(destination, lines[(unreadableAt + 1)..uncheckedAt]);
+        Assert.Equal([source], lines[(uncheckedAt + 1)..]);
         Assert.Equal(sourceFiles, Files(source));
     }
 
@@ -589,6 +594,41 @@ public sealed class RecoveryStoreTests : IDisposable
         finally { newOwner?.Dispose(); }
     }
 
+    // Matching a record without a checkpoint file by revision took a reused folder's new session,
+    // whose revisions start again, for the imported one: its drafts were hidden, then deleted.
+    [Fact]
+    public async Task ARecordWithoutACheckpointFile_Should_NotRetireAReusedFoldersNewSession()
+    {
+        var (destination, source) = await ImportThenAsync();
+        var pointer = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(destination, "current.json")))!;
+        var payload = Path.Combine(destination, pointer["Current"]!.GetValue<string>());
+        var snapshot = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(payload))!;
+        foreach (var record in snapshot["ImportedSessions"]!.AsArray())
+            Assert.True(record!.AsObject().Remove("Payload"));
+        File.WriteAllText(payload, snapshot.ToJsonString());
+
+        // Another instance now uses the source's folder for a session of its own, from revision 1.
+        foreach (var file in Directory.GetFiles(source).Where(f => Path.GetFileName(f) != "owner.lock")) File.Delete(file);
+        var staging = Path.Combine(Path.GetDirectoryName(_root)!, Path.GetFileName(_root) + "-reuser");
+        using (var reuser = new DiskRecoveryStore(staging)) await reuser.CommitAsync(Snapshot(1, "NEW-OWNER-DRAFT"));
+        foreach (var file in Directory.GetFiles(Directory.GetDirectories(staging).Single()).Where(f => Path.GetFileName(f) != "owner.lock"))
+            File.Copy(file, Path.Combine(source, Path.GetFileName(file)));
+        Directory.Delete(staging, true);
+        Directory.SetLastWriteTimeUtc(destination, DateTime.UtcNow.AddMinutes(10));
+        var reused = Files(source);
+
+        using var next = new DiskRecoveryStore(_root);
+        var own = (await next.LoadAsync())!;
+        Assert.Equal(["BASE", "IMPORTED-DRAFT"], own.Tabs.Select(t => t.EditorText));
+        var import = Assert.Single(next.Imports);
+        Assert.Equal("NEW-OWNER-DRAFT", Assert.Single(import.Tabs).EditorText);
+        await next.CommitAsync(own with { Revision = 3, Tabs = [.. own.Tabs, .. import.Tabs] });
+        // Imported now as any other session: marked, its checkpoints still there.
+        var after = Files(source);
+        after.Remove("imported.json");
+        Assert.Equal(reused, after);
+    }
+
     // The checkpoint that retires a source still records it. An instance that listed the folder
     // before and adopted it afterwards, empty, starts its own revisions again: its drafts must be
     // restored, not taken for the retired import, and never deleted as one.
@@ -627,9 +667,11 @@ public sealed class RecoveryStoreTests : IDisposable
         Assert.Empty(reopened.Imports);
     }
 
-    // Checkpoints written before records named the imported checkpoint file still match by revision.
+    // A record that doesn't name the imported checkpoint file (no released RunPad wrote one) can't
+    // tell the imported generation from a reused folder's new one: it never takes a session over or
+    // retires it. The drafts are offered again rather than risking another session's.
     [Fact]
-    public async Task ARecordWithoutACheckpointFile_Should_StillMarkTheSourceAsTakenOver()
+    public async Task ARecordWithoutACheckpointFile_Should_NeverTakeTheSourceOver()
     {
         var (destination, source) = await ImportThenAsync();
         var pointer = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(destination, "current.json")))!;
@@ -641,10 +683,19 @@ public sealed class RecoveryStoreTests : IDisposable
         File.Delete(Path.Combine(source, "imported.json"));
         Directory.SetLastWriteTimeUtc(source, DateTime.UtcNow.AddMinutes(10));
 
+        var sourceFiles = Files(source);
+
+        // The source is listed first, so it is the session this start continues; the destination,
+        // which holds a copy of the same draft, is offered. Every draft stays reachable.
         using var reopened = new DiskRecoveryStore(_root);
-        Assert.Equal(["BASE", "IMPORTED-DRAFT"], (await reopened.LoadAsync())!.Tabs.Select(t => t.EditorText));
-        Assert.Empty(reopened.Imports);
-        Assert.True(File.Exists(Path.Combine(source, "imported.json")));
+        var own = (await reopened.LoadAsync())!.Tabs.Select(t => t.EditorText);
+        var offered = reopened.Imports.SelectMany(i => i.Tabs).Select(t => t.EditorText);
+        Assert.Equal(["IMPORTED-DRAFT"], own);
+        Assert.Contains("IMPORTED-DRAFT", offered);
+        Assert.Contains("BASE", offered);
+        Assert.False(File.Exists(Path.Combine(source, "imported.json")));
+        Assert.Equal(sourceFiles, Files(source));
+        Assert.NotEmpty(Directory.GetFiles(destination, "*.snapshot"));
     }
     [Theory]
     [InlineData(false, false, false)]
