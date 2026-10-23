@@ -50,13 +50,14 @@ public static class RpadParser
         if (fmEnd < 0)
             return RpadParseResult.Failure("The YAML front matter is not closed by a '---' line.");
 
-        var yamlText = content[searchFrom..fmEnd];
+        var originalYaml = content[searchFrom..fmEnd];
         var afterFm = SkipLine(content, fmEnd);
         var markdownBody = content[afterFm..];
 
         RpadFrontMatter fm;
         try
         {
+            var yamlText = WithoutAliases(originalYaml);
             // Empty (or comment-only) YAML deserializes to null — every field is optional, so that's
             // just "all defaults", not an error.
             fm = _yamlDeserializer.Deserialize<RpadFrontMatter?>(yamlText) ?? new RpadFrontMatter();
@@ -124,8 +125,67 @@ public static class RpadParser
         });
     }
 
+    // The front matter with every alias replaced by a copy of the node its anchor names, and no
+    // anchors left; the text itself when it has no alias. Without this, an unknown entry's alias of an
+    // anchor on a known key would point at nothing once RpadWriter rewrites that key from the model,
+    // and the deserializer, which skips unknown keys, never sees an anchor declared in one, so a known
+    // key's alias of it fails to load. A front matter with aliases loses its comments this way.
+    private static string WithoutAliases(string yaml)
+    {
+        var events = new List<ParsingEvent>();
+        var parser = new Parser(new StringReader(yaml));
+        while (parser.MoveNext()) events.Add(parser.Current!);
+        if (!events.Any(e => e is AnchorAlias)) return yaml;
+
+        var anchored = new Dictionary<AnchorName, List<ParsingEvent>>();
+        var recording = new List<(AnchorName Anchor, int Depth, List<ParsingEvent> Events)>();
+        var output = new List<ParsingEvent>();
+        var depth = 0;
+        foreach (var e in events)
+        {
+            if (e is AnchorAlias alias)
+            {
+                if (!anchored.TryGetValue(alias.Value, out var copy))
+                    throw new YamlException(alias.Start, alias.End, $"The alias *{alias.Value} names no anchor before it.");
+                foreach (var c in copy) Put(c);
+                continue;
+            }
+
+            var (plain, anchor) = WithoutAnchor(e);
+            if (!anchor.IsEmpty && plain is not Scalar) recording.Add((anchor, depth, []));
+            Put(plain);
+            if (!anchor.IsEmpty && plain is Scalar) anchored[anchor] = [plain];
+            depth += e.NestingIncrease;
+            if (e.NestingIncrease < 0 && recording.Count > 0 && recording[^1].Depth == depth)
+            {
+                anchored[recording[^1].Anchor] = recording[^1].Events;
+                recording.RemoveAt(recording.Count - 1);
+            }
+        }
+
+        var writer = new StringWriter();
+        var emitter = new Emitter(writer);
+        foreach (var e in output) emitter.Emit(e);
+        return writer.ToString();
+
+        void Put(ParsingEvent e)
+        {
+            output.Add(e);
+            foreach (var (_, _, list) in recording) list.Add(e);
+        }
+    }
+
+    private static (ParsingEvent Event, AnchorName Anchor) WithoutAnchor(ParsingEvent e) => e switch
+    {
+        Scalar { Anchor.IsEmpty: false } s => (new Scalar(AnchorName.Empty, s.Tag, s.Value, s.Style, s.IsPlainImplicit, s.IsQuotedImplicit), s.Anchor),
+        SequenceStart { Anchor.IsEmpty: false } s => (new SequenceStart(AnchorName.Empty, s.Tag, s.IsImplicit, s.Style), s.Anchor),
+        MappingStart { Anchor.IsEmpty: false } m => (new MappingStart(AnchorName.Empty, m.Tag, m.IsImplicit, m.Style), m.Anchor),
+        _ => (e, AnchorName.Empty),
+    };
+
     // Each top-level entry with an unknown key, from its key up to the next key: its value and the
-    // comments between them, without trailing blank lines, LF line breaks.
+    // comments between them, without trailing blank lines, LF line breaks. A block scalar that keeps
+    // its final line breaks ("|+", ">+") keeps them, less the one the writer puts back after it.
     //
     // Walks the parser's events rather than loading a YamlStream: the representation model rejects
     // a repeated key, which the deserializer accepts (the last value wins), so a hand-edited or
@@ -138,7 +198,7 @@ public static class RpadParser
         if (!parser.TryConsume<DocumentStart>(out _) || !parser.TryConsume<MappingStart>(out var root))
             return [];
 
-        var keys = new List<(string? Name, int Start, int ValueEnd)>();
+        var keys = new List<(string? Name, int Start, int ValueEnd, bool KeepsLineBreaks)>();
         while (!parser.TryConsume<MappingEnd>(out _))
         {
             // A key that isn't a scalar (a "? [a, b]" complex key) is never one of ours, so it is
@@ -146,22 +206,35 @@ public static class RpadParser
             var name = parser.Current is Scalar scalar ? scalar.Value : null;
             var start = (int)parser.Current!.Start.Index;
             SkipNode(parser, yaml);
-            keys.Add((name, start, SkipNode(parser, yaml)));
+            var keeps = parser.Current is Scalar { Style: ScalarStyle.Literal or ScalarStyle.Folded } value
+                        && KeepsFinalLineBreaks(yaml, (int)value.Start.Index);
+            keys.Add((name, start, SkipNode(parser, yaml), keeps));
         }
 
         var entries = new List<(string? Name, string Text)>();
         for (var i = 0; i < keys.Count; i++)
         {
-            var (name, start, valueEnd) = keys[i];
+            var (name, start, valueEnd, keeps) = keys[i];
             if (name is not null && KnownKeys.Contains(name)) continue;
             // A flow mapping ("{version: '1.0', future: 3}") has no lines to take whole: keep just
             // the key and its value, which read back the same way as a block-style entry.
             var end = root.Style == MappingStyle.Flow ? valueEnd
                 : i + 1 < keys.Count ? keys[i + 1].Start : yaml.Length;
+            var text = yaml[start..end].Replace("\r\n", "\n");
+            text = keeps ? (text.EndsWith('\n') ? text[..^1] : text) : text.TrimEnd();
             if (name is not null) entries.RemoveAll(e => e.Name == name);
-            entries.Add((name, yaml[start..end].Replace("\r\n", "\n").TrimEnd()));
+            entries.Add((name, text));
         }
         return [.. entries.Select(e => e.Text)];
+    }
+
+    // Whether the block scalar header at `at` ("|+", ">2+", "|+ # note") asks to keep final line breaks.
+    private static bool KeepsFinalLineBreaks(string yaml, int at)
+    {
+        var lineEnd = yaml.IndexOf('\n', at);
+        var header = yaml[at..(lineEnd < 0 ? yaml.Length : lineEnd)];
+        var comment = header.IndexOf(" #", StringComparison.Ordinal);
+        return (comment < 0 ? header : header[..comment]).Contains('+');
     }
 
     // Consumes one node with everything nested in it; returns the offset just past its end.
