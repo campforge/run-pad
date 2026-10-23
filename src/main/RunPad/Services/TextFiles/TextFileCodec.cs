@@ -110,7 +110,7 @@ public static class TextFileCodec
         UTF8Encoding => hasBom ? "UTF-8 with BOM" : "UTF-8",
         UnicodeEncoding { CodePage: 1201 } => "UTF-16 BE",
         UnicodeEncoding => "UTF-16 LE",
-        UTF32Encoding { BigEndian: true } => "UTF-32 BE",
+        UTF32Encoding { CodePage: 12001 } => "UTF-32 BE",
         UTF32Encoding => "UTF-32 LE",
         _ => encoding.WebName,
     };
