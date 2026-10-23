@@ -593,7 +593,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         INuGetSourceStore sources, TimeSpan searchDebounce, IConnectionStore? connections = null, ISecretStore? secrets = null,
         ConnectionDriverRegistry? connectionDrivers = null, ConnectionSchemas? connectionSchemas = null)
     {
-        Connections = new ScriptConnectionsViewModel(connections, secrets, connectionDrivers, connectionSchemas?.Cache);
+        Connections = new ScriptConnectionsViewModel(connections, secrets, connectionDrivers, connectionSchemas);
         Connections.UsePackages(
             () => new HashSet<string>(_draftPackages.Select(p => p.Id), StringComparer.OrdinalIgnoreCase),
             (id, version) => AddPackage(id, version),

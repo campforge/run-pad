@@ -5,6 +5,12 @@ Notable changes in each RunPad release. Downloads are on the
 
 ## [Unreleased]
 
+### Added
+
+- Dependencies → Connections has **Refresh** for a gRPC connection: it reads the server's services
+  again after they change, and open scripts that use the connection get the new classes at once.
+  The command-line runner does the same with `--refresh-connections`.
+
 ### Fixed
 
 - Saving the Secret Store while another RunPad window saves it, or while a running script reads it,

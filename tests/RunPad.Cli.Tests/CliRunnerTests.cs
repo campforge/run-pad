@@ -1,5 +1,6 @@
 using RunPad.Cli;
 using RunPad.Contracts;
+using RunPad.Contracts.Connections;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 using RunPad.Languages.DotnetCommon;
@@ -162,6 +163,76 @@ public class CliRunnerTests
             .Select(t => metadata.GetString(t.Namespace) + "." + metadata.GetString(t.Name));
 
         Assert.DoesNotContain(referenced, backendTypes.Contains);
+    }
+
+    // --refresh-connections reads every connection's description again before the build; without it
+    // one already read is used as it is. The build itself is never reached: the language host
+    // stops the run as soon as it is asked for.
+    [Fact]
+    public async Task RefreshConnections_Should_ReadAnAlreadyReadDescriptionAgain()
+    {
+        var folder = Directory.CreateTempSubdirectory("runpad-cli-refresh").FullName;
+        try
+        {
+            var path = Path.Combine(folder, "a.rpad");
+            await File.WriteAllTextAsync(path, "---\nlanguage: csharp\nconnections:\n  - name: stock\n    driver: counting\n"
+                + "    params:\n      address: http://localhost:5000\n---\n\n```csharp run\n1.Dump();\n```\n");
+            var driver = new CountingSchemaDriver();
+            var drivers = new ConnectionDriverRegistry();
+            drivers.Register(driver);
+            var languages = new LanguageHostRegistry();
+            languages.Register(new StoppingLanguage());
+            var schemas = new ConnectionSchemas(drivers, Path.Combine(folder, "schemas"),
+                new ConnectionTools { GetPackageFolderAsync = (_, _, _) => Task.FromResult("") }, _ => null);
+            var services = new CliServices(languages, new OneSdkProvider(), drivers, schemas);
+
+            async Task Run(params string[] options) => await Assert.ThrowsAsync<StoppedBeforeTheBuild>(() =>
+                CliRunner.RunAsync([.. options, path], services, new TestConsole(), new TestConsole(), CancellationToken.None));
+            await Run();
+            await Run();
+            Assert.Equal(1, driver.Fetches);
+            await Run("--refresh-connections");
+            Assert.Equal(2, driver.Fetches);
+        }
+        finally { Directory.Delete(folder, true); }
+    }
+
+    private sealed class CountingSchemaDriver : IConnectionSchemaDriver
+    {
+        public int Fetches;
+        public string Id => "counting";
+        public string DisplayName => "Counting";
+        public ConnectionCategory Category => ConnectionCategory.Grpc;
+        public IReadOnlyList<ConnectionParam> Params => [];
+        public IReadOnlyDictionary<string, string> Packages => new Dictionary<string, string>();
+        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+            Task.FromResult(new ConnectionTestResult(true, ""));
+        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) => new("");
+        public Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
+            CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref Fetches);
+            return Task.FromResult(new ConnectionSchema("1 service", [], ""));
+        }
+    }
+
+    private sealed class StoppedBeforeTheBuild : Exception;
+
+    private sealed class StoppingLanguage : ILanguageHostFactory
+    {
+        public string Language => "csharp";
+        public string DisplayName => "C#";
+        public LanguageHostCapabilities Capabilities => default;
+        public IReadOnlyDictionary<string, string> Snippets => new Dictionary<string, string>();
+        public EditorLanguageProfile EditorProfile => new();
+        public ILanguageHost Create(ILanguageHostOptions? options = null) => throw new StoppedBeforeTheBuild();
+        public ILanguageHost Create(ExecutionRequest request) => throw new StoppedBeforeTheBuild();
+    }
+
+    private sealed class OneSdkProvider : ISdkProvider
+    {
+        public IReadOnlyList<DotnetSdk> Get(string? dotnetExecutableOverride = null) => [Platform];
     }
 
     private sealed class FakeSdkProvider : ISdkProvider

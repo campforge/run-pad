@@ -209,7 +209,7 @@ public sealed class SqliteConnectionTests : IDisposable
         Assert.Equal([$"Connection 'shop': its description couldn't be read: {reason}"],
             GeneratedConnections.For([connection], RpadLanguage.CSharp, packages, schemas.Drivers, schemas.Cache, ScriptDirectory)!.Errors);
 
-        var tab = new ScriptConnectionsViewModel(null, null, schemas.Drivers, schemas.Cache);
+        var tab = new ScriptConnectionsViewModel(null, null, schemas.Drivers, schemas);
         tab.UsePackages(() => new HashSet<string>(packages, StringComparer.OrdinalIgnoreCase), (_, _) => { });
         tab.SetScriptPath(Path.Combine(ScriptDirectory, "shop.rpad"));
         tab.Load(new RpadFrontMatter { Connections = [connection] });

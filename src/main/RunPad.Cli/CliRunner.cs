@@ -104,10 +104,11 @@ public static class CliRunner
         var outputDirectory = Directory.CreateTempSubdirectory("runpad-cli-").FullName;
         try
         {
-            // A gRPC server's classes are part of the build: read the ones not read yet or that failed.
+            // A gRPC server's classes are part of the build: read the ones not read yet or that failed,
+            // or all of them again with --refresh-connections.
             if (services.ConnectionSchemas is { } schemas && document.FrontMatter.Connections.Count > 0)
                 await schemas.EnsureAsync(document.FrontMatter.Connections, Path.GetDirectoryName(Path.GetFullPath(filePath)),
-                    ConnectionSchemaRefresh.Failed, cancellationToken);
+                    cli.RefreshConnections ? ConnectionSchemaRefresh.All : ConnectionSchemaRefresh.Failed, cancellationToken);
             var request = BuildRequest(document.FrontMatter, platform, outputDirectory, filePath, cli.ScriptArguments,
                 services.ConnectionDrivers, services.ConnectionSchemas?.Cache);
 
@@ -173,6 +174,7 @@ public static class CliRunner
         console.WriteLine("  -lang=<kind>, -k, --kind <kind>   Statements, Program or Expression (s, p, e)");
         console.WriteLine("  -s, --sdk <version>               The .NET SDK to run on, such as 9 or net9.0");
         console.WriteLine("  -compileonly, --compile-only      Compile the script without running it");
+        console.WriteLine("  --refresh-connections             Read the connections' descriptions (gRPC services) again");
         console.WriteLine("  -h, --help                        Show this help");
         console.WriteLine("  --version                         Show the version");
         console.WriteLine();
