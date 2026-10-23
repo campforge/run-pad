@@ -3,6 +3,46 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [0.9.4] — 2026-10-23
+
+### Added
+
+- Assembly Explorer now keeps large assembly trees responsive while loading and highlights IL in
+  the code pane and the script editor's IL tab.
+- Dependencies now shows package dependencies, license information, and the project or homepage
+  link when NuGet supplies them.
+- Dependencies can create and add connections directly, with a confirmation that lists any new
+  NuGet packages and versions before changing the script.
+- Script launch progress now identifies restore, connection contract generation, compilation, and
+  execution stages, and reports which stage failed.
+- Dependencies → Connections has **Refresh** for a gRPC connection: it reads the server's services
+  again after they change, and open scripts that use the connection get the new classes at once.
+  The command-line runner does the same with `--refresh-connections`.
+
+### Changed
+
+- gRPC connection schemas and IntelliSense context updates no longer block the editor while they
+  are being prepared; stale completion and analysis results are discarded when newer code or
+  connection context is available.
+
+### Fixed
+
+- Saving the Secret Store while another RunPad window saves it, or while a running script reads it,
+  now waits a moment and tries again; if the store stays in use, the window says so instead of asking
+  to check access and disk space.
+- A Secret Store file that is a symbolic link stays one when saved: the file it points to is updated.
+- A temporary file left by a Secret Store save that was interrupted is removed by the next save.
+- In Tools → Connections, editing a connection while Test Connection is still waiting no longer
+  shows the answer for the old values afterwards, nor reads a gRPC server's services for values that
+  were never tested.
+- Saving a script keeps front matter settings RunPad doesn't know intact in more cases: a block of
+  text marked to keep its final empty lines (`|+`) keeps them, and a YAML alias (`*name`) of another
+  setting is saved as the value it stood for instead of a dangling reference. A script whose
+  settings use such an alias, including in its connections, now opens instead of being reported as
+  invalid.
+- The startup notice about drafts kept unchanged no longer says their data couldn't be read when it
+  could, and only the session that had taken them over can't be checked now; it says so instead.
+
 ## [0.9.3] — 2026-10-23
 
 ### Changed
@@ -636,3 +676,4 @@ better choice. RunPad began as DotPad two days after the last commit to the fork
 [0.9.2]: https://github.com/campforge/run-pad/releases/tag/v0.9.2
 
 [0.9.3]: https://github.com/campforge/run-pad/releases/tag/v0.9.3
+[0.9.4]: https://github.com/campforge/run-pad/releases/tag/v0.9.4

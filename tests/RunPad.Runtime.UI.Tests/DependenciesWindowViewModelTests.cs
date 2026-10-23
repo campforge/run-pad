@@ -23,13 +23,15 @@ public class DependenciesWindowViewModelTests
 {
     private static DependenciesWindowViewModel CreateVm(
         IReadOnlyList<PackageSearchResult>? results = null, IReadOnlyList<string>? versions = null,
-        IReadOnlyList<CachedPackageInfo>? cached = null, INuGetSourceStore? sources = null)
+        IReadOnlyList<CachedPackageInfo>? cached = null, INuGetSourceStore? sources = null, PackageDetails? details = null)
     {
         var search = new Mock<IPackageSearchService>();
         search.Setup(s => s.SearchAsync(It.IsAny<string>(), It.IsAny<PackageSearchOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PackageSearchPage(results ?? [new PackageSearchResult("Newtonsoft.Json", "13.0.3", "desc", 100)], HasMore: false));
         search.Setup(s => s.GetVersionsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(versions ?? ["13.0.3", "13.0.1", "12.0.3"]);
+        search.Setup(s => s.GetDetailsAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(details);
         var cache = new Mock<ILocalPackageCacheService>();
         cache.Setup(c => c.GetCachedPackages()).Returns(cached ?? []);
         return new DependenciesWindowViewModel(search.Object, cache.Object, sources ?? Sources().Object, TimeSpan.Zero);
@@ -120,6 +122,74 @@ public class DependenciesWindowViewModelTests
 
             Assert.False(window.IsVisible);
             Assert.Equal("13.0.1", rpad.FrontMatter.Packages["Newtonsoft.Json"].Version);
+        }
+        finally
+        {
+            CloseIfOpen(window);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task ThePackageCard_Should_ShowDependenciesLicenseAndProjectPage_AndOpenItsLinks()
+    {
+        var details = new PackageDetails(
+            [new PackageDependencyGroupInfo("net8.0", [new PackageDependencyInfo("System.Memory", ">= 4.5.5")])],
+            "MIT", "https://licenses.nuget.org/MIT", "https://www.newtonsoft.com/json");
+        var vm = CreateVm(details: details);
+        var window = new DependenciesWindow(vm);
+        var opened = new List<Uri>();
+        vm.LinkLauncher = uri =>
+        {
+            opened.Add(uri);
+            return Task.CompletedTask;
+        };
+        try
+        {
+            window.SetFrontMatter(RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine();\n", "Demo"))!.FrontMatter);
+            window.Show();
+            window.KeyTextInput("Newtonsoft.Json");
+            await WaitUntilAsync(() => vm.OnlinePackages.Count == 1);
+            Find<ListBox>(window, "OnlinePackageList").SelectedIndex = 0;
+            await WaitUntilAsync(() => !vm.IsLoadingDetails && vm.HasDetailsDependencies);
+
+            Assert.True(Find<StackPanel>(window, "DetailsLicensePanel").IsEffectivelyVisible);
+            Assert.True(Find<StackPanel>(window, "DetailsProjectPanel").IsEffectivelyVisible);
+            Assert.Equal(["net8.0", "System.Memory (>= 4.5.5)"],
+                Find<ItemsControl>(window, "DetailsDependencyList").GetVisualDescendants().OfType<TextBlock>()
+                    .Where(t => t.IsEffectivelyVisible).Select(t => t.Text));
+            Assert.False(Find<TextBlock>(window, "NoDependenciesText").IsEffectivelyVisible);
+
+            Click(window, Find<Button>(window, "ProjectLinkButton"));
+            Click(window, Find<Button>(window, "LicenseLinkButton"));
+            await WaitUntilAsync(() => opened.Count == 2);
+            Assert.Equal(["https://www.newtonsoft.com/json", "https://licenses.nuget.org/MIT"], opened.Select(u => u.AbsoluteUri));
+        }
+        finally
+        {
+            CloseIfOpen(window);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task ThePackageCard_Should_HideTheDetailSections_WhenTheFeedSuppliesNone()
+    {
+        var vm = CreateVm();
+        var window = new DependenciesWindow(vm);
+        try
+        {
+            window.SetFrontMatter(RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine();\n", "Demo"))!.FrontMatter);
+            window.Show();
+            window.KeyTextInput("Newtonsoft.Json");
+            await WaitUntilAsync(() => vm.OnlinePackages.Count == 1);
+            Find<ListBox>(window, "OnlinePackageList").SelectedIndex = 0;
+            await WaitUntilAsync(() => !vm.IsLoadingVersions && !vm.IsLoadingDetails && vm.AvailableVersions.Count == 3);
+
+            Assert.False(Find<StackPanel>(window, "DetailsLicensePanel").IsEffectivelyVisible);
+            Assert.False(Find<StackPanel>(window, "DetailsProjectPanel").IsEffectivelyVisible);
+            Assert.False(Find<ItemsControl>(window, "DetailsDependencyList").IsEffectivelyVisible);
+            Assert.False(Find<TextBlock>(window, "NoDependenciesText").IsEffectivelyVisible);
+            // The package can be added as before.
+            Assert.True(Find<Button>(window, "AddPackageButton").IsEffectivelyEnabled);
         }
         finally
         {

@@ -17,16 +17,39 @@ public partial class DependenciesWindow : Window
         Patterns = ["*.dll"]
     };
 
-    public DependenciesWindow(DependenciesWindowViewModel viewModel)
+    public DependenciesWindow(DependenciesWindowViewModel viewModel, Func<ConnectionsWindow>? connectionsWindowFactory = null)
     {
         InitializeComponent();
         DataContext = viewModel;
+        if (connectionsWindowFactory is not null)
+        {
+            viewModel.Connections.ConnectionsEditor = driverId => EditConnectionsAsync(connectionsWindowFactory, driverId);
+            // One entry per driver this RunPad has, in registration order.
+            var menu = new MenuFlyout();
+            foreach (var driver in viewModel.Connections.Drivers)
+                menu.Items.Add(new MenuItem { Header = driver.DisplayName, Command = viewModel.Connections.NewCommand, CommandParameter = driver });
+            NewConnectionButton.Flyout = menu;
+        }
+        viewModel.LinkLauncher = async uri =>
+        {
+            if (!await Launcher.LaunchUriAsync(uri))
+                throw new InvalidOperationException("No application opened the address.");
+        };
         Opened += (_, _) => SearchBox.Focus();
         Closing += OnClosing;
         Closed += (_, _) => viewModel.Dispose();
     }
 
     public DependenciesWindow() => InitializeComponent();
+
+    // The Connections window over this one, which stays as it is meanwhile: the draft of the script's
+    // dependencies is only changed by the choices made here afterwards.
+    private async Task<bool> EditConnectionsAsync(Func<ConnectionsWindow> factory, string? newDriverId)
+    {
+        var window = factory();
+        if (newDriverId is not null) window.StartNew(newDriverId);
+        return await window.ShowDialog<bool?>(this) == true;
+    }
 
     private DependenciesWindowViewModel? ViewModel => DataContext as DependenciesWindowViewModel;
 

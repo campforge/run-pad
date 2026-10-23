@@ -22,9 +22,6 @@ public enum ConnectionParamType
     /// <summary><c>true</c> or <c>false</c>, as text.</summary>
     Boolean,
 
-    /// <summary>One of <see cref="ConnectionParam.Choices"/>.</summary>
-    Choice,
-
     /// <summary>Names and texts, such as HTTP headers; texts may hold placeholders.</summary>
     Map,
 
@@ -49,7 +46,6 @@ public sealed record ConnectionParam(
     string? Default = null,
     string? Example = null,
     string? Description = null,
-    IReadOnlyList<string>? Choices = null,
     bool Advanced = false);
 
 /// <summary>The outcome of <see cref="IConnectionDriver.TestAsync"/>, in words for the user.</summary>

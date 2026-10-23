@@ -111,9 +111,9 @@ public class ReferencePathTabTests : IDisposable
         try
         {
             Assert.NotEqual(_oldDir, Directory.GetCurrentDirectory());
-            _intelliSense.Verify(s => s.UpdatePackageReferences(It.IsAny<IReadOnlyDictionary<string, Package>>(),
+            await TestWait.EventuallyAsync(() => _intelliSense.Verify(s => s.UpdatePackageReferences(It.IsAny<IReadOnlyDictionary<string, Package>>(),
                 It.Is<PackageReferenceContext>(c => c.AssemblyReferences != null
-                    && c.AssemblyReferences.SequenceEqual(new[] { _library, _library }))), Times.AtLeastOnce());
+                    && c.AssemblyReferences.SequenceEqual(new[] { _library, _library }))), Times.AtLeastOnce()));
 
             await ctrl.RunAsync(debug: false, Sdk);
 
@@ -131,6 +131,11 @@ public class ReferencePathTabTests : IDisposable
         var (ctrl, vm, _, window) = Open();
         try
         {
+            await TestWait.EventuallyAsync(() => _intelliSense.Verify(s => s.UpdatePackageReferences(
+                It.IsAny<IReadOnlyDictionary<string, Package>>(),
+                It.Is<PackageReferenceContext>(c => c.AssemblyReferences != null
+                    && c.AssemblyReferences.SequenceEqual(new[] { _library, _library }))), Times.AtLeastOnce()));
+
             var newScript = Path.Combine(_newDir, "query.rpad");
             _windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(newScript);
             var original = File.ReadAllBytes(_script);
@@ -146,8 +151,8 @@ public class ReferencePathTabTests : IDisposable
             Assert.False(vm.IsDirty);
             // Still the same file, now from the new folder.
             Assert.Equal([_library, _library], ReferencePathResolver.Resolve(ctrl.State.RpadDocument.FrontMatter.References, vm.FilePath).Assemblies);
-            _intelliSense.Verify(s => s.UpdatePackageReferences(It.IsAny<IReadOnlyDictionary<string, Package>>(),
-                It.Is<PackageReferenceContext>(c => c.AssemblyReferences != null && c.AssemblyReferences.Count == 2)), Times.AtLeast(2));
+            await TestWait.EventuallyAsync(() => _intelliSense.Verify(s => s.UpdatePackageReferences(It.IsAny<IReadOnlyDictionary<string, Package>>(),
+                It.Is<PackageReferenceContext>(c => c.AssemblyReferences != null && c.AssemblyReferences.Count == 2)), Times.AtLeast(2)));
 
             // A plain save afterwards keeps them as they are now.
             ctrl.SaveIfNeeded();
@@ -225,11 +230,11 @@ public class ReferencePathTabTests : IDisposable
     [AvaloniaFact]
     public async Task TheFirstSaveAs_OfAnUntitledTab_Should_GiveIntelliSenseItsReferences_AndReanalyse()
     {
-        var calls = new List<string>();
+        var calls = new System.Collections.Concurrent.ConcurrentQueue<string>();
         _intelliSense.Setup(s => s.UpdatePackageReferences(It.IsAny<IReadOnlyDictionary<string, Package>>(), It.IsAny<PackageReferenceContext>()))
             .Callback<IReadOnlyDictionary<string, Package>, PackageReferenceContext>((_, c) =>
-                calls.Add("context " + string.Join(",", c.AssemblyReferences ?? [])));
-        _intelliSense.Setup(s => s.NotifyTextChanged(It.IsAny<string>())).Callback<string>(_ => calls.Add("analyse"));
+                calls.Enqueue("context " + string.Join(",", c.AssemblyReferences ?? [])));
+        _intelliSense.Setup(s => s.NotifyTextChanged(It.IsAny<string>())).Callback<string>(_ => calls.Enqueue("analyse"));
         var (ctrl, vm, _, window) = Open(untitled: true);
         try
         {
@@ -244,9 +249,13 @@ public class ReferencePathTabTests : IDisposable
             Assert.Equal(_script, vm.FilePath);
             // Nothing to rebase from: the references are written as they are, now relative to this folder.
             Assert.Equal(["lib/Greeter.dll", "$(CurrentQueryPath)/lib/Greeter.dll"], ReferencesIn(_script));
-            var context = calls.FindLastIndex(c => c == $"context {_library},{_library}");
-            Assert.True(context >= 0, string.Join(" | ", calls));
-            Assert.Contains("analyse", calls.Skip(context + 1));
+            await TestWait.EventuallyAsync(() =>
+            {
+                var seen = calls.ToList();
+                var context = seen.FindLastIndex(c => c == $"context {_library},{_library}");
+                Assert.True(context >= 0, string.Join(" | ", seen));
+                Assert.Contains("analyse", seen.Skip(context + 1));
+            });
         }
         finally { window.Close(); ctrl.Dispose(); }
     }

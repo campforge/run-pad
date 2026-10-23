@@ -5,6 +5,21 @@ public enum OutputKind
     StandardOutput,
     StandardError,
     DumpHtml,
+
+    /// <summary>
+    /// Standard output text that ends without a line terminator (<c>Console.Write</c>): the next
+    /// standard output continues the same line. <see cref="StandardOutput"/> is a complete line.
+    /// </summary>
+    StandardOutputPartial,
+
+    /// <summary>Like <see cref="StandardOutputPartial"/>, for standard error.</summary>
+    StandardErrorPartial,
+
+    /// <summary>
+    /// A compiler warning or message (errors are <see cref="StandardError"/>). Not script output, so a
+    /// runner that compares or pipes the script's stdout keeps it apart.
+    /// </summary>
+    Diagnostic,
 }
 
 public delegate void OutputReceivedHandler(string data, OutputKind kind);
@@ -41,3 +56,28 @@ public delegate void CompiledHandler(string binaryPath);
 
 /// <summary>Raised when a running script calls Util.ReadLine/GetPassword — see <see cref="RunPad.Contracts.ILanguageHost.InputRequested"/>.</summary>
 public delegate void InputRequestedHandler(string? prompt, bool isPassword);
+
+/// <summary>The stage of preparing and running a script that a host reports through <see cref="RunPad.Contracts.ILanguageHost.StageChanged"/>.</summary>
+public enum RunStage
+{
+    /// <summary>Reading the schemas of the script's connections (done by the caller before the host is asked to run).</summary>
+    ReadingConnectionSchemas,
+
+    /// <summary>Downloading and restoring NuGet packages (and the targeting pack, if it has to be downloaded).</summary>
+    RestoringPackages,
+
+    /// <summary>Compiling the connections' generated classes into the contract the script is built against.</summary>
+    GeneratingConnections,
+
+    /// <summary>Compiling the script itself.</summary>
+    Compiling,
+
+    /// <summary>The compiled script is running (or being debugged).</summary>
+    Running,
+}
+
+/// <summary>
+/// Raised when a host moves on to another <see cref="RunStage"/>, with an optional detail such as what
+/// is being restored. Raised on whichever thread the host works on.
+/// </summary>
+public delegate void StageChangedHandler(RunStage stage, string? detail);

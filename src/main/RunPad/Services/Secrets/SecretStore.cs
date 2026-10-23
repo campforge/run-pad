@@ -23,6 +23,10 @@ public sealed record SecretStoreSnapshot(IReadOnlyList<Secret> Secrets, string? 
 
 public sealed class SecretStoreConflictException() : IOException("The secret store changed after it was opened.");
 
+/// <summary>Another RunPad window is saving the store, or a running script is reading it; trying again
+/// shortly usually succeeds. Nothing was written.</summary>
+public sealed class SecretStoreBusyException(Exception inner) : IOException("The secret store is in use.", inner);
+
 /// <summary>
 /// RunPad's Secret Store: secrets kept on this machine for this user, outside every script, so a
 /// script names a secret instead of containing it. Edited in Tools → Secret Store.
@@ -39,6 +43,7 @@ public interface ISecretStore
 
     /// <summary>Replaces the store only if it still matches the loaded version; returns the new version.</summary>
     /// <exception cref="SecretStoreConflictException">Another writer changed the file; nothing was written.</exception>
+    /// <exception cref="SecretStoreBusyException">The file stayed in use; nothing was written.</exception>
     string Save(IReadOnlyList<Secret> secrets, string? expectedVersion);
 }
 
@@ -123,13 +128,16 @@ public sealed class FileSecretStore : ISecretStore
 
     public string Save(IReadOnlyList<Secret> secrets, string? expectedVersion)
     {
-        var fullPath = Path.GetFullPath(FilePath);
+        // A store that is a symbolic link (into a synced or shared folder, say) stays one: the file it
+        // points to is replaced, not the link.
+        var fullPath = StoreTarget(Path.GetFullPath(FilePath));
         var folder = Path.GetDirectoryName(fullPath)!;
         Directory.CreateDirectory(folder);
         // Keep this lock file: deleting it would let concurrent writers lock different inodes.
         var lockOptions = new FileStreamOptions { Mode = FileMode.OpenOrCreate, Access = FileAccess.ReadWrite, Share = FileShare.None };
         if (!OperatingSystem.IsWindows()) lockOptions.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
-        using var writer = new FileStream(fullPath + ".lock", lockOptions);
+        using var writer = WhileInUse(() => new FileStream(fullPath + ".lock", lockOptions));
+        DeleteLeftoverTemps(folder, Path.GetFileName(fullPath));
         var current = ReadBytes(fullPath);
         var currentVersion = current is null ? null : VersionOf(current);
         if (!string.Equals(expectedVersion, currentVersion, StringComparison.Ordinal))
@@ -145,8 +153,9 @@ public sealed class FileSecretStore : ISecretStore
         var bytes = JsonSerializer.SerializeToUtf8Bytes(file, WriteOptions);
 
         // Written next to the store and moved over it, so a failed write never leaves half a store;
-        // created readable by its owner only, before any secret is in it.
-        var temp = Path.Combine(folder, Guid.NewGuid().ToString("N") + ".tmp");
+        // created readable by its owner only, before any secret is in it. Named after the store, so
+        // one left by a process killed before the move is recognised and removed by the next save.
+        var temp = Path.Combine(folder, TempPrefix(Path.GetFileName(fullPath)) + Guid.NewGuid().ToString("N") + ".tmp");
         try
         {
             var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None };
@@ -156,7 +165,7 @@ public sealed class FileSecretStore : ISecretStore
                 stream.Write(bytes);
                 stream.Flush(flushToDisk: true);
             }
-            File.Move(temp, fullPath, overwrite: true);
+            ReplaceStore(temp, fullPath);
             return VersionOf(bytes);
         }
         finally
@@ -165,6 +174,83 @@ public sealed class FileSecretStore : ISecretStore
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
     }
+
+    // The file a store path finally points to, following symbolic links; the path itself otherwise.
+    private static string StoreTarget(string path)
+    {
+        try
+        {
+            return new FileInfo(path).ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? path;
+        }
+        catch (IOException)
+        {
+            return path; // a link cycle: writing over the link reports the problem itself
+        }
+    }
+
+    private static string TempPrefix(string storeName) => storeName + ".";
+
+    // Called under the lock, so no other save is between writing and moving its own temp file.
+    private static void DeleteLeftoverTemps(string folder, string storeName)
+    {
+        foreach (var path in Directory.EnumerateFiles(folder, TempPrefix(storeName) + "*.tmp"))
+        {
+            try { File.Delete(path); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+    }
+
+    // On Windows a script reading the store (Util.GetSecret) keeps it open for a moment, and replacing
+    // an open file fails; it is retried like the lock. Access denied persisting with the file free is a
+    // real permission problem and is reported as such.
+    private static void ReplaceStore(string temp, string target) => WhileInUse(() =>
+    {
+        try
+        {
+            File.Move(temp, target, overwrite: true);
+        }
+        catch (UnauthorizedAccessException ex) when (OperatingSystem.IsWindows() && IsOpenElsewhere(target))
+        {
+            throw new IOException(ex.Message, unchecked((int)0x80070020)); // ERROR_SHARING_VIOLATION
+        }
+        return true;
+    });
+
+    private static bool IsOpenElsewhere(string path)
+    {
+        try
+        {
+            using var probe = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            return false;
+        }
+        catch (IOException ex) when (IsInUse(ex)) { return true; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
+    }
+
+    // Retries for under a second while the file is held by another writer or reader, then gives up
+    // with SecretStoreBusyException; any other failure is thrown at once.
+    private static T WhileInUse<T>(Func<T> action)
+    {
+        const int attempts = 6;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return action();
+            }
+            catch (IOException ex) when (IsInUse(ex))
+            {
+                if (attempt == attempts) throw new SecretStoreBusyException(ex);
+                Thread.Sleep(50 * attempt);
+            }
+        }
+    }
+
+    // A sharing or lock violation on Windows; on macOS and Linux, .NET's FileShare.None lock failing
+    // with EWOULDBLOCK (35 on macOS and the BSDs, 11 on Linux).
+    private static bool IsInUse(IOException ex) => OperatingSystem.IsWindows()
+        ? (ex.HResult & 0xFFFF) is 32 or 33
+        : ex.HResult is 11 or 35;
 
     private static string VersionOf(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
 

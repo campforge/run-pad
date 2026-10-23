@@ -1,5 +1,6 @@
 using NuGet.Common;
 using NuGet.Configuration;
+using NuGet.Packaging;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
@@ -126,6 +127,93 @@ public sealed class NuGetPackageSearchService : IPackageSearchService
             .OrderByDescending(v => v, VersionComparer.Default)
             .Select(v => v.ToNormalizedString())
             .ToList();
+    }
+
+    public async Task<PackageDetails?> GetDetailsAsync(string packageId, string? version, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(packageId))
+            return null;
+
+        using var cacheContext = new SourceCacheContext();
+        var perSource = await QueryAllSourcesAsync(Repositories, async repository =>
+        {
+            var resource = await repository.GetResourceAsync<PackageMetadataResource>(ct)
+                           ?? throw new NotSupportedException("The package source does not support package metadata.");
+            return (await resource.GetMetadataAsync(packageId.Trim(), includePrerelease: true, includeUnlisted: false,
+                cacheContext, NullLogger.Instance, ct)).ToList();
+        }, ct);
+
+        var all = perSource.SelectMany(m => m).ToList();
+        IPackageSearchMetadata? chosen = null;
+        if (NuGetVersion.TryParse(version, out var wanted))
+            chosen = all.FirstOrDefault(m => m.Identity.Version == wanted);
+        // A range, "latest" or a version the feeds do not list: describe the newest stable release.
+        chosen ??= all.Where(m => !m.Identity.Version.IsPrerelease).OrderByDescending(m => m.Identity.Version).FirstOrDefault()
+                   ?? all.OrderByDescending(m => m.Identity.Version).FirstOrDefault();
+        return chosen is null ? null : ToDetails(chosen);
+    }
+
+    // Anything a feed sends is shown to the user, so text is bounded and cleaned and a link must be
+    // an http(s) address without credentials; a malformed value is dropped, never an error.
+    internal static PackageDetails ToDetails(IPackageSearchMetadata metadata)
+    {
+        const int MaxGroups = 30, MaxDependencies = 200;
+        var groups = new List<PackageDependencyGroupInfo>();
+        foreach (var group in (metadata.DependencySets ?? []).Take(MaxGroups))
+        {
+            var dependencies = (group.Packages ?? [])
+                .Where(d => !string.IsNullOrWhiteSpace(d.Id))
+                .Take(MaxDependencies)
+                .Select(d => new PackageDependencyInfo(Clean(d.Id, 128)!, ReadableRange(d.VersionRange)))
+                .ToList();
+            if (dependencies.Count > 0)
+                groups.Add(new PackageDependencyGroupInfo(
+                    group.TargetFramework is null ? "any" : Clean(group.TargetFramework.GetShortFolderName(), 64) ?? "any", dependencies));
+        }
+
+        string? license = null;
+        var licenseUrl = WebAddress(metadata.LicenseUrl?.AbsoluteUri);
+        // The pointer NuGet puts into LicenseUrl once the license is an expression or a file.
+        if (licenseUrl is not null && licenseUrl.Contains("deprecateLicenseUrl", StringComparison.OrdinalIgnoreCase))
+            licenseUrl = null;
+        if (metadata.LicenseMetadata is { } licenseMetadata)
+        {
+            license = licenseMetadata.Type switch
+            {
+                LicenseType.Expression => Clean(licenseMetadata.License, 200),
+                LicenseType.File => "License file included in the package",
+                _ => null,
+            };
+        }
+
+        return new PackageDetails(groups, license, licenseUrl, WebAddress(metadata.ProjectUrl?.AbsoluteUri));
+    }
+
+    // ">= 1.0.0" or ">= 1.0.0 && < 2.0.0"; empty for "any version", which says nothing.
+    private static string ReadableRange(VersionRange? range)
+    {
+        if (range is null || (range.IsMinInclusive && !range.HasUpperBound && range.MinVersion is { } min && min == new NuGetVersion(0, 0, 0)))
+            return "";
+        var text = range.PrettyPrint();
+        if (text.StartsWith('(') && text.EndsWith(')')) text = text[1..^1];
+        return Clean(text, 64) ?? "";
+    }
+
+    private static string? Clean(string? text, int maxLength)
+    {
+        if (text is null) return null;
+        var cleaned = new string(text.Where(c => !char.IsControl(c)).ToArray()).Trim();
+        if (cleaned.Length == 0) return null;
+        return cleaned.Length > maxLength ? cleaned[..maxLength] + "…" : cleaned;
+    }
+
+    private static string? WebAddress(string? value)
+    {
+        if (value is null || value.Length > 2048) return null;
+        return Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
+               && uri.Scheme is "http" or "https" && uri.UserInfo.Length == 0 && uri.Host.Length > 0
+            ? uri.AbsoluteUri
+            : null;
     }
 
     // One misconfigured/unreachable source (e.g. an offline corporate feed) shouldn't fail the whole

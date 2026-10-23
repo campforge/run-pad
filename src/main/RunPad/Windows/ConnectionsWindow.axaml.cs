@@ -21,6 +21,13 @@ public partial class ConnectionsWindow : Window
 
     public ConnectionsWindow() => InitializeComponent();
 
+    // Opens with a new connection of that driver selected, ready to be filled in.
+    internal void StartNew(string driverId)
+    {
+        if (ViewModel is not { } vm || vm.Drivers.FirstOrDefault(d => d.Id == driverId) is not { } driver) return;
+        if (!vm.HasLoadError) vm.AddCommand.Execute(driver).Subscribe(_ => { }, _ => { });
+    }
+
     private ConnectionsWindowViewModel? ViewModel => DataContext as ConnectionsWindowViewModel;
 
     private void Ok_Click(object? sender, RoutedEventArgs e)

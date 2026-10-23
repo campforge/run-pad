@@ -80,8 +80,6 @@
                                                   AutomationProperties.Name="{Binding Param.Label, StringFormat='Insert secret into {0}'}" ToolTip.Tip="Insert secret"/>
                                     </Grid>
                                     <CheckBox IsVisible="{Binding IsBoolean}" IsChecked="{Binding BooleanValue}" Content="{Binding Param.Label}"/>
-                                    <ComboBox Classes="form-field" IsVisible="{Binding IsChoice}" HorizontalAlignment="Stretch" ItemsSource="{Binding Choices}"
-                                              SelectedItem="{Binding Text}" AutomationProperties.Name="{Binding Param.Label}"/>
                                     <TextBox Classes="form-field" IsVisible="{Binding IsList}" AcceptsReturn="True" MinHeight="60" Text="{Binding Text}" PlaceholderText="One per line"
                                              AutomationProperties.Name="{Binding Param.Label}"/>
                                     <StackPanel IsVisible="{Binding IsMap}" Spacing="8">

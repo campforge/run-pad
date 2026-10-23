@@ -1,3 +1,4 @@
+using System.Reactive.Linq;
 using System.Windows.Input;
 using Moq;
 using RunPad.Connectors.Http;
@@ -43,13 +44,19 @@ public class ScriptConnectionsViewModelTests
 
     private static (DependenciesWindowViewModel Vm, Mock<IConnectionStore> Store, List<RpadConnection> Mine) CreateVm(params RpadConnection[] mine)
     {
+        var secrets = new Mock<ISecretStore>();
+        secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([new Secret("billing-token", "t0k")], null));
+        return CreateVm(secrets, mine);
+    }
+
+    private static (DependenciesWindowViewModel Vm, Mock<IConnectionStore> Store, List<RpadConnection> Mine) CreateVm(
+        Mock<ISecretStore> secrets, RpadConnection[] mine)
+    {
         var list = mine.ToList();
         var store = new Mock<IConnectionStore>();
         store.Setup(s => s.LoadSnapshot()).Returns(() => new ConnectionStoreSnapshot([.. list], null));
         store.Setup(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()))
             .Callback<IReadOnlyList<RpadConnection>, string?>((saved, _) => { list.Clear(); list.AddRange(saved); });
-        var secrets = new Mock<ISecretStore>();
-        secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([new Secret("billing-token", "t0k")], null));
         var drivers = new ConnectionDriverRegistry();
         drivers.Register(new HttpConnectionDriver());
         drivers.Register(new SqlLikeDriver());
@@ -161,7 +168,7 @@ public class ScriptConnectionsViewModelTests
         vm.SetFrontMatter(fm);
         Execute(vm.Connections.AddCommand);
         Assert.True(vm.Connections.IsAddConfirmationPending);
-        Assert.Equal("Add 'local'? This also adds the NuGet package it needs: Microsoft.Data.Sqlite 9.0.0.", vm.Connections.AddMessage);
+        Assert.Equal("Add 'local' (SQL-ish) to this script? Its client is built into the script, which also gets the NuGet package the connection needs: Microsoft.Data.Sqlite 9.0.0. Cancel leaves the script as it is.", vm.Connections.AddMessage);
         Assert.Empty(vm.Connections.Items); // nothing changes before confirming
         Execute(vm.Connections.ConfirmAddCommand);
         Assert.False(vm.Connections.IsAddConfirmationPending);
@@ -213,6 +220,324 @@ public class ScriptConnectionsViewModelTests
         Assert.Single(vm.Connections.Items);
         Assert.True(vm.ApplyChanges());
         Assert.Equal("8.0.0", fm.Packages["Microsoft.Data.Sqlite"].Version); // kept, not overwritten
+    }
+
+    // ── New Connection / Manage Connections ──────────────────────────────────
+
+    private static void UseEditor(DependenciesWindowViewModel vm, List<RpadConnection> mine, Func<string?, IReadOnlyList<RpadConnection>?> edit,
+        List<string?>? opened = null)
+    {
+        vm.Connections.ConnectionsEditor = driverId =>
+        {
+            opened?.Add(driverId);
+            // The window saved a new list, or closed without saving.
+            if (edit(driverId) is not { } saved) return Task.FromResult(false);
+            mine.Clear();
+            mine.AddRange(saved);
+            return Task.FromResult(true);
+        };
+    }
+
+    [Fact]
+    public async Task ANewConnection_Should_BeOfferedToTheScript_ThroughTheSameConfirmation()
+    {
+        var (vm, _, mine) = CreateVm(Http("github", "https://api.github.com/"));
+        var fm = new RpadFrontMatter();
+        vm.SetFrontMatter(fm);
+        var opened = new List<string?>();
+        UseEditor(vm, mine, _ => [.. mine, new RpadConnection { Name = "local", Driver = "sqlish" }], opened);
+        var connections = vm.Connections;
+        var sqlish = Assert.Single(connections.Drivers, d => d.Id == "sqlish");
+
+        await connections.NewCommand.Execute(sqlish);
+
+        Assert.Equal(["sqlish"], opened);
+        Assert.Equal(["github", "local"], connections.Available.Select(c => c.Name));
+        Assert.True(connections.IsAddConfirmationPending);
+        Assert.Contains("'local'", connections.AddMessage);
+        Assert.Contains("Microsoft.Data.Sqlite 9.0.0", connections.AddMessage);
+        Assert.Empty(connections.Items); // the script is untouched until the user confirms
+        Assert.False(vm.HasChanges);
+
+        Execute(connections.CancelAddCommand);
+        Assert.Empty(connections.Items);
+        Assert.False(vm.HasChanges);
+        Assert.Contains(connections.Available, c => c.Name == "local"); // still saved, still addable
+
+        connections.SelectedAvailable = connections.Available.Single(c => c.Name == "local");
+        Execute(connections.AddCommand);
+        Execute(connections.ConfirmAddCommand);
+        Assert.True(vm.ApplyChanges());
+        Assert.Equal(["local"], fm.Connections.Select(c => c.Name));
+        Assert.Equal("9.0.0", fm.Packages["Microsoft.Data.Sqlite"].Version);
+    }
+
+    [Fact]
+    public async Task ANewConnectionWithNoNewPackages_Should_BeAddedWithoutAskingAgain()
+    {
+        var (vm, _, mine) = CreateVm();
+        var fm = new RpadFrontMatter { Packages = new() { ["Microsoft.Data.Sqlite"] = new Package("8.0.0") } };
+        vm.SetFrontMatter(fm);
+        UseEditor(vm, mine, _ => [new RpadConnection { Name = "second", Driver = "sqlish" }]);
+
+        await vm.Connections.NewCommand.Execute(Assert.Single(vm.Connections.Drivers, d => d.Id == "sqlish"));
+
+        Assert.False(vm.Connections.IsAddConfirmationPending);
+        Assert.Equal(["second"], vm.Connections.Items.Select(i => i.Name));
+        Assert.True(vm.ApplyChanges());
+        Assert.Equal("8.0.0", fm.Packages["Microsoft.Data.Sqlite"].Version); // the version the script chose is kept
+    }
+
+    [Fact]
+    public async Task ClosingTheConnectionsWindowWithoutSaving_Should_ChangeNothing()
+    {
+        var (vm, store, mine) = CreateVm(Http("github", "https://api.github.com/"));
+        vm.SetFrontMatter(new RpadFrontMatter());
+        UseEditor(vm, mine, _ => null);
+        var loads = store.Invocations.Count;
+
+        await vm.Connections.NewCommand.Execute(Assert.Single(vm.Connections.Drivers, d => d.Id == "sqlish"));
+
+        Assert.Equal(loads, store.Invocations.Count); // the list wasn't read again
+        Assert.False(vm.Connections.IsAddConfirmationPending);
+        Assert.Empty(vm.Connections.Items);
+        Assert.Equal(["github"], vm.Connections.Available.Select(c => c.Name));
+        Assert.False(vm.HasChanges);
+        Assert.Null(vm.Connections.CreateMessage);
+    }
+
+    [Fact]
+    public async Task OpeningTheEditor_Should_DropAPendingConfirmation_AndKeepTheDraft()
+    {
+        var (vm, _, mine) = CreateVm(Http("github", "https://api.github.com/"), new RpadConnection { Name = "local", Driver = "sqlish" });
+        var fm = new RpadFrontMatter();
+        vm.SetFrontMatter(fm);
+        Execute(vm.Connections.AddCommand); // github: no confirmation, a pending edit of the draft
+        vm.Connections.SelectedAvailable = vm.Connections.Available.Single(c => c.Name == "local");
+        Execute(vm.Connections.AddCommand);
+        Assert.True(vm.Connections.IsAddConfirmationPending);
+        UseEditor(vm, mine, _ => null);
+
+        await vm.Connections.ManageCommand.Execute();
+
+        Assert.False(vm.Connections.IsAddConfirmationPending);
+        Assert.Equal(["github"], vm.Connections.Items.Select(i => i.Name));
+        Assert.True(vm.HasChanges); // the connection added before is still a pending edit
+        Assert.True(vm.ApplyChanges());
+        Assert.Equal(["github"], fm.Connections.Select(c => c.Name));
+        Assert.True(fm.Packages is null or { Count: 0 }); // the pending SQL connection brought none
+    }
+
+    [Fact]
+    public async Task ManagingConnections_Should_ReloadTheList_WithoutAddingAnythingToTheScript()
+    {
+        var (vm, _, mine) = CreateVm(Http("github", "https://api.github.com/"));
+        vm.SetFrontMatter(new RpadFrontMatter());
+        UseEditor(vm, mine, _ => [.. mine, new RpadConnection { Name = "local", Driver = "sqlish" }]);
+
+        await vm.Connections.ManageCommand.Execute();
+
+        Assert.Equal(["github", "local"], vm.Connections.Available.Select(c => c.Name));
+        Assert.False(vm.Connections.IsAddConfirmationPending);
+        Assert.Empty(vm.Connections.Items);
+        Assert.False(vm.HasChanges);
+    }
+
+    [Fact]
+    public async Task ANewConnectionWhoseCodeNameTheScriptHas_Should_NotBeAdded_AndSayWhy()
+    {
+        var (vm, _, mine) = CreateVm(Http("my-api", "https://one/"));
+        vm.SetFrontMatter(new RpadFrontMatter { Connections = [Http("my-api", "https://one/")] });
+        UseEditor(vm, mine, _ => [.. mine, Http("my_api", "https://two/")]);
+
+        await vm.Connections.NewCommand.Execute(Assert.Single(vm.Connections.Drivers, d => d.Id == "http"));
+
+        Assert.Single(vm.Connections.Items);
+        Assert.Contains("'my_api'", vm.Connections.CreateMessage);
+        Assert.Contains("already has", vm.Connections.CreateMessage);
+        Assert.False(vm.HasChanges);
+    }
+
+    [Fact]
+    public async Task AnEditorThatFails_Should_BeReported_WithoutChangingTheScript()
+    {
+        var (vm, _, _) = CreateVm(Http("github", "https://api.github.com/"));
+        vm.SetFrontMatter(new RpadFrontMatter());
+        vm.Connections.ConnectionsEditor = _ => throw new InvalidOperationException("no window");
+
+        await vm.Connections.ManageCommand.Execute();
+
+        Assert.Contains("no window", vm.Connections.CreateMessage);
+        Assert.Empty(vm.Connections.Items);
+        Assert.False(vm.HasChanges);
+    }
+
+    [Fact]
+    public void TheEditorCommands_Should_BeOff_WithoutAnEditor_OrWhenTheListCantBeRead()
+    {
+        var (vm, store, _) = CreateVm();
+        vm.SetFrontMatter(new RpadFrontMatter());
+        Assert.False(vm.Connections.CanEditConnections);
+        Assert.False(((ICommand)vm.Connections.ManageCommand).CanExecute(null));
+
+        vm.Connections.ConnectionsEditor = _ => Task.FromResult(false);
+        Assert.True(vm.Connections.CanEditConnections);
+
+        store.Setup(s => s.LoadSnapshot()).Throws(new InvalidDataException("broken"));
+        vm.SetFrontMatter(new RpadFrontMatter());
+        Assert.True(vm.Connections.HasReadError);
+        Assert.False(vm.Connections.CanEditConnections);
+    }
+
+    [Fact]
+    public void CanEditConnections_Should_RaiseChanged_WhenTheStoreErrorAppearsAndClears()
+    {
+        var (vm, store, _) = CreateVm();
+        vm.SetFrontMatter(new RpadFrontMatter());
+        vm.Connections.ConnectionsEditor = _ => Task.FromResult(false);
+        var raised = new List<string?>();
+        vm.Connections.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        store.Setup(s => s.LoadSnapshot()).Throws(new InvalidDataException("broken"));
+        vm.SetFrontMatter(new RpadFrontMatter());
+        Assert.Contains(nameof(ScriptConnectionsViewModel.CanEditConnections), raised);
+        Assert.False(vm.Connections.CanEditConnections);
+        Assert.False(((ICommand)vm.Connections.ManageCommand).CanExecute(null));
+
+        raised.Clear();
+        store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot([], null));
+        vm.SetFrontMatter(new RpadFrontMatter());
+        Assert.Contains(nameof(ScriptConnectionsViewModel.CanEditConnections), raised);
+        Assert.True(vm.Connections.CanEditConnections);
+    }
+
+    // The window can rename a saved connection and create another in the same visit; the renamed one
+    // also has a name the list didn't have before, but it is not what the user came to create.
+    [Fact]
+    public async Task ARenamedConnection_Should_NotBeTakenForTheNewOne()
+    {
+        var (vm, _, mine) = CreateVm(Http("github", "https://api.github.com/"));
+        vm.SetFrontMatter(new RpadFrontMatter());
+        UseEditor(vm, mine, _ => [Http("github-api", "https://api.github.com/"), new RpadConnection { Name = "fresh", Driver = "sqlish" }]);
+
+        await vm.Connections.NewCommand.Execute(Assert.Single(vm.Connections.Drivers, d => d.Id == "sqlish"));
+
+        Assert.True(vm.Connections.IsAddConfirmationPending);
+        Assert.Contains("'fresh'", vm.Connections.AddMessage);
+        Assert.Empty(vm.Connections.Items);
+    }
+
+    [Fact]
+    public void AConnectionWithADriverThisRunPadLacks_Should_NotBeAdded_AndExplainWhatIsMissing()
+    {
+        var (vm, _, _) = CreateVm(new RpadConnection { Name = "legacy", Driver = "oracle" });
+        vm.SetFrontMatter(new RpadFrontMatter());
+
+        Execute(vm.Connections.AddCommand);
+
+        Assert.Empty(vm.Connections.Items);
+        Assert.False(vm.Connections.IsAddConfirmationPending);
+        Assert.Contains("'oracle' driver", vm.Connections.CreateMessage);
+        Assert.False(vm.HasChanges);
+    }
+
+    [Fact]
+    public void AddingAnotherConnectionOfADriverWhosePackagesCameEarlier_Should_NotAskAgain()
+    {
+        var (vm, _, _) = CreateVm(new RpadConnection { Name = "one", Driver = "sqlish" }, new RpadConnection { Name = "two", Driver = "sqlish" });
+        vm.SetFrontMatter(new RpadFrontMatter());
+        Execute(vm.Connections.AddCommand);
+        Assert.True(vm.Connections.IsAddConfirmationPending);
+        Execute(vm.Connections.ConfirmAddCommand);
+
+        Execute(vm.Connections.AddCommand);
+
+        Assert.False(vm.Connections.IsAddConfirmationPending);
+        Assert.Equal(["one", "two"], vm.Connections.Items.Select(i => i.Name));
+    }
+
+    // Reading the Secret Store decrypts every value; the tab needs only the names, once per opening,
+    // not on each package edit (each of which refreshes the connections' problems).
+    [Fact]
+    public void PackageEdits_Should_NotReadTheSecretStoreAgain()
+    {
+        var secrets = new Mock<ISecretStore>();
+        secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([new Secret("billing-token", "t0k")], null));
+        var (vm, _, _) = CreateVm(secrets, [new RpadConnection { Name = "local", Driver = "sqlish" }, Http("other", "https://other/")]);
+        vm.SetFrontMatter(new RpadFrontMatter { Connections = [Http("billing", "https://billing.local/", "missing-token")] });
+        secrets.Invocations.Clear();
+
+        var connections = vm.Connections;
+        connections.SelectedAvailable = connections.Available.Single(c => c.Name == "local");
+        Execute(connections.AddCommand);
+        Execute(connections.ConfirmAddCommand); // adds the driver's package to the draft
+        connections.SelectedItem = connections.Items.Single(i => i.Name == "local");
+        Execute(connections.RemoveCommand); // and takes it away again
+
+        secrets.Verify(s => s.LoadSnapshot(), Times.Never);
+        Assert.Equal("The Secret Store has no secret named 'missing-token'.", connections.Items.Single().Problem);
+
+        vm.SetFrontMatter(new RpadFrontMatter()); // opening the tab again reads the names again
+        secrets.Verify(s => s.LoadSnapshot(), Times.Once);
+    }
+
+    private sealed class CountingSchemaDriver : IConnectionSchemaDriver
+    {
+        public int Fetches;
+        public string? Failure;
+        public string Id => "described";
+        public string DisplayName => "Described";
+        public ConnectionCategory Category => ConnectionCategory.Grpc;
+        public IReadOnlyList<ConnectionParam> Params { get; } = [];
+        public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string>();
+        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+            Task.FromResult(new ConnectionTestResult(true, ""));
+        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) => new("");
+        public Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
+            CancellationToken cancellationToken)
+        {
+            Fetches++;
+            return Failure is null ? Task.FromResult(new ConnectionSchema($"{Fetches} services", [], ""))
+                : Task.FromException<ConnectionSchema>(new InvalidOperationException(Failure));
+        }
+    }
+
+    // Refresh reads the selected connection's description again, even one already read, and says what
+    // came of it; it is offered only for a connection whose driver reads one.
+    [Fact]
+    public async Task Refresh_Should_ReadTheSelectedConnectionsDescriptionAgain()
+    {
+        var folder = Directory.CreateTempSubdirectory("runpad-refresh-schemas").FullName;
+        try
+        {
+            var driver = new CountingSchemaDriver();
+            var drivers = new ConnectionDriverRegistry();
+            drivers.Register(driver);
+            drivers.Register(new HttpConnectionDriver());
+            var schemas = new ConnectionSchemas(drivers, folder, new ConnectionTools { GetPackageFolderAsync = (_, _, _) => Task.FromResult("") }, _ => null);
+            var described = new RpadConnection { Name = "stock", Driver = "described" };
+            await schemas.EnsureAsync([described], null, ConnectionSchemaRefresh.Missing, CancellationToken.None);
+            Assert.Equal(1, driver.Fetches);
+
+            var tab = new ScriptConnectionsViewModel(null, null, drivers, schemas);
+            tab.Load(new RpadFrontMatter { Connections = [described, Http("billing", "https://billing.local/")] });
+            tab.SelectedItem = tab.Items[1];
+            Assert.False(tab.CanRefreshSelected);
+            Assert.False(((ICommand)tab.RefreshCommand).CanExecute(null));
+
+            tab.SelectedItem = tab.Items[0];
+            Assert.True(tab.CanRefreshSelected);
+            await tab.RefreshCommand.Execute();
+            Assert.Equal(2, driver.Fetches);
+            Assert.Equal("'stock' read again: 2 services", tab.RefreshMessage);
+            Assert.False(tab.IsRefreshing);
+
+            driver.Failure = "Server unavailable.";
+            await tab.RefreshCommand.Execute();
+            Assert.Equal("The description of 'stock' couldn't be read: Server unavailable.", tab.RefreshMessage);
+        }
+        finally { Directory.Delete(folder, true); }
     }
 
     // Taking a connection out again before saving takes its packages too, unless another needs them.

@@ -87,6 +87,13 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
 
     public string Folder { get; } = folder;
 
+    /// <summary>
+    /// A schema was written, or a read of one failed, with the connection's <see cref="KeyOf"/>.
+    /// Raised on the thread that did it, often a worker thread, so an editor showing that connection's
+    /// classes can catch up with a read it didn't start (another window's Refresh, for instance).
+    /// </summary>
+    public event Action<string>? Changed;
+
     public string KeyOf(RpadConnection connection, string? scriptDirectory = null)
     {
         var folderPart = drivers?.Find(connection.Driver) is IConnectionSchemaDriver driver && driver.UsesScriptDirectory(connection)
@@ -198,6 +205,7 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
         }
         // Fetches publish on a worker thread: warm the description there before the UI is notified.
         _ = Get(connection, scriptDirectory);
+        Changed?.Invoke(key);
     }
 
     /// <summary>
@@ -223,6 +231,7 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
             if (resolved.Errors.Count > 0)
             {
                 lock (_lock) _errors[key] = string.Join(" ", resolved.Errors);
+                Changed?.Invoke(key);
                 changed = true;
                 continue;
             }
@@ -257,6 +266,7 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
                 catch (Exception ex)
                 {
                     lock (_lock) _errors[key] = ex.Message;
+                    Changed?.Invoke(key);
                 }
                 return true;
             });
