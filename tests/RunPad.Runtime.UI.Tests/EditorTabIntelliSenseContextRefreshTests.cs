@@ -195,7 +195,8 @@ public sealed class EditorTabIntelliSenseContextRefreshTests : IDisposable
             service.Gate.Set();
 
             await TestWait.WhileAsync(() => service.Applied.IsEmpty);
-            await TestWait.WhileAsync(() => false, TimeSpan.FromMilliseconds(300));
+            await TestWait.WhileAsync(() => service.Mock.Invocations.All(i =>
+                i.Method.Name != nameof(IIntelliSenseService.NotifyTextChanged)));
             var applied = Assert.Single(service.Applied);
             Assert.EndsWith(".V4.cs", Source(applied));
             service.Mock.Verify(s => s.NotifyTextChanged(It.IsAny<string>()), Times.Once);
