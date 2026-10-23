@@ -292,4 +292,70 @@ public class ConnectionsWindowViewModelTests
         Assert.False(vm.Save());
         store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()), Times.Never);
     }
+
+    [Fact]
+    public void HasChanges_Should_TrackTheDraftAgainstTheLoadedList()
+    {
+        var (vm, _, _) = CreateVm(null, Billing, Future);
+        Assert.False(vm.HasChanges);
+
+        vm.SelectedConnection = vm.Connections[1];
+        vm.Connections[0].TestResult = "Success: Connected.";
+        Assert.False(vm.HasChanges); // selection and test status are display only
+
+        var billing = vm.Connections[0];
+        var address = billing.Fields.Single(f => f.Param.Key == "baseAddress");
+        var original = address.Text;
+        address.Text = "https://billing.example/";
+        Assert.True(vm.HasChanges);
+        address.Text = original;
+        Assert.False(vm.HasChanges); // reverted
+
+        billing.Name = "invoices";
+        Assert.True(vm.HasChanges);
+        billing.Name = "billing";
+        Assert.False(vm.HasChanges);
+
+        var headers = billing.Fields.Single(f => f.Param.Key == "headers");
+        Execute(headers.AddRowCommand);
+        Assert.False(vm.HasChanges); // an empty row isn't written
+        headers.Rows[^1].Name = "X-Trace";
+        Assert.True(vm.HasChanges);
+        Execute(headers.RemoveRowCommand, headers.Rows[^1]);
+        Assert.False(vm.HasChanges);
+
+        Execute(vm.AddCommand, vm.Drivers.First(d => d.Id == "fake"));
+        Assert.True(vm.HasChanges);
+        Execute(vm.RemoveCommand);
+        Assert.False(vm.HasChanges);
+
+        vm.SelectedConnection = vm.Connections[0];
+        Execute(vm.RemoveCommand);
+        Assert.True(vm.HasChanges);
+    }
+
+    [Fact]
+    public void HasChanges_Should_ResetAfterASuccessfulSave_AndStayAfterAFailedOne()
+    {
+        var (vm, store, _) = CreateVm(null, Billing);
+        vm.Connections[0].Name = "invoices";
+        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>())).Throws(new IOException());
+        Assert.False(vm.Save());
+        Assert.True(vm.HasChanges);
+
+        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>())).Returns("saved");
+        Assert.True(vm.Save());
+        Assert.False(vm.HasChanges);
+    }
+
+    [Fact]
+    public void AnUnreadableList_Should_NotBeDirty()
+    {
+        var store = new Mock<IConnectionStore>();
+        store.Setup(s => s.LoadSnapshot()).Throws(new InvalidDataException("damaged."));
+        store.Setup(s => s.FilePath).Returns("/data/RunPad/connections.json");
+        var vm = new ConnectionsWindowViewModel(store.Object, new ConnectionDriverRegistry(),
+            Mock.Of<ISecretStore>(secrets => secrets.LoadSnapshot() == new SecretStoreSnapshot(Array.Empty<Secret>(), null)));
+        Assert.False(vm.HasChanges);
+    }
 }

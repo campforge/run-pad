@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Linq;
+using System.Text.Json;
 using ReactiveUI;
 using RunPad.Contracts.Connections;
 using RunPad.Format.RPad;
@@ -266,6 +267,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
     private readonly ConnectionSchemas? _schemas;
     private readonly IReadOnlyList<string> _secretNames;
     private readonly ISecretStore _secrets;
+    private string _saved = "";
 
     public ObservableCollection<ConnectionItemViewModel> Connections { get; } = [];
 
@@ -327,6 +329,10 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
 
     public string StorePath => _store.FilePath;
 
+    // Whether the connections differ from what was loaded or last saved; selection, test results
+    // and other display state don't count.
+    public bool HasChanges { get; private set; }
+
     public ReactiveCommand<IConnectionDriver, Unit> AddCommand { get; }
     public ReactiveCommand<Unit, Unit> RemoveCommand { get; }
     public ReactiveCommand<Unit, Unit> TestCommand { get; }
@@ -345,6 +351,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
             var snapshot = store.LoadSnapshot();
             _version = snapshot.Version;
             foreach (var connection in snapshot.Connections) Add(connection);
+            _saved = Snapshot();
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
         {
@@ -367,7 +374,10 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
         if (!CanSave) return false;
         try
         {
-            _version = _store.Save([.. Connections.Select(c => c.ToConnection())], _version);
+            var connections = Connections.Select(c => c.ToConnection()).ToList();
+            _version = _store.Save(connections, _version);
+            _saved = JsonSerializer.Serialize(connections);
+            UpdateHasChanges();
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -455,8 +465,19 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { return []; }
     }
 
+    private string Snapshot() => JsonSerializer.Serialize(Connections.Select(c => c.ToConnection()));
+
+    private void UpdateHasChanges()
+    {
+        var changed = LoadError is null && Snapshot() != _saved;
+        if (changed == HasChanges) return;
+        HasChanges = changed;
+        this.RaisePropertyChanged(nameof(HasChanges));
+    }
+
     private void Validate()
     {
+        UpdateHasChanges();
         this.RaisePropertyChanged(nameof(CanTest));
         var errors = RpadConnection.Validate(Connections.Select(c => new RpadConnection { Name = c.Name.Trim(), Driver = c.DriverId }));
         ValidationError = errors.FirstOrDefault() ?? Connections.SelectMany(c => c.Fields).Select(f => f.MapError).FirstOrDefault(e => e is not null);

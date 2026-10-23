@@ -12,6 +12,8 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Closing the Connections or Secret Store window with Cancel, Escape or the close button now asks
+  whether to save unsaved edits instead of silently discarding them.
 - The cached description RunPad reads for a gRPC connection (its services) no longer accumulates
   forever on disk for connections removed, renamed or changed: unused files older than 30 days are
   reclaimed at startup.
