@@ -142,6 +142,40 @@ public class PopupRenderedRegressionTests
         finally { flyout.Hide(); host.Close(); Uninstall(installed); }
     }
 
+    [AvaloniaTheory]
+    [InlineData("RunPadMidnight")]
+    [InlineData("RunPadWarmLight")]
+    public void HelpMenu_Should_UseTheActivePaletteForPopupBorderAndSeparator(string variantName)
+    {
+        var variant = (ThemeVariant)typeof(RunPadThemeVariants).GetField(variantName)!.GetValue(null)!;
+        var installed = Install();
+        var target = new ContentControl { Width = 200, Height = 40 };
+        var host = new Window { Width = 600, Height = 400, Content = target, RequestedThemeVariant = variant };
+        var flyout = new ProbeMenuFlyout
+        {
+            Items =
+            {
+                new MenuItem { Header = "User Guide" },
+                new Separator(),
+                new MenuItem { Header = "About RunPad" },
+            },
+        };
+        try
+        {
+            host.Show();
+            flyout.ShowAt(target);
+            Dispatcher.UIThread.RunJobs();
+            var popup = Shown(flyout.Presenter);
+            var presenter = popup.GetVisualDescendants().OfType<MenuFlyoutPresenter>().Single();
+            var separator = popup.GetVisualDescendants().OfType<Separator>().Single();
+
+            Assert.Equal(Brush(installed.Theme, "RunPad.Panel.BackgroundBrush", variant), ColorOf(presenter.Background));
+            Assert.Equal(Brush(installed.Theme, "RunPad.Border.BackgroundBrush", variant), ColorOf(presenter.BorderBrush));
+            Assert.Equal(Brush(installed.Theme, "RunPad.Separator.BackgroundBrush", variant), ColorOf(separator.Background));
+        }
+        finally { flyout.Hide(); host.Close(); Uninstall(installed); }
+    }
+
     // The exception-settings flyout: check boxes in a Flyout opened from a toolbar button.
     [AvaloniaFact]
     public void ARealFlyout_WithCheckBoxes_Should_UseThePalette_AndTheInterfaceFont()
