@@ -12,6 +12,7 @@ using AvaloniaEdit;
 using AvaloniaEdit.Rendering;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Avalonia.Themes;
 using RunPad.Build.Core.Models;
 using RunPad.Languages.CSharp;
@@ -349,6 +350,236 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         Assert.Equal(DecompilerLanguage.IL, window.View.Language);
         Assert.Contains(".class", window.Editor.Text);
         Assert.False(versionBox.IsVisible);
+    }
+
+    // ── IL syntax highlighting of the code pane ──
+
+    private static readonly ActiveTheme LightEditorTheme = new(
+        new InterfaceTheme("Light", ThemeVariant.Light, false), new EditorTheme("Light+", ThemeName.LightPlus, false));
+
+    private static int IndexOf(AssemblyExplorerWindow window, string text) =>
+        window.Editor.Text.IndexOf(text, StringComparison.Ordinal);
+
+    [AvaloniaFact]
+    public async Task CodePane_Should_UseTheIlGrammarInTheIlView_AndTheCSharpGrammarAgain()
+    {
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
+        window.Show();
+        var alpha = await LoadAndFindAlphaAsync(window);
+        await window.SelectNodeAsync(Node(alpha), alpha);
+        Assert.Equal("source.cs", window.GrammarScope);
+        var csharp = await IlHighlightingTests.SettledColorAsync(window.Editor, IndexOf(window, "class"),
+            c => c is { } color && color != Colors.Black);
+
+        await window.SetViewAsync(IlView);
+
+        Assert.Equal(IlGrammar.ScopeName, window.GrammarScope);
+        var directive = await IlHighlightingTests.SettledColorAsync(window.Editor, IndexOf(window, ".class"),
+            c => c is { } color && color != Colors.Black);
+        Assert.NotNull(directive);
+
+        await window.SetViewAsync(DecompilerView.Default);
+
+        Assert.Equal("source.cs", window.GrammarScope);
+        Assert.Equal(csharp, await IlHighlightingTests.SettledColorAsync(window.Editor, IndexOf(window, "class"), c => c == csharp));
+        Assert.DoesNotContain(".class", window.Editor.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task ThemeChange_Should_RecolourTheIlView_AndKeepItsGrammar()
+    {
+        var theme = CreateThemeService();
+        var window = new AssemblyExplorerWindow(theme.Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
+        window.Show();
+        var alpha = await LoadAndFindAlphaAsync(window);
+        await window.SelectNodeAsync(Node(alpha), alpha);
+        await window.SetViewAsync(IlView);
+        var method = IndexOf(window, ".class");
+        var dark = await IlHighlightingTests.SettledColorAsync(window.Editor, method, c => c is { } color && color != Colors.Black);
+        var text = window.Editor.Text;
+
+        theme.Raise(t => t.ThemeChanged += null, LightEditorTheme);
+
+        var light = await IlHighlightingTests.SettledColorAsync(window.Editor, method, c => c is { } color && color != dark);
+        Assert.NotEqual(dark, light);
+        Assert.Equal(IlGrammar.ScopeName, window.GrammarScope);
+        Assert.Equal(text, window.Editor.Text);
+
+        await window.SetViewAsync(DecompilerView.Default); // the new palette applies to C# as well
+        Assert.Equal("source.cs", window.GrammarScope);
+    }
+
+    [AvaloniaFact]
+    public async Task GoingBackToAPageRenderedAsCSharp_InTheIlView_Should_ShowItAsIlWithTheIlGrammar()
+    {
+        var (window, _) = await OpenCallAndNavigateToRunAsync(); // Call, then Run — both rendered as C#
+        await window.SetViewAsync(IlView);
+        Assert.Equal(IlGrammar.ScopeName, window.GrammarScope);
+
+        window.GoBack();
+        await TestWait.WhileAsync(() => !window.Editor.Text.Contains(".method"));
+
+        Assert.Equal(IlGrammar.ScopeName, window.GrammarScope);
+        Assert.Contains(".method", window.Editor.Text);
+    }
+
+    // ── Large assemblies: the tree is prepared in slices, off a blocking UI pass ──
+
+    private sealed class SmallSlices : IDisposable
+    {
+        private readonly int _previous = AssemblyExplorerWindow.TreeBuildSliceSize;
+
+        public SmallSlices(int size) => AssemblyExplorerWindow.TreeBuildSliceSize = size;
+
+        public void Dispose() => AssemblyExplorerWindow.TreeBuildSliceSize = _previous;
+    }
+
+    private AssemblyExplorerWindow ShowWindow(Mock<IThemeService>? theme = null)
+    {
+        var window = new AssemblyExplorerWindow((theme ?? CreateThemeService()).Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
+        window.Show();
+        return window;
+    }
+
+    [AvaloniaFact]
+    public async Task LoadAssemblyAsync_Should_BuildTheRowsInSlices_LetTheUiThreadRunBetweenThem_AndAttachOnce()
+    {
+        using var _ = new SmallSlices(2);
+        var window = ShowWindow();
+        var slices = 0;
+        var inputRanBetweenSlices = false;
+        var attachedMidBuild = false;
+        window.TreeSliceBuilt = slice =>
+        {
+            slices = slice;
+            attachedMidBuild |= window.Tree.Items.Count > 0;
+            if (slice == 1) Dispatcher.UIThread.Post(() => inputRanBetweenSlices = true, DispatcherPriority.Input);
+            if (slice == 2) Assert.True(inputRanBetweenSlices, "the dispatcher did not get a turn between two slices");
+            return Task.CompletedTask;
+        };
+
+        var load = window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
+        Assert.False(load.IsCompleted); // reading, grouping and the first slice are not done in this call
+        var item = await load;
+
+        Assert.True(slices >= 3, $"7+ types in slices of 2 need at least 3 slices, got {slices}");
+        Assert.False(attachedMidBuild); // one coherent update: the row is attached when complete
+        Assert.Same(item, Assert.Single(window.Tree.Items));
+        Assert.Equal(["Foo.Bar", "Foo.Baz"], item!.Items.OfType<TreeViewItem>()
+            .Where(i => Node(i).Kind == AssemblyNodeKind.Namespace && Text(i)!.StartsWith("Foo", StringComparison.Ordinal))
+            .Select(Text));
+        Assert.Equal(["Alpha", "Gamma"], Namespace(window, "Foo.Bar").Items.OfType<TreeViewItem>().Select(Text));
+    }
+
+    [AvaloniaFact]
+    public async Task ClosingTheWindow_WhileTheTreeIsBuilding_Should_DropTheResult()
+    {
+        using var _ = new SmallSlices(1);
+        var window = ShowWindow();
+        window.TreeSliceBuilt = slice =>
+        {
+            if (slice == 1) window.Close();
+            return Task.CompletedTask;
+        };
+
+        var item = await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
+
+        Assert.Null(item);
+        Assert.Empty(window.Tree.Items);
+        Assert.Empty(window.LoadedAssemblyPaths);
+    }
+
+    [AvaloniaFact]
+    public async Task ConcurrentLoadsOfOnePath_Should_ShareOneBuild()
+    {
+        using var _ = new SmallSlices(2);
+        var window = ShowWindow();
+        var builds = 0;
+        window.TreeSliceBuilt = slice =>
+        {
+            if (slice == 1) builds++;
+            return Task.CompletedTask;
+        };
+
+        var first = window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
+        var second = window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
+
+        Assert.Same(await first, await second);
+        Assert.Equal(1, builds);
+        Assert.Single(window.Tree.Items);
+    }
+
+    private string CopyOfExplorerAssembly()
+    {
+        var folder = Directory.CreateTempSubdirectory("runpad-second-assembly").FullName;
+        var copy = Path.Combine(folder, "Second.dll");
+        File.Copy(_explorerAssembly.BinaryPath, copy);
+        return copy;
+    }
+
+    // Opens `slow` first, held after its first slice until released, then runs `whileSlowLoads`.
+    private static async Task WithSlowLoadAsync(
+        AssemblyExplorerWindow window, string slow, Func<Task> whileSlowLoads, Func<Task>? afterRelease = null)
+    {
+        var reached = new TaskCompletionSource();
+        var release = new TaskCompletionSource();
+        var held = false;
+        window.TreeSliceBuilt = async slice =>
+        {
+            if (held) return;
+            held = true;
+            reached.SetResult();
+            await release.Task;
+        };
+        var slowOpen = window.OpenAssemblyAsync(slow);
+        await reached.Task;
+        window.TreeSliceBuilt = null;
+
+        await whileSlowLoads();
+        release.SetResult();
+        await slowOpen;
+        if (afterRelease is not null) await afterRelease();
+    }
+
+    [AvaloniaFact]
+    public async Task ANewerOpenRequest_Should_KeepTheSelection_WhenAnOlderLoadFinishesLater()
+    {
+        using var _ = new SmallSlices(2);
+        var second = CopyOfExplorerAssembly();
+        var window = ShowWindow();
+
+        await WithSlowLoadAsync(window, _explorerAssembly.BinaryPath,
+            whileSlowLoads: () => window.OpenAssemblyAsync(second),
+            afterRelease: () =>
+            {
+                Assert.Equal(2, window.Tree.Items.Count); // the older one is still added ...
+                var selected = Assert.IsType<TreeViewItem>(window.Tree.SelectedItem);
+                Assert.Equal(second, Node(selected).AssemblyPath); // ... but does not take the selection
+                return Task.CompletedTask;
+            });
+    }
+
+    [AvaloniaFact]
+    public async Task ClickingARow_WhileAnAssemblyLoads_Should_KeepTheUsersSelection()
+    {
+        using var _ = new SmallSlices(2);
+        var second = CopyOfExplorerAssembly();
+        var window = ShowWindow();
+        TreeViewItem? clicked = null;
+
+        await WithSlowLoadAsync(window, _explorerAssembly.BinaryPath,
+            whileSlowLoads: async () =>
+            {
+                var item = (await window.LoadAssemblyAsync(second))!;
+                clicked = item.Items.OfType<TreeViewItem>().Single(i => Text(i) == "Foo.Bar").Items.OfType<TreeViewItem>().Single(n => Text(n) == "Alpha");
+                window.Tree.SelectedItem = clicked;
+            },
+            afterRelease: () =>
+            {
+                Assert.Same(clicked, window.Tree.SelectedItem);
+                Assert.Equal(2, window.Tree.Items.Count);
+                return Task.CompletedTask;
+            });
     }
 
     // A language switch while the first page of an empty tab is still rendering: the page lands in the
