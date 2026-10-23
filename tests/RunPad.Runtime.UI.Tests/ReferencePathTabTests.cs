@@ -131,6 +131,11 @@ public class ReferencePathTabTests : IDisposable
         var (ctrl, vm, _, window) = Open();
         try
         {
+            await TestWait.EventuallyAsync(() => _intelliSense.Verify(s => s.UpdatePackageReferences(
+                It.IsAny<IReadOnlyDictionary<string, Package>>(),
+                It.Is<PackageReferenceContext>(c => c.AssemblyReferences != null
+                    && c.AssemblyReferences.SequenceEqual(new[] { _library, _library }))), Times.AtLeastOnce()));
+
             var newScript = Path.Combine(_newDir, "query.rpad");
             _windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(newScript);
             var original = File.ReadAllBytes(_script);
