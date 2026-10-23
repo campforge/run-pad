@@ -19,6 +19,9 @@ namespace RunPad.Windows.Models;
 // the parameter — not commands per row: a local cache can hold hundreds of packages, and creating
 // three ReactiveCommands per row on every list rebuild stalled the UI. Version is what the row offers: the latest version from the search
 // result, the locally cached one, or — for the script's own packages — the script's version.
+// One line of a package's dependency list: a target framework (header) or a package below it.
+public sealed record PackageDetailLine(string Text, bool IsHeader);
+
 public sealed class PackageListItemViewModel : ReactiveObject
 {
     private string? _scriptVersion;
@@ -185,6 +188,12 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     private int _searchGeneration;
     private CancellationTokenSource? _versionsCts;
     private int _versionsGeneration;
+    private CancellationTokenSource? _detailsCts;
+    private int _detailsGeneration;
+    // What the sources said about a package version, so going back to one needs no new request;
+    // null is also an answer (no source supplies it). Dropped when the sources change.
+    private readonly Dictionary<string, PackageDetails?> _detailsCache = new(StringComparer.OrdinalIgnoreCase);
+    private bool _selectingPackage;
 
     // While a bound collection is rebuilt the view pushes a null selection back; ignore it and
     // re-assert the VM's own selection afterwards.
@@ -456,7 +465,10 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         set
         {
             if (_rebuildingVersions) return;
+            var changed = !string.Equals(_selectedVersion, value, StringComparison.Ordinal);
             this.RaiseAndSetIfChanged(ref _selectedVersion, value);
+            // Its dependencies differ from version to version.
+            if (changed && !_selectingPackage) LoadDetails();
         }
     }
 
@@ -478,9 +490,150 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
     public bool HasVersionsError => VersionsError is not null;
 
+    // ── Package metadata: dependencies, license, project page ─────────────────
+
+    // Opens a web address of the card in the browser; set by the window. Only http(s) addresses the
+    // card itself showed are opened.
+    internal Func<Uri, Task>? LinkLauncher { get; set; }
+
+    public bool IsLoadingDetails
+    {
+        get;
+        private set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    public string? DetailsError
+    {
+        get;
+        private set { this.RaiseAndSetIfChanged(ref field, value); this.RaisePropertyChanged(nameof(HasDetailsError)); }
+    }
+
+    public bool HasDetailsError => DetailsError is not null;
+
+    // What the sources supplied for the selected package version; null while loading or when they supply nothing.
+    private PackageDetails? Details
+    {
+        get;
+        set
+        {
+            field = value;
+            this.RaisePropertyChanged(nameof(DetailsLicense));
+            this.RaisePropertyChanged(nameof(HasDetailsLicense));
+            this.RaisePropertyChanged(nameof(DetailsLicenseUrl));
+            this.RaisePropertyChanged(nameof(HasDetailsLicenseLink));
+            this.RaisePropertyChanged(nameof(DetailsProjectUrl));
+            this.RaisePropertyChanged(nameof(HasDetailsProjectUrl));
+            this.RaisePropertyChanged(nameof(DetailsDependencies));
+            this.RaisePropertyChanged(nameof(HasDetailsDependencies));
+            this.RaisePropertyChanged(nameof(DetailsHaveNoDependencies));
+        }
+    }
+
+    // A license given only as an address is shown as that address.
+    public string? DetailsLicense => Details is { } d ? d.License ?? d.LicenseUrl : null;
+    public bool HasDetailsLicense => DetailsLicense is not null;
+    public string? DetailsLicenseUrl => Details?.LicenseUrl;
+    public bool HasDetailsLicenseLink => DetailsLicenseUrl is not null;
+    public string? DetailsProjectUrl => Details?.ProjectUrl;
+    public bool HasDetailsProjectUrl => DetailsProjectUrl is not null;
+
+    // One line per framework and one per dependency below it.
+    public IReadOnlyList<PackageDetailLine> DetailsDependencies => Details is null ? [] :
+    [
+        .. Details.DependencyGroups.SelectMany(g => g.Dependencies
+            .Select(d => new PackageDetailLine(d.VersionRange.Length == 0 ? d.Id : $"{d.Id} ({d.VersionRange})", false))
+            .Prepend(new PackageDetailLine(g.TargetFramework, true))),
+    ];
+
+    public bool HasDetailsDependencies => DetailsDependencies.Count > 0;
+
+    // Said only when a source did describe the package: otherwise nothing is known.
+    public bool DetailsHaveNoDependencies => Details is { DependencyGroups.Count: 0 };
+
+    public ReactiveCommand<string, Unit> OpenLinkCommand { get; }
+
+    private async Task OpenLinkAsync(string address)
+    {
+        var allowed = address == DetailsLicenseUrl || address == DetailsProjectUrl;
+        if (!allowed || LinkLauncher is not { } launcher || !Uri.TryCreate(address, UriKind.Absolute, out var uri)
+            || uri.Scheme is not ("http" or "https"))
+            return;
+        try
+        {
+            await launcher(uri);
+        }
+        catch (Exception ex)
+        {
+            DetailsError = $"Couldn't open the link: {ex.Message}";
+        }
+    }
+
+    private string DetailsKey(string id, string? version) => id + "|" + (version ?? "");
+
+    // Asks the sources about the selected package at the selected version, off the UI thread; an answer
+    // for a package or version no longer selected is dropped.
+    private void LoadDetails()
+    {
+        _detailsCts?.Cancel();
+        _detailsCts?.Dispose();
+        _detailsCts = null;
+        var generation = ++_detailsGeneration;
+
+        DetailsError = null;
+        if (_detailsId is null)
+        {
+            IsLoadingDetails = false;
+            Details = null;
+            PendingDetails = Task.CompletedTask;
+            return;
+        }
+
+        var id = _detailsId;
+        var version = SelectedVersion;
+        if (_detailsCache.TryGetValue(DetailsKey(id, version), out var cached))
+        {
+            IsLoadingDetails = false;
+            Details = cached;
+            PendingDetails = Task.CompletedTask;
+            return;
+        }
+
+        Details = null;
+        _detailsCts = new CancellationTokenSource();
+        PendingDetails = LoadDetailsAsync(id, version, generation, _detailsCts.Token);
+    }
+
+    private async Task LoadDetailsAsync(string id, string? version, int generation, CancellationToken ct)
+    {
+        IsLoadingDetails = true;
+        PackageDetails? details;
+        try
+        {
+            details = await Task.Run(() => _search.GetDetailsAsync(id, version, ct), CancellationToken.None);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            // The card still works without it; adding the package never waits for this.
+            if (generation != _detailsGeneration || _disposed) return;
+            DetailsError = $"Couldn't load the package details: {ex.Message}";
+            IsLoadingDetails = false;
+            return;
+        }
+
+        if (generation != _detailsGeneration || _disposed) return;
+        _detailsCache[DetailsKey(id, version)] = details;
+        Details = details;
+        IsLoadingDetails = false;
+    }
+
     // Awaited by tests; the UI never needs them.
     internal Task PendingSearch { get; private set; } = Task.CompletedTask;
     internal Task PendingVersions { get; private set; } = Task.CompletedTask;
+    internal Task PendingDetails { get; private set; } = Task.CompletedTask;
 
     // ── References ─────────────────────────────────────────────────────────────
 
@@ -599,6 +752,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
             (id, version) => AddPackage(id, version),
             RemovePackage);
         Connections.Edited += UpdateHasChanges;
+        OpenLinkCommand = ReactiveCommand.CreateFromTask<string>(OpenLinkAsync).DisposeWith(_disposables);
         _search = search;
         _cache = cache;
         _sources = sources;
@@ -984,6 +1138,10 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
               ?? PackageSourceOption.AllSources;
         this.RaisePropertyChanged(nameof(SelectedSourceOption));
 
+        // Another source may describe a package differently.
+        _detailsCache.Clear();
+        if (_detailsId is not null) LoadDetails();
+
         if (SearchText.Trim().Length > 0)
             TriggerSearch(immediate: true);
         else
@@ -1137,8 +1295,11 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         var known = KnownVersions(item);
         _selectedVersion = null;
         ReplaceVersions(known);
-        SelectedVersion = SelectedScriptVersion ?? known.FirstOrDefault();
+        _selectingPackage = true;
+        try { SelectedVersion = SelectedScriptVersion ?? known.FirstOrDefault(); }
+        finally { _selectingPackage = false; }
         LoadVersions();
+        LoadDetails();
     }
 
     // Versions available without the network: the script's own value (which may be "latest" or a
@@ -1353,6 +1514,9 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         _versionsCts?.Cancel();
         _versionsCts?.Dispose();
         _versionsCts = null;
+        _detailsCts?.Cancel();
+        _detailsCts?.Dispose();
+        _detailsCts = null;
 
         foreach (var entry in References)
             entry.RemoveCommand.Dispose();

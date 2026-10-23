@@ -30,6 +30,11 @@ public partial class DependenciesWindow : Window
                 menu.Items.Add(new MenuItem { Header = driver.DisplayName, Command = viewModel.Connections.NewCommand, CommandParameter = driver });
             NewConnectionButton.Flyout = menu;
         }
+        viewModel.LinkLauncher = async uri =>
+        {
+            if (!await Launcher.LaunchUriAsync(uri))
+                throw new InvalidOperationException("No application opened the address.");
+        };
         Opened += (_, _) => SearchBox.Focus();
         Closing += OnClosing;
         Closed += (_, _) => viewModel.Dispose();

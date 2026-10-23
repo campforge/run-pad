@@ -54,6 +54,18 @@
             <Setter Property="Padding" Value="8,5"/>
         </Style>
         <!-- Compact per-row action buttons (LINQPad's "Add to Query"/"Update"). -->
+        <Style Selector="Button.link">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Status.RunningBrush}"/>
+        </Style>
+        <Style Selector="Button.link > TextBlock">
+            <Setter Property="TextDecorations" Value="Underline"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
         <Style Selector="Button.row">
             <Setter Property="Padding" Value="8,1"/>
             <Setter Property="MinHeight" Value="0"/>
@@ -356,6 +368,49 @@
                                                 MinWidth="72" Margin="0,0,8,8"
                                                 ToolTip.Tip="Remove this package from the script"/>
                                     </WrapPanel>
+
+                                    <!-- What the sources say about the package at the selected version; each part appears only when supplied. -->
+                                    <TextBlock Classes="hint" Text="Loading package details…" IsVisible="{Binding IsLoadingDetails}"/>
+                                    <TextBlock Classes="error" Text="{Binding DetailsError}" IsVisible="{Binding HasDetailsError}" TextWrapping="Wrap"/>
+                                    <StackPanel x:Name="DetailsLicensePanel" IsVisible="{Binding HasDetailsLicense}" Spacing="2">
+                                        <TextBlock Text="License" FontSize="12"/>
+                                        <TextBlock Text="{Binding DetailsLicense}" TextWrapping="Wrap" FontSize="13"
+                                                   IsVisible="{Binding !HasDetailsLicenseLink}"/>
+                                        <Button x:Name="LicenseLinkButton" Classes="link" Command="{Binding OpenLinkCommand}"
+                                                CommandParameter="{Binding DetailsLicenseUrl}" IsVisible="{Binding HasDetailsLicenseLink}"
+                                                AutomationProperties.Name="Open the license"
+                                                ToolTip.Tip="{Binding DetailsLicenseUrl}">
+                                            <TextBlock Text="{Binding DetailsLicense}"/>
+                                        </Button>
+                                    </StackPanel>
+                                    <StackPanel x:Name="DetailsProjectPanel" IsVisible="{Binding HasDetailsProjectUrl}" Spacing="2">
+                                        <TextBlock Text="Project page" FontSize="12"/>
+                                        <Button x:Name="ProjectLinkButton" Classes="link" Command="{Binding OpenLinkCommand}"
+                                                CommandParameter="{Binding DetailsProjectUrl}"
+                                                AutomationProperties.Name="Open the project page"
+                                                ToolTip.Tip="{Binding DetailsProjectUrl}">
+                                            <TextBlock Text="{Binding DetailsProjectUrl}"/>
+                                        </Button>
+                                    </StackPanel>
+                                    <StackPanel x:Name="DetailsDependenciesPanel" Spacing="2">
+                                        <TextBlock Text="Dependencies" FontSize="12"
+                                                   IsVisible="{Binding HasDetailsDependencies}"/>
+                                        <ItemsControl x:Name="DetailsDependencyList" ItemsSource="{Binding DetailsDependencies}"
+                                                      IsVisible="{Binding HasDetailsDependencies}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="viewModels:PackageDetailLine">
+                                                    <Panel>
+                                                        <TextBlock Text="{Binding Text}" IsVisible="{Binding IsHeader}"
+                                                                   FontSize="12" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                                                        <TextBlock Text="{Binding Text}" IsVisible="{Binding !IsHeader}"
+                                                                   TextWrapping="Wrap" FontSize="13" Margin="12,0,0,0"/>
+                                                    </Panel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock x:Name="NoDependenciesText" Classes="hint" Text="No dependencies."
+                                                   IsVisible="{Binding DetailsHaveNoDependencies}"/>
+                                    </StackPanel>
                                 </StackPanel>
                             </ScrollViewer>
                         </Panel>

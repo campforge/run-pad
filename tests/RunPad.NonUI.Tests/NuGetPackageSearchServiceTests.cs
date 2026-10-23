@@ -109,6 +109,111 @@ public sealed class NuGetPackageSearchServiceTests : IDisposable
         Assert.Empty(await service.GetVersionsAsync("Missing.Package", TestContext.Current.CancellationToken));
     }
 
+    // A feed package whose nuspec carries the given extra metadata elements.
+    private string CreateDescribedFeed(string name, string id, string version, string metadata, string dependencies = "")
+    {
+        var feed = Path.Combine(_root, name);
+        Directory.CreateDirectory(feed);
+        using var zip = ZipFile.Open(Path.Combine(feed, $"{id}.{version}.nupkg"), ZipArchiveMode.Create);
+        using var writer = new StreamWriter(zip.CreateEntry($"{id}.nuspec").Open());
+        writer.Write($"""
+            <?xml version="1.0" encoding="utf-8"?>
+            <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+              <metadata>
+                <id>{id}</id>
+                <version>{version}</version>
+                <authors>test</authors>
+                <description>{id} test package</description>
+                {metadata}
+                {(dependencies.Length == 0 ? "" : $"<dependencies>{dependencies}</dependencies>")}
+              </metadata>
+            </package>
+            """);
+        return feed;
+    }
+
+    [Fact]
+    public async Task GetDetailsAsync_Should_ReadDependenciesLicenseAndProjectPage_OfTheChosenVersion()
+    {
+        var feed = CreateDescribedFeed("d", "Demo.Package", "2.0.0",
+            "<projectUrl>https://demo.test/home</projectUrl><license type=\"expression\">MIT OR Apache-2.0</license>",
+            "<group targetFramework=\"net8.0\"><dependency id=\"Dep.One\" version=\"1.2.0\" /></group>"
+            + "<group targetFramework=\".NETStandard2.0\"><dependency id=\"Dep.Two\" version=\"[3.0.0, 4.0.0)\" /><dependency id=\"Dep.Three\" /></group>"
+            + "<group targetFramework=\"net462\" />");
+        CreateDescribedFeed("d", "Demo.Package", "1.0.0", "");
+        var service = new NuGetPackageSearchService([Feed(feed)]);
+
+        var details = await service.GetDetailsAsync("Demo.Package", "2.0.0", TestContext.Current.CancellationToken);
+
+        Assert.NotNull(details);
+        Assert.Equal("MIT OR Apache-2.0", details.License);
+        Assert.Equal("https://demo.test/home", details.ProjectUrl);
+        Assert.Equal(["net8.0", "netstandard2.0"], details.DependencyGroups.Select(g => g.TargetFramework)); // the empty group is left out
+        Assert.Equal([("Dep.One", ">= 1.2.0")], details.DependencyGroups[0].Dependencies.Select(d => (d.Id, d.VersionRange)));
+        Assert.Equal(["Dep.Two", "Dep.Three"], details.DependencyGroups[1].Dependencies.Select(d => d.Id));
+        Assert.Equal([">= 3.0.0 && < 4.0.0", ""], details.DependencyGroups[1].Dependencies.Select(d => d.VersionRange));
+        var older = await service.GetDetailsAsync("Demo.Package", "1.0.0", TestContext.Current.CancellationToken);
+        Assert.Empty(older!.DependencyGroups);
+        Assert.Null(older.License);
+        Assert.Null(older.ProjectUrl);
+    }
+
+    [Fact]
+    public async Task GetDetailsAsync_Should_UseTheNewestStableVersion_ForARangeOrAnUnlistedVersion()
+    {
+        var feed = CreateDescribedFeed("d", "Demo.Package", "1.0.0", "<projectUrl>https://demo.test/one</projectUrl>");
+        CreateDescribedFeed("d", "Demo.Package", "2.0.0", "<projectUrl>https://demo.test/two</projectUrl>");
+        CreateDescribedFeed("d", "Demo.Package", "3.0.0-beta", "<projectUrl>https://demo.test/beta</projectUrl>");
+        var service = new NuGetPackageSearchService([Feed(feed)]);
+
+        Assert.Equal("https://demo.test/two", (await service.GetDetailsAsync("Demo.Package", "[1.0.0, 5.0.0)", TestContext.Current.CancellationToken))!.ProjectUrl);
+        Assert.Equal("https://demo.test/two", (await service.GetDetailsAsync("Demo.Package", null, TestContext.Current.CancellationToken))!.ProjectUrl);
+        Assert.Equal("https://demo.test/two", (await service.GetDetailsAsync("Demo.Package", "9.9.9", TestContext.Current.CancellationToken))!.ProjectUrl);
+        Assert.Equal("https://demo.test/beta", (await service.GetDetailsAsync("Demo.Package", "3.0.0-beta", TestContext.Current.CancellationToken))!.ProjectUrl);
+    }
+
+    [Fact]
+    public async Task GetDetailsAsync_Should_DescribeALicenseFile_AndDropAMalformedOrNonWebAddress()
+    {
+        var file = CreateDescribedFeed("f", "Demo.File", "1.0.0", "<license type=\"file\">LICENSE.txt</license><projectUrl>javascript:alert(1)</projectUrl>");
+        var bad = CreateDescribedFeed("b", "Demo.Bad", "1.0.0", "<projectUrl>not a url</projectUrl><licenseUrl>ftp://host/license.txt</licenseUrl>");
+        var userinfo = CreateDescribedFeed("u", "Demo.User", "1.0.0", "<projectUrl>https://user:pass@host.test/</projectUrl>");
+        var deprecated = CreateDescribedFeed("p", "Demo.Dep", "1.0.0", "<licenseUrl>https://aka.ms/deprecateLicenseUrl</licenseUrl>");
+        var service = new NuGetPackageSearchService([Feed(file), Feed(bad), Feed(userinfo), Feed(deprecated)]);
+
+        var fromFile = await service.GetDetailsAsync("Demo.File", "1.0.0", TestContext.Current.CancellationToken);
+        Assert.Equal("License file included in the package", fromFile!.License);
+        Assert.Null(fromFile.ProjectUrl);
+
+        var fromBad = await service.GetDetailsAsync("Demo.Bad", "1.0.0", TestContext.Current.CancellationToken);
+        Assert.Null(fromBad!.ProjectUrl);
+        Assert.Null(fromBad.LicenseUrl);
+
+        Assert.Null((await service.GetDetailsAsync("Demo.User", "1.0.0", TestContext.Current.CancellationToken))!.ProjectUrl);
+        Assert.Null((await service.GetDetailsAsync("Demo.Dep", "1.0.0", TestContext.Current.CancellationToken))!.LicenseUrl);
+    }
+
+    [Fact]
+    public async Task GetDetailsAsync_Should_ReturnNull_ForAnUnknownPackage_AndThrow_WhenEverySourceFails()
+    {
+        var a = CreateFeed("a", ("Demo.Package", "1.0.0"));
+
+        Assert.Null(await new NuGetPackageSearchService([Feed(a)]).GetDetailsAsync("Missing.Package", "1.0.0", TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            new NuGetPackageSearchService([BrokenSource("one")]).GetDetailsAsync("Demo.Package", "1.0.0", TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task GetDetailsAsync_Should_HonorCancellation()
+    {
+        var a = CreateFeed("a", ("Demo.Package", "1.0.0"));
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            new NuGetPackageSearchService([Feed(a)]).GetDetailsAsync("Demo.Package", "1.0.0", cts.Token));
+    }
+
     private static SourceRepository Feed(string path, string name) => Repository.Factory.GetCoreV3(new PackageSource(path, name));
 
     [Fact]
