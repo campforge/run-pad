@@ -56,31 +56,57 @@ public class DumpRendererTests
         Assert.Contains("&quot;", result);
     }
 
-    [Fact]
-    public void Render_LongString_TruncatesAt500Chars()
+    [Theory]
+    [InlineData(499)]
+    [InlineData(500)]
+    [InlineData(501)]
+    [InlineData(5000)]
+    public void Render_LongString_KeepsTheWholeValue(int length)
     {
-        // Arrange
-        var longStr = new string('x', 501);
+        var s = new string('x', length);
 
-        // Act
-        var result = DumpRenderer.Render(longStr, null);
+        var result = DumpRenderer.Render(s, null);
 
-        // Assert
-        Assert.Contains("…", result);
-        Assert.DoesNotContain(longStr, result);
+        Assert.Contains("&quot;" + s + "&quot;", result);
+        Assert.DoesNotContain("…", result);
+    }
+
+    [Theory]
+    [InlineData(499)]
+    [InlineData(500)]
+    public void Render_SurrogatePairAtTheFormerBoundary_StaysIntact(int prefixLength)
+    {
+        var s = new string('x', prefixLength) + "😀" + "tail";
+
+        var result = DumpRenderer.Render(s, null);
+
+        Assert.Contains("😀tail&quot;", result);
+        Assert.DoesNotContain("…", result);
     }
 
     [Fact]
-    public void Render_ShortString_NotTruncated()
+    public void Render_LongStringInObjectMember_KeepsTheWholeValue()
     {
-        // Arrange
-        var s = new string('x', 500);
+        var s = new string('y', 800) + "end";
 
-        // Act
-        var result = DumpRenderer.Render(s, null);
+        var result = DumpRenderer.Render(new Node { Name = s }, null);
 
-        // Assert
+        Assert.Contains(s, result);
         Assert.DoesNotContain("…", result);
+    }
+
+    [Fact]
+    public void Render_LongStringsInCollections_KeepTheWholeValue()
+    {
+        var s = new string('z', 700) + "end";
+
+        var list = DumpRenderer.Render(new List<string> { s }, null);
+        var objects = DumpRenderer.Render(new List<Node> { new() { Name = s } }, null);
+
+        Assert.Contains(s, list);
+        Assert.Contains(s, objects);
+        Assert.DoesNotContain("…", list);
+        Assert.DoesNotContain("…", objects);
     }
 
     [Theory]

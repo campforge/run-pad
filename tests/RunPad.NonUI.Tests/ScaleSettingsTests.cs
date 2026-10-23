@@ -20,6 +20,22 @@ public class ScaleSettingsTests
         Assert.Equal(15, settings.Editor.FontSize);
         Assert.Equal("Menlo", settings.Editor.FontFamily);
         Assert.True(settings.Editor.WordWrap);
+        Assert.True(settings.Editor.ResultsWordWrap);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void TheWrapSettings_Should_SurviveSaveAndLoad_Independently(bool results)
+    {
+        var saved = new AppSettings();
+        saved.Editor.ResultsWordWrap = results;
+        saved.Editor.WordWrap = !results;
+
+        var loaded = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(saved))!;
+
+        Assert.Equal(results, loaded.Editor.ResultsWordWrap);
+        Assert.Equal(!results, loaded.Editor.WordWrap);
     }
 
     [Fact]

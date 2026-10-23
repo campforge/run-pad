@@ -22,6 +22,10 @@ public sealed class EditorSettings
     public int ColumnRulerPosition { get; set; } = 80;
     public bool WordWrap { get; set; }
 
+    // Wraps long lines in the results pane. On by default so long output is readable at once;
+    // settings files written before this existed simply get the default.
+    public bool ResultsWordWrap { get; set; } = true;
+
     // Live user report ("font and spacing are too big", LINQPad 4 shown as a
     // denser reference) — 14 was the one outlier default nobody had touched; 12 is what testing it
     // live actually settled on.

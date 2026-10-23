@@ -7,6 +7,10 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Changed
 
+- Long lines in results now wrap at the window width, including long unbroken text, with a new
+  "Wrap long lines in results" setting under Editor preferences; the existing editor setting is
+  renamed "Wrap long lines in code editor" and only affects the code.
+- `.Dump()` no longer cuts a string off after 500 characters: the whole value is shown.
 - Adding a connection in Dependencies that needs new NuGet packages now asks for confirmation,
   listing the packages and versions, before writing them to the script.
 

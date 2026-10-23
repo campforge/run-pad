@@ -48,6 +48,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private IIntelliSenseService? _intelliSense;
     internal IIntelliSenseService? IntelliSenseForTests => _intelliSense;
     private bool _runPadAnalyzers;
+    private bool _resultsWordWrap;
 
     // Raw (unfiltered) lightbulb candidate lists — see UpdateLightbulb's own doc comment for why
     // filtering happens at render time instead of once when each list is produced.
@@ -125,8 +126,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var editor = new CodeTextEditor { Background = _themeService.GetBrush("RunPad.Editor.BackgroundBrush") };
         State = new EditorTabState(editor);
         ResultsOutput.DataContext = State.Output;
+        _resultsWordWrap = prefs.Editor.ResultsWordWrap;
         State.Output.Css = HtmlThemeStylesheet.Generate(themeService.CurrentTheme.Interface.Variant,
-            themeService.CurrentTheme.Interface.IsDark);
+            themeService.CurrentTheme.Interface.IsDark, _resultsWordWrap);
 
         _viewScale = ViewScale.For(prefs);
         ApplyEditorSettings(editor, prefs.Editor, _viewScale.CodeZoom);
@@ -300,7 +302,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
 
         ApplySelectionColor(State.Editor);
-        State.Output.Css = HtmlThemeStylesheet.Generate(theme.Interface.Variant, theme.Interface.IsDark);
+        State.Output.Css = HtmlThemeStylesheet.Generate(theme.Interface.Variant, theme.Interface.IsDark, _resultsWordWrap);
         UpdateOutputUi();
         ApplyPreviewThemeNow(theme);
     }
@@ -1444,6 +1446,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         => Dispatcher.Post(() =>
         {
             ApplyEditorSettings(State.Editor, _prefs.Editor, _viewScale.CodeZoom);
+            // Only a changed value regenerates the stylesheet, so unrelated settings don't reload the results view.
+            if (_prefs.Editor.ResultsWordWrap != _resultsWordWrap)
+            {
+                _resultsWordWrap = _prefs.Editor.ResultsWordWrap;
+                var theme = _themeService.CurrentTheme.Interface;
+                State.Output.Css = HtmlThemeStylesheet.Generate(theme.Variant, theme.IsDark, _resultsWordWrap);
+            }
+
             _intelliSense?.UpdateIndentation(_prefs.Editor.UseTabs, _prefs.Editor.IndentationSize);
             _prefs.Keyboard.ApplyTo(State.Editor);
             ApplyPreviewCodeFont();
