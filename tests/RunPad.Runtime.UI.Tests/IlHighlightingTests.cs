@@ -232,13 +232,18 @@ public class IlHighlightingTests
         {
             var il = string.Concat(Enumerable.Repeat(Il, 50_000));
             var documents = 0;
-            ilOutput.DocumentChanged += (_, _) => documents++;
+            var documentChangedOnUiThread = false;
+            ilOutput.DocumentChanged += (_, _) =>
+            {
+                documents++;
+                documentChangedOnUiThread = Dispatcher.UIThread.CheckAccess();
+            };
 
             await Task.Run(() => tab.AttachIlDocument(il, tab.RunGenerationForTests), TestContext.Current.CancellationToken);
-            Assert.Equal(0, documents); // nothing touched the editor from the worker
             Dispatcher.UIThread.RunJobs();
 
             Assert.Equal(1, documents);
+            Assert.True(documentChangedOnUiThread);
             Assert.Equal(100_001, ilOutput.Document.LineCount);
             Assert.Equal(IlGrammar.ScopeName, tab.IlGrammarScope);
             Assert.True(ilOutput.IsReadOnly);
