@@ -192,6 +192,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private void OnStoreErrorChanged()
     {
         this.RaisePropertyChanged(nameof(HasReadError));
+        this.RaisePropertyChanged(nameof(CanEditConnections));
         this.RaisePropertyChanged(nameof(StoreError));
         this.RaisePropertyChanged(nameof(HasStoreError));
     }
@@ -331,7 +332,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         // Both would be about a list that is about to change.
         CancelAddConfirmation();
         CancelImportConfirmation();
-        var before = _mine.Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var before = _mine.ToList();
         bool saved;
         try
         {
@@ -349,7 +350,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         if (HasReadError) return;
         // Managing the list only reloads it; the script changes only for a connection created here.
         if (newDriverId is null) return;
-        var created = _mine.FirstOrDefault(c => !before.Contains(c.Name));
+        var created = FindCreated(before, _mine);
         if (created is null) return;
         if (Available.FirstOrDefault(c => string.Equals(c.Name, created.Name, StringComparison.OrdinalIgnoreCase)) is not { } offered)
         {
@@ -584,6 +585,32 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         if (_secrets is null) return;
         try { _secretNames = new HashSet<string>(_secrets.LoadSnapshot().Secrets.Select(s => s.Name), StringComparer.OrdinalIgnoreCase); }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { }
+    }
+
+    // The window may also rename or delete connections, so "a name that wasn't there" isn't enough: a
+    // renamed connection has a new name too. One that only changed its name keeps its driver and
+    // parameters, so it is matched to a connection that disappeared with the same content; what is
+    // left over (the last one, if several) was created.
+    internal static RpadConnection? FindCreated(IReadOnlyList<RpadConnection> before, IReadOnlyList<RpadConnection> after)
+    {
+        var known = before.Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var current = after.Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var vanished = before.Where(c => !current.Contains(c.Name)).Select(Content).ToList();
+        RpadConnection? created = null;
+        foreach (var connection in after.Where(c => !known.Contains(c.Name)))
+        {
+            var index = vanished.IndexOf(Content(connection));
+            if (index >= 0) vanished.RemoveAt(index); // renamed
+            else created = connection;
+        }
+        return created;
+    }
+
+    private static string Content(RpadConnection connection)
+    {
+        var copy = Clone(connection);
+        copy.Name = "";
+        return JsonSerializer.Serialize(copy);
     }
 
     private static string Json(IReadOnlyList<RpadConnection> connections) => JsonSerializer.Serialize(connections);
