@@ -124,9 +124,11 @@ public class DependenciesWindowViewModelDetailsTests
     {
         var late = new TaskCompletionSource<PackageDetails?>();
         var requested = new List<string?>();
+        var firstRequested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var (vm, _) = CreateVm((_, version, _) =>
         {
-            requested.Add(version);
+            lock (requested) requested.Add(version);
+            if (version == "13.0.3") firstRequested.TrySetResult();
             return version == "13.0.3"
                 ? late.Task
                 : Task.FromResult<PackageDetails?>(new PackageDetails([], "Apache-2.0", null, null));
@@ -135,6 +137,7 @@ public class DependenciesWindowViewModelDetailsTests
         await vm.PendingSearch;
         vm.SelectedOnlinePackage = vm.OnlinePackages.Single();
         await vm.PendingVersions;
+        await firstRequested.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         Assert.True(vm.IsLoadingDetails);
 
         vm.SelectedVersion = "12.0.3";
