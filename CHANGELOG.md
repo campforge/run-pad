@@ -3,6 +3,16 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [Unreleased]
+
+### Fixed
+
+- Saving the Secret Store while another RunPad window saves it, or while a running script reads it,
+  now waits a moment and tries again; if the store stays in use, the window says so instead of asking
+  to check access and disk space.
+- A Secret Store file that is a symbolic link stays one when saved: the file it points to is updated.
+- A temporary file left by a Secret Store save that was interrupted is removed by the next save.
+
 ## [0.9.3] — 2026-10-23
 
 ### Changed
