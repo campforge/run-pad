@@ -79,6 +79,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         var held = sessions.Select(x => Path.GetFileName(x.Folder)).ToHashSet();
 
         var unavailable = new List<string>();
+        var undetermined = new List<string>();
         Exception? unreadable = null;
         RecoverySnapshot? own = null;
         foreach (var session in sessions)
@@ -108,7 +109,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
                         session.Lock.Dispose();
                         break;
                     case DestinationState.Unknown:
-                        unavailable.Add(session.Folder);
+                        undetermined.Add(session.Folder);
                         session.Lock.Dispose();
                         break;
                     default:
@@ -132,6 +133,11 @@ public sealed class DiskRecoveryStore : IRecoveryStore
             Warning = string.Join("\n", new[] { Warning,
                 "Some draft data could not be read and was kept unchanged. Recovery folders:",
                 string.Join("\n", unavailable) }.Where(s => !string.IsNullOrEmpty(s)));
+        // These were read; it's the session that took their drafts over that can't be checked now.
+        if (undetermined.Count > 0)
+            Warning = string.Join("\n", new[] { Warning,
+                "Some drafts were taken over by another session that can't be checked now; they were kept unchanged and not restored. Recovery folders:",
+                string.Join("\n", undetermined) }.Where(s => !string.IsNullOrEmpty(s)));
         if (_folder is null)
         {
             // Unreadable data alone must not be replaced by an empty session that hides it.
@@ -147,11 +153,13 @@ public sealed class DiskRecoveryStore : IRecoveryStore
 
     // Whether a record is about the generation read from this folder. A folder can be reused: an
     // instance that listed it before it was retired may adopt it, empty, as its own new session, and
-    // its revisions start again, so only the checkpoint file identifies what was imported.
+    // its revisions start again, so only the checkpoint file identifies what was imported. A record
+    // without one identifies nothing: matching it by revision could retire a new owner's checkpoints,
+    // while not matching at most offers the drafts once more.
     private static bool Describes(RecoveryImportRecord record, string folder, RecoverySnapshot snapshot, string? payload, string destination)
     {
         if (record.Source != Path.GetFileName(folder)) return false;
-        if (record.Payload is not { } imported) return record.Revision >= snapshot.Revision;
+        if (record.Payload is not { } imported) return false;
         if (imported == payload) return true;
         if (snapshot.Revision >= record.Revision || payload is null) return false;
 
