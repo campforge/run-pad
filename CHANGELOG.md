@@ -17,6 +17,12 @@ Notable changes in each RunPad release. Downloads are on the
   again after they change, and open scripts that use the connection get the new classes at once.
   The command-line runner does the same with `--refresh-connections`.
 
+### Changed
+
+- gRPC connection schemas and IntelliSense context updates no longer block the editor while they
+  are being prepared; stale completion and analysis results are discarded when newer code or
+  connection context is available.
+
 ### Fixed
 
 - Saving the Secret Store while another RunPad window saves it, or while a running script reads it,
