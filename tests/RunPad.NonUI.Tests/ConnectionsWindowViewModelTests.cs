@@ -1,4 +1,5 @@
 using System.Reactive.Linq;
+using System.Reactive.Threading.Tasks;
 using System.Windows.Input;
 using Moq;
 using RunPad.Connectors.Http;
@@ -69,6 +70,8 @@ public class ConnectionsWindowViewModelTests
     {
         public IReadOnlyDictionary<string, RpadValue>? Tested { get; private set; }
         public Exception? Failure { get; set; }
+        // When set, a test waits for it: the server's answer comes when the test says so.
+        public TaskCompletionSource<ConnectionTestResult>? Answer { get; set; }
         public string Id => "fake";
         public string DisplayName => "Fake";
         public ConnectionCategory Category => ConnectionCategory.Database;
@@ -88,6 +91,7 @@ public class ConnectionsWindowViewModelTests
         public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken)
         {
             Tested = resolvedParams;
+            if (Answer is not null) return Answer.Task;
             return Failure is null ? Task.FromResult(new ConnectionTestResult(true, "Connected.")) : Task.FromException<ConnectionTestResult>(Failure);
         }
 
@@ -247,6 +251,36 @@ public class ConnectionsWindowViewModelTests
         Assert.Null(item.TestResult); // an edit clears the last result
         await vm.TestCommand.Execute();
         Assert.Equal("The Secret Store has no secret named 'missing'. Add it in Tools → Secret Store.", item.TestResult);
+    }
+
+    // An edit while the server is still answering clears the result; the answer, about the values
+    // before the edit, must not then appear under the new ones.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AnEditDuringATest_Should_NotShowTheOldAnswer(bool succeeds)
+    {
+        var (vm, _, fake) = CreateVm();
+        Execute(vm.AddCommand, fake);
+        var item = vm.SelectedConnection!;
+        item.Fields[0].Text = "Host=old";
+        fake.Answer = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var test = vm.TestCommand.Execute().ToTask();
+        Assert.Equal("Testing…", item.TestResult);
+
+        item.Fields[0].Text = "Host=new";
+        if (succeeds) fake.Answer.SetResult(new ConnectionTestResult(true, "Connected to old."));
+        else fake.Answer.SetException(new InvalidOperationException("old is down."));
+        await test;
+
+        Assert.Equal("Host=old", fake.Tested!["connectionString"].Text);
+        Assert.Null(item.TestResult);
+        Assert.False(vm.IsTesting);
+
+        fake.Answer = null;
+        await vm.TestCommand.Execute();
+        Assert.Equal("Success: Connected.", item.TestResult);
+        Assert.Equal("Host=new", fake.Tested!["connectionString"].Text);
     }
 
     // Drivers may throw for an unreachable server; the window reports it instead of crashing.

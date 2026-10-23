@@ -43,13 +43,19 @@ public class ScriptConnectionsViewModelTests
 
     private static (DependenciesWindowViewModel Vm, Mock<IConnectionStore> Store, List<RpadConnection> Mine) CreateVm(params RpadConnection[] mine)
     {
+        var secrets = new Mock<ISecretStore>();
+        secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([new Secret("billing-token", "t0k")], null));
+        return CreateVm(secrets, mine);
+    }
+
+    private static (DependenciesWindowViewModel Vm, Mock<IConnectionStore> Store, List<RpadConnection> Mine) CreateVm(
+        Mock<ISecretStore> secrets, RpadConnection[] mine)
+    {
         var list = mine.ToList();
         var store = new Mock<IConnectionStore>();
         store.Setup(s => s.LoadSnapshot()).Returns(() => new ConnectionStoreSnapshot([.. list], null));
         store.Setup(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()))
             .Callback<IReadOnlyList<RpadConnection>, string?>((saved, _) => { list.Clear(); list.AddRange(saved); });
-        var secrets = new Mock<ISecretStore>();
-        secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([new Secret("billing-token", "t0k")], null));
         var drivers = new ConnectionDriverRegistry();
         drivers.Register(new HttpConnectionDriver());
         drivers.Register(new SqlLikeDriver());
@@ -213,6 +219,31 @@ public class ScriptConnectionsViewModelTests
         Assert.Single(vm.Connections.Items);
         Assert.True(vm.ApplyChanges());
         Assert.Equal("8.0.0", fm.Packages["Microsoft.Data.Sqlite"].Version); // kept, not overwritten
+    }
+
+    // Reading the Secret Store decrypts every value; the tab needs only the names, once per opening,
+    // not on each package edit (each of which refreshes the connections' problems).
+    [Fact]
+    public void PackageEdits_Should_NotReadTheSecretStoreAgain()
+    {
+        var secrets = new Mock<ISecretStore>();
+        secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([new Secret("billing-token", "t0k")], null));
+        var (vm, _, _) = CreateVm(secrets, [new RpadConnection { Name = "local", Driver = "sqlish" }, Http("other", "https://other/")]);
+        vm.SetFrontMatter(new RpadFrontMatter { Connections = [Http("billing", "https://billing.local/", "missing-token")] });
+        secrets.Invocations.Clear();
+
+        var connections = vm.Connections;
+        connections.SelectedAvailable = connections.Available.Single(c => c.Name == "local");
+        Execute(connections.AddCommand);
+        Execute(connections.ConfirmAddCommand); // adds the driver's package to the draft
+        connections.SelectedItem = connections.Items.Single(i => i.Name == "local");
+        Execute(connections.RemoveCommand); // and takes it away again
+
+        secrets.Verify(s => s.LoadSnapshot(), Times.Never);
+        Assert.Equal("The Secret Store has no secret named 'missing-token'.", connections.Items.Single().Problem);
+
+        vm.SetFrontMatter(new RpadFrontMatter()); // opening the tab again reads the names again
+        secrets.Verify(s => s.LoadSnapshot(), Times.Once);
     }
 
     // Taking a connection out again before saving takes its packages too, unless another needs them.
