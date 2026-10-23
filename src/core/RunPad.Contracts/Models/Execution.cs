@@ -5,6 +5,21 @@ public enum OutputKind
     StandardOutput,
     StandardError,
     DumpHtml,
+
+    /// <summary>
+    /// Standard output text that ends without a line terminator (<c>Console.Write</c>): the next
+    /// standard output continues the same line. <see cref="StandardOutput"/> is a complete line.
+    /// </summary>
+    StandardOutputPartial,
+
+    /// <summary>Like <see cref="StandardOutputPartial"/>, for standard error.</summary>
+    StandardErrorPartial,
+
+    /// <summary>
+    /// A compiler warning or message (errors are <see cref="StandardError"/>). Not script output, so a
+    /// runner that compares or pipes the script's stdout keeps it apart.
+    /// </summary>
+    Diagnostic,
 }
 
 public delegate void OutputReceivedHandler(string data, OutputKind kind);

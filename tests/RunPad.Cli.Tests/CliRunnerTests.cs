@@ -110,6 +110,34 @@ public class CliRunnerTests
         finally { File.Delete(path); }
     }
 
+    // Real compile and run: stdout is exactly what the script wrote (no added line break after
+    // Console.Write, the Dump on its own line), and the compiler's warning stays off it.
+    [Fact]
+    public async Task RunAsync_Should_KeepScriptStdoutExact_AndWarningsOffIt()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"runpad-cli-output-{Guid.NewGuid():N}.rpad");
+        try
+        {
+            await File.WriteAllTextAsync(path,
+                "---\nlanguage: csharp\nkind: statements\n---\n\n```csharp run\n" +
+                "int unused = 1;\nConsole.Write(\"a\");\nConsole.Write(\"b\");\nConsole.WriteLine(\"c\");\n" +
+                "Console.Write(\"total: \");\n42.Dump();\nConsole.Write(\"end\");\n```\n");
+            var stdout = new TestConsole().Width(200);
+            var stderr = new TestConsole().Width(200);
+
+            var exitCode = await CliRunner.RunAsync([path], CliServices.CreateDefault(), stdout, stderr, CancellationToken.None);
+
+            Assert.Equal(0, exitCode);
+            Assert.StartsWith("abc\ntotal: \n", stdout.Output);
+            Assert.EndsWith("end", stdout.Output);
+            Assert.Contains("42", stdout.Output);
+            Assert.DoesNotContain("CS0219", stdout.Output);
+            Assert.DoesNotContain('\x1e', stdout.Output[..]);
+            Assert.Contains("CS0219", stderr.Output);
+        }
+        finally { File.Delete(path); }
+    }
+
     [Fact]
     public void CreateDefault_Should_RegisterCSharpAndVb()
     {

@@ -127,18 +127,35 @@ public static class CliRunner
                     return compilation.Success ? 0 : NotRunExitCode;
                 }
 
+                // Whether the script's stdout is in the middle of a line (Console.Write without a
+                // line break): a Dump then starts on a new line instead of being glued to that text.
+                var stdoutMidLine = false;
                 result = await host.RunAsync(document.RunCode, (data, outputKind) =>
                 {
                     switch (outputKind)
                     {
                         case OutputKind.StandardOutput:
                             stdout.WriteLine(data);
+                            stdoutMidLine = false;
+                            break;
+                        case OutputKind.StandardOutputPartial:
+                            stdout.Write(data);
+                            stdoutMidLine = data.Length > 0;
                             break;
                         case OutputKind.StandardError:
                             stderr.WriteLine(data);
                             break;
+                        case OutputKind.StandardErrorPartial:
+                            stderr.Write(data);
+                            break;
+                        // Compiler warnings are not script output: stdout carries only what the script wrote.
+                        case OutputKind.Diagnostic:
+                            stderr.WriteLine(data);
+                            break;
                         case OutputKind.DumpHtml:
                             var html = Encoding.UTF8.GetString(Convert.FromBase64String(data));
+                            if (stdoutMidLine) stdout.WriteLine();
+                            stdoutMidLine = false;
                             stdout.Write(DumpHtmlSpectreRenderer.Render(html));
                             break;
                     }
