@@ -211,6 +211,10 @@ public sealed class ConnectionItemViewModel : ReactiveObject
         internal set => this.RaiseAndSetIfChanged(ref field, value);
     }
 
+    // Counts edits, so a test that was running while the connection changed can tell its answer is
+    // about parameters no longer shown.
+    internal int EditCount { get; private set; }
+
     internal ConnectionItemViewModel(RpadConnection connection, IConnectionDriver? driver, IReadOnlyList<string> secretNames)
     {
         Name = connection.Name;
@@ -231,6 +235,7 @@ public sealed class ConnectionItemViewModel : ReactiveObject
 
     private void OnChanged()
     {
+        EditCount++;
         TestResult = null;
         UpdateProblems();
         Edited?.Invoke();
@@ -427,10 +432,15 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
         if (SelectedConnection is not { Driver: { } driver, HasProblems: false } item) return;
         IsTesting = true;
         item.TestResult = "Testing…";
+        // What is tested, and later read again, is the connection as it was when Test was pressed; an
+        // edit meanwhile clears the result, and the old answer must not reappear over the new values.
+        var connection = item.ToConnection();
+        var edits = item.EditCount;
+        bool Edited() => item.EditCount != edits;
         try
         {
             var secrets = SecretValues();
-            var resolved = ConnectionPlaceholderResolver.Resolve(item.ToConnection().Params,
+            var resolved = ConnectionPlaceholderResolver.Resolve(connection.Params,
                 name => secrets.GetValueOrDefault(name), Environment.GetEnvironmentVariable);
             if (resolved.Errors.Count > 0)
             {
@@ -438,13 +448,14 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
                 return;
             }
             var result = await driver.TestAsync(resolved.Params, CancellationToken.None);
+            if (Edited()) return;
             item.TestResult = (result.Succeeded ? "Success: " : "Failed: ") + result.Message;
             // A server that answers is read again, so scripts get its current classes.
             if (result.Succeeded && driver is IConnectionSchemaDriver && _schemas is not null)
             {
                 item.TestResult += "\nReading its description…";
-                var connection = item.ToConnection();
                 await _schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.All, CancellationToken.None);
+                if (Edited()) return;
                 item.TestResult = "Success: " + result.Message + "\n" + (_schemas.Cache.ErrorFor(connection) is { } error
                     ? "Failed: its description couldn't be read: " + error
                     : "Scripts get its classes on their next build.");
@@ -454,7 +465,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
         // answer, not a reason to take the window down.
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            item.TestResult = "Failed: " + ex.Message;
+            if (!Edited()) item.TestResult = "Failed: " + ex.Message;
         }
         finally { IsTesting = false; }
     }

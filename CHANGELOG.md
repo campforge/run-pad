@@ -12,6 +12,9 @@ Notable changes in each RunPad release. Downloads are on the
   to check access and disk space.
 - A Secret Store file that is a symbolic link stays one when saved: the file it points to is updated.
 - A temporary file left by a Secret Store save that was interrupted is removed by the next save.
+- In Tools → Connections, editing a connection while Test Connection is still waiting no longer
+  shows the answer for the old values afterwards, nor reads a gRPC server's services for values that
+  were never tested.
 
 ## [0.9.3] — 2026-10-23
 

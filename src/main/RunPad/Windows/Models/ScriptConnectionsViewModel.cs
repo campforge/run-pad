@@ -209,6 +209,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         _original = frontMatter?.Connections ?? [];
         IsCSharp = frontMatter?.Language is null or RpadLanguage.CSharp;
         LoadMine();
+        ReadSecretNames();
         Items.Clear();
         foreach (var connection in _original) Items.Add(new ScriptConnectionItemViewModel(Clone(connection)));
         Refresh();
@@ -439,11 +440,24 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         this.RaisePropertyChanged(nameof(AvailableHint));
     }
 
+    // Reading the store decrypts every value (DPAPI on Windows) to learn the names, so it is read once
+    // per Load rather than on each refresh, which every package edit triggers.
+    private HashSet<string>? _secretNames;
+    private bool _secretNamesRead;
+
     private HashSet<string>? SecretNames()
     {
-        if (_secrets is null) return null;
-        try { return new HashSet<string>(_secrets.LoadSnapshot().Secrets.Select(s => s.Name), StringComparer.OrdinalIgnoreCase); }
-        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { return null; }
+        if (!_secretNamesRead) ReadSecretNames();
+        return _secretNames;
+    }
+
+    private void ReadSecretNames()
+    {
+        _secretNamesRead = true;
+        _secretNames = null;
+        if (_secrets is null) return;
+        try { _secretNames = new HashSet<string>(_secrets.LoadSnapshot().Secrets.Select(s => s.Name), StringComparer.OrdinalIgnoreCase); }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { }
     }
 
     private static string Json(IReadOnlyList<RpadConnection> connections) => JsonSerializer.Serialize(connections);
