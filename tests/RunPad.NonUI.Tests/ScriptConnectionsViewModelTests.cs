@@ -181,6 +181,53 @@ public class ScriptConnectionsViewModelTests
         Assert.Equal("Needs the NuGet package Microsoft.Data.Sqlite: add it on the Packages tab.", other.Connections.Items.Single().Problem);
     }
 
+    [Fact]
+    public async Task CancelledModalConfirmation_Should_NotApplyWhenItCompletesLater()
+    {
+        var (vm, _, _) = CreateVm(new RpadConnection { Name = "local", Driver = "sqlish" });
+        vm.SetFrontMatter(new RpadFrontMatter());
+        var completion = new TaskCompletionSource<bool>();
+        vm.Connections.AddConfirmationDialog = _ => completion.Task;
+
+        Execute(vm.Connections.AddCommand);
+        vm.Connections.CancelPendingAdd();
+        completion.SetResult(true);
+        await Task.Yield();
+
+        Assert.Empty(vm.Connections.Items);
+        Assert.False(vm.HasChanges);
+    }
+
+    [Fact]
+    public void FailedContractRead_Should_BlockAddAndPreserveTheError()
+    {
+        var folder = Directory.CreateTempSubdirectory("runpad-add-schema").FullName;
+        try
+        {
+            var driver = new CountingSchemaDriver { Failure = "Server unavailable." };
+            var drivers = new ConnectionDriverRegistry();
+            drivers.Register(driver);
+            var schemas = new ConnectionSchemas(drivers, folder,
+                new ConnectionTools { GetPackageFolderAsync = (_, _, _) => Task.FromResult("") }, _ => null);
+            var connection = new RpadConnection { Name = "broken", Driver = driver.Id };
+            var store = new Mock<IConnectionStore>();
+            store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot([connection], null));
+            var secrets = new Mock<ISecretStore>();
+            secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([], null));
+            var vm = new ScriptConnectionsViewModel(store.Object, secrets.Object, drivers, schemas);
+            vm.Load(new RpadFrontMatter());
+            schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.Missing, CancellationToken.None).GetAwaiter().GetResult();
+
+            vm.Connections.SelectedAvailable = Assert.Single(vm.Connections.Available);
+            Execute(vm.Connections.AddCommand);
+
+            Assert.Empty(vm.Connections.Items);
+            Assert.Contains("Server unavailable.", vm.Connections.CreateMessage);
+            Assert.False(vm.HasChanges);
+        }
+        finally { Directory.Delete(folder, true); }
+    }
+
     // Cancelling the package confirmation leaves the script, its packages and the available list
     // exactly as they were; the connection can still be chosen again afterward.
     [Fact]

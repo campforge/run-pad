@@ -65,6 +65,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private List<RpadConnection>? _pendingImport;
     private string? _pendingVersion;
     private RpadConnection? _pendingAdd;
+    private int _addConfirmationVersion;
     // The script's packages as drafted in the window, and how to add or remove one there.
     private Func<IReadOnlySet<string>> _scriptPackages = () => new HashSet<string>();
     private Action<string, string> _addPackage = (_, _) => { };
@@ -335,23 +336,30 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
             + string.Join(", ", needed.Select(p => $"{p.Key} {p.Value}")) + ". Cancel leaves the script as it is.";
         if (AddConfirmationDialog is { } show)
         {
-            _ = ConfirmAddFromDialogAsync(show, AddMessage);
+            _ = ConfirmAddFromDialogAsync(show, AddMessage, _addConfirmationVersion);
             return;
         }
         IsAddConfirmationPending = true;
     }
 
-    private async Task ConfirmAddFromDialogAsync(Func<string, Task<bool>> show, string message)
+    internal void CancelPendingAdd() => CancelAddConfirmation();
+
+    private async Task ConfirmAddFromDialogAsync(Func<string, Task<bool>> show, string message, int version)
     {
         try
         {
-            if (await show(message).ConfigureAwait(true)) ConfirmAdd();
+            var confirmed = await show(message).ConfigureAwait(true);
+            if (version != _addConfirmationVersion) return;
+            if (confirmed) ConfirmAdd();
             else CancelAddConfirmation();
         }
         catch
         {
-            CancelAddConfirmation();
-            throw;
+            if (version == _addConfirmationVersion)
+            {
+                CancelAddConfirmation();
+                CreateMessage = "The connection-add confirmation could not be shown.";
+            }
         }
     }
 
@@ -400,6 +408,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
 
     private void CancelAddConfirmation()
     {
+        _addConfirmationVersion++;
         _pendingAdd = null;
         IsAddConfirmationPending = false;
         AddMessage = null;
