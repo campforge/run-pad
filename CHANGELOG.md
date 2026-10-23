@@ -3,17 +3,12 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
-## [Unreleased]
+## [0.9.4] — 2026-10-23
 
 ### Added
 
 - Assembly Explorer now keeps large assembly trees responsive while loading and highlights IL in
   the code pane and the script editor's IL tab.
-
-## [0.9.4] — 2026-10-23
-
-### Added
-
 - Dependencies now shows package dependencies, license information, and the project or homepage
   link when NuGet supplies them.
 - Dependencies can create and add connections directly, with a confirmation that lists any new
