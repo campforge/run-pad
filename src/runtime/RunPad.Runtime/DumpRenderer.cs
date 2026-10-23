@@ -8,7 +8,6 @@ namespace RunPad.Runtime;
 
 internal static class DumpRenderer
 {
-    private const int MaxStringLength = 500;
     private const int DefaultMaxDepth = 3;
     private const int DefaultMaxRows = 1000;
 
@@ -155,8 +154,7 @@ internal static class DumpRenderer
         {
             case string s:
                 {
-                    var v = s.Length > MaxStringLength ? s.Substring(0, MaxStringLength) + "…" : s;
-                    sb.Append("<span class=\"dp-string\">&quot;").Append(Encode(v)).Append("&quot;</span>");
+                    sb.Append("<span class=\"dp-string\">&quot;").Append(Encode(s)).Append("&quot;</span>");
                     break;
                 }
             case char c:

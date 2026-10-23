@@ -31,6 +31,13 @@ public static class SkiaTestAppBuilder
             .AfterSetup(_ => Application.Current!.Styles.Add(new FluentTheme()));
 }
 
+// One Skia session for every test class that needs real pixels: a second session next to it fails.
+[CollectionDefinition(Name)]
+public sealed class SkiaHeadlessCollection : ICollectionFixture<SkiaHeadlessSessionFixture>
+{
+    public const string Name = "Skia headless session";
+}
+
 public sealed class SkiaHeadlessSessionFixture : IDisposable
 {
     public HeadlessUnitTestSession Session { get; } = HeadlessUnitTestSession.StartNew(typeof(SkiaTestAppBuilder));
@@ -38,7 +45,8 @@ public sealed class SkiaHeadlessSessionFixture : IDisposable
     public void Dispose() => Session.Dispose();
 }
 
-public class HtmlControlRenderScalingTests : IClassFixture<SkiaHeadlessSessionFixture>
+[Collection(SkiaHeadlessCollection.Name)]
+public class HtmlControlRenderScalingTests
 {
     private const string BlockHtml = "<div style=\"width:50px;height:30px;background-color:#000000\"></div>";
 

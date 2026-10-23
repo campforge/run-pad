@@ -6,7 +6,12 @@ namespace RunPad.Avalonia.Themes;
 
 public static class HtmlThemeStylesheet
 {
-    public static string Generate(ThemeVariant variant, bool isDark)
+    /// <summary>
+    /// Builds the stylesheet for the results pane. With <paramref name="wrapLongLines"/> preformatted
+    /// output breaks at the viewport width, even inside one unbroken token; spaces and explicit line
+    /// breaks are kept either way.
+    /// </summary>
+    public static string Generate(ThemeVariant variant, bool isDark, bool wrapLongLines = false)
     {
         var bg = GetColor("RunPad.Output.BackgroundBrush", variant, isDark ? "#1E1E1E" : "#FFFFFF");
         var fg = GetColor("RunPad.Text.PrimaryBrush", variant, isDark ? "#CCCCCC" : "#383838");
@@ -28,9 +33,12 @@ public static class HtmlThemeStylesheet
         var dpProp = GetColor("RunPad.Dump.PropertyNameBrush", variant, isDark ? "#9CDCFE" : "#0F4A8A");
         var dpDumpBg = isDark ? "rgba(255,255,255,0.02)" : "transparent";
 
+        // The HTML renderer has no overflow-wrap, so break-all is what lets a single long token fit.
+        var preWrap = wrapLongLines ? " white-space:pre-wrap; word-break:break-all;" : "";
+
         return $$"""
             body        { background-color:{{bg}}; color:{{fg}}; font-family:Consolas,monospace; font-size:13px; margin:8px; }
-            pre         { background-color:{{panel}}; color:{{fg}}; padding:4px 8px; margin:4px 0; }
+            pre         { background-color:{{panel}}; color:{{fg}}; padding:4px 8px; margin:4px 0;{{preWrap}} }
             .secondary  { color:{{fgSec}}; }
             .error      { color:{{errFg}}; }
             .stacktrace { color:{{stackFg}}; font-size:0.85em; }
