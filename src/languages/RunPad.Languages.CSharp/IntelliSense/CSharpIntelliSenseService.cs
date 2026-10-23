@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Classification;
@@ -245,6 +246,11 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // Test-only: called by a background analysis pass once it holds its document snapshot, before it
     // analyses it, so a test can change the context at exactly that point.
     internal Action? AnalysisSnapshotTakenForTests { get; set; }
+    // Test-only: called by a completion once it holds its document snapshot, before it reads it.
+    internal Action? CompletionSnapshotTakenForTests { get; set; }
+    // Test-only: called when an execution context request has done its slow lookups and is about to
+    // be applied, so a test can hold an older request there while a newer one overtakes it.
+    internal Action<ExecutionRequest>? ExecutionContextResolvedForTests { get; set; }
     private List<KeyValuePair<string, (DocumentId Id, string Text)>> _connectionFiles = [];
     private CancellationTokenSource? _diagnosticsCts;
 
@@ -537,12 +543,36 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         string code, int position, CompletionTrigger trigger = default, CancellationToken ct = default)
         => RoslynMessageCulture.RunAsync(async () => (ICompletionList?)await TryGetCompletionsAsync(code, position, trigger, ct), ct);
 
+    // A completion that read its solution before the references or generated classes changed lists
+    // the old ones (a connection's members that are gone, none of the new): it is computed again on
+    // the new solution, not shown. A few rounds at most, so a context that keeps changing cannot
+    // keep a completion from ever answering.
     private async Task<ICompletionList?> TryGetCompletionsAsync(
         string code, int position, CompletionTrigger trigger, CancellationToken ct)
     {
+        var version = new StrongBox<int>();
+        for (var attempt = 0; ; attempt++)
+        {
+            var list = await ComputeCompletionsAsync(code, position, trigger, version, ct);
+            if (attempt == MaxCompletionAttempts - 1 || IsCurrent(version.Value)) return list;
+            ct.ThrowIfCancellationRequested();
+        }
+    }
+
+    private const int MaxCompletionAttempts = 3;
+
+    private async Task<ICompletionList?> ComputeCompletionsAsync(
+        string code, int position, CompletionTrigger trigger, StrongBox<int> contextVersion, CancellationToken ct)
+    {
         try
         {
-            var document = SyncDocument(code);
+            Document document;
+            lock (_syncLock)
+            {
+                document = SyncDocument(code);
+                contextVersion.Value = _contextVersion;
+            }
+            CompletionSnapshotTakenForTests?.Invoke();
             var model = await document.GetSemanticModelAsync(ct);
             if (model == null) return null;
 
@@ -2276,6 +2306,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private GeneratedConnections? _requestedConnections;
     private string? _requestedContractAssembly;
     private bool _contractSourcesNeeded;
+    private int _contextRequests;
+    private int _appliedContextRequest; // under _syncLock
 
     private void ApplyConnectionRepresentation()
     {
@@ -2291,9 +2323,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // assets, the targeting pack, the contract assembly lookup) run without the workspace lock, and
     // a caller that has since asked again must not have its newer context overwritten when this one
     // finally finishes.
+    //
+    // Requests also supersede each other by the order they were made in: one that finishes after a
+    // later request has been applied is dropped, whether or not its caller cancelled it.
     public void ApplyExecutionContext(ExecutionRequest request, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var sequence = Interlocked.Increment(ref _contextRequests);
         var packages = request.Packages.ToDictionary(p => p.Key, p => new Package(p.Value));
         var context = DotnetPackageReferenceContext.For(request);
         if (context is not null) ApplyPackageReferences(packages, context, cancellationToken);
@@ -2314,9 +2350,12 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 _logger.LogDebug(ex, "No cached connection contract available");
             }
         }
+        ExecutionContextResolvedForTests?.Invoke(request);
         lock (_syncLock)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (sequence < _appliedContextRequest) return;
+            _appliedContextRequest = sequence;
             UpdateAllowUnsafe(request.AllowUnsafe);
             _requestedConnections = request.Connections;
             _requestedContractAssembly = contract;
