@@ -75,6 +75,10 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
 
     internal event Action? Edited;
 
+    // The add confirmation is shown by DependenciesWindow as a modal dialog, rather than inline
+    // beneath the connection picker. Tests and alternate hosts can still drive the commands directly.
+    internal Func<string, Task<bool>>? AddConfirmationDialog { get; set; }
+
     public ObservableCollection<ScriptConnectionItemViewModel> Items { get; } = [];
 
     // The user's connections the script doesn't list yet.
@@ -312,6 +316,13 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
                 + "Use a RunPad version that has it, or choose another connection.";
             return;
         }
+        var schemas = _schemas;
+        if (driver is IConnectionSchemaDriver && schemas is not null && schemas.Get(connection, _scriptDirectory) is null
+            && schemas.ErrorFor(connection, _scriptDirectory) is { } schemaError)
+        {
+            CreateMessage = $"'{connection.Name}' can't be added because its contract couldn't be read: {schemaError}";
+            return;
+        }
         var needed = driver.Packages.Where(p => !_scriptPackages().Contains(p.Key)).ToList();
         if (needed.Count == 0)
         {
@@ -322,7 +333,26 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         AddMessage = $"Add '{connection.Name}' ({driver.DisplayName}) to this script? Its client is built into the script, "
             + $"which also gets the NuGet package{(needed.Count == 1 ? "" : "s")} the connection needs: "
             + string.Join(", ", needed.Select(p => $"{p.Key} {p.Value}")) + ". Cancel leaves the script as it is.";
+        if (AddConfirmationDialog is { } show)
+        {
+            _ = ConfirmAddFromDialogAsync(show, AddMessage);
+            return;
+        }
         IsAddConfirmationPending = true;
+    }
+
+    private async Task ConfirmAddFromDialogAsync(Func<string, Task<bool>> show, string message)
+    {
+        try
+        {
+            if (await show(message).ConfigureAwait(true)) ConfirmAdd();
+            else CancelAddConfirmation();
+        }
+        catch
+        {
+            CancelAddConfirmation();
+            throw;
+        }
     }
 
     private async Task EditConnectionsAsync(string? newDriverId)
@@ -377,6 +407,14 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
 
     private void ApplyAdd(RpadConnection connection)
     {
+        var schemas = _schemas;
+        if (_drivers.Find(connection.Driver) is IConnectionSchemaDriver && schemas is not null
+            && schemas.Get(connection, _scriptDirectory) is null
+            && schemas.ErrorFor(connection, _scriptDirectory) is { } schemaError)
+        {
+            CreateMessage = $"'{connection.Name}' can't be added because its contract couldn't be read: {schemaError}";
+            return;
+        }
         var item = new ScriptConnectionItemViewModel(Clone(connection));
         Items.Add(item);
         SelectedItem = item;

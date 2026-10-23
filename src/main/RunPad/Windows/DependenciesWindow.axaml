@@ -559,13 +559,6 @@
                         <TextBlock x:Name="CreateMessage" Text="{Binding CreateMessage}" TextWrapping="Wrap"
                                    IsVisible="{Binding CreateMessage, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                     </StackPanel>
-                    <StackPanel Grid.Row="2" Spacing="6" IsVisible="{Binding IsAddConfirmationPending}">
-                        <TextBlock x:Name="AddMessage" Text="{Binding AddMessage}" TextWrapping="Wrap"/>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button x:Name="CancelAddButton" Content="Cancel" Command="{Binding CancelAddCommand}"/>
-                            <Button x:Name="ConfirmAddButton" Content="Add Connection and Packages" Command="{Binding ConfirmAddCommand}"/>
-                        </StackPanel>
-                    </StackPanel>
                     <Border Grid.Row="3"
                             BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}"
                             BorderThickness="1" CornerRadius="4">
