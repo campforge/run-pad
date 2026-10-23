@@ -102,6 +102,98 @@ public class CompiledDotnetLanguageHostCompilerFactoryTests
         finally { Directory.Delete(outputDir, recursive: true); }
     }
 
+    [Theory]
+    [InlineData(RpadKind.Statements, "class __RunPadProgram { }")]
+    [InlineData(RpadKind.Program, "class __RunPadProgram { static void Main() { } }")]
+    [InlineData(RpadKind.Expression, "class __RunPadProgram { }")]
+    public async Task CompileAsync_Should_RejectTheReservedProgramWrapperType_BeforeTheKindTransform(
+        RpadKind kind, string code)
+    {
+        var result = new ProcessCompilerResult("out.dll", true, [], []);
+        var (host, compiler) = CreateHost(kind, result, out var outputDir);
+        try
+        {
+            var compilation = await host.CompileAsync(code, TestContext.Current.CancellationToken);
+
+            Assert.False(compilation.Success);
+            var diagnostic = Assert.Single(compilation.Diagnostics);
+            Assert.Equal("RPAD1001", diagnostic.Code);
+            Assert.Contains("'__RunPadProgram' is reserved", diagnostic.Message, StringComparison.Ordinal);
+            Assert.Null(compiler.ReceivedCode);
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
+    [Fact]
+    public async Task CompileAsync_Should_RejectTheReservedProgramTrampolineMethod()
+    {
+        var result = new ProcessCompilerResult("out.dll", true, [], []);
+        var (host, compiler) = CreateHost(RpadKind.Program, result, out var outputDir);
+        try
+        {
+            var compilation = await host.CompileAsync(
+                "void __RunPadRun() { }\nvoid Main() { }", TestContext.Current.CancellationToken);
+
+            Assert.False(compilation.Success);
+            var diagnostic = Assert.Single(compilation.Diagnostics);
+            Assert.Equal("RPAD1001", diagnostic.Code);
+            Assert.Contains("'__RunPadRun' is reserved", diagnostic.Message, StringComparison.Ordinal);
+            Assert.Null(compiler.ReceivedCode);
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
+    [Fact]
+    public async Task CompileAsync_Should_RejectTheReservedProgramTrampolineField()
+    {
+        var result = new ProcessCompilerResult("out.dll", true, [], []);
+        var (host, compiler) = CreateHost(RpadKind.Program, result, out var outputDir);
+        try
+        {
+            var compilation = await host.CompileAsync(
+                "int __RunPadRun;\nvoid Main() { }", TestContext.Current.CancellationToken);
+
+            Assert.False(compilation.Success);
+            var diagnostic = Assert.Single(compilation.Diagnostics);
+            Assert.Equal("RPAD1001", diagnostic.Code);
+            Assert.Contains("'__RunPadRun' is reserved", diagnostic.Message, StringComparison.Ordinal);
+            Assert.Null(compiler.ReceivedCode);
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
+    [Fact]
+    public async Task CompileAsync_Should_AllowTheTrampolineName_ForAProgramLocalFunction()
+    {
+        var result = new ProcessCompilerResult("out.dll", true, [], []);
+        var (host, compiler) = CreateHost(RpadKind.Program, result, out var outputDir);
+        try
+        {
+            const string code = "void Main() { void __RunPadRun() { } __RunPadRun(); }";
+            var compilation = await host.CompileAsync(code, TestContext.Current.CancellationToken);
+
+            Assert.True(compilation.Success);
+            Assert.NotNull(compiler.ReceivedCode);
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
+    [Fact]
+    public async Task CompileAsync_Should_NotRejectReservedNamesInsideStringsOrComments()
+    {
+        var result = new ProcessCompilerResult("out.dll", true, [], []);
+        var (host, compiler) = CreateHost(RpadKind.Statements, result, out var outputDir);
+        try
+        {
+            const string code = "// class __RunPadProgram { }\nConsole.WriteLine(\"__RunPadProgram\");";
+            var compilation = await host.CompileAsync(code, TestContext.Current.CancellationToken);
+
+            Assert.True(compilation.Success);
+            Assert.Equal(code, compiler.ReceivedCode);
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
     // The "IL" output tab reads the compiled binary path off ILanguageHost.Compiled.
     [Fact]
     public async Task CompileAsync_Should_RaiseCompiledEvent_WithTheOutputBinaryPath_OnSuccess()

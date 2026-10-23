@@ -160,6 +160,11 @@ public class ScriptConnectionsViewModelTests
         var fm = new RpadFrontMatter();
         vm.SetFrontMatter(fm);
         Execute(vm.Connections.AddCommand);
+        Assert.True(vm.Connections.IsAddConfirmationPending);
+        Assert.Equal("Add 'local'? This also adds the NuGet package it needs: Microsoft.Data.Sqlite 9.0.0.", vm.Connections.AddMessage);
+        Assert.Empty(vm.Connections.Items); // nothing changes before confirming
+        Execute(vm.Connections.ConfirmAddCommand);
+        Assert.False(vm.Connections.IsAddConfirmationPending);
         Assert.Null(vm.Connections.Items.Single().Problem);
         Assert.True(vm.ApplyChanges());
         Assert.Equal("9.0.0", fm.Packages["Microsoft.Data.Sqlite"].Version);
@@ -167,6 +172,47 @@ public class ScriptConnectionsViewModelTests
         var (other, _, _) = CreateVm();
         other.SetFrontMatter(new RpadFrontMatter { Connections = [new RpadConnection { Name = "local", Driver = "sqlish" }] });
         Assert.Equal("Needs the NuGet package Microsoft.Data.Sqlite: add it on the Packages tab.", other.Connections.Items.Single().Problem);
+    }
+
+    // Cancelling the package confirmation leaves the script, its packages and the available list
+    // exactly as they were; the connection can still be chosen again afterward.
+    [Fact]
+    public void CancellingAnAdd_Should_ChangeNothing()
+    {
+        var (vm, _, _) = CreateVm(new RpadConnection { Name = "local", Driver = "sqlish" });
+        vm.SetFrontMatter(new RpadFrontMatter());
+        var connections = vm.Connections;
+        connections.SelectedAvailable = connections.Available.Single();
+        Execute(connections.AddCommand);
+        Assert.True(connections.IsAddConfirmationPending);
+
+        Execute(connections.CancelAddCommand);
+        Assert.False(connections.IsAddConfirmationPending);
+        Assert.Null(connections.AddMessage);
+        Assert.Empty(connections.Items);
+        Assert.Equal(["local"], connections.Available.Select(c => c.Name));
+        Assert.False(vm.HasChanges);
+
+        // The dropdown's own selection change also drops a pending confirmation for the old choice.
+        connections.SelectedAvailable = connections.Available.Single();
+        Execute(connections.AddCommand);
+        connections.SelectedAvailable = null;
+        Assert.False(connections.IsAddConfirmationPending);
+    }
+
+    // A package the driver needs that the script already has, under any version, is not asked about:
+    // adding never silently overwrites a version the user chose, so there is nothing to confirm.
+    [Fact]
+    public void Add_Should_NotAsk_WhenTheNeededPackageIsAlreadyInTheDraft()
+    {
+        var (vm, _, _) = CreateVm(new RpadConnection { Name = "local", Driver = "sqlish" });
+        var fm = new RpadFrontMatter { Packages = new() { ["Microsoft.Data.Sqlite"] = new Package("8.0.0") } };
+        vm.SetFrontMatter(fm);
+        Execute(vm.Connections.AddCommand);
+        Assert.False(vm.Connections.IsAddConfirmationPending);
+        Assert.Single(vm.Connections.Items);
+        Assert.True(vm.ApplyChanges());
+        Assert.Equal("8.0.0", fm.Packages["Microsoft.Data.Sqlite"].Version); // kept, not overwritten
     }
 
     // Taking a connection out again before saving takes its packages too, unless another needs them.
@@ -178,7 +224,9 @@ public class ScriptConnectionsViewModelTests
         vm.SetFrontMatter(fm);
         var connections = vm.Connections;
         Execute(connections.AddCommand);
-        Execute(connections.AddCommand);
+        Execute(connections.ConfirmAddCommand);
+        Execute(connections.AddCommand); // "other" needs the same package, already in the draft: no confirmation
+        Assert.False(connections.IsAddConfirmationPending);
         Assert.Equal(["local", "other"], connections.Items.Select(i => i.Name));
 
         connections.SelectedItem = connections.Items[0];

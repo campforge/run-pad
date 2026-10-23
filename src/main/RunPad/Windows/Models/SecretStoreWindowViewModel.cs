@@ -41,6 +41,7 @@ public sealed class SecretStoreWindowViewModel : ViewModelBase
 
     private readonly ISecretStore _store;
     private string? _version;
+    private Secret[] _saved = [];
 
     public ObservableCollection<SecretItemViewModel> Secrets { get; } = [];
 
@@ -107,6 +108,9 @@ public sealed class SecretStoreWindowViewModel : ViewModelBase
 
     public string StorePath => _store.FilePath;
 
+    // Whether the secrets differ from what was loaded or last saved; selection and reveal state don't count.
+    public bool HasChanges { get; private set; }
+
     public ReactiveCommand<Unit, Unit> AddCommand { get; }
     public ReactiveCommand<Unit, Unit> RemoveCommand { get; }
 
@@ -119,6 +123,7 @@ public sealed class SecretStoreWindowViewModel : ViewModelBase
             var snapshot = store.LoadSnapshot();
             _version = snapshot.Version;
             foreach (var secret in snapshot.Secrets) Add(new SecretItemViewModel(secret));
+            _saved = [.. Secrets.Select(s => s.ToSecret())];
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
         {
@@ -139,7 +144,10 @@ public sealed class SecretStoreWindowViewModel : ViewModelBase
         if (!CanSave) return false;
         try
         {
-            _version = _store.Save([.. Secrets.Select(s => s.ToSecret())], _version);
+            Secret[] secrets = [.. Secrets.Select(s => s.ToSecret())];
+            _version = _store.Save(secrets, _version);
+            _saved = secrets;
+            UpdateHasChanges();
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
@@ -182,9 +190,18 @@ public sealed class SecretStoreWindowViewModel : ViewModelBase
         Validate();
     }
 
+    private void UpdateHasChanges()
+    {
+        var changed = LoadError is null && !Secrets.Select(s => s.ToSecret()).SequenceEqual(_saved);
+        if (changed == HasChanges) return;
+        HasChanges = changed;
+        this.RaisePropertyChanged(nameof(HasChanges));
+    }
+
     // Util.GetSecret finds a secret by name, letter case aside, so names must differ beyond case.
     private void Validate()
     {
+        UpdateHasChanges();
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var secret in Secrets)
         {

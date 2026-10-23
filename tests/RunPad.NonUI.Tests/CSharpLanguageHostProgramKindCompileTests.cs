@@ -99,6 +99,11 @@ public class CSharpLanguageHostProgramKindCompileTests
             await using var host = CreateHost(outputDir);
             ICompilationResult result = await host.CompileAsync(code, CancellationToken.None);
             Assert.True(result.Success, string.Join('\n', result.Diagnostics.Select(d => $"{d.Code} {d.File}:{d.Line} {d.Message}")));
+            // RunPad's own wrapper/trampoline is a synthetic second entry point candidate (the static
+            // Main inside __RunPadProgram) competing with the top-level call statement RunPad glues in
+            // front of it — Roslyn's CS7022 about it is an implementation artifact, not a real conflict
+            // for the user to fix, and must not surface in build results.
+            Assert.DoesNotContain(result.Diagnostics, d => d.Code == "CS7022");
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }

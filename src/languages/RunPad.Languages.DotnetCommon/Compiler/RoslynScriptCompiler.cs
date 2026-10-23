@@ -96,6 +96,11 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
     /// an earlier binary can be reused.</summary>
     protected virtual string CompilationSettings => "";
 
+    /// <summary>Lets a language drop diagnostics that are an artifact of its own kind transform (never
+    /// a user-authored finding) before they reach build results and <see cref="ToResultItems"/>.
+    /// Identity by default — only a language with such a transform needs to override this.</summary>
+    protected virtual IEnumerable<RoslynDiagnostic> FilterDiagnostics(IEnumerable<RoslynDiagnostic> diagnostics) => diagnostics;
+
     // ── Pipeline ─────────────────────────────────────────────────────────────
 
     // CPU-bound and blocking IO (parse, bind, emit, restore): off the caller's (often the UI) thread.
@@ -235,6 +240,7 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
             options: new EmitOptions(debugInformationFormat: DebugInformationFormat.PortablePdb, pdbFilePath: _pdbPath),
             cancellationToken: ct);
         diagnostics.AddRange(emit.Diagnostics);
+        diagnostics = FilterDiagnostics(diagnostics).ToList();
 
         var errors = ToResultItems(diagnostics, RoslynSeverity.Error, outputDir);
         var warnings = ReferenceWarnings().Concat(packages.Warnings).Concat(ToResultItems(diagnostics, RoslynSeverity.Warning, outputDir)).ToList();

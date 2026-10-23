@@ -77,6 +77,17 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
 
     private static string Errors(ProcessCompilerResult result) => string.Join("\n", result.Errors.Select(e => $"{e.Code} {e.Message}"));
 
+    [Theory]
+    [InlineData(false, "#if RUNPAD\nConsole.WriteLine(\"RunPad\");\n#else\nConsole.WriteLine(\"Other\");\n#endif")]
+    [InlineData(true, "#If RUNPAD Then\nConsole.WriteLine(\"RunPad\")\n#Else\nConsole.WriteLine(\"Other\")\n#End If")]
+    public async Task Compilation_Should_DefineRunPadForCSharpAndVisualBasic(bool vb, string code)
+    {
+        var output = await RunAsync(Options(), code, vb);
+
+        Assert.Contains(output, line => line.EndsWith(": RunPad", StringComparison.Ordinal));
+        Assert.DoesNotContain(output, line => line.EndsWith(": Other", StringComparison.Ordinal));
+    }
+
     // Compiler errors stay English on a Russian OS, for both languages, like the SDK with
     // /preferreduilang:en-US. The collection runs alone, so changing the process cultures is safe.
     [Theory]

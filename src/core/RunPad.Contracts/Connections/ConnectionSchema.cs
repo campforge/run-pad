@@ -133,6 +133,37 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
         lock (_lock) return _errors.GetValueOrDefault(KeyOf(connection, scriptDirectory));
     }
 
+    /// <summary>
+    /// Deletes schema files not written in <paramref name="maxAge"/>: a connection removed, renamed
+    /// or changed since leaves its old key's file behind forever, as nothing else in this cache ever
+    /// revisits a key once its connection stops asking for it. A key still in use keeps being
+    /// written (or at least re-read successfully) well inside that window, so this never drops a
+    /// live schema for long: the worst case is one extra fetch the next time it's needed. A leftover
+    /// `.tmp` file (the process killed between write and rename in <see cref="Put"/>) is removed
+    /// regardless of age, since a successful `Put` always cleans up its own.
+    /// </summary>
+    public void PruneStale(TimeSpan maxAge)
+    {
+        if (!Directory.Exists(Folder)) return;
+        foreach (var path in Directory.EnumerateFiles(Folder, "*.tmp"))
+        {
+            try { File.Delete(path); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+        var cutoff = DateTime.UtcNow - maxAge;
+        foreach (var path in Directory.EnumerateFiles(Folder, "*.json"))
+        {
+            try
+            {
+                if (File.GetLastWriteTimeUtc(path) >= cutoff) continue;
+                File.Delete(path);
+                var key = Path.GetFileNameWithoutExtension(path);
+                lock (_lock) { _descriptions.Remove(key); _errors.Remove(key); }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+    }
+
     public void Put(RpadConnection connection, ConnectionSchema schema, string? scriptDirectory = null)
     {
         Directory.CreateDirectory(Folder);

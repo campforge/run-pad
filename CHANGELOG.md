@@ -3,6 +3,53 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [0.9.3] — 2026-10-23
+
+### Changed
+
+- Long lines in results now wrap at the window width, including long unbroken text, with a new
+  "Wrap long lines in results" setting under Editor preferences; the existing editor setting is
+  renamed "Wrap long lines in code editor" and only affects the code.
+- `.Dump()` no longer cuts a string off after 500 characters: the whole value is shown.
+- Adding a connection in Dependencies that needs new NuGet packages now asks for confirmation,
+  listing the packages and versions, before writing them to the script.
+
+### Fixed
+
+- Closing the Connections or Secret Store window with Cancel, Escape or the close button now asks
+  whether to save unsaved edits instead of silently discarding them.
+- The cached description RunPad reads for a gRPC connection (its services) no longer accumulates
+  forever on disk for connections removed, renamed or changed: unused files older than 30 days are
+  reclaimed at startup.
+- A Program script whose first lines are `using` directives — including the one RunPad writes when
+  switching a script from Statements to Program — now compiles instead of failing to build.
+- A Program script whose entry point is a `static Main` no longer shows a spurious "entry point of
+  the program is global code" warning in build results or the output panel. RunPad's generated
+  type name `__RunPadProgram` is now reserved in C# scripts; the synthetic method name
+  `__RunPadRun` is reserved in Program scripts. Declaring either produces a clear diagnostic.
+- Build errors and warnings now point at the matching line of your code. They used to be off by
+  the lines RunPad adds around it (front-matter namespaces, the generated Program wrapper); a
+  message about RunPad's generated text now has no line number instead of a wrong one.
+
+## [0.9.2] — 2026-10-21
+
+### Added
+
+- A startup screen appears while RunPad checks for the .NET SDK and debugger before opening
+  the workspace.
+- C# and Visual Basic scripts define the `RUNPAD` preprocessor symbol, so source can conditionally
+  include RunPad-specific code.
+
+### Changed
+
+- Breakpoint conditions are edited in a dialog centered on the window; Escape cancels the edit.
+- Go to Line uses a compact dialog with rounded corners and a themed border.
+
+### Fixed
+
+- Startup failures keep a working Close button, and quitting during SDK checks does not resume startup.
+- Borderless dialogs use an opaque themed background when window transparency is unavailable.
+
 ## [0.9.1] — 2026-10-21
 
 Bug fixes for breakpoints, indentation and large gRPC contracts.
@@ -585,3 +632,7 @@ better choice. RunPad began as DotPad two days after the last commit to the fork
 [0.9.0]: https://github.com/campforge/run-pad/releases/tag/v0.9.0
 
 [0.9.1]: https://github.com/campforge/run-pad/releases/tag/v0.9.1
+
+[0.9.2]: https://github.com/campforge/run-pad/releases/tag/v0.9.2
+
+[0.9.3]: https://github.com/campforge/run-pad/releases/tag/v0.9.3

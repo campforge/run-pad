@@ -116,4 +116,59 @@ public class SecretStoreWindowViewModelTests
         Assert.True(vm.Save());
         Assert.Null(vm.SaveError);
     }
+
+    [Fact]
+    public void HasChanges_Should_TrackTheDraftAgainstTheLoadedStore()
+    {
+        var (vm, _) = CreateVm(new Secret("db", "one"), new Secret("api", "k"));
+        Assert.False(vm.HasChanges);
+
+        vm.SelectedSecret = vm.Secrets[1];
+        vm.IsValueRevealed = true;
+        Assert.False(vm.HasChanges); // selection and reveal state are display only
+
+        vm.SelectedSecret!.Value = "two";
+        Assert.True(vm.HasChanges);
+        vm.SelectedSecret!.Value = "k";
+        Assert.False(vm.HasChanges); // reverted
+
+        vm.SelectedSecret!.Name = " api ";
+        Assert.False(vm.HasChanges); // names are trimmed when saved
+        vm.SelectedSecret!.Name = "renamed";
+        Assert.True(vm.HasChanges);
+        vm.SelectedSecret!.Name = "api";
+        Assert.False(vm.HasChanges);
+
+        Execute(vm.AddCommand);
+        Assert.True(vm.HasChanges);
+        Execute(vm.RemoveCommand);
+        Assert.False(vm.HasChanges);
+
+        vm.SelectedSecret = vm.Secrets[0];
+        Execute(vm.RemoveCommand);
+        Assert.True(vm.HasChanges);
+    }
+
+    [Fact]
+    public void HasChanges_Should_ResetAfterASuccessfulSave_AndStayAfterAFailedOne()
+    {
+        var (vm, store) = CreateVm(new Secret("db", "one"));
+        vm.SelectedSecret!.Value = "two";
+        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<Secret>>(), It.IsAny<string?>())).Throws(new IOException());
+        Assert.False(vm.Save());
+        Assert.True(vm.HasChanges);
+
+        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<Secret>>(), It.IsAny<string?>())).Returns("saved");
+        Assert.True(vm.Save());
+        Assert.False(vm.HasChanges);
+    }
+
+    [Fact]
+    public void AnUnreadableStore_Should_NotBeDirty()
+    {
+        var store = new Mock<ISecretStore>();
+        store.Setup(s => s.LoadSnapshot()).Throws(new InvalidDataException("damaged."));
+        store.Setup(s => s.FilePath).Returns("/data/RunPad/secrets.json");
+        Assert.False(new SecretStoreWindowViewModel(store.Object).HasChanges);
+    }
 }

@@ -8,6 +8,7 @@ public partial class GoToLineDialog : Window
     public GoToLineDialog(int currentLine, int maxLine)
     {
         InitializeComponent();
+        BorderlessWindowChrome.Attach(this, DialogSurface);
         PromptText.Text = $"Go to line (1-{maxLine}):";
         LineBox.Maximum = maxLine;
         LineBox.Value = Math.Clamp(currentLine, 1, maxLine);

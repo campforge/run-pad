@@ -13,32 +13,23 @@
             <Setter Property="Padding" Value="5,2"/>
         </Style>
     </UserControl.Styles>
-    <Grid RowDefinitions="10,Auto">
-        <Border x:Name="PopoverSurface" Grid.Row="1" Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
-                BorderBrush="{DynamicResource RunPad.Border.BackgroundBrush}" BorderThickness="1"
-                CornerRadius="6" Padding="16,14">
-            <StackPanel Spacing="10">
-                <TextBlock Text="Line breakpoint" FontWeight="SemiBold" FontSize="14"
-                           Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
-                <CheckBox x:Name="EnabledBox" Content="Enabled"/>
-                <StackPanel Spacing="5">
-                    <TextBlock Text="Condition:" Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
-                    <TextBox x:Name="ConditionBox" Classes="form-field condition-input" MinHeight="30" Padding="6,3"
-                             FontFamily="{x:Static cte:MonospaceFont.Default}" FontSize="13" FocusAdorner="{x:Null}"
-                             AcceptsReturn="False" TextWrapping="NoWrap"
-                             AutomationProperties.Name="Breakpoint condition"/>
-                </StackPanel>
-                <TextBlock x:Name="ErrorText" IsVisible="False" TextWrapping="Wrap"
-                           Foreground="{DynamicResource RunPad.Status.ErrorBrush}"/>
-                <ListBox x:Name="Suggestions" MaxHeight="120" IsVisible="False"
-                         AutomationProperties.Name="Condition suggestions"/>
-                <Button x:Name="DoneButton" Classes="secondary" Content="Done" MinWidth="72"
-                        HorizontalAlignment="Right" Margin="0,6,0,0"/>
-
+    <StackPanel x:Name="ContentLayout" Spacing="10">
+            <TextBlock Text="Line breakpoint" FontWeight="SemiBold" FontSize="14"
+                       Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+            <CheckBox x:Name="EnabledBox" Content="Enabled"/>
+            <StackPanel Spacing="5">
+                <TextBlock Text="Condition:" Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+                <TextBox x:Name="ConditionBox" Classes="form-field condition-input" MinHeight="30" Padding="6,3"
+                         FontFamily="{x:Static cte:MonospaceFont.Default}" FontSize="13" FocusAdorner="{x:Null}"
+                         AcceptsReturn="False" TextWrapping="NoWrap"
+                         AutomationProperties.Name="Breakpoint condition"/>
             </StackPanel>
-        </Border>
-        <Path Data="M 18,11 L 28,1 L 38,11" Fill="{DynamicResource RunPad.Panel.BackgroundBrush}"
-              Stroke="{DynamicResource RunPad.Border.BackgroundBrush}" StrokeThickness="1"
-              VerticalAlignment="Top" HorizontalAlignment="Left" Grid.RowSpan="2"/>
-    </Grid>
+            <TextBlock x:Name="ErrorText" IsVisible="False" TextWrapping="Wrap"
+                       Foreground="{DynamicResource RunPad.Status.ErrorBrush}"/>
+            <ListBox x:Name="Suggestions" MaxHeight="120" IsVisible="False"
+                     AutomationProperties.Name="Condition suggestions"/>
+            <Button x:Name="DoneButton" Classes="secondary" Content="Done" MinWidth="72"
+                    HorizontalAlignment="Right" Margin="0,6,0,0"/>
+
+    </StackPanel>
 </UserControl>
