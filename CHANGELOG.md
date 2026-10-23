@@ -3,6 +3,13 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [Unreleased]
+
+### Added
+
+- Assembly Explorer now keeps large assembly trees responsive while loading and highlights IL in
+  the code pane and the script editor's IL tab.
+
 ## [0.9.4] — 2026-10-23
 
 ### Added
