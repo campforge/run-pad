@@ -3,10 +3,16 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
-## [Unreleased]
+## [0.9.4] — 2026-10-23
 
 ### Added
 
+- Dependencies now shows package dependencies, license information, and the project or homepage
+  link when NuGet supplies them.
+- Dependencies can create and add connections directly, with a confirmation that lists any new
+  NuGet packages and versions before changing the script.
+- Script launch progress now identifies restore, connection contract generation, compilation, and
+  execution stages, and reports which stage failed.
 - Dependencies → Connections has **Refresh** for a gRPC connection: it reads the server's services
   again after they change, and open scripts that use the connection get the new classes at once.
   The command-line runner does the same with `--refresh-connections`.
@@ -662,3 +668,4 @@ better choice. RunPad began as DotPad two days after the last commit to the fork
 [0.9.2]: https://github.com/campforge/run-pad/releases/tag/v0.9.2
 
 [0.9.3]: https://github.com/campforge/run-pad/releases/tag/v0.9.3
+[0.9.4]: https://github.com/campforge/run-pad/releases/tag/v0.9.4
