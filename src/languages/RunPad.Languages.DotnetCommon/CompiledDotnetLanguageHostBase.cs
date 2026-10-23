@@ -237,10 +237,10 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
             await using var stop = cancellationToken.Register(() => _ = StopAsync(process, cts));
 
             _currentInputStream = process.InputStream;
+            var output = new OutputDrain(WrapWithSentinelDetection(outputHandler), outputHandler);
             var drained = Task.WhenAll(
-                DrainReaderAsync(process.StandardOutput, OutputKind.StandardOutput,
-                    WrapWithSentinelDetection(outputHandler), cts.Token),
-                DrainReaderAsync(process.StandardError, OutputKind.StandardError, outputHandler, cts.Token));
+                output.DrainAsync(process.StandardOutput, OutputKind.StandardOutput, cts.Token),
+                output.DrainAsync(process.StandardError, OutputKind.StandardError, cts.Token));
 
             // The run ends when the process exits, not when its output closes — a script
             // that closes stdout/stderr itself is still running, and disposing the process here
@@ -427,29 +427,69 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
     // GetPassword (only while _currentInputStream is set, i.e. a real RunAsync process — RunDebugAsync
     // shares this same wrapper but never sets that field, so a script calling Util.ReadLine under the
     // debugger falls through to the plain-output branch instead of firing an unanswerable request).
+    //
+    // A record is recognized anywhere in a stdout line, not only at its start: a script that wrote
+    // text without a line break (Console.Write) before calling Dump/ReadLine leaves the record after
+    // that text. The text before it is delivered as a partial line. To keep arbitrary output from being
+    // taken for a record, the sentinel must be followed by the rest of the line being a valid base64
+    // payload (the cancel marker: nothing at all).
     private OutputReceivedHandler? WrapWithSentinelDetection(OutputReceivedHandler? handler)
     {
         if (handler is null) return null;
         return (data, kind) =>
         {
-            if (data.Length > 0 && data[0] == RsPrefix)
-            {
-                handler(data[1..], OutputKind.DumpHtml);
-            }
-            else if (data.Length > 0 && data[0] == CancelListeningPrefix)
-            {
-                _scriptListensForStop = true;
-            }
-            else if (data.Length > 0 && data[0] == InputRequestPrefix && _currentInputStream is not null)
-            {
-                (string? prompt, bool isPassword) = ParseInputRequest(data[1..]);
-                OnInputRequested(prompt, isPassword);
-            }
-            else
+            if (kind != OutputKind.StandardOutput || !TryFindRecord(data, out int at))
             {
                 handler(data, kind);
+                return;
+            }
+
+            if (at > 0) handler(data[..at], OutputKind.StandardOutputPartial);
+            string payload = data[(at + 1)..];
+            switch (data[at])
+            {
+                case RsPrefix:
+                    handler(payload, OutputKind.DumpHtml);
+                    break;
+                case CancelListeningPrefix:
+                    _scriptListensForStop = true;
+                    break;
+                default:
+                    (string? prompt, bool isPassword) = ParseInputRequest(payload);
+                    OnInputRequested(prompt, isPassword);
+                    break;
             }
         };
+    }
+
+    private bool TryFindRecord(string line, out int index)
+    {
+        for (int i = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+            ReadOnlySpan<char> payload = line.AsSpan(i + 1);
+            bool isRecord = c switch
+            {
+                RsPrefix => IsBase64Payload(payload),
+                CancelListeningPrefix => payload.IsEmpty,
+                InputRequestPrefix => _currentInputStream is not null && IsBase64Payload(payload),
+                _ => false,
+            };
+            if (isRecord)
+            {
+                index = i;
+                return true;
+            }
+        }
+        index = -1;
+        return false;
+    }
+
+    // The payload is trimmed as the consumers do (a stray CR or space must not hide a record).
+    private static bool IsBase64Payload(ReadOnlySpan<char> payload)
+    {
+        payload = payload.Trim();
+        return !payload.IsEmpty && Convert.TryFromBase64Chars(payload, new byte[payload.Length], out _);
     }
 
     private static (string? Prompt, bool IsPassword) ParseInputRequest(string base64)
@@ -484,18 +524,67 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
             string text = $"{position}{severity}{code}: {d.Message}";
             OutputKind kind = d.Severity == DiagnosticSeverity.Error
                 ? OutputKind.StandardError
-                : OutputKind.StandardOutput;
+                : OutputKind.Diagnostic;
             handler(text, kind);
         }
     }
 
-    private static async Task DrainReaderAsync(
-        StreamReader reader,
-        OutputKind kind,
-        OutputReceivedHandler? handler,
-        CancellationToken ct)
+    // Forwards the child's stdout and stderr to the handlers as they arrive: every complete line as
+    // one call (without its terminator), and text that ends without a line terminator as a partial
+    // line, so Console.Write is not given a newline it never wrote. A partial line is held until its
+    // line completes or the stream ends, so a long line split by the pipe is not delivered in pieces;
+    // it is delivered earlier only when the other stream has output to deliver first, keeping the
+    // order the script produced the two in.
+    private sealed class OutputDrain(OutputReceivedHandler? stdout, OutputReceivedHandler? stderr)
     {
-        while (await reader.ReadLineAsync(ct) is { } line)
-            handler?.Invoke(line, kind);
+        private readonly object _gate = new();
+        private readonly StringBuilder _stdoutPending = new();
+        private readonly StringBuilder _stderrPending = new();
+
+        public async Task DrainAsync(StreamReader reader, OutputKind kind, CancellationToken ct)
+        {
+            bool isError = kind == OutputKind.StandardError;
+            StringBuilder pending = isError ? _stderrPending : _stdoutPending;
+            StringBuilder other = isError ? _stdoutPending : _stderrPending;
+            OutputReceivedHandler? handler = isError ? stderr : stdout;
+            OutputReceivedHandler? otherHandler = isError ? stdout : stderr;
+            OutputKind otherPartial = isError ? OutputKind.StandardOutputPartial : OutputKind.StandardErrorPartial;
+            OutputKind partial = isError ? OutputKind.StandardErrorPartial : OutputKind.StandardOutputPartial;
+
+            var buffer = new char[4096];
+            int read;
+            while ((read = await reader.ReadAsync(buffer.AsMemory(), ct)) > 0)
+            {
+                lock (_gate)
+                {
+                    int scanned = pending.Length; // a pending line has no terminator yet, so only new text is scanned
+                    pending.Append(buffer, 0, read);
+                    int start = 0;
+                    for (int i = scanned; i < pending.Length; i++)
+                    {
+                        if (pending[i] != '\n') continue;
+                        int end = i > start && pending[i - 1] == '\r' ? i - 1 : i;
+                        string line = pending.ToString(start, end - start);
+                        Flush(other, otherHandler, otherPartial);
+                        handler?.Invoke(line, kind);
+                        start = i + 1;
+                    }
+                    pending.Remove(0, start);
+                }
+            }
+
+            lock (_gate)
+            {
+                Flush(pending, handler, partial);
+            }
+        }
+
+        private static void Flush(StringBuilder pending, OutputReceivedHandler? handler, OutputKind kind)
+        {
+            if (pending.Length == 0) return;
+            string text = pending.ToString();
+            pending.Clear();
+            handler?.Invoke(text, kind);
+        }
     }
 }
