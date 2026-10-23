@@ -1,0 +1,226 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
+using Avalonia.Styling;
+using Moq;
+using RunPad.Avalonia.Themes;
+using RunPad.Contracts;
+using RunPad.Contracts.Connections;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Contracts.Models;
+using RunPad.Format.RPad;
+using RunPad.Services;
+using RunPad.Services.BuildCache;
+using RunPad.Services.Preferences;
+using RunPad.UserControls;
+using RunPad.UserControls.Models;
+using Xunit;
+
+namespace RunPad.Runtime.UI.Tests;
+
+// A tab with gRPC-like connections rebuilds the editor's context (the connections' classes, the
+// references) when it opens, after a build and when a schema is read elsewhere. That work can be slow
+// for a large contract, so it happens off the UI thread, and only the newest request may be applied.
+public sealed class EditorTabIntelliSenseContextRefreshTests : IDisposable
+{
+    private readonly string _folder = Directory.CreateTempSubdirectory("runpad-tab-context-refresh").FullName;
+
+    public void Dispose() => Directory.Delete(_folder, true);
+
+    private sealed class DescribedDriver : IConnectionSchemaDriver
+    {
+        public string Id => "described";
+        public string DisplayName => "Described";
+        public ConnectionCategory Category => ConnectionCategory.Grpc;
+        public IReadOnlyList<ConnectionParam> Params { get; } = [];
+        public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string>();
+        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+            Task.FromResult(new ConnectionTestResult(true, ""));
+        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) =>
+            new($"public sealed class {context.ClassName} {{ }}");
+        public Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
+            CancellationToken cancellationToken) => Task.FromResult(new ConnectionSchema("1 service", [], ""));
+    }
+
+    private static readonly RpadConnection Stock = new()
+    {
+        Name = "stock",
+        Driver = "described",
+        Params = new(StringComparer.Ordinal) { ["address"] = RpadValue.Of("http://listed:5000") },
+    };
+
+    private static ConnectionSchema Version(int number) =>
+        new($"{number} services", [new GeneratedSourceFile($"V{number}.cs", $"public class V{number} {{ }}")], "");
+
+    // The IntelliSense service as a real one behaves towards its caller: the slow part (the gate)
+    // is followed by a check of the token, and only a request still wanted is applied.
+    private sealed class SlowService
+    {
+        public readonly Mock<IIntelliSenseService> Mock = new();
+        public readonly ManualResetEventSlim Gate = new(true);
+        public readonly ConcurrentQueue<CancellationToken> Tokens = new();
+        public readonly ConcurrentQueue<ExecutionRequest> Applied = new();
+        private int _entered;
+
+        public int Entered => Volatile.Read(ref _entered);
+
+        public void Clear()
+        {
+            Applied.Clear();
+            Tokens.Clear();
+            Volatile.Write(ref _entered, 0);
+            Mock.Invocations.Clear();
+        }
+
+        public SlowService()
+        {
+            // The overload without a token is the one a UI-thread caller would use: it blocks too.
+            Mock.Setup(s => s.UpdateExecutionContext(It.IsAny<ExecutionRequest>()))
+                .Callback<ExecutionRequest>(_ => Gate.Wait(TimeSpan.FromSeconds(10)));
+            Mock.Setup(s => s.ApplyExecutionContext(It.IsAny<ExecutionRequest>(), It.IsAny<CancellationToken>()))
+                .Callback<ExecutionRequest, CancellationToken>((request, token) =>
+                {
+                    Tokens.Enqueue(token);
+                    Interlocked.Increment(ref _entered);
+                    Gate.Wait(TimeSpan.FromSeconds(10));
+                    token.ThrowIfCancellationRequested();
+                    Applied.Enqueue(request);
+                });
+        }
+    }
+
+    private async Task<T> WithTabAsync<T>(SlowService service, Func<EditorsTabItemControl, ConnectionSchemas, Task<T>> body)
+    {
+        var drivers = new ConnectionDriverRegistry();
+        drivers.Register(new DescribedDriver());
+        var schemas = new ConnectionSchemas(drivers, _folder,
+            new ConnectionTools { GetPackageFolderAsync = (_, _, _) => Task.FromResult("") }, _ => null);
+        schemas.Cache.Put(Stock, Version(1));
+
+        var prefs = new Mock<IPreferencesService>();
+        prefs.Setup(p => p.Editor).Returns(new EditorSettings());
+        prefs.Setup(p => p.CSharp).Returns(new CSharpLanguageSettings());
+        prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+        prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
+        prefs.Setup(p => p.Session).Returns(new SessionSettings());
+        var theme = new Mock<IThemeService>();
+        theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
+            new InterfaceTheme("Test", ThemeVariant.Dark, true),
+            new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
+        var vm = new EditorTabItemViewModel(
+            null, [], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
+        var tab = new EditorsTabItemControl(vm, theme.Object, new Mock<IWindowService>().Object,
+            new Mock<ILanguageHostRegistry>().Object, prefs.Object, service.Mock.Object, new Mock<IBuildCacheService>().Object,
+            connectionDrivers: drivers, connectionSchemas: schemas);
+        var host = new Window { Content = tab };
+        host.Show();
+        try
+        {
+            tab.State.RpadDocument = new RpadDocument { FrontMatter = new RpadFrontMatter { Connections = [Stock] }, RunCode = "" };
+            await TestWait.WhileAsync(() => service.Applied.IsEmpty);
+            await TestWait.WhileAsync(() => service.Mock.Invocations.All(i => i.Method.Name != nameof(IIntelliSenseService.NotifyTextChanged)));
+            await TestWait.SettleAsync(() => service.Mock.Invocations.Count); // and any further ones it started
+            service.Clear();
+            return await body(tab, schemas);
+        }
+        finally
+        {
+            service.Gate.Set();
+            tab.Dispose();
+            host.Close();
+        }
+    }
+
+    private static string Source(ExecutionRequest request) => string.Join('\n', request.Connections!.Files.Select(f => f.Name));
+
+    [AvaloniaFact]
+    public async Task ASlowContextUpdate_Should_NotBlockTheUiThread()
+    {
+        var service = new SlowService();
+        await WithTabAsync(service, async (tab, schemas) =>
+        {
+            service.Gate.Reset();
+            var watch = Stopwatch.StartNew();
+            tab.RefreshIntelliSensePackages();
+            var blocked = watch.Elapsed;
+            Assert.True(blocked < TimeSpan.FromSeconds(1), $"the UI thread waited {blocked.TotalSeconds:0.0}s for the context update");
+
+            service.Gate.Set();
+            await TestWait.WhileAsync(() => service.Applied.IsEmpty);
+            Assert.Single(service.Applied);
+            return 0;
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task ARefreshOvertakenByANewerOne_Should_BeDropped_AndTheNewestApplied()
+    {
+        var service = new SlowService();
+        await WithTabAsync(service, async (tab, schemas) =>
+        {
+            service.Gate.Reset();
+            tab.RefreshIntelliSensePackages();
+            await TestWait.WhileAsync(() => service.Entered < 1);
+
+            // The schema changes while the first update is still working: the second sees V2.
+            await Task.Run(() => schemas.Cache.Put(Stock, Version(2)), TestContext.Current.CancellationToken);
+            await TestWait.WhileAsync(() => service.Entered < 2);
+            Assert.True(service.Tokens.First().IsCancellationRequested, "the older update was not cancelled");
+
+            service.Gate.Set(); // the slow older one finishes last
+            await TestWait.WhileAsync(() => service.Applied.IsEmpty);
+            await TestWait.WhileAsync(() => false, TimeSpan.FromMilliseconds(200));
+            var applied = Assert.Single(service.Applied);
+            Assert.EndsWith(".V2.cs", Source(applied));
+            return 0;
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task AFewSchemaChangesAtOnce_Should_ApplyTheLastOne_AndAnalyseTheTextOnce()
+    {
+        var service = new SlowService();
+        await WithTabAsync(service, async (tab, schemas) =>
+        {
+            service.Gate.Reset();
+            await Task.Run(() =>
+            {
+                schemas.Cache.Put(Stock, Version(2));
+                schemas.Cache.Put(Stock, Version(3));
+                schemas.Cache.Put(Stock, Version(4));
+            }, TestContext.Current.CancellationToken);
+            await TestWait.WhileAsync(() => service.Entered < 3);
+            service.Gate.Set();
+
+            await TestWait.WhileAsync(() => service.Applied.IsEmpty);
+            await TestWait.WhileAsync(() => false, TimeSpan.FromMilliseconds(300));
+            var applied = Assert.Single(service.Applied);
+            Assert.EndsWith(".V4.cs", Source(applied));
+            service.Mock.Verify(s => s.NotifyTextChanged(It.IsAny<string>()), Times.Once);
+            return 0;
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task ClosingTheTab_Should_DropTheUpdateStillRunning()
+    {
+        var service = new SlowService();
+        await WithTabAsync(service, async (tab, schemas) =>
+        {
+            service.Gate.Reset();
+            tab.RefreshIntelliSensePackages();
+            await TestWait.WhileAsync(() => service.Entered < 1);
+
+            tab.Dispose();
+            service.Gate.Set();
+            await TestWait.WhileAsync(() => false, TimeSpan.FromMilliseconds(300));
+
+            Assert.True(service.Tokens.Single().IsCancellationRequested);
+            Assert.Empty(service.Applied);
+            service.Mock.Verify(s => s.NotifyTextChanged(It.IsAny<string>()), Times.Never);
+            return 0;
+        });
+    }
+}

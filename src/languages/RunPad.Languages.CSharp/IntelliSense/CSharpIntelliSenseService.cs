@@ -238,6 +238,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // Task.Run, so without this a completion request for the text at keystroke N could race a
     // still-in-flight background-analysis pass for keystroke N-2.
     private readonly object _syncLock = new();
+    // Counts the changes to the project's references, options and generated documents. A background
+    // analysis pass that began on an older one describes a solution that no longer exists, so it
+    // publishes nothing and runs again. Changed under _syncLock only.
+    private int _contextVersion;
+    // Test-only: called by a background analysis pass once it holds its document snapshot, before it
+    // analyses it, so a test can change the context at exactly that point.
+    internal Action? AnalysisSnapshotTakenForTests { get; set; }
     private List<KeyValuePair<string, (DocumentId Id, string Text)>> _connectionFiles = [];
     private CancellationTokenSource? _diagnosticsCts;
 
@@ -1992,18 +1999,43 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             {
                 await Task.Delay(BackgroundAnalysisDebounce, ct);
                 var code = getCode();
-                var document = SyncDocument(code);
+                Document document;
+                int version;
+                lock (_syncLock)
+                {
+                    document = SyncDocument(code);
+                    version = _contextVersion;
+                }
+                AnalysisSnapshotTakenForTests?.Invoke();
                 await Task.WhenAll(
-                    ComputeDiagnosticsAndCodeFixesAsync(code, document, ct),
-                    ComputeSemanticTokensAsync(code, document, ct),
-                    ComputeInlayHintsAsync(code, document, ct));
+                    ComputeDiagnosticsAndCodeFixesAsync(code, document, version, ct),
+                    ComputeSemanticTokensAsync(code, document, version, ct),
+                    ComputeInlayHintsAsync(code, document, version, ct));
+                // The references or generated classes changed while this pass ran: what it found
+                // describes the old ones and was not published. Run again on the new solution,
+                // unless a newer notification has taken over already.
+                if (!IsCurrent(version) && !ct.IsCancellationRequested) NotifyTextChanged(code);
             }
             catch (OperationCanceledException) { }
             catch (Exception ex) { _logger.LogWarning(ex, "Background analysis failed"); }
         }, CancellationToken.None);
     }
 
-    private async Task ComputeSemanticTokensAsync(string code, Document document, CancellationToken ct)
+    private bool IsCurrent(int version)
+    {
+        lock (_syncLock) return version == _contextVersion;
+    }
+
+    // Whether a result may be published: a newer text notification cancels the pass, and a change to
+    // the project's context makes its solution obsolete. Checked right before each event, since the
+    // analysis itself may finish after either.
+    private bool CanPublish(int version, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        return IsCurrent(version);
+    }
+
+    private async Task ComputeSemanticTokensAsync(string code, Document document, int version, CancellationToken ct)
     {
         var headerLength = HeaderLength(code);
         var textLen = headerLength + ProjectionFor(code).Text.Length;
@@ -2024,7 +2056,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             result.Add(new SimpleSemanticToken(start, end - start, kind));
         }
 
-        SemanticTokensChanged?.Invoke(code, result);
+        if (CanPublish(version, ct)) SemanticTokensChanged?.Invoke(code, result);
     }
 
     // Inferred `var x` / `foreach (var x in ...)` type annotations only
@@ -2034,13 +2066,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // declarations only (`var a = 1, b = 2;` skipped entirely) — matches Roslyn's own behavior; a
     // multi-declarator statement can only have one inferred type anyway, so hinting just the first
     // variable would misleadingly suggest it doesn't apply to the rest.
-    private async Task ComputeInlayHintsAsync(string code, Document document, CancellationToken ct)
+    private async Task ComputeInlayHintsAsync(string code, Document document, int version, CancellationToken ct)
     {
         var model = await document.GetSemanticModelAsync(ct);
         var root = await document.GetSyntaxRootAsync(ct);
         if (model is null || root is null)
         {
-            InlayHintsChanged?.Invoke(code, []);
+            if (CanPublish(version, ct)) InlayHintsChanged?.Invoke(code, []);
             return;
         }
 
@@ -2067,7 +2099,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             AddHint(result, type, forEach.Identifier.SpanStart, typeSyntax.SpanStart, headerLength, code, model);
         }
 
-        InlayHintsChanged?.Invoke(code, result);
+        if (CanPublish(version, ct)) InlayHintsChanged?.Invoke(code, result);
 
         // Roslyn's own CSharpInlineTypeHintsService (IsValidType) only excludes null and a type
         // literally named "var" (e.g. a user-defined `class var` — legal, if unusual, C#); it doesn't
@@ -2092,11 +2124,12 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // over the document; GetSemanticModelAsync itself is cached per document version, but
     // GetDiagnostics is not, so calling it twice on the same model did the same binding work twice
     // on every 500ms background tick.
-    private async Task ComputeDiagnosticsAndCodeFixesAsync(string code, Document document, CancellationToken ct)
+    private async Task ComputeDiagnosticsAndCodeFixesAsync(string code, Document document, int version, CancellationToken ct)
     {
         var model = await document.GetSemanticModelAsync(ct);
         if (model == null)
         {
+            if (!CanPublish(version, ct)) return;
             DiagnosticsChanged?.Invoke(code, []);
             CodeFixesChanged?.Invoke(code, []);
             return;
@@ -2173,10 +2206,11 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             }
         }
 
+        if (!CanPublish(version, ct)) return;
         DiagnosticsChanged?.Invoke(code, visible);
 
         var fixes = await _codeFixEngine.ComputeFixesAsync(document, forCodeFixes, ProjectionFor(code).Text, headerLength, ct);
-        CodeFixesChanged?.Invoke(code, fixes);
+        if (CanPublish(version, ct)) CodeFixesChanged?.Invoke(code, fixes);
     }
 
     // The workspace runs the project's generators but keeps what they report to itself, so they are
@@ -2251,13 +2285,20 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             : [], contract);
     }
 
-    public void UpdateExecutionContext(ExecutionRequest request)
+    public void UpdateExecutionContext(ExecutionRequest request) => ApplyExecutionContext(request, CancellationToken.None);
+
+    // A request cancelled before it is applied changes nothing: the slow parts (reading the NuGet
+    // assets, the targeting pack, the contract assembly lookup) run without the workspace lock, and
+    // a caller that has since asked again must not have its newer context overwritten when this one
+    // finally finishes.
+    public void ApplyExecutionContext(ExecutionRequest request, CancellationToken cancellationToken)
     {
-        UpdateAllowUnsafe(request.AllowUnsafe);
+        cancellationToken.ThrowIfCancellationRequested();
         var packages = request.Packages.ToDictionary(p => p.Key, p => new Package(p.Value));
         var context = DotnetPackageReferenceContext.For(request);
-        if (context is not null) UpdatePackageReferences(packages, context);
-        else UpdatePackageReferences(packages);
+        if (context is not null) ApplyPackageReferences(packages, context, cancellationToken);
+        else ApplyPackageReferences(packages, new PackageReferenceContext($"net{Environment.Version.Major}.{Environment.Version.Minor}", null, null), cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
 
         string? contract = null;
         if (request.Connections is { Files.Count: > 0 } generated && context?.OutputDirectory is { } output)
@@ -2275,6 +2316,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         }
         lock (_syncLock)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            UpdateAllowUnsafe(request.AllowUnsafe);
             _requestedConnections = request.Connections;
             _requestedContractAssembly = contract;
             ApplyConnectionRepresentation();
@@ -2323,6 +2366,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             _connectionFiles = added;
             _connectionContractReference = contract;
             _lastCode = "";
+            _contextVersion++;
         }
     }
 
@@ -2335,8 +2379,9 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var project = _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!;
             var options = (CSharpCompilationOptions)project.CompilationOptions!;
             if (options.AllowUnsafe == allowUnsafe) return;
-            if (_workspace.TryApplyChanges(project.WithCompilationOptions(options.WithAllowUnsafe(allowUnsafe)).Solution))
-                _lastCode = ""; // force re-sync on next analysis pass
+            if (!_workspace.TryApplyChanges(project.WithCompilationOptions(options.WithAllowUnsafe(allowUnsafe)).Solution)) return;
+            _lastCode = ""; // force re-sync on next analysis pass
+            _contextVersion++;
         }
     }
 
@@ -2350,6 +2395,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // packages, the target framework's compile assets), else the best local match by NuGet's version
     // rules — never a restore or a targeting pack download, which would need the network.
     public void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages, PackageReferenceContext context)
+        => ApplyPackageReferences(packages, context, CancellationToken.None);
+
+    private void ApplyPackageReferences(IReadOnlyDictionary<string, Package> packages, PackageReferenceContext context,
+        CancellationToken cancellationToken)
     {
         var (frameworkPaths, generatorPaths) = TargetFrameworkReferences(context);
         var userReferencePaths = RoslynScriptCompiler.WithSameFolderDependencies(context.AssemblyReferences ?? []);
@@ -2369,6 +2418,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         // under it, and both sides must see one consistent "current" solution.
         lock (_syncLock)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (newPaths.SequenceEqual(_nugetPaths, StringComparer.OrdinalIgnoreCase)
                 && frameworkPaths.SequenceEqual(_frameworkPaths, StringComparer.OrdinalIgnoreCase)
                 && parseOptions.Equals(_parseOptions)
@@ -2403,6 +2453,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             _userReferencePaths = userReferencePaths;
             // force re-sync on next analysis pass
             _lastCode = "";
+            _contextVersion++;
         }
     }
 

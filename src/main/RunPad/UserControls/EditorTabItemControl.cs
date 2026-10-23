@@ -400,8 +400,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             frontMatter.References = rebased;
             _metadataBaseline = FrontMatterSnapshot();
         }
-        RefreshIntelliSensePackages();
-        _intelliSense?.NotifyTextChanged(State.Editor.Text);
+        RefreshIntelliSenseContext(reanalyze: true);
         UpdatePreviewNow();
     }
 
@@ -710,6 +709,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _filePathSub?.Dispose();
         _selectedSdkSub?.Dispose();
         _vm.DebugPanel.WatchExpressions.CollectionChanged -= OnWatchExpressionsCollectionChanged;
+        _contextRefreshCts?.Cancel();
         DisposePreview();
         Cancel();
         // The run owns its CTS until its asynchronous cleanup has finished.
@@ -2121,7 +2121,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // keystroke; for a file with front-matter packages/usings, spurious "type not found"
         // squiggles for anything only resolvable through them.
         RefreshIntelliSenseKind();
-        RefreshIntelliSensePackages();
+        // Applied off the UI thread now, so the text is analysed again once the context is in rather
+        // than trusting the first pass to come after it.
+        RefreshIntelliSenseContext(reanalyze: true);
         if (rpad?.FrontMatter.Namespaces is { Count: > 0 })
             RefreshIntelliSenseUsings();
     }
@@ -2181,18 +2183,58 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     /// after the Dependencies window closes (it mutates the same RpadFrontMatter in place without any
     /// change notification of its own), after each successful build and when the SDK changes.
     /// </summary>
-    internal void RefreshIntelliSensePackages()
+    internal void RefreshIntelliSensePackages() => RefreshIntelliSenseContext(reanalyze: false);
+
+    // The latest refresh of the IntelliSense context; an older one still running is cancelled.
+    private CancellationTokenSource? _contextRefreshCts;
+
+    // Only the request is put together on the UI thread, from copies of the state it reads: the
+    // connections' code (the schemas come from disk), the contract assembly lookup and the reference
+    // resolution take as long as the script's schemas are large, so they run on a worker and the
+    // editor keeps typing meanwhile. A refresh that is overtaken by a newer one is dropped, never
+    // applied over it. The text is analysed again, once, only when asked and only for the newest.
+    private void RefreshIntelliSenseContext(bool reanalyze)
     {
         if (_disposed || _intelliSense is not { } intelliSense) return;
+        _contextRefreshCts?.Cancel();
+        var refresh = _contextRefreshCts = new CancellationTokenSource();
+        var token = refresh.Token;
+        var frontMatter = State.RpadDocument?.FrontMatter;
         // The same request a run makes, so the editor reads the references and packages as the build does.
-        intelliSense.UpdateExecutionContext(ExecutionRequest.For(State.RpadDocument?.FrontMatter, _vm.FilePath) with
+        // The lists are copied: the Dependencies window edits the front matter in place.
+        var baseRequest = ExecutionRequest.For(frontMatter, _vm.FilePath) with
         {
-            Connections = GeneratedConnectionsFor(State.RpadDocument?.FrontMatter),
             ReferenceBasePath = _vm.ReferenceAnchorPath,
             Platform = _vm.SelectedSdk ?? _vm.AvailableSdks.FirstOrDefault(),
             OutputDirectory = State.OutputDirectory,
             RuntimePath = _prefs.Debugger?.DotnetPath,
-        });
+        };
+        baseRequest = baseRequest with { Usings = [.. baseRequest.Usings], References = [.. baseRequest.References] };
+        List<RpadConnection> connections = [.. frontMatter?.Connections ?? []];
+        var language = frontMatter?.Language ?? RpadLanguage.CSharp;
+        List<string> packageIds = frontMatter is null ? [] : [.. frontMatter.Packages.Keys];
+        var scriptDirectory = ScriptDirectory;
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                var generated = frontMatter is null ? null
+                    : GeneratedConnections.For(connections, language, packageIds, _connectionDrivers, _connectionSchemas?.Cache, scriptDirectory);
+                token.ThrowIfCancellationRequested();
+                intelliSense.ApplyExecutionContext(baseRequest with { Connections = generated }, token);
+                if (reanalyze)
+                    Dispatcher.Post(() =>
+                    {
+                        // The classes the script's code refers to are new: analyse it again now rather than at the next keystroke.
+                        if (!_disposed && !token.IsCancellationRequested) _intelliSense?.NotifyTextChanged(State.Editor.Text);
+                    });
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                _runLogger.LogWarning(ex, "Updating the editor's references failed");
+            }
+        }, token);
         EnsureConnectionSchemasInBackground();
     }
 
@@ -2204,10 +2246,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             || State.RpadDocument?.FrontMatter.Connections is not { Count: > 0 } connections) return;
         var scriptDirectory = ScriptDirectory;
         if (!connections.Any(c => schemas.Cache.KeyOf(c, scriptDirectory) == key)) return;
-        RefreshIntelliSensePackages();
-        // The new classes (or error) change what the code already in the editor means: analyse it
-        // again now rather than at the next keystroke.
-        _intelliSense?.NotifyTextChanged(State.Editor.Text);
+        RefreshIntelliSenseContext(reanalyze: true);
     });
 
     // Reads the schemas of connections that have never been read (a gRPC server's services); the
@@ -2352,10 +2391,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private void OnSelectedSdkChanged(DotnetSdk? sdk)
     {
-        RefreshIntelliSensePackages();
         // The new target's references, C# version and symbols apply to the text already in the
-        // editor: analyse it again now, as the squiggles would otherwise wait for the next edit.
-        if (!_disposed) _intelliSense?.NotifyTextChanged(State.Editor.Text);
+        // editor: analyse it again once they are in, as the squiggles would otherwise wait for the next edit.
+        RefreshIntelliSenseContext(reanalyze: true);
         if (_syncingSdk || sdk is null || State.RpadDocument is not { } rpad) return;
 
         var target = ReferenceEquals(sdk, _vm.LatestSdk) ? TargetSdk.Default : TargetSdkResolver.ToTarget(sdk);
