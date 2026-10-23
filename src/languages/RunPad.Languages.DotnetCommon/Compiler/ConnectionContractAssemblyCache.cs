@@ -86,16 +86,51 @@ public static class ConnectionContractAssemblyCache
             File.WriteAllBytes(xmlTemp, xml.ToArray());
             cancellationToken.ThrowIfCancellationRequested();
             // Publish the DLL last, so readers never see it without its documentation.
-            File.Move(xmlTemp, Path.ChangeExtension(path, ".xml"), overwrite: true);
-            File.Move(temp, path, overwrite: true);
+            Publish(xmlTemp, temp, path, (from, to) => File.Move(from, to, overwrite: true), delay => Thread.Sleep(delay));
         }
-        catch (IOException) when (IsValid(path)) { /* Another process published the same content. */ }
         finally
         {
-            try { File.Delete(temp); } catch (IOException) { }
-            try { File.Delete(xmlTemp); } catch (IOException) { }
+            try { File.Delete(temp); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            try { File.Delete(xmlTemp); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
         return path;
+    }
+
+    private const int PublishAttempts = 8;
+
+    /// <summary>
+    /// Moves the documentation and then the assembly into place. Concurrent builders of the same
+    /// content overwrite the same two destinations; Windows reports such a collision as an
+    /// <see cref="IOException"/> or an <see cref="UnauthorizedAccessException"/>, and the winner may
+    /// have published only the documentation so far. A failed attempt is therefore retried a bounded
+    /// number of times, ending as soon as the entry is complete; a failure that persists (a genuine
+    /// permission or disk error) is rethrown.
+    /// </summary>
+    internal static void Publish(string xmlTemp, string temp, string path,
+        Action<string, string> move, Action<int> wait)
+    {
+        var xmlPath = Path.ChangeExtension(path, ".xml");
+        var xmlMoved = false;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                if (IsValid(path)) return;
+                if (!xmlMoved)
+                {
+                    move(xmlTemp, xmlPath);
+                    xmlMoved = true;
+                }
+                move(temp, path);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (IsValid(path)) return; // Another builder published the same content.
+                if (attempt == PublishAttempts) throw;
+                wait(10 * attempt);
+            }
+        }
     }
 }
 

@@ -74,4 +74,81 @@ public sealed class ConnectionContractAssemblyCacheTests : IDisposable
         Assert.Null(ConnectionContractAssemblyCache.Find(_folder, invalid, References, "net10.0;"));
         Assert.Empty(Directory.GetFiles(Path.Combine(_folder, "connection-contracts"), "*.tmp*"));
     }
+
+    private (string Path, string XmlTemp, string DllTemp, byte[] Dll) Stage()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var built = ConnectionContractAssemblyCache.GetOrCreate(_folder, Files, References, "staged;", n => Create(n, Files), ct);
+        var dll = File.ReadAllBytes(built);
+        var xml = File.ReadAllBytes(Path.ChangeExtension(built, ".xml"));
+        File.Delete(built);
+        File.Delete(Path.ChangeExtension(built, ".xml"));
+        var temp = built + ".staged.tmp";
+        File.WriteAllBytes(temp, dll);
+        File.WriteAllBytes(temp + ".xml", xml);
+        return (built, temp + ".xml", temp, dll);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Publication_Should_SurviveAWinnerThatHasOnlyPublishedTheDocumentation(bool accessDenied)
+    {
+        var (path, xmlTemp, temp, dll) = Stage();
+        var xmlPath = Path.ChangeExtension(path, ".xml");
+        var calls = 0;
+        var waits = new List<int>();
+        // The competing builder wins the XML, and Windows rejects our DLL move while it is still
+        // publishing; the DLL appears before the next attempt.
+        ConnectionContractAssemblyCache.Publish(xmlTemp, temp, path, (from, to) =>
+        {
+            calls++;
+            if (to == path && calls == 2)
+            {
+                File.Copy(xmlTemp, xmlPath, true);
+                throw accessDenied ? new UnauthorizedAccessException() : new IOException("sharing violation");
+            }
+            if (to == path && calls == 3) { File.WriteAllBytes(path, dll); return; }
+            File.Move(from, to, overwrite: true);
+        }, waits.Add);
+        Assert.Equal([10], waits);
+        Assert.Equal(path, ConnectionContractAssemblyCache.Find(_folder, Files, References, "staged;"));
+    }
+
+    [Fact]
+    public void Publication_Should_ReturnWithoutRetrying_WhenTheWinnerCompletedTheEntry()
+    {
+        var (path, xmlTemp, temp, dll) = Stage();
+        ConnectionContractAssemblyCache.Publish(xmlTemp, temp, path, (from, to) =>
+        {
+            File.Copy(xmlTemp, Path.ChangeExtension(path, ".xml"), true);
+            File.WriteAllBytes(path, dll);
+            throw new UnauthorizedAccessException();
+        }, _ => throw new InvalidOperationException("A completed entry must not wait."));
+        Assert.Equal(path, ConnectionContractAssemblyCache.Find(_folder, Files, References, "staged;"));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void GenuineFailures_Should_BeRethrownAfterBoundedRetries_AndPublishNothing(bool accessDenied)
+    {
+        var (path, xmlTemp, temp, _) = Stage();
+        var attempts = 0;
+        var waits = 0;
+        Assert.ThrowsAny<Exception>(() => ConnectionContractAssemblyCache.Publish(xmlTemp, temp, path,
+            (_, _) => { attempts++; throw accessDenied ? new UnauthorizedAccessException("denied") : new IOException("disk full"); },
+            _ => waits++));
+        Assert.Equal(8, attempts);
+        Assert.Equal(7, waits);
+        Assert.Null(ConnectionContractAssemblyCache.Find(_folder, Files, References, "staged;"));
+    }
+
+    [Fact]
+    public void UnrelatedExceptions_Should_NotBeRetried()
+    {
+        var (path, xmlTemp, temp, _) = Stage();
+        Assert.Throws<InvalidOperationException>(() => ConnectionContractAssemblyCache.Publish(xmlTemp, temp, path,
+            (_, _) => throw new InvalidOperationException(), _ => throw new Xunit.Sdk.XunitException("no retry")));
+    }
 }
