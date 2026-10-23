@@ -32,6 +32,16 @@ public interface ILanguageHost : IAsyncDisposable
     event CompiledHandler? Compiled;
 
     /// <summary>
+    /// Raised as a compile, run or debug moves through its stages (package restore, connection contract,
+    /// compilation, execution). A host that does not report stages never raises it. Always available.
+    /// </summary>
+    event StageChangedHandler? StageChanged
+    {
+        add { }
+        remove { }
+    }
+
+    /// <summary>
     /// Compiles and runs <paramref name="code"/>, streaming stdout/stderr/dump output to <paramref name="outputHandler"/>,
     /// and completes once the script's process has exited — see <see cref="RunResult"/> for how it ended.
     /// Always available.

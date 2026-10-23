@@ -9,6 +9,7 @@ public abstract class LanguageHostBase : ILanguageHost
     private BreakpointVerifiedHandler? _breakpointVerified;
     private CompiledHandler? _compiled;
     private InputRequestedHandler? _inputRequested;
+    private StageChangedHandler? _stageChanged;
     private bool _disposed;
 
     public abstract string Language { get; }
@@ -24,6 +25,12 @@ public abstract class LanguageHostBase : ILanguageHost
     {
         add => _compiled += value;
         remove => _compiled -= value;
+    }
+
+    public virtual event StageChangedHandler? StageChanged
+    {
+        add => _stageChanged += value;
+        remove => _stageChanged -= value;
     }
 
     public abstract Task<RunResult> RunAsync(
@@ -125,6 +132,8 @@ public abstract class LanguageHostBase : ILanguageHost
 
     protected void OnBreakpointVerified(IBreakpoint breakpoint, bool verified, string? message)
         => _breakpointVerified?.Invoke(breakpoint, verified, message);
+
+    protected void OnStageChanged(RunStage stage, string? detail = null) => _stageChanged?.Invoke(stage, detail);
 
     protected void OnCompiled(string binaryPath) => _compiled?.Invoke(binaryPath);
 

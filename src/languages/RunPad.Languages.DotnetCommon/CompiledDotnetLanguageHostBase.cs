@@ -146,8 +146,18 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
         string userCode, string code, CancellationToken ct)
     {
         using var compiler = _compilerFactory(ProjectProfile, _options, _loggerFactory);
+        StageChangedHandler forward = OnStageChanged;
+        compiler.StageChanged += forward;
 
-        ProcessCompilerResult raw = await compiler.Compilation(code, ct);
+        ProcessCompilerResult raw;
+        try
+        {
+            raw = await compiler.Compilation(code, ct);
+        }
+        finally
+        {
+            compiler.StageChanged -= forward;
+        }
         CompiledDotnetCompilationResult result = new(MapToUserCode(userCode, raw));
         if (raw.Success)
             OnCompiled(raw.OutputBinaryFile);
@@ -234,6 +244,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
                 _options.Arguments);
 
             if (!process.Start()) return RunResult.StartFailed;
+            OnStageChanged(RunStage.Running);
             await using var stop = cancellationToken.Register(() => _ = StopAsync(process, cts));
 
             _currentInputStream = process.InputStream;
@@ -319,6 +330,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
                 CurrentQueryPath: _options.CurrentQueryPath,
                 RuntimePath: _options.ExecutionOptions.Runtime.RuntimePath,
                 Arguments: _options.Arguments);
+            OnStageChanged(RunStage.Running);
             await using var session = new DapSession(
                 process,
                 sessionOptions,

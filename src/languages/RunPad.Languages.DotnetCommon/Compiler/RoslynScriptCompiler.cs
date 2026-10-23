@@ -12,6 +12,7 @@ using Microsoft.CodeAnalysis.Emit;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
+using RunPad.Contracts.Models;
 using RunPad.Debug;
 using RoslynDiagnostic = Microsoft.CodeAnalysis.Diagnostic;
 using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
@@ -107,6 +108,8 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
     public Task<ProcessCompilerResult> Compilation(string code, CancellationToken ctx) =>
         Task.Run(() => CompileAsync(code, ctx), ctx);
 
+    public event StageChangedHandler? StageChanged;
+
     public void Dispose()
     {
     }
@@ -132,6 +135,12 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
         if (!TargetFramework.TryParse(tfm, out var major, out var minor))
             return Failed(Message("", $"'{tfm}' is not a supported target framework."));
 
+        StageChanged?.Invoke(RunStage.RestoringPackages, Options.Packages.Count switch
+        {
+            0 => null,
+            1 => "1 package",
+            var count => $"{count} packages",
+        });
         var settings = NuGetRestorer.LoadSettings(Options.NuGetConfigFile, _outputDir);
         var globalPackages = SettingsUtility.GetGlobalPackagesFolder(settings);
         var runtimePath = Options.ExecutionOptions.Runtime.RuntimePath;
@@ -165,6 +174,11 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
         var separateContract = Options.ConnectionFiles.Count > 0 && !ConnectionContractAssemblyCache.RequiresSourceCompilation(code);
         if (separateContract)
         {
+            StageChanged?.Invoke(RunStage.GeneratingConnections, Options.ConnectionFiles.Count switch
+            {
+                1 => "1 connection source",
+                var count => $"{count} connection sources",
+            });
             var contractReferences = frameworkReferences.Concat(packageReferences).ToArray();
             try
             {
@@ -206,6 +220,7 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
             return new ProcessCompilerResult(_dllPath, true, [], [.. ReferenceWarnings(), .. packages.Warnings]);
         }
 
+        StageChanged?.Invoke(RunStage.Compiling, null);
         // The script file itself — what breakpoints and the debugger's source view point at.
         if (!File.Exists(_sourcePath) || await File.ReadAllTextAsync(_sourcePath, ct) != code)
             await File.WriteAllTextAsync(_sourcePath, code, Encoding.UTF8, ct);
