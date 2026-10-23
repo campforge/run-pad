@@ -231,7 +231,7 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
         }
         catch (RpcException ex)
         {
-            throw new GrpcConnectionException($"Could not reach the server: {ex.Status.Detail} ({ex.StatusCode}).");
+            throw new GrpcConnectionException($"Could not reach the server: {ex.Status.Detail} ({ex.StatusCode}).{TransportHint(ex, address)}");
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -241,6 +241,23 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
         {
             throw new GrpcConnectionException($"Could not reach the server: {ex.Message}");
         }
+    }
+
+    // What a transport failure usually means, so the user can tell a plaintext/TLS mismatch or a
+    // server without HTTP/2 from an unreachable one.
+    private static string TransportHint(RpcException ex, string address)
+    {
+        var detail = ex.Status.Detail;
+        var secure = address.StartsWith("https:", StringComparison.OrdinalIgnoreCase);
+        if (detail.Contains("HTTP/1.1", StringComparison.Ordinal) || detail.Contains("HTTP_1_1_REQUIRED", StringComparison.Ordinal)
+            || detail.Contains("HTTP/2 handshake", StringComparison.Ordinal))
+            return " The server doesn't speak HTTP/2, which gRPC needs: check the address and port, and use https:// if the server uses TLS.";
+        if (secure && (detail.Contains("SSL", StringComparison.Ordinal) || detail.Contains("TLS", StringComparison.Ordinal)
+                       || detail.Contains("authenticat", StringComparison.OrdinalIgnoreCase)))
+            return " The TLS handshake failed: if the server doesn't use TLS, use an http:// address.";
+        if (!secure && ex.StatusCode == StatusCode.Unavailable)
+            return " If the server uses TLS, use an https:// address.";
+        return "";
     }
 
     // protoc writes the messages and clients of every file the server described, except the
@@ -369,7 +386,9 @@ internal sealed partial class GrpcReflection(CallInvoker invoker, Metadata heade
 
     public async Task<IReadOnlyList<string>> ListServicesAsync(CancellationToken ct)
     {
-        var response = await AskAsync(new ServerReflectionRequest { ListServices = "" }, ct).ConfigureAwait(false);
+        // "*" as grpcurl sends it: the value is unused by the protocol, but some servers (the
+        // Postman Echo one) ignore a request whose list_services is empty and never answer it.
+        var response = await AskAsync(new ServerReflectionRequest { ListServices = "*" }, ct).ConfigureAwait(false);
         return [.. response.ListServicesResponse.Service.Select(s => s.Name)
             .Where(n => !n.StartsWith("grpc.reflection.", StringComparison.Ordinal))
             .Order(StringComparer.Ordinal)];
