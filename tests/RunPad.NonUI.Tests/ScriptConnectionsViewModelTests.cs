@@ -390,6 +390,44 @@ public class ScriptConnectionsViewModelTests
     }
 
     [Fact]
+    public void CanEditConnections_Should_RaiseChanged_WhenTheStoreErrorAppearsAndClears()
+    {
+        var (vm, store, _) = CreateVm();
+        vm.SetFrontMatter(new RpadFrontMatter());
+        vm.Connections.ConnectionsEditor = _ => Task.FromResult(false);
+        var raised = new List<string?>();
+        vm.Connections.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        store.Setup(s => s.LoadSnapshot()).Throws(new InvalidDataException("broken"));
+        vm.SetFrontMatter(new RpadFrontMatter());
+        Assert.Contains(nameof(ScriptConnectionsViewModel.CanEditConnections), raised);
+        Assert.False(vm.Connections.CanEditConnections);
+        Assert.False(((ICommand)vm.Connections.ManageCommand).CanExecute(null));
+
+        raised.Clear();
+        store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot([], null));
+        vm.SetFrontMatter(new RpadFrontMatter());
+        Assert.Contains(nameof(ScriptConnectionsViewModel.CanEditConnections), raised);
+        Assert.True(vm.Connections.CanEditConnections);
+    }
+
+    // The window can rename a saved connection and create another in the same visit; the renamed one
+    // also has a name the list didn't have before, but it is not what the user came to create.
+    [Fact]
+    public async Task ARenamedConnection_Should_NotBeTakenForTheNewOne()
+    {
+        var (vm, _, mine) = CreateVm(Http("github", "https://api.github.com/"));
+        vm.SetFrontMatter(new RpadFrontMatter());
+        UseEditor(vm, mine, _ => [Http("github-api", "https://api.github.com/"), new RpadConnection { Name = "fresh", Driver = "sqlish" }]);
+
+        await vm.Connections.NewCommand.Execute(Assert.Single(vm.Connections.Drivers, d => d.Id == "sqlish"));
+
+        Assert.True(vm.Connections.IsAddConfirmationPending);
+        Assert.Contains("'fresh'", vm.Connections.AddMessage);
+        Assert.Empty(vm.Connections.Items);
+    }
+
+    [Fact]
     public void AConnectionWithADriverThisRunPadLacks_Should_NotBeAdded_AndExplainWhatIsMissing()
     {
         var (vm, _, _) = CreateVm(new RpadConnection { Name = "legacy", Driver = "oracle" });
