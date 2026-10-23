@@ -81,7 +81,6 @@ public class ConnectionsWindowViewModelTests
         [
             new("connectionString", "Connection string", Required: true),
             new("pooling", "Pooling", ConnectionParamType.Boolean, Default: "true", Advanced: true),
-            new("mode", "Mode", ConnectionParamType.Choice, Choices: ["ReadOnly", "ReadWrite"]),
             new("schemas", "Schemas", ConnectionParamType.List),
         ];
 
@@ -164,14 +163,13 @@ public class ConnectionsWindowViewModelTests
         Execute(vm.AddCommand, fake);
         var added = vm.SelectedConnection!;
         Assert.Equal("fake", added.Name);
-        Assert.Equal(["connectionString", "mode", "schemas", "pooling"], added.Fields.Select(f => f.Param.Key)); // advanced last
+        Assert.Equal(["connectionString", "schemas", "pooling"], added.Fields.Select(f => f.Param.Key)); // advanced last
         Assert.Equal("The connection string is missing.", added.Problems);
 
         added.Fields[0].SecretToInsert = "db";
         added.Fields[0].Text = "Data Source=x;Password=" + "${secret:db}";
-        added.Fields[1].Text = "ReadOnly";
-        added.Fields[2].Text = "public\n\n sales \n";
-        added.Fields[3].BooleanValue = false;
+        added.Fields[1].Text = "public\n\n sales \n";
+        added.Fields[2].BooleanValue = false;
         Assert.Null(added.Problems);
 
         var billing = vm.Connections[0];
@@ -189,7 +187,7 @@ public class ConnectionsWindowViewModelTests
         Assert.Equal(["baseAddress", "headers", "retries"], saved[0].Params.Keys);
         Assert.Equal(["Authorization", "Accept"], saved[0].Params["headers"].Fields!.Keys);
         Assert.Equal("acme", saved[1].Params["account"].Text); // a driver this RunPad lacks: params kept
-        Assert.Equal(["connectionString", "pooling", "mode", "schemas"], saved[2].Params.Keys);
+        Assert.Equal(["connectionString", "pooling", "schemas"], saved[2].Params.Keys);
         Assert.Equal("Data Source=x;Password=${secret:db}", saved[2].Params["connectionString"].Text);
         Assert.Equal("false", saved[2].Params["pooling"].Text);
         Assert.Equal(["public", "sales"], saved[2].Params["schemas"].Items!.Select(i => i.Text));

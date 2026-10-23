@@ -81,12 +81,10 @@ public sealed class ConnectionFieldViewModel : ReactiveObject
     public bool IsTextBox => Param.Type is ConnectionParamType.Text or ConnectionParamType.Number;
     public bool CanInsertSecret => Param.Type is ConnectionParamType.Text && SecretNames.Count > 0;
     public bool IsBoolean => Param.Type is ConnectionParamType.Boolean;
-    public bool IsChoice => Param.Type is ConnectionParamType.Choice;
     public bool IsMap => Param.Type is ConnectionParamType.Map;
     public bool IsList => Param.Type is ConnectionParamType.List;
-    public IReadOnlyList<string> Choices => Param.Choices ?? [];
 
-    // Text, Number and Choice; for List, one item per line.
+    // Text and Number; for List, one item per line.
     public string Text
     {
         get;
