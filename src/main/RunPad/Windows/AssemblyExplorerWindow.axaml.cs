@@ -318,7 +318,7 @@ public partial class AssemblyExplorerWindow : Window
         AnalysisResults.SelectionChanged += (_, _) =>
         {
             if (AnalysisResults.SelectedItem is AssemblyTreeNode result)
-                _ = OpenSearchResultAsync(result);
+                _openingResult = OpenSearchResultAsync(result);
         };
         RemoveAssemblyMenuItem.Click += (_, _) =>
         {
@@ -369,7 +369,7 @@ public partial class AssemblyExplorerWindow : Window
         SearchResults.SelectionChanged += (_, _) =>
         {
             if (SearchResults.SelectedItem is AssemblyTreeNode result)
-                _ = OpenSearchResultAsync(result);
+                _openingResult = OpenSearchResultAsync(result);
         };
         AddHandler(PointerPressedEvent, (_, e) =>
         {
@@ -978,6 +978,11 @@ public partial class AssemblyExplorerWindow : Window
     }
 
     internal ListBox SearchResultList => SearchResults;
+
+    // The open started by the latest pick in the search or analysis results: it completes once that
+    // hit is shown, or once a newer request has superseded it.
+    private Task _openingResult = Task.CompletedTask;
+    internal Task OpeningResult => _openingResult;
 
     // Like ILSpy: a search hit is revealed and selected in the tree, and decompiled from there.
     internal async Task OpenSearchResultAsync(AssemblyTreeNode result)

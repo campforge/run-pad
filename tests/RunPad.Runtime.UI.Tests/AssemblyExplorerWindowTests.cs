@@ -547,8 +547,9 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         Assert.Contains(Results(window), r => r is { Text: "Gamma", Location: "Foo.Bar" });
 
         window.SearchResultList.SelectedItem = Results(window).First(r => r.Text == "Gamma");
-        await TestWait.WhileAsync(() => window.Title != "Gamma");
+        await window.OpeningResult.WaitAsync(TestContext.Current.CancellationToken);
 
+        Assert.Equal("Gamma", window.Title);
         Assert.Contains("class Gamma", window.Editor.Text);
         Assert.Equal("Gamma", Text((TreeViewItem)window.Tree.SelectedItem!));
     }
@@ -793,8 +794,10 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         await window.AnalyzeAsync(Node(run), AnalysisKind.UsedBy);
 
         window.AnalysisResultList.SelectedIndex = 0;
-        await TestWait.WhileAsync(() => window.Title != "Call() : void");
+        // the open itself, however long a loaded machine takes to decompile, not a guess from the title
+        await window.OpeningResult.WaitAsync(TestContext.Current.CancellationToken);
 
+        Assert.Equal("Call() : void", window.Title);
         Assert.Contains("Run();", window.Editor.Text);
         var selected = Assert.IsType<TreeViewItem>(window.Tree.SelectedItem);
         Assert.Equal("Call() : void", Text(selected));
