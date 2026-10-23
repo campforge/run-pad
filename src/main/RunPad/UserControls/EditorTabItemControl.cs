@@ -65,6 +65,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private IDisposable? _selectedSdkSub;
     private bool _disposed;
     private bool _runInProgress;
+
+    // The stage the current (or last) run reached, -1 before the first: names the stage that failed.
+    // Written as the host reports it, on whichever thread that is, so it is already current when the
+    // run ends even if the status update posted for it has not been processed yet.
+    private int _runStageValue = -1;
+
+    private RunStage? RunStageReached => _runStageValue < 0 ? null : (RunStage)Volatile.Read(ref _runStageValue);
     private Task? _activeRun;
     private bool _restarting;
     private bool _restartRequested;
@@ -543,6 +550,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         s.DumpContainerBlocks.Clear();
         s.HadRunError = false;
         s.UnhandledDebugException = null;
+        Volatile.Write(ref _runStageValue, -1);
         _vm.DebugPanel.ClearStop();
         s.ElapsedText = "";
         IlOutput.Text = "";
@@ -575,6 +583,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 List<RpadConnection> list = [.. connections];
                 var scriptDirectory = ScriptDirectory;
                 var token = runCts.Token;
+                Volatile.Write(ref _runStageValue, (int)RunStage.ReadingConnectionSchemas);
+                ShowRunStage(RunStage.ReadingConnectionSchemas, null);
                 await Task.Run(() => schemas.EnsureAsync(list, scriptDirectory, ConnectionSchemaRefresh.Failed, token), token);
             }
             var request = BuildRunRequest(platform, workDir);
@@ -611,6 +621,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     // versions and transitive packages it resolved.
                     PostRun(RefreshIntelliSensePackages);
                 };
+                host.StageChanged += (stage, detail) =>
+                {
+                    Volatile.Write(ref _runStageValue, (int)stage);
+                    PostRun(() => ShowRunStage(stage, detail));
+                };
                 host.InputRequested += (prompt, isPassword) =>
                     PostRun(() => ShowInputPrompt(prompt, isPassword));
 
@@ -643,7 +658,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         catch (Exception ex)
         {
             _runLogger.LogError(ex, "Script host failed");
-            if (!_disposed) AppendError(ex);
+            if (!_disposed)
+            {
+                // The stage is named in the message and the status; the exception text is kept as is.
+                if (RunStageReached == RunStage.ReadingConnectionSchemas)
+                    s.Output.Append("\n<div class=\"error\">Reading the connection schemas failed.</div>");
+                AppendError(ex, RunStageReached == RunStage.ReadingConnectionSchemas ? "Connection schemas failed" : "Error");
+            }
         }
         finally
         {
@@ -1232,7 +1253,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             RunOutcome.CompilationFailed when selection => (
                 "Execute Selection compiles only the selected statements: methods, types and variables declared outside the selection are not available.",
                 "Compilation failed"),
-            RunOutcome.CompilationFailed => (null, "Compilation failed"),
+            RunOutcome.CompilationFailed => (null, RunStageReached switch
+            {
+                RunStage.RestoringPackages => "Package restore failed",
+                RunStage.GeneratingConnections => "Connection contract failed",
+                _ => "Compilation failed",
+            }),
             RunOutcome.StartFailed => ("Failed to start the compiled script.", "Error"),
             _ => ($"Process exited with code {result.ExitCode}.", $"Exit code {result.ExitCode}"),
         };
@@ -1245,13 +1271,31 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         });
     }
 
-    private void AppendError(Exception ex)
+    // Shows the stage a run has reached; the status keeps its running color until the run ends.
+    // Only the stage's own progress is shown, never a percentage.
+    private void ShowRunStage(RunStage stage, string? detail)
+    {
+        // A stage reported just before the run ended must not replace its outcome.
+        if (_vm.RunState == RunState.Idle) return;
+        var text = stage switch
+        {
+            RunStage.ReadingConnectionSchemas => "Reading connection schemas…",
+            RunStage.RestoringPackages => "Restoring packages…",
+            RunStage.GeneratingConnections => "Generating connections…",
+            RunStage.Compiling => "Compiling…",
+            _ => "Process",
+        };
+        if (detail is not null && stage != RunStage.Running) text = text[..^1] + $" ({detail})…";
+        SetStatus(text, "RunPad.Status.RunningBrush");
+    }
+
+    private void AppendError(Exception ex, string status = "Error")
     {
         State.HadRunError = true;
         State.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(ex.Message)}</div>");
         if (ex.StackTrace is { } st)
             State.Output.Append($"\n<pre class=\"stacktrace\">{HttpUtility.HtmlEncode(st)}</pre>");
-        SetStatus("Error", "RunPad.Status.ErrorBrush");
+        SetStatus(status, "RunPad.Status.ErrorBrush");
         UpdateOutputUi();
     }
 

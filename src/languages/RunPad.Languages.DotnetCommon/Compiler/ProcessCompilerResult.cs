@@ -1,7 +1,16 @@
+using RunPad.Contracts.Models;
+
 namespace RunPad.Languages.DotnetCommon.Compiler;
 
 public interface IDotnetProcessCompiler : IDisposable
 {
+    /// <summary>Raised as the compile moves through its stages; a compiler that reports none never raises it.</summary>
+    event StageChangedHandler? StageChanged
+    {
+        add { }
+        remove { }
+    }
+
     Task<ProcessCompilerResult> Compilation(string code, CancellationToken ctx);
 }
 
