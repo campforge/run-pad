@@ -340,120 +340,234 @@ public class EditorTabRunResultTests
         Assert.Equal("RunPad.Status.ErrorBrush", ctrl.State.ExecStatusColor);
     }
 
-    [AvaloniaFact]
-    public async Task EachStageTheHostReports_Should_BeShownAsTheRunsStatus_AndEndWithTheOutcome()
-    {
-        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var finish = new TaskCompletionSource<RunResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Mock<ILanguageHost>? hostMock = null;
-        var ctrl = CreateControl(RunResult.Exited(0), configureHost: h => hostMock = h,
-            pending: () => { started.TrySetResult(); return finish.Task; });
-        var run = ctrl.RunAsync(false, Sdk);
-        await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
-
-        void Raise(RunStage stage, string? detail) => hostMock!.Raise(h => h.StageChanged += null, stage, detail!);
-        Raise(RunStage.RestoringPackages, "2 packages");
-        Dispatcher.UIThread.RunJobs();
-        Assert.Equal("Restoring packages (2 packages)…", ctrl.State.ExecStatusText);
-        Raise(RunStage.GeneratingConnections, null);
-        Dispatcher.UIThread.RunJobs();
-        Assert.Equal("Generating connections…", ctrl.State.ExecStatusText);
-        Raise(RunStage.Compiling, null);
-        Dispatcher.UIThread.RunJobs();
-        Assert.Equal("Compiling…", ctrl.State.ExecStatusText);
-        Raise(RunStage.Running, null);
-        Dispatcher.UIThread.RunJobs();
-        Assert.Equal("Process", ctrl.State.ExecStatusText);
-        Assert.Equal("RunPad.Status.RunningBrush", ctrl.State.ExecStatusColor);
-        // The live output of the stage is not hidden by the status.
-        Assert.Contains("script output", ctrl.State.Output.Content);
-
-        finish.TrySetResult(RunResult.Exited(0));
-        await run.WaitAsync(TimeSpan.FromSeconds(10));
-        Dispatcher.UIThread.RunJobs();
-        Assert.Equal("Success", ctrl.State.ExecStatusText);
-    }
-
-    [AvaloniaTheory]
-    [InlineData(RunStage.RestoringPackages, "Package restore failed")]
-    [InlineData(RunStage.GeneratingConnections, "Connection contract failed")]
-    [InlineData(RunStage.Compiling, "Compilation failed")]
-    public async Task AFailedCompile_Should_NameTheStageItFailedIn_AndKeepTheDiagnostics(RunStage failedIn, string status)
-    {
-        var ctrl = CreateControl(RunResult.CompilationFailed, stderrLine: "error NU1101: Unable to find package",
-            configureHost: h => h.Setup(x => x.RunAsync(It.IsAny<string>(), It.IsAny<OutputReceivedHandler>(), It.IsAny<CancellationToken>()))
-                .Returns((string _, OutputReceivedHandler output, CancellationToken _) =>
-                {
-                    h.Raise(x => x.StageChanged += null, failedIn, null!);
-                    output("error NU1101: Unable to find package", OutputKind.StandardError);
-                    return Task.FromResult(RunResult.CompilationFailed);
-                }));
-
-        await RunAsync(ctrl);
-
-        Assert.Equal(status, ctrl.State.ExecStatusText);
-        Assert.Equal("RunPad.Status.ErrorBrush", ctrl.State.ExecStatusColor);
-        Assert.Contains("NU1101", ctrl.State.Output.Content);
-    }
-
-    [AvaloniaFact]
-    public async Task StoppingWhileConnectionSchemasAreRead_Should_CancelTheRun_WithoutStartingAHost()
-    {
-        var drivers = new ConnectionDriverRegistry();
-        var driver = new BlockingSchemaDriver();
-        drivers.Register(driver);
-        var folder = Directory.CreateTempSubdirectory("runpad-stage-schema").FullName;
-        try
-        {
-            var schemas = new ConnectionSchemas(drivers, folder,
-                new ConnectionTools { GetPackageFolderAsync = (_, _, _) => Task.FromResult("") }, _ => null);
-            var created = new List<(string Language, ExecutionRequest Request)>();
-            var ctrl = CreateControl(RunResult.Exited(0), created: created, connectionSchemas: schemas, connectionDrivers: drivers);
-            ctrl.State.RpadDocument = new RpadDocument
-            {
-                FrontMatter = new RpadFrontMatter
-                {
-                    Connections = [new RpadConnection { Name = "slow", Driver = "blocking" }],
-                },
-                RunCode = "",
-            };
-            var run = ctrl.RunAsync(false, Sdk);
-            await driver.Started.Task.WaitAsync(TimeSpan.FromSeconds(10));
-            Assert.Equal("Reading connection schemas…", ctrl.State.ExecStatusText);
-
-            ctrl.Cancel();
-            await run.WaitAsync(TimeSpan.FromSeconds(10));
-            Dispatcher.UIThread.RunJobs();
-
-            Assert.Equal("Cancelled", ctrl.State.ExecStatusText);
-            Assert.Empty(created);
-            Assert.Null(ctrl.State.RunCts);
-        }
-        finally { Directory.Delete(folder, true); }
-    }
-
-    private sealed class BlockingSchemaDriver : IConnectionSchemaDriver
-    {
-        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public string Id => "blocking";
-        public string DisplayName => "Blocking";
-        public ConnectionCategory Category => ConnectionCategory.Grpc;
-        public IReadOnlyList<ConnectionParam> Params { get; } = [];
-        public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string>();
-        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
-        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
-            Task.FromResult(new ConnectionTestResult(true, ""));
-        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) =>
-            new($"public sealed class {context.ClassName} {{ }}");
-        public async Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
-            CancellationToken cancellationToken)
-        {
-            Started.TrySetResult();
-            await Task.Delay(Timeout.Infinite, cancellationToken);
-            return new ConnectionSchema("", [], "");
-        }
-    }
-
+    [AvaloniaFact]
+
+    public async Task EachStageTheHostReports_Should_BeShownAsTheRunsStatus_AndEndWithTheOutcome()
+
+    {
+
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var finish = new TaskCompletionSource<RunResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        Mock<ILanguageHost>? hostMock = null;
+
+        var ctrl = CreateControl(RunResult.Exited(0), configureHost: h => hostMock = h,
+
+            pending: () => { started.TrySetResult(); return finish.Task; });
+
+        var run = ctrl.RunAsync(false, Sdk);
+
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+
+
+        void Raise(RunStage stage, string? detail) => hostMock!.Raise(h => h.StageChanged += null, stage, detail!);
+
+        Raise(RunStage.RestoringPackages, "2 packages");
+
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("Restoring packages (2 packages)…", ctrl.State.ExecStatusText);
+
+        Raise(RunStage.GeneratingConnections, null);
+
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("Generating connections…", ctrl.State.ExecStatusText);
+
+        Raise(RunStage.Compiling, null);
+
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("Compiling…", ctrl.State.ExecStatusText);
+
+        Raise(RunStage.Running, null);
+
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("Process", ctrl.State.ExecStatusText);
+
+        Assert.Equal("RunPad.Status.RunningBrush", ctrl.State.ExecStatusColor);
+
+        // The live output of the stage is not hidden by the status.
+
+        Assert.Contains("script output", ctrl.State.Output.Content);
+
+
+
+        finish.TrySetResult(RunResult.Exited(0));
+
+        await run.WaitAsync(TimeSpan.FromSeconds(10));
+
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("Success", ctrl.State.ExecStatusText);
+
+    }
+
+
+
+    [AvaloniaTheory]
+
+    [InlineData(RunStage.RestoringPackages, "Package restore failed")]
+
+    [InlineData(RunStage.GeneratingConnections, "Connection contract failed")]
+
+    [InlineData(RunStage.Compiling, "Compilation failed")]
+
+    public async Task AFailedCompile_Should_NameTheStageItFailedIn_AndKeepTheDiagnostics(RunStage failedIn, string status)
+
+    {
+
+        var ctrl = CreateControl(RunResult.CompilationFailed, stderrLine: "error NU1101: Unable to find package",
+
+            configureHost: h => h.Setup(x => x.RunAsync(It.IsAny<string>(), It.IsAny<OutputReceivedHandler>(), It.IsAny<CancellationToken>()))
+
+                .Returns((string _, OutputReceivedHandler output, CancellationToken _) =>
+
+                {
+
+                    h.Raise(x => x.StageChanged += null, failedIn, null!);
+
+                    output("error NU1101: Unable to find package", OutputKind.StandardError);
+
+                    return Task.FromResult(RunResult.CompilationFailed);
+
+                }));
+
+
+
+        await RunAsync(ctrl);
+
+
+
+        Assert.Equal(status, ctrl.State.ExecStatusText);
+
+        Assert.Equal("RunPad.Status.ErrorBrush", ctrl.State.ExecStatusColor);
+
+        Assert.Contains("NU1101", ctrl.State.Output.Content);
+
+    }
+
+
+
+    [AvaloniaFact]
+
+    public async Task StoppingWhileConnectionSchemasAreRead_Should_CancelTheRun_WithoutStartingAHost()
+
+    {
+
+        var drivers = new ConnectionDriverRegistry();
+
+        var driver = new BlockingSchemaDriver();
+
+        drivers.Register(driver);
+
+        var folder = Directory.CreateTempSubdirectory("runpad-stage-schema").FullName;
+
+        try
+
+        {
+
+            var schemas = new ConnectionSchemas(drivers, folder,
+
+                new ConnectionTools { GetPackageFolderAsync = (_, _, _) => Task.FromResult("") }, _ => null);
+
+            var created = new List<(string Language, ExecutionRequest Request)>();
+
+            var ctrl = CreateControl(RunResult.Exited(0), created: created, connectionSchemas: schemas, connectionDrivers: drivers);
+
+            ctrl.State.RpadDocument = new RpadDocument
+
+            {
+
+                FrontMatter = new RpadFrontMatter
+
+                {
+
+                    Connections = [new RpadConnection { Name = "slow", Driver = "blocking" }],
+
+                },
+
+                RunCode = "",
+
+            };
+
+            var run = ctrl.RunAsync(false, Sdk);
+
+            await driver.Started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+            Assert.Equal("Reading connection schemas…", ctrl.State.ExecStatusText);
+
+
+
+            ctrl.Cancel();
+
+            await run.WaitAsync(TimeSpan.FromSeconds(10));
+
+            Dispatcher.UIThread.RunJobs();
+
+
+
+            Assert.Equal("Cancelled", ctrl.State.ExecStatusText);
+
+            Assert.Empty(created);
+
+            Assert.Null(ctrl.State.RunCts);
+
+        }
+
+        finally { Directory.Delete(folder, true); }
+
+    }
+
+
+
+    private sealed class BlockingSchemaDriver : IConnectionSchemaDriver
+
+    {
+
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public string Id => "blocking";
+
+        public string DisplayName => "Blocking";
+
+        public ConnectionCategory Category => ConnectionCategory.Grpc;
+
+        public IReadOnlyList<ConnectionParam> Params { get; } = [];
+
+        public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string>();
+
+        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
+
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+
+            Task.FromResult(new ConnectionTestResult(true, ""));
+
+        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) =>
+
+            new($"public sealed class {context.ClassName} {{ }}");
+
+        public async Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
+
+            CancellationToken cancellationToken)
+
+        {
+
+            Started.TrySetResult();
+
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+
+            return new ConnectionSchema("", [], "");
+
+        }
+
+    }
+
+
+
     [AvaloniaFact]
     public async Task AStartFailure_Should_FailTheRun_WithAMessage()
     {
