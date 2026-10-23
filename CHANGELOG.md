@@ -15,6 +15,11 @@ Notable changes in each RunPad release. Downloads are on the
 - In Tools → Connections, editing a connection while Test Connection is still waiting no longer
   shows the answer for the old values afterwards, nor reads a gRPC server's services for values that
   were never tested.
+- Saving a script keeps front matter settings RunPad doesn't know intact in more cases: a block of
+  text marked to keep its final empty lines (`|+`) keeps them, and a YAML alias (`*name`) of another
+  setting is saved as the value it stood for instead of a dangling reference. A script whose
+  settings use such an alias, including in its connections, now opens instead of being reported as
+  invalid.
 
 ## [0.9.3] — 2026-10-23
 
