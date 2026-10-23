@@ -1,6 +1,10 @@
 using System.Collections.Concurrent;
 using System.Net;
+using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using Grpc.Core;
+using Grpc.Reflection.V1Alpha;
 using Inventory.V1;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -57,11 +61,16 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         public override Task<ItemRequest> Ping(ItemRequest request, ServerCallContext context) => Task.FromResult(request);
     }
 
-    private static async Task<(WebApplication, string)> StartAsync(bool reflection)
+    private static async Task<(WebApplication, string)> StartAsync(bool reflection, HttpProtocols protocols = HttpProtocols.Http2,
+        X509Certificate2? certificate = null)
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.Logging.ClearProviders();
-        builder.WebHost.ConfigureKestrel(o => o.Listen(IPAddress.Loopback, 0, l => l.Protocols = HttpProtocols.Http2));
+        builder.WebHost.ConfigureKestrel(o => o.Listen(IPAddress.Loopback, 0, l =>
+        {
+            l.Protocols = protocols;
+            if (certificate is not null) l.UseHttps(certificate);
+        }));
         builder.Services.AddGrpc();
         if (reflection) builder.Services.AddGrpcReflection();
         var app = builder.Build();
@@ -456,5 +465,162 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         var secretless = Inventory(metadata: "Bearer ${secret:nope}");
         await schemas.EnsureAsync([secretless], null, ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken);
         Assert.Equal("The Secret Store has no secret named 'nope'. Add it in Tools → Secret Store.", schemas.Cache.ErrorFor(secretless));
+    }
+
+    // Like the Postman Echo server: reflection in the v1alpha protocol only, and a list request whose
+    // list_services is empty is never answered.
+    private sealed class PickyReflection : ServerReflection.ServerReflectionBase
+    {
+        public override async Task ServerReflectionInfo(IAsyncStreamReader<ServerReflectionRequest> requestStream,
+            IServerStreamWriter<ServerReflectionResponse> responseStream, ServerCallContext context)
+        {
+            await foreach (var request in requestStream.ReadAllAsync(context.CancellationToken))
+            {
+                if (request.ListServices != "*") continue;
+                var response = new ServerReflectionResponse { OriginalRequest = request, ListServicesResponse = new ListServiceResponse() };
+                response.ListServicesResponse.Service.Add(new ServiceResponse { Name = "grpc.reflection.v1alpha.ServerReflection" });
+                response.ListServicesResponse.Service.Add(new ServiceResponse { Name = "HelloService" });
+                await responseStream.WriteAsync(response);
+            }
+        }
+    }
+
+    private static async Task<(WebApplication, string)> StartPickyAsync()
+    {
+        var builder = WebApplication.CreateSlimBuilder();
+        builder.Logging.ClearProviders();
+        builder.WebHost.ConfigureKestrel(o => o.Listen(IPAddress.Loopback, 0, l => l.Protocols = HttpProtocols.Http2));
+        builder.Services.AddGrpc();
+        var app = builder.Build();
+        app.MapGrpcService<PickyReflection>();
+        await app.StartAsync();
+        return (app, app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First());
+    }
+
+    private static X509Certificate2 LoopbackCertificate()
+    {
+        using var key = RSA.Create(2048);
+        var request = new CertificateRequest("CN=localhost", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        var names = new SubjectAlternativeNameBuilder();
+        names.AddIpAddress(IPAddress.Loopback);
+        request.CertificateExtensions.Add(names.Build());
+        using var certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-5), DateTimeOffset.UtcNow.AddDays(1));
+        return X509CertificateLoader.LoadPkcs12(certificate.Export(X509ContentType.Pfx), null);
+    }
+
+    private static Dictionary<string, RpadValue> Params(string address, bool skipCertificate = false)
+    {
+        var parameters = new Dictionary<string, RpadValue>(StringComparer.Ordinal) { ["address"] = RpadValue.Of(address) };
+        if (skipCertificate) parameters["skipCertificateCheck"] = RpadValue.Of("true");
+        return parameters;
+    }
+
+    // A handler that sends every connection to a loopback port, whatever the address names: how
+    // "http://grpc.postman-echo.com:443" reaches a local server without the network or port 443.
+    private static Func<HttpMessageHandler> Redirect(string address) => () => new SocketsHttpHandler
+    {
+        ConnectCallback = async (_, ct) =>
+        {
+            var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+            try
+            {
+                await socket.ConnectAsync(new IPEndPoint(IPAddress.Loopback, new Uri(address).Port), ct);
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
+        },
+    };
+
+    [Fact]
+    public async Task Test_Should_UsePlaintextHttp2_OnAnyPort_AndAskForServicesTheWayServersAnswer()
+    {
+        var (server, address) = await StartPickyAsync();
+        await using var _ = server;
+        const string expected = "1 service: HelloService.";
+
+        var regular = await new GrpcConnectionDriver().TestAsync(Params(address), TestContext.Current.CancellationToken);
+        Assert.True(regular.Succeeded, regular.Message);
+        Assert.Equal(expected, regular.Message);
+
+        // The address of the Postman Echo server (manual check: Test on it with the same result).
+        var on443 = await new GrpcConnectionDriver(Redirect(address)).TestAsync(Params("http://grpc.postman-echo.com:443"),
+            TestContext.Current.CancellationToken);
+        Assert.True(on443.Succeeded, on443.Message);
+        Assert.Equal(expected, on443.Message);
+    }
+
+    [Fact]
+    public async Task Test_Should_WorkOverHttps_AndKeepTheCertificateCheck()
+    {
+        using var certificate = LoopbackCertificate();
+        var (server, address) = await StartAsync(reflection: true, certificate: certificate);
+        await using var _ = server;
+        Assert.StartsWith("https://", address, StringComparison.Ordinal);
+        var driver = new GrpcConnectionDriver();
+
+        var skipped = await driver.TestAsync(Params(address, skipCertificate: true), TestContext.Current.CancellationToken);
+        Assert.True(skipped.Succeeded, skipped.Message);
+        Assert.Equal("2 services: inventory.v1.Audit, inventory.v1.Stock.", skipped.Message);
+
+        var checkedResult = await driver.TestAsync(Params(address), TestContext.Current.CancellationToken);
+        Assert.False(checkedResult.Succeeded);
+        Assert.StartsWith("Could not reach the server:", checkedResult.Message, StringComparison.Ordinal);
+        Assert.EndsWith("The TLS handshake failed: if the server doesn't use TLS, use an http:// address.", checkedResult.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Test_Should_ExplainAProtocolMismatch()
+    {
+        using var certificate = LoopbackCertificate();
+        var (http1, http1Address) = await StartAsync(reflection: true, HttpProtocols.Http1);
+        var (tls, tlsAddress) = await StartAsync(reflection: true, certificate: certificate);
+        await using var _ = http1;
+        await using var __ = tls;
+        var driver = new GrpcConnectionDriver();
+
+        var http1Result = await driver.TestAsync(Params(http1Address), TestContext.Current.CancellationToken);
+        var plainToTls = await driver.TestAsync(Params(tlsAddress.Replace("https://", "http://", StringComparison.Ordinal)), TestContext.Current.CancellationToken);
+        var tlsToPlain = await driver.TestAsync(Params(http1Address.Replace("http://", "https://", StringComparison.Ordinal)), TestContext.Current.CancellationToken);
+        const string noHttp2 = "The server doesn't speak HTTP/2, which gRPC needs: check the address and port, and use https:// if the server uses TLS.";
+        foreach (var result in new[] { http1Result, plainToTls })
+        {
+            Assert.False(result.Succeeded);
+            Assert.StartsWith("Could not reach the server:", result.Message, StringComparison.Ordinal);
+            Assert.EndsWith(noHttp2, result.Message, StringComparison.Ordinal);
+        }
+
+        Assert.False(tlsToPlain.Succeeded);
+        Assert.EndsWith("The TLS handshake failed: if the server doesn't use TLS, use an http:// address.", tlsToPlain.Message, StringComparison.Ordinal);
+    }
+
+    // The script's client reaches the server the way RunPad's own calls do: the address as written,
+    // plaintext HTTP/2 for http:// (the Postman Echo one is on port 443), and the certificate check
+    // left alone unless the connection asks to skip it.
+    [Fact]
+    public void TheClient_Should_UseTheAddressAsWritten_WithoutTlsOrCertificateChanges()
+    {
+        var schemas = Schemas();
+        static string Source(ConnectionSchemas schemas, RpadConnection connection)
+        {
+            schemas.Cache.Put(connection, new ConnectionSchema("", [], "[]"));
+            var generated = GeneratedConnections.For([connection], RpadLanguage.CSharp,
+                new GrpcConnectionDriver().Packages.Keys, schemas.Drivers, schemas.Cache)!;
+            Assert.Empty(generated.Errors);
+            return generated.Source;
+        }
+
+        var plain = Source(schemas, Inventory("http://grpc.postman-echo.com:443", metadata: null));
+        Assert.Contains("GrpcChannel.ForAddress(\"http://grpc.postman-echo.com:443\", new global::Grpc.Net.Client.GrpcChannelOptions { HttpHandler = handler });",
+            plain, StringComparison.Ordinal);
+        Assert.Contains("new global::System.Net.Http.SocketsHttpHandler { EnableMultipleHttp2Connections = true };", plain, StringComparison.Ordinal);
+        Assert.DoesNotContain("RemoteCertificateValidationCallback", plain, StringComparison.Ordinal);
+
+        var connection = Inventory("https://localhost:5001", metadata: null);
+        connection.Params["skipCertificateCheck"] = RpadValue.Of("true");
+        Assert.Contains("RemoteCertificateValidationCallback = (_, _, _, _) => true;", Source(schemas, connection), StringComparison.Ordinal);
     }
 }
