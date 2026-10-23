@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
 using Microsoft.Extensions.Logging;
@@ -27,6 +28,7 @@ using RunPad.Services.Preferences;
 using RunPad.Services.Recovery;
 using RunPad.Services.Scaling;
 using RunPad.UserControls.Models;
+using TextMateSharp.Grammars;
 using ContractSeverity = RunPad.Contracts.IntelliSense.DiagnosticSeverity;
 
 namespace RunPad.UserControls;
@@ -207,6 +209,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             StatusLine.Text = $"Line {editor.TextArea.Caret.Line}  Col {editor.TextArea.Caret.Column}";
 
         EditorHost.Content = editor;
+        // The IL tab's content only joins the visual tree when the tab is first shown.
+        IlOutput.AttachedToVisualTree += (_, _) => EnsureIlHighlighting();
         SetupPreview();
         _vm.CaptureRecovery = CaptureRecovery;
         _vm.RecoveryReady.TrySetResult();
@@ -301,6 +305,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void ApplyThemeNow(ActiveTheme theme)
     {
         State.Editor.SetTheme(theme.Editor.TextMateName);
+        _ilHighlighting?.SetTheme(theme.Editor.TextMateName);
         _semanticHighlighter?.SetDark(theme.Editor.IsDark);
         var editorBg = _themeService!.GetBrush("RunPad.Editor.BackgroundBrush");
 
@@ -726,6 +731,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _viewScale.Changed -= OnViewScaleChanged;
         if (_connectionSchemas is not null) _connectionSchemas.Cache.Changed -= OnConnectionSchemaChanged;
         State.Editor.ZoomRequested -= OnEditorZoomRequested;
+        _ilHighlighting?.Dispose();
+        _ilHighlighting = null;
         _selectedKindSub?.Dispose();
         _filePathSub?.Dispose();
         _selectedSdkSub?.Dispose();
@@ -1316,7 +1323,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // Runs on the ILanguageHost.Compiled event, itself raised on the RunAsync's own Task.Run
     // background thread (not the UI thread) — so the disassembly work below happens off-UI already;
     // only the resulting string needs to be marshalled back for display.
-    private void UpdateIlOutput(string binaryPath, int generation)
+    internal void UpdateIlOutput(string binaryPath, int generation)
     {
         string il;
         try
@@ -1328,7 +1335,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             il = $"// Failed to disassemble '{binaryPath}': {ex.Message}";
         }
 
-        // Build the line index off-thread too; the UI only adopts the finished document.
+        AttachIlDocument(il, generation);
+    }
+
+    // Safe on any thread: builds the line index here, then the UI thread only adopts the finished document
+    // (and highlights it) — and only if no newer run has started meanwhile.
+    internal void AttachIlDocument(string il, int generation)
+    {
         var document = new AvaloniaEdit.Document.TextDocument(il);
         document.SetOwnerThread(null);
         Dispatcher.Post(() =>
@@ -1337,9 +1350,26 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 document.SetOwnerThread(Thread.CurrentThread);
                 IlOutput.Document = document;
+                EnsureIlHighlighting();
             }
         });
     }
+
+    private IlHighlighting? _ilHighlighting;
+
+    // The IL tab is highlighted with the IL grammar in the current editor theme. Installed once, when the
+    // tab is in the visual tree (TextMate redraws on install), and kept for every later document: the
+    // highlighter follows the editor's document, so the finished document is attached just once.
+    private void EnsureIlHighlighting()
+    {
+        if (_disposed || _ilHighlighting is not null || !IlOutput.IsAttachedToVisualTree()) return;
+        _ilHighlighting = IlHighlighting.Install(
+            IlOutput, _themeService?.CurrentTheme.Editor.TextMateName ?? ThemeName.DarkPlus);
+    }
+
+    internal string? IlGrammarScope => _ilHighlighting?.GrammarScope;
+    internal IlHighlighting? IlHighlightingForTests => _ilHighlighting;
+    internal int RunGenerationForTests => _runGeneration;
 
     // ILanguageHost.InputRequested (Util.ReadLine/
     // GetPassword). Always called on the UI thread (see the Dispatcher.Post at the

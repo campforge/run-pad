@@ -1182,13 +1182,38 @@ public class CodeTextEditor : TextEditor
     {
         _registryOptions = new RegistryOptions(theme);
         _textMateInstallation?.Dispose();
-        _textMateInstallation = this.InstallTextMate(_registryOptions);
+        _textMateInstallation = this.InstallTextMate(new IlAwareRegistryOptions(_registryOptions));
+        GrammarScope = null; // the new installation has no grammar yet
+        return SetGrammarByExtension(languageExtension);
+    }
 
+    /// <summary>
+    /// Switches the installed highlighting to another language of the bundled grammars without
+    /// reinstalling TextMate (the theme stays); a no-op before <see cref="SetLanguage"/>.
+    /// </summary>
+    public string SetGrammarByExtension(string languageExtension)
+    {
+        if (_textMateInstallation is null || _registryOptions is null) return "";
         var language = _registryOptions.GetLanguageByExtension(languageExtension);
         var scopeName = _registryOptions.GetScopeByLanguageId(language.Id);
+        if (scopeName == GrammarScope) return scopeName;
         _textMateInstallation.SetGrammar(scopeName);
+        GrammarScope = scopeName;
         return scopeName;
     }
+
+    /// <summary>Highlights the text as IL (<see cref="IlGrammar"/>); a no-op before <see cref="SetLanguage"/>.</summary>
+    public void SetIlGrammar()
+    {
+        if (_textMateInstallation is null || GrammarScope == IlGrammar.ScopeName) return;
+        _textMateInstallation.SetGrammar(IlGrammar.ScopeName);
+        GrammarScope = IlGrammar.ScopeName;
+    }
+
+    /// <summary>The TextMate scope of the active grammar; null until a language is installed.</summary>
+    public string? GrammarScope { get; private set; }
+
+    internal Installation? TextMateInstallation => _textMateInstallation;
 
     public void SetTheme(ThemeName theme)
     {

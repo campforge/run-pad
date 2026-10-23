@@ -1,0 +1,178 @@
+{
+  "scopeName": "source.il",
+  "name": "IL",
+  "fileTypes": [
+    "il"
+  ],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#labels"
+    },
+    {
+      "include": "#ctor"
+    },
+    {
+      "include": "#directives"
+    },
+    {
+      "include": "#assemblyRef"
+    },
+    {
+      "include": "#genericParam"
+    },
+    {
+      "include": "#opcodes"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#quotedName"
+    },
+    {
+      "include": "#punctuation"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.il",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.il",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.il",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.il",
+              "match": "\\\\(?:[nrt\"'\\\\]|[0-7]{3})"
+            }
+          ]
+        }
+      ]
+    },
+    "labels": {
+      "patterns": [
+        {
+          "name": "entity.name.label.il",
+          "match": "(?<![\\w.$@])IL_[0-9A-Fa-f]{4,}(?=\\s*:)"
+        },
+        {
+          "name": "entity.name.label.il",
+          "match": "(?<![\\w.$@])IL_[0-9A-Fa-f]{4,}(?![\\w.$@])"
+        }
+      ]
+    },
+    "ctor": {
+      "patterns": [
+        {
+          "name": "entity.name.function.il",
+          "match": "(?<![\\w.$@])\\.c?ctor(?![\\w.$@])"
+        }
+      ]
+    },
+    "directives": {
+      "patterns": [
+        {
+          "name": "keyword.control.directive.il",
+          "match": "(?<![\\w.$@])\\.[a-z][a-z0-9_]*(?![\\w.$@])"
+        }
+      ]
+    },
+    "assemblyRef": {
+      "patterns": [
+        {
+          "name": "entity.name.namespace.il",
+          "match": "\\[[^\\]\\s]+\\]"
+        }
+      ]
+    },
+    "genericParam": {
+      "patterns": [
+        {
+          "name": "entity.name.type.parameter.il",
+          "match": "!{1,2}[0-9]+"
+        }
+      ]
+    },
+    "opcodes": {
+      "patterns": [
+        {
+          "name": "keyword.control.opcode.il",
+          "match": "(?<![\\w.$@])(conv\\.ovf\\.u8\\.un|conv\\.ovf\\.u4\\.un|conv\\.ovf\\.u2\\.un|conv\\.ovf\\.u1\\.un|conv\\.ovf\\.i8\\.un|conv\\.ovf\\.i4\\.un|conv\\.ovf\\.i2\\.un|conv\\.ovf\\.i1\\.un|conv\\.ovf\\.u\\.un|conv\\.ovf\\.i\\.un|constrained\\.|conv\\.ovf\\.u8|conv\\.ovf\\.u4|conv\\.ovf\\.u2|conv\\.ovf\\.u1|conv\\.ovf\\.i8|conv\\.ovf\\.i4|conv\\.ovf\\.i2|conv\\.ovf\\.i1|unaligned\\.|sub\\.ovf\\.un|stelem\\.ref|refanytype|mul\\.ovf\\.un|ldelem\\.ref|endfinally|conv\\.ovf\\.u|conv\\.ovf\\.i|add\\.ovf\\.un|volatile\\.|unbox\\.any|stind\\.ref|stelem\\.r8|stelem\\.r4|stelem\\.i8|stelem\\.i4|stelem\\.i2|stelem\\.i1|refanyval|readonly\\.|prefixref|ldvirtftn|ldind\\.ref|ldelem\\.u4|ldelem\\.u2|ldelem\\.u1|ldelem\\.r8|ldelem\\.r4|ldelem\\.i8|ldelem\\.i4|ldelem\\.i2|ldelem\\.i1|ldc\\.i4\\.m1|endfilter|conv\\.r\\.un|castclass|brfalse\\.s|stind\\.r8|stind\\.r4|stind\\.i8|stind\\.i4|stind\\.i2|stind\\.i1|stelem\\.i|mkrefany|localloc|ldloca\\.s|ldind\\.u4|ldind\\.u2|ldind\\.u1|ldind\\.r8|ldind\\.r4|ldind\\.i8|ldind\\.i4|ldind\\.i2|ldind\\.i1|ldelem\\.i|ldc\\.i4\\.s|ldc\\.i4\\.8|ldc\\.i4\\.7|ldc\\.i4\\.6|ldc\\.i4\\.5|ldc\\.i4\\.4|ldc\\.i4\\.3|ldc\\.i4\\.2|ldc\\.i4\\.1|ldc\\.i4\\.0|ldarga\\.s|ckfinite|callvirt|brtrue\\.s|bne\\.un\\.s|blt\\.un\\.s|ble\\.un\\.s|bgt\\.un\\.s|bge\\.un\\.s|sub\\.ovf|stloc\\.s|stloc\\.3|stloc\\.2|stloc\\.1|stloc\\.0|stind\\.i|starg\\.s|rethrow|prefix7|prefix6|prefix5|prefix4|prefix3|prefix2|prefix1|mul\\.ovf|leave\\.s|ldtoken|ldsflda|ldloc\\.s|ldloc\\.3|ldloc\\.2|ldloc\\.1|ldloc\\.0|ldind\\.i|ldelema|ldarg\\.s|ldarg\\.3|ldarg\\.2|ldarg\\.1|ldarg\\.0|initobj|initblk|conv\\.u8|conv\\.u4|conv\\.u2|conv\\.u1|conv\\.r8|conv\\.r4|conv\\.i8|conv\\.i4|conv\\.i2|conv\\.i1|brfalse|arglist|add\\.ovf|switch|stsfld|stelem|sizeof|shr\\.un|rem\\.un|newobj|newarr|ldsfld|ldnull|ldloca|ldflda|ldelem|ldc\\.r8|ldc\\.r4|ldc\\.i8|ldc\\.i4|ldarga|isinst|div\\.un|conv\\.u|conv\\.i|clt\\.un|cgt\\.un|brtrue|bne\\.un|blt\\.un|ble\\.un|bgt\\.un|bge\\.un|unbox|throw|tail\\.|stobj|stloc|stfld|starg|leave|ldstr|ldobj|ldloc|ldlen|ldftn|ldfld|ldarg|cpobj|cpblk|calli|break|blt\\.s|ble\\.s|bgt\\.s|bge\\.s|beq\\.s|call|br\\.s|xor|sub|shr|shl|ret|rem|pop|not|nop|neg|mul|jmp|dup|div|clt|cgt|ceq|box|blt|ble|bgt|bge|beq|and|add|or|br)(?![\\w.$@])"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.il",
+          "match": "(?<![\\w.$@])(void|bool|char|int8|uint8|int16|uint16|int32|uint32|int64|uint64|float32|float64|int|uint|float|double|native|string|object|typedref)(?![\\w.$@])"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "storage.modifier.il",
+          "match": "(?<![\\w.$@])(abstract|algorithm|alignment|ansi|any|assembly|auto|autochar|beforefieldinit|bool|bytearray|cdecl|cil|class|const|default|enum|explicit|extends|extern|famandassem|family|famorassem|fastcall|final|forwardref|hidebysig|implements|import|in|init|initonly|instance|interface|internalcall|lcid|literal|managed|marshal|modopt|modreq|native|newslot|noinlining|nested|notserialized|object|opt|out|pinvokeimpl|preservesig|private|privatescope|public|readonly|reqsecobj|retval|rtspecialname|runtime|sealed|sequential|serializable|specialname|static|stdcall|strict|string|synchronized|thiscall|unicode|unmanaged|unsigned|valuetype|vararg|virtual|wchar|winapi)(?![\\w.$@])"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.il",
+          "match": "(?<![\\w.$@])-?0[xX][0-9A-Fa-f]+(?![\\w.$@])"
+        },
+        {
+          "name": "constant.numeric.decimal.il",
+          "match": "(?<![\\w.$@])-?[0-9]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?(?![\\w.$@])"
+        }
+      ]
+    },
+    "quotedName": {
+      "patterns": [
+        {
+          "name": "entity.name.il",
+          "match": "'(?:[^'\\\\]|\\\\.)*'"
+        }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.separator.scope.il",
+          "match": "::"
+        },
+        {
+          "name": "punctuation.definition.il",
+          "match": "[{}()\\[\\],<>=]"
+        }
+      ]
+    }
+  }
+}
