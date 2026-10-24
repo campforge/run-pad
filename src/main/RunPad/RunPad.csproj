@@ -5,7 +5,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <Product>RunPad</Product>
-    <Version>0.9.4</Version>
+    <Version>0.9.5</Version>
     <Authors>hobobyte</Authors>
     <Company>hobobyte</Company>
     <Copyright>© 2026 Vadim S (hobobyte)</Copyright>
