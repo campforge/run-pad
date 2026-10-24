@@ -11,6 +11,11 @@ public class CSharpIntelliSenseExpectedTypeCompletionTests
 {
     private const string Declarations = """
         public enum Status { Active, Closed }
+        public static class Outer
+        {
+            public enum Inner { Active }
+            public static void Set(Inner value) { }
+        }
         public class Address { }
         public class Customer
         {
@@ -35,6 +40,8 @@ public class CSharpIntelliSenseExpectedTypeCompletionTests
             public static void SetState(Status state) { }
             public static void Maybe(int? count) { }
             public static void Take(int count) { }
+            public static void Many(params int[] counts) { }
+            public static void Toggle(bool enabled) { }
             public static void Label(string text) { }
             public static void Echo<T>(T value) { }
             public static void Pick(Address address) { }
@@ -196,6 +203,35 @@ public class CSharpIntelliSenseExpectedTypeCompletionTests
         Assert.Contains("status", names);
         Assert.DoesNotContain("total", names);
         Assert.DoesNotContain("null", names);
+    }
+
+    [Fact]
+    public async Task ANestedEnumParameter_Should_OfferQualifiedMembers()
+    {
+        var names = await NamesAsync("Outer.Set(|);");
+
+        Assert.Contains("Outer.Inner.Active", names);
+    }
+
+    [Fact]
+    public async Task AParamsArgument_Should_OfferValuesOfTheElementType()
+    {
+        var names = await NamesAsync("Api.Many(1, |);");
+
+        Assert.Contains("total", names);
+        Assert.Contains("0", names);
+        Assert.DoesNotContain("customer", names);
+    }
+
+    [Fact]
+    public async Task ABoolArgument_Should_OfferBoolLiteralsOnly()
+    {
+        var names = await NamesAsync("Api.Toggle(|);");
+
+        Assert.Contains("true", names);
+        Assert.Contains("false", names);
+        Assert.DoesNotContain("null", names);
+        Assert.DoesNotContain("total", names);
     }
 
     [Fact]

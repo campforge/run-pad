@@ -8,11 +8,6 @@
         <Setter Property="FontFamily" Value="{DynamicResource ContentControlThemeFontFamily}"/>
         <Setter Property="FontSize" Value="{DynamicResource RunPad.Type.Body}"/>
     </Style>
-    <Style Selector="MenuFlyoutPresenter /template/ Border#PART_LayoutRoot, ContextMenu /template/ Border#PART_LayoutRoot">
-        <Setter Property="Background" Value="{DynamicResource RunPad.Panel.BackgroundBrush}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
-        <Setter Property="BorderThickness" Value="1"/>
-    </Style>
     <Style Selector="MenuItem">
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
         <Setter Property="FontFamily" Value="{DynamicResource ContentControlThemeFontFamily}"/>

@@ -168,9 +168,13 @@ public class PopupRenderedRegressionTests
             var popup = Shown(flyout.Presenter);
             var presenter = popup.GetVisualDescendants().OfType<MenuFlyoutPresenter>().Single();
             var separator = popup.GetVisualDescendants().OfType<Separator>().Single();
+            var border = presenter.GetVisualDescendants().OfType<Border>().Single(b => b.Name == "LayoutRoot");
 
             Assert.Equal(Brush(installed.Theme, "RunPad.Panel.BackgroundBrush", variant), ColorOf(presenter.Background));
             Assert.Equal(Brush(installed.Theme, "RunPad.Border.BackgroundBrush", variant), ColorOf(presenter.BorderBrush));
+            Assert.Equal(Brush(installed.Theme, "RunPad.Panel.BackgroundBrush", variant), ColorOf(border.Background));
+            Assert.Equal(Brush(installed.Theme, "RunPad.Border.BackgroundBrush", variant), ColorOf(border.BorderBrush));
+            Assert.Equal(new Thickness(1), border.BorderThickness);
             Assert.Equal(Brush(installed.Theme, "RunPad.Separator.BackgroundBrush", variant), ColorOf(separator.Background));
         }
         finally { flyout.Hide(); host.Close(); Uninstall(installed); }

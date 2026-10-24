@@ -103,6 +103,7 @@ public class DependenciesConnectionsEditorTests
             window.Close();
             completion.SetResult(true);
             await Task.Yield();
+            Dispatcher.UIThread.RunJobs();
             Assert.Empty(vm.Connections.Items);
         }
         finally { window.Close(); owner.Close(); }
