@@ -148,9 +148,20 @@ public sealed class ConnectionFieldViewModel : ReactiveObject
         Edited?.Invoke();
     }
 
-    internal string? MapError => IsMap && Rows.Where(r => r.Name.Trim().Length > 0)
-        .GroupBy(r => r.Name.Trim(), StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1)
-        ? $"{Param.Label}: names must be unique (letter case aside)." : null;
+    // A row with a value but no name would be dropped on save, so it blocks saving until it is named or removed.
+    // A row with neither is a new, empty row and is ignored.
+    internal string? MapError
+    {
+        get
+        {
+            if (!IsMap) return null;
+            if (Rows.Any(r => r.Name.Trim().Length == 0 && r.Value.Trim().Length > 0))
+                return $"{Param.Label}: a row has a value but no name. Give it a name or remove the row.";
+            return Rows.Where(r => r.Name.Trim().Length > 0)
+                .GroupBy(r => r.Name.Trim(), StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1)
+                ? $"{Param.Label}: names must be unique (letter case aside)." : null;
+        }
+    }
 
     // Null for nothing set (and for a switch left at its default), so the parameter isn't written.
     internal RpadValue? ToValue() => Param.Type switch
@@ -206,8 +217,22 @@ public sealed class ConnectionItemViewModel : ReactiveObject
     public string? TestResult
     {
         get;
-        internal set => this.RaiseAndSetIfChanged(ref field, value);
+        internal set
+        {
+            this.RaiseAndSetIfChanged(ref field, value);
+            this.RaisePropertyChanged(nameof(TestSummary));
+        }
     }
+
+    // One line for the connection list, so a test in progress or its outcome stays visible when another
+    // connection is selected. The details pane shows the full TestResult.
+    public string? TestSummary => TestResult switch
+    {
+        null => null,
+        "Testing…" => "Testing…",
+        _ when TestResult.StartsWith("Success: ", StringComparison.Ordinal) => "Test succeeded",
+        _ => "Test failed",
+    };
 
     // Counts edits, so a test that was running while the connection changed can tell its answer is
     // about parameters no longer shown.

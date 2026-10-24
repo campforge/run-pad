@@ -39,6 +39,9 @@
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
                                         <TextBlock Text="{Binding DriverName}" FontSize="12" TextTrimming="CharacterEllipsis"
                                                    Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                                        <TextBlock Text="{Binding TestSummary}" FontSize="12" TextTrimming="CharacterEllipsis"
+                                                   IsVisible="{Binding TestSummary, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
@@ -48,10 +51,24 @@
                     </Panel>
                 </Border>
                 <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="6">
-                    <DropDownButton Classes="secondary" x:Name="AddButton" Content="Add" IsEnabled="{Binding !HasLoadError}" AutomationProperties.Name="Add a connection">
+                    <DropDownButton Classes="secondary" x:Name="AddButton" IsEnabled="{Binding !HasLoadError}" AutomationProperties.Name="Add a connection"
+                                    ToolTip.Tip="Choose the type of connection to add">
+                        <DropDownButton.Content>
+                            <!-- The dropdown's own chevron follows the label. -->
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource Icon.Plus}" Width="14" Height="14"/>
+                                <TextBlock Text="Add" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </DropDownButton.Content>
                         <DropDownButton.Flyout><MenuFlyout Placement="Bottom"/></DropDownButton.Flyout>
                     </DropDownButton>
-                    <Button Classes="secondary" x:Name="RemoveButton" Grid.Column="1" Content="Remove" Command="{Binding RemoveCommand}"/>
+                    <Button Classes="secondary" x:Name="RemoveButton" Grid.Column="1" Command="{Binding RemoveCommand}"
+                            AutomationProperties.Name="Remove connection">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource Icon.Delete}" Width="14" Height="14"/>
+                            <TextBlock Text="Remove" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </Grid>
             </Grid>
             <GridSplitter Grid.Column="1" Width="8" Background="Transparent" ResizeDirection="Columns"/>
@@ -89,9 +106,11 @@
                                                 <DataTemplate DataType="viewModels:ConnectionMapRowViewModel">
                                                     <Grid ColumnDefinitions="*,32" RowDefinitions="Auto,Auto,Auto" RowSpacing="4" ColumnSpacing="6">
                                                         <TextBox Classes="form-field" Text="{Binding Name}" PlaceholderText="Name" AutomationProperties.Name="{Binding NameFieldLabel}"/>
-                                                        <Button Classes="secondary" Grid.Column="1" Content="✕" HorizontalAlignment="Right" Width="32" ToolTip.Tip="{Binding RemoveRowLabel}"
+                                                        <Button Classes="secondary" Grid.Column="1" HorizontalAlignment="Right" Width="32" ToolTip.Tip="{Binding RemoveRowLabel}"
                                                                 AutomationProperties.Name="{Binding RemoveRowLabel}"
-                                                                Command="{Binding $parent[ItemsControl].((viewModels:ConnectionFieldViewModel)DataContext).RemoveRowCommand}" CommandParameter="{Binding}"/>
+                                                                Command="{Binding $parent[ItemsControl].((viewModels:ConnectionFieldViewModel)DataContext).RemoveRowCommand}" CommandParameter="{Binding}">
+                                                            <PathIcon Data="{StaticResource Icon.Close}" Width="12" Height="12"/>
+                                                        </Button>
                                                         <TextBox Classes="form-field" Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Value}" PlaceholderText="Value"
                                                                  AutomationProperties.Name="{Binding ValueFieldLabel}"/>
                                                         <controls:SecretPicker Grid.Row="2" Grid.ColumnSpan="2" HorizontalAlignment="Right"
@@ -101,7 +120,12 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                        <Button Classes="secondary" Content="{Binding AddRowLabel}" Command="{Binding AddRowCommand}" HorizontalAlignment="Left"/>
+                                        <Button Classes="secondary" Command="{Binding AddRowCommand}" HorizontalAlignment="Left">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <PathIcon Data="{StaticResource Icon.Plus}" Width="14" Height="14"/>
+                                                <TextBlock Text="{Binding AddRowLabel}" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
                                     </StackPanel>
                                     <TextBlock Classes="hint" Text="{Binding Description}" IsVisible="{Binding HasDescription}"/>
                                 </StackPanel>
