@@ -139,6 +139,29 @@ public class CliRunnerTests
     }
 
     [Fact]
+    public async Task CompileOnly_Should_SendWarningsAndErrorsToStderr_AndNeverRunScript()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"runpad-cli-compile-only-{Guid.NewGuid():N}.rpad");
+        try
+        {
+            await File.WriteAllTextAsync(path,
+                "---\nlanguage: csharp\nkind: statements\n---\n\n```csharp run\n" +
+                "int unused = 1;\nConsole.WriteLine(\"script output\");\nmissingName++;\n```\n");
+            var stdout = new TestConsole().Width(1000);
+            var stderr = new TestConsole().Width(1000);
+
+            var exitCode = await CliRunner.RunAsync(["--compile-only", path], CliServices.CreateDefault(), stdout, stderr, CancellationToken.None);
+
+            Assert.Equal(CliRunner.NotRunExitCode, exitCode);
+            Assert.Empty(stdout.Output);
+            Assert.Contains("CS0219", stderr.Output);
+            Assert.Contains("CS0103", stderr.Output);
+            Assert.DoesNotContain("script output", stdout.Output);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
     public void CreateDefault_Should_RegisterCSharpAndVb()
     {
         var services = CliServices.CreateDefault();

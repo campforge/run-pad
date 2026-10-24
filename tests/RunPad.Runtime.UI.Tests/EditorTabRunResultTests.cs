@@ -607,6 +607,61 @@ public class EditorTabRunResultTests
         Assert.True(request.BreakOnUncaughtExceptions);
     }
 
+    // A run that fails to compile or start has no build of its own: the IL of the last successful
+    // build stays in the tab, and only the next successful build replaces it.
+    [AvaloniaFact]
+    public async Task AFailedRun_Should_KeepTheIlOfTheLastSuccessfulBuild_UntilANewOneReplacesIt()
+    {
+        var builds = new Queue<(string? Assembly, RunResult Result)>(
+        [
+            (typeof(RpadDocument).Assembly.Location, RunResult.Exited(0)),
+            (null, RunResult.CompilationFailed),
+            (null, RunResult.StartFailed),
+            (typeof(ILanguageHost).Assembly.Location, RunResult.Exited(0)),
+        ]);
+        var ctrl = CreateControl(RunResult.Exited(0), configureHost: host =>
+        {
+            host.Setup(h => h.RunAsync(It.IsAny<string>(), It.IsAny<OutputReceivedHandler>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    var (assembly, result) = builds.Dequeue();
+                    if (assembly is not null) host.Raise(h => h.Compiled += null, assembly);
+                    return Task.FromResult(result);
+                });
+        });
+        // Only the selected tab of the output panel is in the visual tree.
+        var tabs = ctrl.GetVisualDescendants().OfType<TabControl>().Single(t => t.Items.OfType<TabItem>().Any(i => Equals(i.Header, "IL")));
+        tabs.SelectedItem = tabs.Items.OfType<TabItem>().Single(i => Equals(i.Header, "IL"));
+        Dispatcher.UIThread.RunJobs();
+        var il = ctrl.GetVisualDescendants().OfType<AvaloniaEdit.TextEditor>().Single(e => e.Name == "IlOutput");
+        try
+        {
+            await RunAsync(ctrl);
+            Assert.Contains("RpadDocument", il.Text, StringComparison.Ordinal);
+            var built = il.Document;
+            var text = il.Text;
+
+            await RunAsync(ctrl);
+            Assert.Equal("Compilation failed", ctrl.State.ExecStatusText);
+            Assert.Same(built, il.Document);
+            Assert.Equal(text, il.Text);
+
+            await RunAsync(ctrl);
+            Assert.Same(built, il.Document);
+
+            await RunAsync(ctrl);
+            Assert.Empty(builds);
+            Assert.NotSame(built, il.Document);
+            Assert.Contains("ILanguageHost", il.Text, StringComparison.Ordinal);
+            Assert.DoesNotContain("RpadDocument", il.Text, StringComparison.Ordinal);
+        }
+        finally
+        {
+            ((Window)TopLevel.GetTopLevel(ctrl)!).Close();
+            ctrl.Dispose();
+        }
+    }
+
     [Fact]
     public void TheShippedLocator_Should_FindTheRunPadRuntimeAssembly()
     {

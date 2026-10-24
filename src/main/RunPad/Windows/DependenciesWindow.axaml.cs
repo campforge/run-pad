@@ -21,6 +21,8 @@ public partial class DependenciesWindow : Window
     {
         InitializeComponent();
         DataContext = viewModel;
+        viewModel.Connections.AddConfirmationDialog = async message =>
+            await new ConnectionPackageConfirmationDialog(message).ShowDialog<bool?>(this) == true;
         if (connectionsWindowFactory is not null)
         {
             viewModel.Connections.ConnectionsEditor = driverId => EditConnectionsAsync(connectionsWindowFactory, driverId);
@@ -37,7 +39,11 @@ public partial class DependenciesWindow : Window
         };
         Opened += (_, _) => SearchBox.Focus();
         Closing += OnClosing;
-        Closed += (_, _) => viewModel.Dispose();
+        Closed += (_, _) =>
+        {
+            viewModel.Connections.CancelPendingAdd();
+            viewModel.Dispose();
+        };
     }
 
     public DependenciesWindow() => InitializeComponent();

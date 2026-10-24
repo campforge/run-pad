@@ -65,6 +65,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private List<RpadConnection>? _pendingImport;
     private string? _pendingVersion;
     private RpadConnection? _pendingAdd;
+    private int _addConfirmationVersion;
     // The script's packages as drafted in the window, and how to add or remove one there.
     private Func<IReadOnlySet<string>> _scriptPackages = () => new HashSet<string>();
     private Action<string, string> _addPackage = (_, _) => { };
@@ -74,6 +75,10 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private readonly Dictionary<ScriptConnectionItemViewModel, List<string>> _addedPackages = [];
 
     internal event Action? Edited;
+
+    // The add confirmation is shown by DependenciesWindow as a modal dialog, rather than inline
+    // beneath the connection picker. Tests and alternate hosts can still drive the commands directly.
+    internal Func<string, Task<bool>>? AddConfirmationDialog { get; set; }
 
     public ObservableCollection<ScriptConnectionItemViewModel> Items { get; } = [];
 
@@ -312,6 +317,13 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
                 + "Use a RunPad version that has it, or choose another connection.";
             return;
         }
+        var schemas = _schemas;
+        if (driver is IConnectionSchemaDriver && schemas is not null && schemas.Get(connection, _scriptDirectory) is null
+            && schemas.ErrorFor(connection, _scriptDirectory) is { } schemaError)
+        {
+            CreateMessage = $"'{connection.Name}' can't be added because its contract couldn't be read: {schemaError}";
+            return;
+        }
         var needed = driver.Packages.Where(p => !_scriptPackages().Contains(p.Key)).ToList();
         if (needed.Count == 0)
         {
@@ -322,7 +334,33 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         AddMessage = $"Add '{connection.Name}' ({driver.DisplayName}) to this script? Its client is built into the script, "
             + $"which also gets the NuGet package{(needed.Count == 1 ? "" : "s")} the connection needs: "
             + string.Join(", ", needed.Select(p => $"{p.Key} {p.Value}")) + ". Cancel leaves the script as it is.";
+        if (AddConfirmationDialog is { } show)
+        {
+            _ = ConfirmAddFromDialogAsync(show, AddMessage, _addConfirmationVersion);
+            return;
+        }
         IsAddConfirmationPending = true;
+    }
+
+    internal void CancelPendingAdd() => CancelAddConfirmation();
+
+    private async Task ConfirmAddFromDialogAsync(Func<string, Task<bool>> show, string message, int version)
+    {
+        try
+        {
+            var confirmed = await show(message).ConfigureAwait(true);
+            if (version != _addConfirmationVersion) return;
+            if (confirmed) ConfirmAdd();
+            else CancelAddConfirmation();
+        }
+        catch
+        {
+            if (version == _addConfirmationVersion)
+            {
+                CancelAddConfirmation();
+                CreateMessage = "The connection-add confirmation could not be shown.";
+            }
+        }
     }
 
     private async Task EditConnectionsAsync(string? newDriverId)
@@ -370,6 +408,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
 
     private void CancelAddConfirmation()
     {
+        _addConfirmationVersion++;
         _pendingAdd = null;
         IsAddConfirmationPending = false;
         AddMessage = null;
@@ -377,6 +416,14 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
 
     private void ApplyAdd(RpadConnection connection)
     {
+        var schemas = _schemas;
+        if (_drivers.Find(connection.Driver) is IConnectionSchemaDriver && schemas is not null
+            && schemas.Get(connection, _scriptDirectory) is null
+            && schemas.ErrorFor(connection, _scriptDirectory) is { } schemaError)
+        {
+            CreateMessage = $"'{connection.Name}' can't be added because its contract couldn't be read: {schemaError}";
+            return;
+        }
         var item = new ScriptConnectionItemViewModel(Clone(connection));
         Items.Add(item);
         SelectedItem = item;
