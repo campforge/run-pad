@@ -110,6 +110,7 @@ public static class TextFileCodec
         UTF8Encoding => hasBom ? "UTF-8 with BOM" : "UTF-8",
         UnicodeEncoding { CodePage: 1201 } => "UTF-16 BE",
         UnicodeEncoding => "UTF-16 LE",
+        UTF32Encoding { CodePage: 12001 } => "UTF-32 BE",
         UTF32Encoding => "UTF-32 LE",
         _ => encoding.WebName,
     };
@@ -120,6 +121,7 @@ public static class TextFileCodec
     private static readonly (byte[] Preamble, Encoding Encoding)[] BomEncodings =
     [
         ([0xFF, 0xFE, 0x00, 0x00], new UTF32Encoding(bigEndian: false, byteOrderMark: true)),
+        ([0x00, 0x00, 0xFE, 0xFF], new UTF32Encoding(bigEndian: true, byteOrderMark: true)),
         ([0xEF, 0xBB, 0xBF], new UTF8Encoding(encoderShouldEmitUTF8Identifier: true)),
         ([0xFF, 0xFE], new UnicodeEncoding(bigEndian: false, byteOrderMark: true)),
         ([0xFE, 0xFF], new UnicodeEncoding(bigEndian: true, byteOrderMark: true)),

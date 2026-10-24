@@ -15,6 +15,7 @@ public class TextFileCodecTests
         { "UTF-8 with BOM, LF", [0xEF, 0xBB, 0xBF, .. Encoding.UTF8.GetBytes("key: value\nlist:\n  - ü\n")] },
         { "UTF-16 LE", [0xFF, 0xFE, .. Encoding.Unicode.GetBytes("<a>ä</a>\r\n")] },
         { "UTF-16 BE", [0xFE, 0xFF, .. Encoding.BigEndianUnicode.GetBytes("[s]\nk=v\n")] },
+        { "UTF-32 BE", [0x00, 0x00, 0xFE, 0xFF, .. new UTF32Encoding(bigEndian: true, byteOrderMark: true).GetBytes("utf32-be\n")[4..]] },
         { "UTF-32 LE", [0xFF, 0xFE, 0x00, 0x00, .. new UTF32Encoding(false, false).GetBytes("x\ny")] },
         { "mixed line breaks", Encoding.UTF8.GetBytes("a\r\nb\nc\rd") },
         { "empty", [] },
@@ -36,6 +37,7 @@ public class TextFileCodecTests
     [InlineData(new byte[] { 0xEF, 0xBB, 0xBF, 0x61 }, "UTF-8 with BOM")]
     [InlineData(new byte[] { 0xFF, 0xFE, 0x61, 0x00 }, "UTF-16 LE")]
     [InlineData(new byte[] { 0xFE, 0xFF, 0x00, 0x61 }, "UTF-16 BE")]
+    [InlineData(new byte[] { 0x00, 0x00, 0xFE, 0xFF, 0x00, 0x00, 0x00, 0x61 }, "UTF-32 BE")]
     [InlineData(new byte[] { 0xFF, 0xFE, 0x00, 0x00, 0x61, 0x00, 0x00, 0x00 }, "UTF-32 LE")]
     public void TheEncoding_Should_BeNamed_ForTheStatusBar(byte[] bytes, string label)
     {

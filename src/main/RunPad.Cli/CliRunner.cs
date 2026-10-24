@@ -121,8 +121,7 @@ public static class CliRunner
                     var compilation = await host.CompileAsync(document.RunCode, cancellationToken);
                     foreach (var diagnostic in compilation.Diagnostics)
                     {
-                        var console = diagnostic.Severity == DiagnosticSeverity.Error ? stderr : stdout;
-                        console.WriteLine(FormatDiagnostic(diagnostic));
+                        stderr.WriteLine(FormatDiagnostic(diagnostic));
                     }
                     return compilation.Success ? 0 : NotRunExitCode;
                 }
