@@ -370,6 +370,102 @@ public class ConnectionsWindowViewModelTests
         store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()), Times.Once);
     }
 
+    // Save refuses a value without a name, so that value must still count as a change: closing has to ask.
+    [Fact]
+    public void AHeaderWithAValueAndNoName_Should_BeAnUnsavedChange_UntilRemoved()
+    {
+        var (vm, _, _) = CreateVm(null, Billing);
+        var headers = vm.Connections[0].Fields.Single(f => f.Param.Key == "headers");
+        Execute(headers.AddRowCommand);
+        Assert.False(vm.HasChanges); // a new empty row isn't written
+        headers.Rows[^1].Value = "orphaned";
+        Assert.True(vm.HasChanges);
+        Execute(headers.RemoveRowCommand, headers.Rows[^1]);
+        Assert.False(vm.HasChanges);
+    }
+
+    // The row says what to do about its missing name, right where the value was typed.
+    [Fact]
+    public void AHeaderWithAValueAndNoName_Should_ShowItsErrorOnThatRow_UntilItIsNamed()
+    {
+        var (vm, _, _) = CreateVm(null, Billing);
+        var headers = vm.Connections[0].Fields.Single(f => f.Param.Key == "headers");
+        Execute(headers.AddRowCommand);
+        var row = headers.Rows[^1];
+        Assert.Null(row.NameError);
+        row.Value = "orphaned";
+        Assert.True(row.HasNameError);
+        Assert.Equal("Give this row a name, or remove it.", row.NameError);
+        row.Name = "X-Trace";
+        Assert.False(row.HasNameError);
+        Assert.Null(row.NameError);
+    }
+
+    // The list reads each connection by its name, so a test's status must be part of that name and follow it.
+    [Fact]
+    public void AccessibleName_Should_CarryTheTestStatus_AndNotifyWhenItChanges()
+    {
+        var (vm, _, _) = CreateVm(null, Billing);
+        var item = vm.Connections[0];
+        var raised = 0;
+        item.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(ConnectionItemViewModel.AccessibleName)) raised++; };
+        var plain = $"billing, {item.DriverName}";
+        Assert.Equal(plain, item.AccessibleName);
+
+        item.TestResult = "Testing…";
+        Assert.Equal($"{plain}, Testing…", item.AccessibleName);
+        item.TestResult = "Success: Connected.";
+        Assert.Equal($"{plain}, Test succeeded", item.AccessibleName);
+        item.TestResult = "Failed: No such host.";
+        Assert.Equal($"{plain}, Test failed", item.AccessibleName);
+        item.TestResult = null;
+        Assert.Equal(plain, item.AccessibleName);
+        Assert.Equal(4, raised);
+    }
+
+    // The driver connects, but its description can't be read: the list keeps the success summary (the
+    // description's failure is in the details), so this pins what the status string promises today.
+    [Fact]
+    public async Task TestSummary_Should_StillSayItSucceeded_WhenOnlyTheDescriptionFails()
+    {
+        var drivers = new ConnectionDriverRegistry();
+        drivers.Register(new DescriptionFailsDriver());
+        var schemas = new ConnectionSchemas(drivers, Path.Combine(Path.GetTempPath(), "runpad-unused-schemas"),
+            new ConnectionTools { GetPackageFolderAsync = (_, _, _) => Task.FromResult("") }, _ => null);
+        var store = new Mock<IConnectionStore>();
+        store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot([new RpadConnection { Name = "described", Driver = "described" }], null));
+        store.Setup(s => s.FilePath).Returns("/data/RunPad/connections.json");
+        var secrets = new Mock<ISecretStore>();
+        secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([], null));
+        var vm = new ConnectionsWindowViewModel(store.Object, drivers, secrets.Object, schemas);
+
+        await vm.TestCommand.Execute();
+
+        var item = vm.Connections[0];
+        Assert.Equal("Success: Connected.\nFailed: its description couldn't be read: No schema is offered.", item.TestResult);
+        Assert.Equal("Test succeeded", item.TestSummary);
+    }
+
+    // Connects, then fails to describe itself.
+    private sealed class DescriptionFailsDriver : IConnectionSchemaDriver
+    {
+        public string Id => "described";
+        public string DisplayName => "Described";
+        public ConnectionCategory Category => ConnectionCategory.Database;
+        public IReadOnlyList<ConnectionParam> Params => [];
+        public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string>();
+        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
+
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+            Task.FromResult(new ConnectionTestResult(true, "Connected."));
+
+        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) => new("");
+
+        public Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
+            CancellationToken cancellationToken) =>
+            Task.FromException<ConnectionSchema>(new InvalidOperationException("No schema is offered."));
+    }
+
     [Fact]
     public void AConnectionWithProblems_Should_NotBeTested()
     {

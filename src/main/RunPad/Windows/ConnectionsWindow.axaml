@@ -63,7 +63,7 @@
                         <DropDownButton.Flyout><MenuFlyout Placement="Bottom"/></DropDownButton.Flyout>
                     </DropDownButton>
                     <Button Classes="secondary" x:Name="RemoveButton" Grid.Column="1" Command="{Binding RemoveCommand}"
-                            AutomationProperties.Name="Remove connection">
+                            AutomationProperties.Name="Remove connection" ToolTip.Tip="Remove the selected connection">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <PathIcon Data="{StaticResource Icon.Delete}" Width="14" Height="14"/>
                             <TextBlock Text="Remove" VerticalAlignment="Center"/>
@@ -104,23 +104,25 @@
                                             <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Spacing="10"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate DataType="viewModels:ConnectionMapRowViewModel">
-                                                    <Grid ColumnDefinitions="*,32" RowDefinitions="Auto,Auto,Auto" RowSpacing="4" ColumnSpacing="6">
+                                                    <Grid ColumnDefinitions="*,32" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="4" ColumnSpacing="6">
                                                         <TextBox Classes="form-field" Text="{Binding Name}" PlaceholderText="Name" AutomationProperties.Name="{Binding NameFieldLabel}"/>
                                                         <Button Classes="secondary" Grid.Column="1" HorizontalAlignment="Right" Width="32" ToolTip.Tip="{Binding RemoveRowLabel}"
                                                                 AutomationProperties.Name="{Binding RemoveRowLabel}"
                                                                 Command="{Binding $parent[ItemsControl].((viewModels:ConnectionFieldViewModel)DataContext).RemoveRowCommand}" CommandParameter="{Binding}">
                                                             <PathIcon Data="{StaticResource Icon.Close}" Width="12" Height="12"/>
                                                         </Button>
-                                                        <TextBox Classes="form-field" Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Value}" PlaceholderText="Value"
+                                                        <TextBlock Classes="error" Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding NameError}" IsVisible="{Binding HasNameError}"/>
+                                                        <TextBox Classes="form-field" Grid.Row="2" Grid.ColumnSpan="2" Text="{Binding Value}" PlaceholderText="Value"
                                                                  AutomationProperties.Name="{Binding ValueFieldLabel}"/>
-                                                        <controls:SecretPicker Grid.Row="2" Grid.ColumnSpan="2" HorizontalAlignment="Right"
+                                                        <controls:SecretPicker Grid.Row="3" Grid.ColumnSpan="2" HorizontalAlignment="Right"
                                                                   SecretNames="{Binding SecretNames}" SelectedSecret="{Binding SecretToInsert}" IsVisible="{Binding HasSecrets}"
                                                                   AutomationProperties.Name="{Binding InsertSecretLabel}" ToolTip.Tip="Insert secret"/>
                                                     </Grid>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                        <Button Classes="secondary" Command="{Binding AddRowCommand}" HorizontalAlignment="Left">
+                                        <Button Classes="secondary" Command="{Binding AddRowCommand}" HorizontalAlignment="Left"
+                                                ToolTip.Tip="{Binding AddRowLabel}" AutomationProperties.Name="{Binding AddRowLabel}">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
                                                 <PathIcon Data="{StaticResource Icon.Plus}" Width="14" Height="14"/>
                                                 <TextBlock Text="{Binding AddRowLabel}" VerticalAlignment="Center"/>

@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Windows.Input;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless;
@@ -249,6 +250,40 @@ public class ConnectionsWindowTests
             RequestClose(window, CloseVia.CancelButton);
             Choose(window, "Save");
             Assert.True(await result);
+        }
+        finally { owner.Close(); }
+    }
+
+    // A header with a value and no name is an unsaved change: closing asks, and Save refuses it until it is named.
+    [AvaloniaTheory]
+    [InlineData(CloseVia.CancelButton)]
+    [InlineData(CloseVia.NativeClose)]
+    public async Task AHeaderWithAValueAndNoName_Should_AskBeforeClosing_AndStayOpenUntilNamed(CloseVia via)
+    {
+        var (window, store, result, owner) = Open();
+        try
+        {
+            var vm = (ConnectionsWindowViewModel)window.DataContext!;
+            var headers = vm.Connections[0].Fields.Single(f => f.Param.Key == "headers");
+            ((ICommand)headers.AddRowCommand).Execute(null);
+            var row = headers.Rows[^1];
+            row.Value = "orphaned";
+            Dispatcher.UIThread.RunJobs();
+            var rowError = window.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text == row.NameError);
+            Assert.True(rowError.IsEffectivelyVisible);
+
+            RequestClose(window, via);
+            Choose(window, "Save");
+            Assert.False(result.IsCompleted);
+            store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()), Times.Never);
+
+            row.Name = "X-Trace";
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(rowError.IsEffectivelyVisible);
+            RequestClose(window, via);
+            Choose(window, "Save");
+            Assert.True(await result);
+            store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()), Times.Once);
         }
         finally { owner.Close(); }
     }
