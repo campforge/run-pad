@@ -611,12 +611,15 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         var plainToTls = await driver.TestAsync(Params(tlsAddress.Replace("https://", "http://", StringComparison.Ordinal)), TestContext.Current.CancellationToken);
         var tlsToPlain = await driver.TestAsync(Params(http1Address.Replace("http://", "https://", StringComparison.Ordinal)), TestContext.Current.CancellationToken);
         const string noHttp2 = "The server doesn't speak HTTP/2, which gRPC needs: check the address and port, and use https:// if the server uses TLS.";
-        foreach (var result in new[] { http1Result, plainToTls })
-        {
-            Assert.False(result.Succeeded);
-            Assert.StartsWith("Could not reach the server:", result.Message, StringComparison.Ordinal);
-            Assert.EndsWith(noHttp2, result.Message, StringComparison.Ordinal);
-        }
+        Assert.False(http1Result.Succeeded);
+        Assert.StartsWith("Could not reach the server:", http1Result.Message, StringComparison.Ordinal);
+        Assert.EndsWith(noHttp2, http1Result.Message, StringComparison.Ordinal);
+
+        Assert.False(plainToTls.Succeeded);
+        Assert.StartsWith("Could not reach the server:", plainToTls.Message, StringComparison.Ordinal);
+        // The HTTP/2 transport describes this mismatch differently across platforms. Both the
+        // handshake-specific and the fallback hint direct the user to the HTTPS address.
+        Assert.Contains("https://", plainToTls.Message, StringComparison.Ordinal);
 
         Assert.False(tlsToPlain.Succeeded);
         Assert.EndsWith("The TLS handshake failed: if the server doesn't use TLS, use an http:// address.", tlsToPlain.Message, StringComparison.Ordinal);

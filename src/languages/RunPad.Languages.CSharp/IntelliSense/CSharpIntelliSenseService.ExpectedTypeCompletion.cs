@@ -232,8 +232,9 @@ public sealed partial class CSharpIntelliSenseService
                 : type;
             if (wanted is INamedTypeSymbol { TypeKind: TypeKind.Enum } enumType)
             {
+                var display = enumType.ToMinimalDisplayString(model, pos);
                 foreach (var member in enumType.GetMembers().OfType<IFieldSymbol>().Where(f => f.IsConst && !f.IsImplicitlyDeclared))
-                    yield return Suggestion($"{enumType.Name}.{member.Name}", CompletionItemKind.EnumMember, member, null);
+                    yield return Suggestion($"{display}.{member.Name}", CompletionItemKind.EnumMember, member, null);
             }
             else if (wanted is INamedTypeSymbol { SpecialType: SpecialType.None } named && IsCreatable(named, model, pos))
             {

@@ -3,6 +3,25 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [Unreleased]
+
+### Changed
+
+- C# completion now suggests values that fit method and constructor arguments and object initializer
+  properties, including compatible variables, enum members and common literals.
+- Adding a connection that needs NuGet packages now asks for confirmation in a separate dialog.
+- In `--compile-only` mode, warnings and errors go to stderr, leaving stdout free of diagnostics.
+
+### Fixed
+
+- The Help menu and its separator follow the active theme.
+- UTF-32 big-endian files with a BOM retain their encoding when opened and saved.
+- A failed run keeps the IL from the last successful build available until another build succeeds.
+- gRPC connection testing works with reflection servers that ignore an empty service-list request,
+  including the Postman Echo server, and explains common HTTP/2 and TLS mismatches.
+- Generated gRPC clients no longer show nullable-context warnings from their generated code.
+- Closing Dependencies while a connection confirmation is pending cannot add the connection later.
+
 ## [0.9.4] — 2026-10-23
 
 ### Added

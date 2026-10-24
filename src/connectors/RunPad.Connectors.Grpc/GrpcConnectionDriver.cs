@@ -241,13 +241,19 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
         {
             throw new GrpcConnectionException($"Could not reach the server: {ex.Message}");
         }
+        catch (HttpIOException ex)
+        {
+            throw new GrpcConnectionException($"Could not reach the server: {ex.Message}{TransportHint(ex.Message, address, unavailable: true)}");
+        }
     }
 
     // What a transport failure usually means, so the user can tell a plaintext/TLS mismatch or a
     // server without HTTP/2 from an unreachable one.
-    private static string TransportHint(RpcException ex, string address)
+    private static string TransportHint(RpcException ex, string address) =>
+        TransportHint(ex.Status.Detail, address, ex.StatusCode == StatusCode.Unavailable);
+
+    private static string TransportHint(string detail, string address, bool unavailable)
     {
-        var detail = ex.Status.Detail;
         var secure = address.StartsWith("https:", StringComparison.OrdinalIgnoreCase);
         if (detail.Contains("HTTP/1.1", StringComparison.Ordinal) || detail.Contains("HTTP_1_1_REQUIRED", StringComparison.Ordinal)
             || detail.Contains("HTTP/2 handshake", StringComparison.Ordinal))
@@ -255,7 +261,7 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
         if (secure && (detail.Contains("SSL", StringComparison.Ordinal) || detail.Contains("TLS", StringComparison.Ordinal)
                        || detail.Contains("authenticat", StringComparison.OrdinalIgnoreCase)))
             return " The TLS handshake failed: if the server doesn't use TLS, use an http:// address.";
-        if (!secure && ex.StatusCode == StatusCode.Unavailable)
+        if (!secure && unavailable)
             return " If the server uses TLS, use an https:// address.";
         return "";
     }
