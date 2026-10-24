@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
 using Avalonia.Controls;
@@ -125,6 +126,53 @@ public class WindowDesignRegressionTests
             }
             var row = window.FindControl<ListBox>("ConnectionList")!.GetVisualDescendants().OfType<ListBoxItem>().First();
             Assert.Contains("billing-api", ControlAutomationPeer.CreatePeerForElement(row).GetName());
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void IconButtons_Should_HaveTooltipsNamesAndFocus_AndTheLabelledActionsShouldFit()
+    {
+        var (window, _) = Connections();
+        window.Width = window.MinWidth;
+        window.Height = window.MinHeight;
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            // Scrollbar arrows are RepeatButtons with their own icons and names; they aren't this window's controls.
+            var iconButtons = window.GetVisualDescendants().OfType<Button>().Where(b => b is not RepeatButton && b.IsEffectivelyVisible && b.Content is PathIcon).ToArray();
+            Assert.NotEmpty(iconButtons);
+            foreach (var button in iconButtons)
+            {
+                Assert.False(string.IsNullOrWhiteSpace(ToolTip.GetTip(button) as string));
+                Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(button)));
+                Assert.True(button.Focusable);
+            }
+
+            // Icon plus label: the label must not be clipped at the minimum width.
+            foreach (var name in new[] { "AddButton", "RemoveButton" })
+            {
+                var control = window.FindControl<Control>(name)!;
+                Assert.True(control.DesiredSize.Width <= control.Bounds.Width, $"{name} needs {control.DesiredSize.Width} but has {control.Bounds.Width}");
+            }
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void TestProgress_Should_BeVisibleInTheList()
+    {
+        var (window, vm) = Connections();
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            vm.SelectedConnection!.TestResult = "Testing…";
+            Dispatcher.UIThread.RunJobs();
+            var status = window.FindControl<ListBox>("ConnectionList")!.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text == "Testing…");
+            Assert.True(status.IsEffectivelyVisible);
         }
         finally { window.Close(); }
     }

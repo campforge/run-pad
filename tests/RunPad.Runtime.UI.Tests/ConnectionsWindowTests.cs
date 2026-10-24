@@ -1,4 +1,5 @@
 using System.Reflection;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
@@ -65,10 +66,11 @@ public class ConnectionsWindowTests
         addressBox.Text = "https://billing.example/";
         Dispatcher.UIThread.RunJobs();
 
-        // A row's remove button names the row in its tooltip, as in its accessible name.
-        var removeRow = fields.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "✕"));
+        // A row's remove button is an icon, so it names the row in its tooltip, as in its accessible name.
+        var removeRow = fields.GetVisualDescendants().OfType<Button>().Single(b => b.Content is PathIcon);
         var row = (ConnectionMapRowViewModel)removeRow.DataContext!;
         Assert.Equal(row.RemoveRowLabel, ToolTip.GetTip(removeRow));
+        Assert.Equal(row.RemoveRowLabel, AutomationProperties.GetName(removeRow));
         Assert.EndsWith("Accept", row.RemoveRowLabel);
 
         window.FindControl<Button>("OkButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

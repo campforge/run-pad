@@ -597,7 +597,8 @@
                                 ToolTip.Tip="Reads this connection's description (such as a gRPC server's services) again, for a contract that changed"/>
                     </StackPanel>
                     <StackPanel Grid.Row="5" Spacing="6">
-                        <TextBlock Classes="hint" Text="Imports save to your connections immediately; Save below applies changes to this script."/>
+                        <TextBlock Classes="hint" TextWrapping="Wrap"
+                                   Text="Import to Your Connections saves right away in Tools → Connections. Add to Script and Remove from Script change this script only when you press Save below."/>
                         <TextBlock x:Name="RefreshMessage" Text="{Binding RefreshMessage}" TextWrapping="Wrap"
                                    IsVisible="{Binding RefreshMessage, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                         <TextBlock x:Name="ImportMessage" Text="{Binding ImportMessage}" TextWrapping="Wrap"/>

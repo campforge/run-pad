@@ -296,6 +296,80 @@ public class ConnectionsWindowViewModelTests
         Assert.True(((ICommand)vm.TestCommand).CanExecute(null));
     }
 
+    // The list's status line belongs to its connection, so it still says what the test is doing after the
+    // selection moves away.
+    [Fact]
+    public async Task TestSummary_Should_StayWithItsConnection_WhenAnotherIsSelected()
+    {
+        var (vm, _, fake) = CreateVm(null, Billing);
+        Execute(vm.AddCommand, fake);
+        var added = vm.SelectedConnection!;
+        added.Fields[0].Text = "Host=slow";
+        fake.Answer = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var test = vm.TestCommand.Execute().ToTask();
+        Assert.Equal("Testing…", added.TestSummary);
+
+        vm.SelectedConnection = vm.Connections[0];
+        Assert.Equal("Testing…", added.TestSummary);
+        Assert.Null(vm.Connections[0].TestSummary);
+
+        fake.Answer.SetResult(new ConnectionTestResult(true, "Connected."));
+        await test;
+        Assert.Equal("Test succeeded", added.TestSummary);
+        Assert.Equal("Success: Connected.", added.TestResult);
+    }
+
+    [Fact]
+    public async Task TestSummary_Should_ReportAFailure()
+    {
+        var (vm, _, fake) = CreateVm();
+        Execute(vm.AddCommand, fake);
+        var item = vm.SelectedConnection!;
+        item.Fields[0].Text = "Host=nowhere";
+        fake.Failure = new InvalidOperationException("No such host.");
+        await vm.TestCommand.Execute();
+        Assert.Equal("Test failed", item.TestSummary);
+        item.Fields[0].Text = "Host=elsewhere";
+        Assert.Null(item.TestSummary); // an edit clears the result, and its status with it
+    }
+
+    // A value without a name would be dropped silently on save, so it blocks saving until it is named or
+    // removed; a new empty row stays ignorable.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AHeaderWithAValueAndNoName_Should_BlockSave_UntilItIsNamedOrRemoved(bool named)
+    {
+        var (vm, store, _) = CreateVm(null, Billing);
+        var headers = vm.Connections[0].Fields.Single(f => f.Param.Key == "headers");
+        Execute(headers.AddRowCommand);
+        Assert.Null(vm.ValidationError);
+        headers.Rows[^1].Value = "orphaned";
+        Assert.False(vm.CanSave);
+        Assert.Contains("no name", vm.ValidationError);
+        Assert.False(vm.Save());
+        Assert.Contains("no name", vm.Connections[0].Problems);
+        Assert.False(vm.CanTest);
+        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()), Times.Never);
+
+        if (named) headers.Rows[^1].Name = "X-Trace";
+        else Execute(headers.RemoveRowCommand, headers.Rows[^1]);
+        Assert.Null(vm.ValidationError);
+        Assert.True(vm.Save());
+        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()), Times.Once);
+    }
+
+    // An otherwise incomplete draft (a missing required parameter) still saves; only the test waits.
+    [Fact]
+    public void AnIncompleteDraft_Should_StillSave()
+    {
+        var (vm, store, _) = CreateVm(null, Billing);
+        Execute(vm.AddCommand, vm.Drivers.First(d => d.Id == "fake"));
+        Assert.Contains("connection string is missing", vm.SelectedConnection!.Problems);
+        Assert.True(vm.Save());
+        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()), Times.Once);
+    }
+
     [Fact]
     public void AConnectionWithProblems_Should_NotBeTested()
     {
