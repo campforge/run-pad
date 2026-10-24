@@ -67,6 +67,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private IDisposable? _selectedSdkSub;
     private bool _disposed;
     private bool _runInProgress;
+    private readonly DebugHoverController _debugHover = new();
 
     // The stage the current (or last) run reached, -1 before the first: names the stage that failed.
     // Written as the host reports it, on whichever thread that is, so it is already current when the
@@ -424,6 +425,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         try
         {
             State.CurrentDebugCtx?.Resume(DebugAction.Continue);
+            _debugHover.Cancel();
             State.CurrentDebugCtx = null;
             _vm.DebugPanel.ClearStop();
             State.RunCts?.Cancel();
@@ -806,6 +808,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var ctx = State.CurrentDebugCtx;
             if (ctx is null) return;
             var line = State.Editor.TextArea.Caret.Line;
+            _debugHover.Cancel();
             State.CurrentDebugCtx = null;
             _vm.RunState = RunState.RunDebug;
             State.Editor.DebugCurrentLine = null;
@@ -1168,6 +1171,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _vm.DebugPanel.ClearStop();
         SetStatus("Process", "RunPad.Status.RunningBrush");
         var ctx = State.CurrentDebugCtx;
+        _debugHover.Cancel();
         State.CurrentDebugCtx = null;
         ctx?.Resume(action);
         UpdateOutputUi();
@@ -1464,6 +1468,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     internal void OnBreakpointHit(IBreakpointHitContext context)
     {
         var s = State;
+        _debugHover.Cancel();
         s.CurrentDebugCtx = context;
         _vm.RunState = RunState.Paused;
         State.Editor.DebugCurrentLine = context.CallStack.Count > 0
@@ -1932,16 +1937,33 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             quickInfoCts.Cancel();
             quickInfoCts = new CancellationTokenSource();
             var ct = quickInfoCts.Token;
+            var (debugGeneration, debugToken) = _debugHover.Begin();
+            var debugLocals = DebugHoverController.Capture(State.CurrentDebugCtx);
             var pos = e.GetPosition(editor);
 
             _ = Task.Run(async () =>
             {
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, debugToken);
+                var requestCt = linked.Token;
                 try
                 {
-                    await Task.Delay(QuickInfoHoverDelay, ct);
+                    await Task.Delay(QuickInfoHoverDelay, requestCt);
                     var (offset, text) =
                         await Dispatcher.InvokeAsync(() => (editor.GetOffsetFromPoint(pos), editor.Text));
                     if (offset < 0 || ct.IsCancellationRequested) return;
+
+                    var debugValue = DebugHoverController.ResolveSnapshot(
+                        debugLocals, DebugHoverSymbolExtractor.Extract(text, offset, State.Editor.IdentifierChars));
+                    if (debugValue is not null)
+                    {
+                        await Dispatcher.InvokeAsync(() =>
+                        {
+                            if (_debugHover.IsCurrent(debugGeneration) && !ct.IsCancellationRequested)
+                                ToolTip.SetTip(editor.TextArea.TextView,
+                                    $"{debugValue.Name} : {debugValue.TypeName}\n{debugValue.Value}");
+                        });
+                        return;
+                    }
 
                     // A diagnostic under the cursor takes priority over Quick Info — seeing why a
                     // squiggle is there is usually more useful than the symbol's signature.
@@ -1949,12 +1971,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                         squiggleRenderer.Diagnostics.FirstOrDefault(d =>
                             offset >= d.StartOffset && offset < d.EndOffset);
                     var quickInfo = diagnostic is null
-                        ? await intelliSense.GetQuickInfoAsync(text, offset, ct)
+                        ? await intelliSense.GetQuickInfoAsync(text, offset, requestCt)
                         : null;
 
                     await Dispatcher.InvokeAsync(() =>
                     {
-                        if (ct.IsCancellationRequested) return;
+                        if (ct.IsCancellationRequested || !_debugHover.IsCurrent(debugGeneration)) return;
 
                         // Built here, not above — DisplaySegmentRenderer creates Avalonia controls,
                         // which must happen on the UI thread, unlike the rest of this background task.
@@ -1976,6 +1998,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.TextArea.TextView.PointerExited += (_, _) =>
         {
             quickInfoCts.Cancel();
+            _debugHover.Cancel();
             ToolTip.SetTip(editor.TextArea.TextView, null);
         };
     }
