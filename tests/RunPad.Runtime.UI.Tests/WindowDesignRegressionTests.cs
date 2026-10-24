@@ -142,7 +142,8 @@ public class WindowDesignRegressionTests
             Dispatcher.UIThread.RunJobs();
             window.UpdateLayout();
             // Scrollbar arrows are RepeatButtons with their own icons and names; they aren't this window's controls.
-            var iconButtons = window.GetVisualDescendants().OfType<Button>().Where(b => b is not RepeatButton && b.IsEffectivelyVisible && b.Content is PathIcon).ToArray();
+            var iconButtons = window.GetVisualDescendants().OfType<Button>()
+                .Where(b => b is not RepeatButton && b.IsEffectivelyVisible && b.GetVisualDescendants().OfType<PathIcon>().Any()).ToArray();
             Assert.NotEmpty(iconButtons);
             foreach (var button in iconButtons)
             {
@@ -173,6 +174,34 @@ public class WindowDesignRegressionTests
             Dispatcher.UIThread.RunJobs();
             var status = window.FindControl<ListBox>("ConnectionList")!.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text == "Testing…");
             Assert.True(status.IsEffectivelyVisible);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void TestStatus_Should_BeInTheListItemsName_AndFollowItsChanges()
+    {
+        var (window, vm) = Connections();
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var list = window.FindControl<ListBox>("ConnectionList")!;
+            var item = list.ContainerFromIndex(0)!;
+            var plain = $"billing-api, {vm.SelectedConnection!.DriverName}";
+            Assert.Equal(plain, AutomationProperties.GetName(item));
+
+            vm.SelectedConnection!.TestResult = "Testing…";
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(plain + ", Testing…", AutomationProperties.GetName(item));
+            // The same container keeps its selection, so keyboard focus and the status line stay where they were.
+            Assert.Same(item, list.ContainerFromIndex(0));
+            Assert.True(((ListBoxItem)item).IsSelected);
+
+            vm.SelectedConnection!.TestResult = "Success: Connected.";
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(plain + ", Test succeeded", AutomationProperties.GetName(item));
         }
         finally { window.Close(); }
     }

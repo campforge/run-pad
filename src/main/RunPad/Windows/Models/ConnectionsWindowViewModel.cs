@@ -28,6 +28,8 @@ public sealed class ConnectionMapRowViewModel : ReactiveObject
             this.RaisePropertyChanged(nameof(ValueFieldLabel));
             this.RaisePropertyChanged(nameof(InsertSecretLabel));
             this.RaisePropertyChanged(nameof(RemoveRowLabel));
+            this.RaisePropertyChanged(nameof(NameError));
+            this.RaisePropertyChanged(nameof(HasNameError));
             Edited?.Invoke();
         }
     } = "";
@@ -35,8 +37,19 @@ public sealed class ConnectionMapRowViewModel : ReactiveObject
     public string Value
     {
         get;
-        set { this.RaiseAndSetIfChanged(ref field, value ?? ""); Edited?.Invoke(); }
+        set
+        {
+            this.RaiseAndSetIfChanged(ref field, value ?? "");
+            this.RaisePropertyChanged(nameof(NameError));
+            this.RaisePropertyChanged(nameof(HasNameError));
+            Edited?.Invoke();
+        }
     } = "";
+
+    // A value without a name would be dropped on save, so the row says what to do about it, right where it is.
+    internal bool HasValueButNoName => Name.Trim().Length == 0 && Value.Trim().Length > 0;
+    public bool HasNameError => HasValueButNoName;
+    public string? NameError => HasValueButNoName ? "Give this row a name, or remove it." : null;
 
     // Picking a secret appends its placeholder to the value; the picker then shows nothing again.
     public string? SecretToInsert
@@ -148,14 +161,16 @@ public sealed class ConnectionFieldViewModel : ReactiveObject
         Edited?.Invoke();
     }
 
-    // A row with a value but no name would be dropped on save, so it blocks saving until it is named or removed.
+    // A row with a value but no name blocks saving until it is named or removed (and counts as an unsaved change).
     // A row with neither is a new, empty row and is ignored.
+    internal bool HasUnnamedValue => IsMap && Rows.Any(r => r.HasValueButNoName);
+
     internal string? MapError
     {
         get
         {
             if (!IsMap) return null;
-            if (Rows.Any(r => r.Name.Trim().Length == 0 && r.Value.Trim().Length > 0))
+            if (HasUnnamedValue)
                 return $"{Param.Label}: a row has a value but no name. Give it a name or remove the row.";
             return Rows.Where(r => r.Name.Trim().Length > 0)
                 .GroupBy(r => r.Name.Trim(), StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1)
@@ -191,7 +206,8 @@ public sealed class ConnectionItemViewModel : ReactiveObject
     public IConnectionDriver? Driver { get; }
     public string DriverId { get; }
     public string DriverName => Driver?.DisplayName ?? $"{DriverId} (not available in this RunPad)";
-    public string AccessibleName => $"{Name}, {DriverName}";
+    // The status is part of the name, so a screen reader hears a test in progress or its outcome as it changes.
+    public string AccessibleName => TestSummary is { } status ? $"{Name}, {DriverName}, {status}" : $"{Name}, {DriverName}";
     public ObservableCollection<ConnectionFieldViewModel> Fields { get; } = [];
 
     public string Name
@@ -221,6 +237,7 @@ public sealed class ConnectionItemViewModel : ReactiveObject
         {
             this.RaiseAndSetIfChanged(ref field, value);
             this.RaisePropertyChanged(nameof(TestSummary));
+            this.RaisePropertyChanged(nameof(AccessibleName));
         }
     }
 
@@ -503,7 +520,8 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
 
     private void UpdateHasChanges()
     {
-        var changed = LoadError is null && Snapshot() != _saved;
+        // A value-only row isn't in the snapshot, but it is a change Save would refuse: the close question must come up.
+        var changed = LoadError is null && (Snapshot() != _saved || Connections.SelectMany(c => c.Fields).Any(f => f.HasUnnamedValue));
         if (changed == HasChanges) return;
         HasChanges = changed;
         this.RaisePropertyChanged(nameof(HasChanges));
