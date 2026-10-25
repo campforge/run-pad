@@ -312,6 +312,8 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
     private readonly ConnectionSchemas? _schemas;
     private readonly IReadOnlyList<string> _secretNames;
     private readonly ISecretStore _secrets;
+    private readonly FileConnectionGroupingStore _groupStore;
+    public ConnectionGroupingModel Grouping { get; }
     private string _saved = "";
 
     public ObservableCollection<ConnectionItemViewModel> Connections { get; } = [];
@@ -387,6 +389,9 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
     {
         _schemas = schemas;
         _store = store;
+        _groupStore = new FileConnectionGroupingStore(store.FilePath);
+        try { Grouping = new ConnectionGroupingModel(_groupStore.Load()); }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { Grouping = new ConnectionGroupingModel(); }
         Connections.CollectionChanged += (_, _) => this.RaisePropertyChanged(nameof(IsEmpty));
         _drivers = drivers;
         _secrets = secrets;
@@ -421,6 +426,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
         {
             var connections = Connections.Select(c => c.ToConnection()).ToList();
             _version = _store.Save(connections, _version);
+            _groupStore.Save(Grouping.Snapshot(_version));
             _saved = JsonSerializer.Serialize(connections);
             UpdateHasChanges();
             return true;
