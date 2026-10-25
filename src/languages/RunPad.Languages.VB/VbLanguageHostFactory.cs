@@ -45,6 +45,7 @@ public sealed class VbLanguageHostFactory : ILanguageHostFactory
         StatementTerminators = new HashSet<char>(),
         BracePairs = new Dictionary<char, char> { ['('] = ')', ['['] = ']' },
         AutoCloseBraces = new HashSet<char> { '[' },
+        LineCommentPrefix = "'",
         IndentationStrategy = IndentationStrategyKind.Default,
         // VB's blocks aren't brace-delimited, so the default brace-based
         // folding strategy folded nothing at all in a .vb file. VbFoldingRegions.Compute lives right

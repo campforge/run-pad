@@ -2142,6 +2142,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         foreach (var ch in profile.StatementTerminators) editor.StatementTerminators.Add(ch);
         foreach (var (open, close) in profile.BracePairs) editor.BracePairs[open] = close;
         foreach (var ch in profile.AutoCloseBraces) editor.AutoCloseBraces.Add(ch);
+        editor.LineCommentPrefix = profile.LineCommentPrefix;
 
         editor.TextArea.IndentationStrategy = profile.IndentationStrategy switch
         {

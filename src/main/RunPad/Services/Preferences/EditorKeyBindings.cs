@@ -17,6 +17,7 @@ public static class EditorKeyBindings
         editor.RenameSymbolGesture = keyboard.GestureFor(KeyCommands.RenameSymbol);
         editor.GoToDefinitionGesture = keyboard.GestureFor(KeyCommands.GoToDefinition);
         editor.FindReferencesGesture = keyboard.GestureFor(KeyCommands.FindReferences);
+        editor.ToggleLineCommentGesture = keyboard.GestureFor(KeyCommands.ToggleLineComment);
         editor.CommandModifier = keyboard.CommandModifier;
         Configure(ApplicationCommands.Find, KeyCommands.FindText);
         Configure(ApplicationCommands.Replace, KeyCommands.ReplaceText);

@@ -36,6 +36,10 @@ public sealed class EditorLanguageProfile
     public IReadOnlySet<char> StatementTerminators { get; init; } = new HashSet<char>();
     public IReadOnlyDictionary<char, char> BracePairs { get; init; } = new Dictionary<char, char>();
     public IReadOnlySet<char> AutoCloseBraces { get; init; } = new HashSet<char>();
+
+    // What starts a line comment ("//", "'"), for the editor's Toggle Line Comment command; null for a
+    // language without line comments, where the command does nothing.
+    public string? LineCommentPrefix { get; init; }
     public IndentationStrategyKind IndentationStrategy { get; init; } = IndentationStrategyKind.Default;
 
     // Used to be a FoldingStrategyKind enum (BraceBased/VbKeywordBased) that
