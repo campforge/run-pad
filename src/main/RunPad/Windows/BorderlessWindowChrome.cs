@@ -9,8 +9,20 @@ namespace RunPad.Windows;
 
 internal static class BorderlessWindowChrome
 {
+    // Attach subscribes for the window's lifetime and never detaches, so a second call would only stack
+    // handlers (two drags per press); it is refused instead.
+    private static readonly AttachedProperty<bool> IsAttachedProperty =
+        AvaloniaProperty.RegisterAttached<Window, bool>("IsBorderlessChromeAttached", typeof(BorderlessWindowChrome));
+
+    internal static bool IsAttached(Window window) => window.GetValue(IsAttachedProperty);
+
+    /// <summary>Gives a borderless <paramref name="window"/> its themed <paramref name="surface"/> and
+    /// lets text and blank space drag it. Once per window: a second call throws.</summary>
     internal static void Attach(Window window, Border surface)
     {
+        if (window.GetValue(IsAttachedProperty))
+            throw new InvalidOperationException("The borderless window chrome is already attached to this window.");
+        window.SetValue(IsAttachedProperty, true);
         var roundedCorners = surface.CornerRadius;
         void UpdateSurface()
         {
