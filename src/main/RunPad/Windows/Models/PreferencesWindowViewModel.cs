@@ -341,12 +341,6 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set => SetPref(_prefs.Editor.WordWrap, value, v => _prefs.Editor.WordWrap = v);
     }
 
-    public bool ResultsWordWrap
-    {
-        get => _prefs.Editor.ResultsWordWrap;
-        set => SetPref(_prefs.Editor.ResultsWordWrap, value, v => _prefs.Editor.ResultsWordWrap = v);
-    }
-
     public bool CommitCharactersEnabled
     {
         get => _prefs.Editor.CommitCharactersEnabled;

@@ -68,6 +68,72 @@ public class ResultsWrapLayoutTests
             Assert.True(wide.Width > narrow.Width + 30, $"spaces collapsed, ink {wide} vs {narrow}");
         }, CancellationToken.None);
 
+    // Script output lines are <div class="out"> and stderr <div class="error">: with wrapping they fit the
+    // pane, long token or not, and leave no horizontal scroll bar into empty space. Without it a long
+    // unbroken line scrolls sideways (the renderer still breaks text with spaces, as it always did).
+    [Theory]
+    [InlineData("out")]
+    [InlineData("error")]
+    public Task OutputLines_Should_FitThePane_OnlyWhenWrapping(string cssClass)
+        => _fixture.Session.Dispatch(() =>
+        {
+            var token = $"<div class=\"{cssClass}\">{LongToken}</div>";
+            var words = $"<div class=\"{cssClass}\">{string.Join(' ', Enumerable.Repeat("word", 60))}</div>";
+            Assert.False(NeedsHorizontalScroll(token, wrap: true));
+            Assert.False(NeedsHorizontalScroll(words, wrap: true));
+            Assert.True(NeedsHorizontalScroll(token, wrap: false));
+
+            // Ink is measured from dark glyphs, and error text is red.
+            if (cssClass == "error") return;
+            var wrapped = Ink(token, wrap: true);
+            Assert.True(wrapped.Right < ViewportWidth - 4, $"the line should end inside the viewport, ink {wrapped}");
+        }, CancellationToken.None);
+
+    [Fact]
+    public Task OutputLines_Should_Reflow_WhenThePaneNarrows()
+        => _fixture.Session.Dispatch(() =>
+        {
+            var (window, panel) = Show($"<div class=\"out\">{LongToken}</div>", wrap: true);
+            try
+            {
+                var wide = DarkExtent(window.CaptureRenderedFrame()!);
+                window.Width = ViewportWidth / 2;
+                var narrow = DarkExtent(window.CaptureRenderedFrame()!);
+
+                Assert.True(narrow.Right < ViewportWidth / 2 - 4, $"ink {narrow} should fit the narrower pane");
+                Assert.True(narrow.Height > wide.Height, $"more lines expected, {narrow} vs {wide}");
+                Assert.NotEqual(ScrollBarVisibility.Visible, HorizontalBar(panel).Visibility);
+            }
+            finally
+            {
+                window.Close();
+            }
+        }, CancellationToken.None);
+
+    [Fact]
+    public Task OutputLines_Should_KeepSpacesAndStayOneLineEach()
+        => _fixture.Session.Dispatch(() =>
+        {
+            var narrow = Ink("<div class=\"out\">X X</div>", wrap: true);
+            var wide = Ink("<div class=\"out\">X          X</div>", wrap: true);
+            Assert.Equal(narrow.Height, wide.Height);
+            Assert.True(wide.Width > narrow.Width + 30, $"spaces collapsed, ink {wide} vs {narrow}");
+        }, CancellationToken.None);
+
+    // A Dump table keeps its columns (headers don't wrap), so a wide one still scrolls sideways.
+    [Fact]
+    public Task WideDumpTable_Should_StillScrollHorizontally_WhenWrapping()
+        => _fixture.Session.Dispatch(() =>
+        {
+            var headers = string.Concat(Enumerable.Range(0, 12).Select(i => $"<th class=\"dp-th\">Column number {i}</th>"));
+            var cells = string.Concat(Enumerable.Range(0, 12).Select(i => $"<td class=\"dp-td\">{i}</td>"));
+            var table = $"<div class=\"dp-dump\"><table class=\"dp-table\"><thead><tr>{headers}</tr></thead><tbody><tr>{cells}</tr></tbody></table></div>";
+            Assert.True(NeedsHorizontalScroll(table, wrap: true));
+        }, CancellationToken.None);
+
+    private static ScrollBar HorizontalBar(HtmlPanel panel)
+        => panel.GetVisualDescendants().OfType<ScrollBar>().Single(s => s.Orientation == Orientation.Horizontal);
+
     private static Rect Ink(string html, bool wrap)
     {
         var (window, _) = Show(html, wrap);

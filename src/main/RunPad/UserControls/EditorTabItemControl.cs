@@ -142,6 +142,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _resultsWordWrap = prefs.Editor.ResultsWordWrap;
         State.Output.Css = HtmlThemeStylesheet.Generate(themeService.CurrentTheme.Interface.Variant,
             themeService.CurrentTheme.Interface.IsDark, _resultsWordWrap);
+        // Results wrapping is set in the output's own settings menu, not in Preferences.
+        ResultsWrapCheckBox.IsChecked = _resultsWordWrap;
+        ResultsWrapCheckBox.IsCheckedChanged += OnResultsWrapCheckBoxChanged;
+        OutputSettingsButton.Flyout!.Opened += (_, _) => ResultsWrapCheckBox.IsChecked = _prefs.Editor.ResultsWordWrap;
 
         _viewScale = ViewScale.For(prefs);
         ApplyEditorSettings(editor, prefs.Editor, _viewScale.CodeZoom);
@@ -1223,7 +1227,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (kind is OutputKind.StandardError or OutputKind.StandardErrorPartial)
             State.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(data)}</div>");
         else
-            State.Output.Append($"\n<div>{HttpUtility.HtmlEncode(data)}</div>");
+            State.Output.Append($"\n<div class=\"out\">{HttpUtility.HtmlEncode(data)}</div>");
         UpdateOutputUi();
     }
 
@@ -1540,17 +1544,34 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // ── Editor preferences ────────────────────────────────────────────────────
 
+    // The output settings menu's check box: saved like any preference, so every open tab follows it
+    // (OnPreferencesChanged); this tab's results reflow at once.
+    private void OnResultsWrapCheckBoxChanged(object? sender, RoutedEventArgs e)
+    {
+        var wrap = ResultsWrapCheckBox.IsChecked == true;
+        if (wrap == _prefs.Editor.ResultsWordWrap) return;
+        _prefs.Editor.ResultsWordWrap = wrap;
+        _prefs.Save();
+        ApplyResultsWordWrap(wrap);
+    }
+
+    // Only a changed value regenerates the stylesheet, so unrelated settings don't reload the results view.
+    private void ApplyResultsWordWrap(bool wrap)
+    {
+        if (ResultsWrapCheckBox.IsChecked != wrap) ResultsWrapCheckBox.IsChecked = wrap;
+        if (wrap == _resultsWordWrap) return;
+        _resultsWordWrap = wrap;
+        var theme = _themeService.CurrentTheme.Interface;
+        State.Output.Css = HtmlThemeStylesheet.Generate(theme.Variant, theme.IsDark, _resultsWordWrap);
+    }
+
+    internal bool ResultsWordWrapForTests => _resultsWordWrap;
+
     private void OnPreferencesChanged()
         => Dispatcher.Post(() =>
         {
             ApplyEditorSettings(State.Editor, _prefs.Editor, _viewScale.CodeZoom);
-            // Only a changed value regenerates the stylesheet, so unrelated settings don't reload the results view.
-            if (_prefs.Editor.ResultsWordWrap != _resultsWordWrap)
-            {
-                _resultsWordWrap = _prefs.Editor.ResultsWordWrap;
-                var theme = _themeService.CurrentTheme.Interface;
-                State.Output.Css = HtmlThemeStylesheet.Generate(theme.Variant, theme.IsDark, _resultsWordWrap);
-            }
+            ApplyResultsWordWrap(_prefs.Editor.ResultsWordWrap);
 
             _intelliSense?.UpdateIndentation(_prefs.Editor.UseTabs, _prefs.Editor.IndentationSize);
             _prefs.Keyboard.ApplyTo(State.Editor);

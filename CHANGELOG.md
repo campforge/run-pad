@@ -18,9 +18,13 @@ Notable changes in each RunPad release. Downloads are on the
   the code as it is.
 - The `prop` and `propg` snippets have fields: after inserting one, Tab moves from the type to the
   name, and Enter or Escape leaves the snippet.
+- **Wrap long lines in results** moved from Preferences to the gear menu beside the output tabs,
+  now called **Output settings**, next to the exception break options.
 
 ### Fixed
 
+- With result wrapping on, ordinary output and errors wrap at the pane width too, long unbroken text
+  included, so no horizontal scroll bar into empty space is left; spaces in output are kept.
 - The classes RunPad generates for a gRPC connection use a nullable-annotations-only context
   (`#nullable enable annotations`), so they keep their nullable annotations without reporting
   nullable warnings of their own — CS8669 and the warnings generated code shouldn't raise.

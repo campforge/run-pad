@@ -7,9 +7,10 @@ namespace RunPad.Avalonia.Themes;
 public static class HtmlThemeStylesheet
 {
     /// <summary>
-    /// Builds the stylesheet for the results pane. With <paramref name="wrapLongLines"/> preformatted
-    /// output breaks at the viewport width, even inside one unbroken token; spaces and explicit line
-    /// breaks are kept either way.
+    /// Builds the stylesheet for the results pane. With <paramref name="wrapLongLines"/> script output
+    /// (lines in <c>.out</c> and <c>.error</c>) and preformatted text break at the viewport width, even
+    /// inside one unbroken token; without it a long unbroken line scrolls sideways. Spaces and explicit
+    /// line breaks are kept. Dump tables keep their own layout.
     /// </summary>
     public static string Generate(ThemeVariant variant, bool isDark, bool wrapLongLines = false)
     {
@@ -35,12 +36,14 @@ public static class HtmlThemeStylesheet
 
         // The HTML renderer has no overflow-wrap, so break-all is what lets a single long token fit.
         var preWrap = wrapLongLines ? " white-space:pre-wrap; word-break:break-all;" : "";
+        var lines = wrapLongLines ? "white-space:pre-wrap; word-break:break-all;" : "white-space:pre;";
 
         return $$"""
             body        { background-color:{{bg}}; color:{{fg}}; font-family:Consolas,monospace; font-size:13px; margin:8px; }
             pre         { background-color:{{panel}}; color:{{fg}}; padding:4px 8px; margin:4px 0;{{preWrap}} }
+            .out        { {{lines}} }
             .secondary  { color:{{fgSec}}; }
-            .error      { color:{{errFg}}; }
+            .error      { color:{{errFg}}; {{lines}} }
             .stacktrace { color:{{stackFg}}; font-size:0.85em; }
             .dp-dump    { margin:8px 0; padding:4px 6px 4px 10px; border-left:3px solid {{dpAccent}}; background-color:{{dpDumpBg}}; border-radius:0 2px 2px 0; }
             .dp-label   { color:{{fgSec}}; font-size:0.85em; margin-bottom:3px; font-style:italic; }

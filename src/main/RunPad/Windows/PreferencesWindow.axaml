@@ -212,7 +212,6 @@
                         </Grid>
                         <TextBlock Classes="settings-help" Text="Applies to Tab, automatic indentation and formatting. Existing text changes only when you edit or format it." TextWrapping="Wrap"/>
                         <CheckBox IsChecked="{Binding WordWrap}" Content="Wrap long lines in code editor"/>
-                        <CheckBox IsChecked="{Binding ResultsWordWrap}" Content="Wrap long lines in results"/>
                         <CheckBox IsChecked="{Binding CommitCharactersEnabled}">
                             <TextBlock Text="Accept completion when typing punctuation" TextWrapping="Wrap"/>
                         </CheckBox>
