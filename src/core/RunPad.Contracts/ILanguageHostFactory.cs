@@ -31,8 +31,8 @@ public interface ILanguageHostFactory
     LanguageHostCapabilities Capabilities { get; }
 
     // Tab-expandable editor snippets for this language: keyword → template with a `${0}` cursor
-    // marker (see RunPad.Avalonia.CodeTextEditor.CodeTextEditor.Snippets). Empty for languages with
-    // none defined yet.
+    // marker and optional `${1:default}` fields that Tab moves between (see
+    // RunPad.Avalonia.CodeTextEditor.CodeTextEditor.Snippets). Empty for languages with none defined yet.
     IReadOnlyDictionary<string, string> Snippets { get; }
 
     // Lexical/syntactic conventions for CodeTextEditor's triggers, brace pairs, and indentation —

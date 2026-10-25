@@ -11,6 +11,14 @@ Notable changes in each RunPad release. Downloads are on the
   touches, or the caret's line, with `//` in C# and `'` in Visual Basic. It is one undo step, and its
   key can be changed in Preferences → Keyboard.
 
+### Changed
+
+- Typing `{` in C# no longer inserts `}`. Instead, pressing Enter in a new, still empty class,
+  struct, record or interface body offers a property template: Tab inserts it, any other key leaves
+  the code as it is.
+- The `prop` and `propg` snippets have fields: after inserting one, Tab moves from the type to the
+  name, and Enter or Escape leaves the snippet.
+
 ### Fixed
 
 - The classes RunPad generates for a gRPC connection use a nullable-annotations-only context

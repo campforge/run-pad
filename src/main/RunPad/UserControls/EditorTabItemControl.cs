@@ -1699,6 +1699,18 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         if (intelliSense is null) return;
 
+        editor.MemberTemplatePositionProvider = async (code, offset, ct) =>
+        {
+            try
+            {
+                return await Task.Run(() => intelliSense.IsEmptyTypeBodyPositionAsync(code, offset, ct), ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return false; // no offer is the safe answer
+            }
+        };
+
         editor.AsyncCompletionProvider = async e =>
         {
             // A genuine Ctrl+Space press (as opposed to the 24/7 auto-invoke/generics/
@@ -2143,6 +2155,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         foreach (var (open, close) in profile.BracePairs) editor.BracePairs[open] = close;
         foreach (var ch in profile.AutoCloseBraces) editor.AutoCloseBraces.Add(ch);
         editor.LineCommentPrefix = profile.LineCommentPrefix;
+        editor.MemberTemplateSnippet = profile.MemberTemplateSnippet;
+        editor.MemberTemplateTitle = profile.MemberTemplateTitle;
 
         editor.TextArea.IndentationStrategy = profile.IndentationStrategy switch
         {

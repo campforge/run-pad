@@ -60,6 +60,11 @@ public interface IIntelliSenseService : IDisposable
         string expression, CancellationToken cancellationToken = default)
         => Task.FromResult<BreakpointConditionAnalysis?>(null);
 
+    // Whether a member template (a property, say) fits at the position: inside the braces of a type
+    // that has no members yet. Languages without such templates keep the default.
+    Task<bool> IsEmptyTypeBodyPositionAsync(string code, int position, CancellationToken cancellationToken = default)
+        => Task.FromResult(false);
+
     // Shared indentation policy for formatting and generated edits; unsupported languages may ignore it.
     void UpdateIndentation(bool useTabs, int indentationSize) { }
 

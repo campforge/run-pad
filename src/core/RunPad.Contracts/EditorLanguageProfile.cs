@@ -40,6 +40,12 @@ public sealed class EditorLanguageProfile
     // What starts a line comment ("//", "'"), for the editor's Toggle Line Comment command; null for a
     // language without line comments, where the command does nothing.
     public string? LineCommentPrefix { get; init; }
+
+    // A snippet (a key of ILanguageHostFactory.Snippets) the editor offers on a blank line where a
+    // type's first member goes, with the hint's wording; null for none. Where that is, the language's
+    // IIntelliSenseService.IsEmptyTypeBodyPositionAsync decides.
+    public string? MemberTemplateSnippet { get; init; }
+    public string? MemberTemplateTitle { get; init; }
     public IndentationStrategyKind IndentationStrategy { get; init; } = IndentationStrategyKind.Default;
 
     // Used to be a FoldingStrategyKind enum (BraceBased/VbKeywordBased) that

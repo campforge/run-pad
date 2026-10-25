@@ -130,6 +130,29 @@ public class CodeTextEditor : TextEditor
     /// does nothing.</summary>
     public string? LineCommentPrefix { get; set; }
 
+    /// <summary>The name of a <see cref="Snippets"/> entry — a property template, say — offered on
+    /// a blank line where a type's first member goes, right after Enter there. The offer is a hint at
+    /// the caret: Tab inserts the snippet, anything else leaves the text as it is. Null for none.</summary>
+    public string? MemberTemplateSnippet { get; set; }
+
+    /// <summary>What the offer hint calls <see cref="MemberTemplateSnippet"/> ("Insert property").</summary>
+    public string? MemberTemplateTitle { get; set; }
+
+    /// <summary>Decides whether a position (in the given text) is where
+    /// <see cref="MemberTemplateSnippet"/> belongs; the language service answers off the UI thread.
+    /// Without it nothing is offered.</summary>
+    public Func<string, int, CancellationToken, Task<bool>>? MemberTemplatePositionProvider { get; set; }
+
+    /// <summary>Whether the member template hint is showing.</summary>
+    public bool IsMemberTemplateOfferOpen => _memberOffer is not null;
+
+    // The latest check for an offer, for tests to await.
+    internal Task MemberTemplateOfferTask { get; private set; } = Task.CompletedTask;
+    internal MemberTemplateOffer? MemberTemplateOfferForTests => _memberOffer;
+
+    private MemberTemplateOffer? _memberOffer;
+    private CancellationTokenSource? _memberOfferCts;
+
     /// <summary>The modifier held for mouse actions such as zooming with the wheel: Ctrl, or Cmd on
     /// macOS.</summary>
     public KeyModifiers CommandModifier { get; set; } = OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control;
@@ -354,6 +377,9 @@ public class CodeTextEditor : TextEditor
         // Ctrl+Space already uses for ShowCompletion's explicit invoke — is unused by the trigger
         // character on this path (TryGetSignatureHelpAsync doesn't branch on it, only on position).
         TextArea.Caret.PositionChanged += (_, _) => { if (IsInsightWindowOpen) ShowOverloads('\0'); };
+        // The member template offer is for the spot it appeared at only.
+        TextArea.Caret.PositionChanged += (_, _) => DismissMemberTemplateOffer();
+        TextArea.LostFocus += (_, _) => DismissMemberTemplateOffer();
 
         Options.AllowToggleOverstrikeMode = true;
         Options.ShowBoxForControlCharacters = true;
@@ -378,6 +404,7 @@ public class CodeTextEditor : TextEditor
         TextArea.TextEntered += OnTextEntered;
 
         TextChanged += (_, _) => { _foldingTimer.Stop(); _foldingTimer.Start(); };
+        TextChanged += (_, _) => DismissMemberTemplateOffer();
 
         // FoldingManager.Install requires the document to be in its final state;
         // defer until Loaded so AvaloniaEdit's template has fully applied.
@@ -410,6 +437,10 @@ public class CodeTextEditor : TextEditor
             KeyDownEvent,
             (object? _, KeyEventArgs e) =>
             {
+                // After the newline is in: is this where a type's first member goes?
+                if (e.Key == Key.Enter && e.KeyModifiers == KeyModifiers.None && _completionWindow is null)
+                    ScheduleMemberTemplateOffer();
+
                 if (e.Key == Key.Tab && e.KeyModifiers == KeyModifiers.None && TryExpandSnippet())
                     e.Handled = true;
                 else if (Matches(JumpToBracketGesture, e))
@@ -743,6 +774,63 @@ public class CodeTextEditor : TextEditor
         return true;
     }
 
+    private void ScheduleMemberTemplateOffer()
+    {
+        if (MemberTemplatePositionProvider is null || string.IsNullOrEmpty(MemberTemplateSnippet)) return;
+        Dispatcher.UIThread.Post(() => MemberTemplateOfferTask = OfferMemberTemplateAsync(), DispatcherPriority.Background);
+    }
+
+    private async Task OfferMemberTemplateAsync()
+    {
+        if (MemberTemplatePositionProvider is not { } provider || MemberTemplateSnippet is not { } name
+            || !Snippets.ContainsKey(name) || IsReadOnly || Document is not { } document
+            || _completionWindow is not null || _memberOffer is not null || !TextArea.IsKeyboardFocusWithin)
+            return;
+        var caret = TextArea.Caret.Offset;
+        if (!string.IsNullOrWhiteSpace(document.GetText(document.GetLineByOffset(caret)))) return;
+
+        _memberOfferCts?.Cancel();
+        var cts = new CancellationTokenSource();
+        _memberOfferCts = cts;
+        var version = document.Version;
+        bool fits;
+        try
+        {
+            fits = await provider(document.Text, caret, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        // Only for the very spot that was asked about: no edit, caret move or other popup since.
+        if (!fits || cts.IsCancellationRequested || !ReferenceEquals(Document, document)
+            || version is null || document.Version is not { } now || version.CompareAge(now) != 0
+            || TextArea.Caret.Offset != caret || _completionWindow is not null || _memberOffer is not null)
+            return;
+        var offer = new MemberTemplateOffer(this, name, MemberTemplateTitle ?? name);
+        _memberOffer = offer;
+        TextArea.PushStackedInputHandler(offer);
+        offer.Show();
+    }
+
+    internal void AcceptMemberTemplateOffer()
+    {
+        if (_memberOffer is not { } offer) return;
+        DismissMemberTemplateOffer();
+        if (Snippets.TryGetValue(offer.Snippet, out var template))
+            ExpandSnippet(TextArea.Caret.Offset, 0, template);
+    }
+
+    internal void DismissMemberTemplateOffer()
+    {
+        _memberOfferCts?.Cancel();
+        if (_memberOffer is not { } offer) return;
+        _memberOffer = null;
+        TextArea.PopStackedInputHandler(offer);
+        offer.Hide();
+    }
+
     private void JumpToMatchingBrace()
     {
         var caret = TextArea.Caret.Offset;
@@ -780,6 +868,24 @@ public class CodeTextEditor : TextEditor
     // C#-specific (the controls stay language-agnostic).
     public void ExpandSnippet(int offset, int length, string template)
     {
+        // A template with fields becomes an interactive snippet: Tab moves between its fields.
+        if (SnippetTemplate.TryCreate(template) is { } snippet)
+        {
+            Document.UndoStack.StartUndoGroup();
+            try
+            {
+                Document.Remove(offset, length);
+                TextArea.ClearSelection();
+                TextArea.Caret.Offset = offset;
+                snippet.Insert(TextArea);
+            }
+            finally
+            {
+                Document.UndoStack.EndUndoGroup();
+            }
+            return;
+        }
+
         var caretLine = Document.GetLineByOffset(offset);
         var lineText = Document.GetText(caretLine.Offset, caretLine.Length);
         int indentLen = 0;
