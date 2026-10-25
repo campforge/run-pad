@@ -70,17 +70,14 @@ public class PreferencesEditorLayoutTests
         Assert.Equal("Menlo", settings.Editor.FontFamily);
         Assert.Equal(18, settings.Editor.FontSize);
         var wrap = page.GetVisualDescendants().OfType<CheckBox>().Single(c => c.Content as string == "Wrap long lines in code editor");
-        var resultsWrap = page.GetVisualDescendants().OfType<CheckBox>().Single(c => c.Content as string == "Wrap long lines in results");
+        // Results wrapping moved to the output settings menu beside the results.
+        Assert.DoesNotContain(page.GetVisualDescendants().OfType<CheckBox>(), c => c.Content as string == "Wrap long lines in results");
         Assert.True(settings.Editor.ResultsWordWrap);
         Assert.False(settings.Editor.WordWrap);
         wrap.IsChecked = true;
         Dispatcher.UIThread.RunJobs();
         Assert.True(settings.Editor.WordWrap);
         Assert.True(settings.Editor.ResultsWordWrap);
-        resultsWrap.IsChecked = false;
-        Dispatcher.UIThread.RunJobs();
-        Assert.False(settings.Editor.ResultsWordWrap);
-        Assert.True(settings.Editor.WordWrap);
         prefs.Verify(p => p.Save(), Times.AtLeastOnce);
         window.Close();
     }
