@@ -157,20 +157,20 @@
             <!-- ── Sidebar ───────────────────────────────────────────────── -->
             <DockPanel Grid.Column="0" ClipToBounds="True" Background="{DynamicResource RunPad.Sidebar.BackgroundBrush}">
 
-                <!-- Queries / Examples, as compact as the editor's own tab strip (30 px) and styled
-                     like it (see TabStrip.sidebar above): the selected tab joins the panel below. -->
-                <Border DockPanel.Dock="Top" Height="30" Background="{DynamicResource RunPad.Editor.BackgroundBrush}">
-                    <TabStrip x:Name="SidebarTabs" Classes="sidebar" SelectedIndex="{Binding SidebarTab}">
-                        <TabStripItem Content="Queries"/>
-                        <TabStripItem Content="Examples"/>
-                    </TabStrip>
-                </Border>
-
-                <Panel>
-                    <ContentControl Content="{Binding FileTree}" ContentTemplate="{StaticResource FileTreeTemplate}"
-                                    IsVisible="{Binding IsQueriesTabShown}"/>
-                    <ListBox x:Name="ExampleList" Classes="examples" ItemsSource="{Binding Examples}"
-                             IsVisible="{Binding IsExamplesTabShown}"
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <Expander IsExpanded="True" AutomationProperties.Name="Connections navigation bundle">
+                            <Expander.Header><StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource Icon.NavigationConnections}" Width="14" Height="14"/><TextBlock Text="Connections"/></StackPanel></Expander.Header>
+                            <TextBlock Text="Connections are managed from Tools → Connections." Classes="hint" Margin="8,4,0,8" TextWrapping="Wrap"/>
+                        </Expander>
+                        <Expander IsExpanded="True" AutomationProperties.Name="Scripts navigation bundle">
+                            <Expander.Header><StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource Icon.NavigationScripts}" Width="14" Height="14"/><TextBlock Text="Scripts"/></StackPanel></Expander.Header>
+                            <ContentControl Content="{Binding FileTree}" ContentTemplate="{StaticResource FileTreeTemplate}"/>
+                        </Expander>
+                        <Expander IsExpanded="False" AutomationProperties.Name="Samples navigation bundle">
+                            <Expander.Header><StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource Icon.NavigationSamples}" Width="14" Height="14"/><TextBlock Text="Samples"/></StackPanel></Expander.Header>
+                            <StackPanel>
+                            <ListBox x:Name="ExampleList" Classes="examples" ItemsSource="{Binding Examples}"
                              Background="Transparent" BorderThickness="0" Padding="4,4,4,8"
                              SelectionMode="Single"
                              Tapped="ExampleList_Tapped" KeyDown="ExampleList_KeyDown">
@@ -179,11 +179,14 @@
                                 <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
-                    </ListBox>
-                    <TextBlock Text="No examples available" Margin="12,8" Opacity="0.6"
+                            </ListBox>
+                            <TextBlock Text="No examples available" Margin="12,8" Opacity="0.6"
                                Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                                IsVisible="{Binding ShowNoExamplesHint}"/>
-                </Panel>
+                            </StackPanel>
+                        </Expander>
+                    </StackPanel>
+                </ScrollViewer>
             </DockPanel>
 
             <GridSplitter Grid.Column="1" Classes="seam" ResizeDirection="Columns"/>
