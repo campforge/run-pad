@@ -123,6 +123,12 @@ public class CodeTextEditor : TextEditor
     public KeyGesture? RenameSymbolGesture { get; set; } = new(Key.F2);
     public KeyGesture? GoToDefinitionGesture { get; set; } = new(Key.F12);
     public KeyGesture? FindReferencesGesture { get; set; } = new(Key.F12, KeyModifiers.Shift);
+    public KeyGesture? ToggleLineCommentGesture { get; set; } = new(Key.OemQuestion, KeyModifiers.Control);
+
+    /// <summary>The language's line-comment prefix (<c>//</c>, <c>'</c>) used by
+    /// <see cref="ToggleLineComment"/>; null or empty for a language without one, where the command
+    /// does nothing.</summary>
+    public string? LineCommentPrefix { get; set; }
 
     /// <summary>The modifier held for mouse actions such as zooming with the wheel: Ctrl, or Cmd on
     /// macOS.</summary>
@@ -409,6 +415,11 @@ public class CodeTextEditor : TextEditor
                 else if (Matches(JumpToBracketGesture, e))
                 {
                     JumpToMatchingBrace();
+                    e.Handled = true;
+                }
+                else if (Matches(ToggleLineCommentGesture, e) && !string.IsNullOrEmpty(LineCommentPrefix))
+                {
+                    ToggleLineComment();
                     e.Handled = true;
                 }
                 else if (Matches(SignatureHelpGesture, e))
@@ -704,6 +715,32 @@ public class CodeTextEditor : TextEditor
         }
 
         return (-1, -1, false);
+    }
+
+    /// <summary>Comments the lines the selection (or, without one, the caret) touches, or uncomments
+    /// them when they are all comments already — see <see cref="LineCommentToggle"/>. One undo step.
+    /// Returns whether the text changed.</summary>
+    public bool ToggleLineComment()
+    {
+        if (IsReadOnly || Document is null || string.IsNullOrEmpty(LineCommentPrefix)) return false;
+        var selection = TextArea.Selection;
+        var (start, end) = selection.IsEmpty
+            ? (TextArea.Caret.Offset, TextArea.Caret.Offset)
+            : (selection.SurroundingSegment.Offset, selection.SurroundingSegment.EndOffset);
+        var edits = LineCommentToggle.Compute(Document.Text, start, end, LineCommentPrefix);
+        if (edits.Count == 0) return false;
+
+        Document.BeginUpdate();
+        try
+        {
+            for (var i = edits.Count - 1; i >= 0; i--)
+                Document.Replace(edits[i].Offset, edits[i].RemoveLength, edits[i].Insert);
+        }
+        finally
+        {
+            Document.EndUpdate();
+        }
+        return true;
     }
 
     private void JumpToMatchingBrace()

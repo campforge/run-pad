@@ -63,6 +63,7 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
         // opening a call's parameter list is exactly when signature help is about to show the real
         // parameter list, and an auto-inserted ')' sitting there fights that instead of helping.
         AutoCloseBraces = new HashSet<char> { '[', '{' },
+        LineCommentPrefix = "//",
         IndentationStrategy = IndentationStrategyKind.CStyle,
         // File tree's per-language icon — pictogrammers.com/library/mdi/icon/language-csharp.
         IconResourceKey = "Icon.LanguageCSharp",

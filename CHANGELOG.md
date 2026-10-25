@@ -5,6 +5,12 @@ Notable changes in each RunPad release. Downloads are on the
 
 ## [Unreleased]
 
+### Added
+
+- **Toggle Line Comment** (Ctrl+/, Cmd+/ on macOS) comments or uncomments every line the selection
+  touches, or the caret's line, with `//` in C# and `'` in Visual Basic. It is one undo step, and its
+  key can be changed in Preferences → Keyboard.
+
 ### Fixed
 
 - The classes RunPad generates for a gRPC connection use a nullable-annotations-only context
