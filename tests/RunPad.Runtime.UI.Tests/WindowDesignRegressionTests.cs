@@ -174,6 +174,13 @@ public class WindowDesignRegressionTests
             Dispatcher.UIThread.RunJobs();
             var status = window.FindControl<ListBox>("ConnectionList")!.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text == "Testing…");
             Assert.True(status.IsEffectivelyVisible);
+
+            // The list line is short and may be cut off; its tooltip carries the whole answer, and follows it.
+            Assert.Equal("Testing…", ToolTip.GetTip(status));
+            vm.SelectedConnection!.TestResult = "Success: Connected.\nFailed: its description couldn't be read: No schema is offered.";
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("Test succeeded", status.Text);
+            Assert.Equal(vm.SelectedConnection!.TestResult, ToolTip.GetTip(status));
         }
         finally { window.Close(); }
     }

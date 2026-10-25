@@ -37,9 +37,10 @@
                                 <DataTemplate DataType="viewModels:ConnectionItemViewModel">
                                     <StackPanel Spacing="2">
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
-                                        <TextBlock Text="{Binding DriverName}" FontSize="12" TextTrimming="CharacterEllipsis"
+                                        <TextBlock Text="{Binding DriverName}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DriverName}"
                                                    Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
-                                        <TextBlock Text="{Binding TestSummary}" FontSize="12" TextTrimming="CharacterEllipsis"
+                                        <!-- A narrow list cuts the line short; the tooltip has the whole answer. -->
+                                        <TextBlock Text="{Binding TestSummary}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding TestResult}"
                                                    IsVisible="{Binding TestSummary, Converter={x:Static ObjectConverters.IsNotNull}}"
                                                    Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                                     </StackPanel>

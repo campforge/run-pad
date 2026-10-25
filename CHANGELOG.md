@@ -20,6 +20,8 @@ Notable changes in each RunPad release. Downloads are on the
   name, and Enter or Escape leaves the snippet.
 - **Wrap long lines in results** moved from Preferences to the gear menu beside the output tabs,
   now called **Output settings**, next to the exception break options.
+- In Tools → Connections, the test status under a connection shows the whole test result as a
+  tooltip, so a status cut short in a narrow list can still be read.
 
 ### Fixed
 
