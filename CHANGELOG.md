@@ -3,6 +3,16 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [Unreleased]
+
+### Fixed
+
+- The classes RunPad generates for a gRPC connection use a nullable-annotations-only context
+  (`#nullable enable annotations`), so they keep their nullable annotations without reporting
+  nullable warnings of their own — CS8669 and the warnings generated code shouldn't raise.
+  Descriptions cached by an earlier RunPad are read again, so scripts that already have one get the
+  new directive too. RunPad's own connection wrapper is unchanged.
+
 ## [0.9.5] — 2026-10-24
 
 ### Changed

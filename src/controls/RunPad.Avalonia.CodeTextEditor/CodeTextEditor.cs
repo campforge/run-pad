@@ -184,6 +184,19 @@ public class CodeTextEditor : TextEditor
     /// <summary>Test-only observability for the "highlight every occurrence" feature.</summary>
     internal IReadOnlyList<(int Start, int Length)> HighlightedOccurrences => _occurrenceHighlighter.Spans;
 
+    public void SetHoverTokenHighlight(int start, int length, IBrush brush)
+    {
+        _occurrenceHighlighter.HighlightBrush = brush;
+        _occurrenceHighlighter.Update(Document, [(start, length)]);
+        TextArea.TextView.Redraw();
+    }
+
+    public void ClearHoverTokenHighlight()
+    {
+        _occurrenceHighlighter.Clear();
+        TextArea.TextView.Redraw();
+    }
+
     /// <summary>Characters that open the completion dropdown.</summary>
     public HashSet<char> CompletionTriggers { get; } = [];
 
