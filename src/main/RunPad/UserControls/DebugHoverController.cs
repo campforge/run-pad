@@ -4,6 +4,10 @@ namespace RunPad.UserControls;
 
 internal sealed class DebugHoverController
 {
+    public const int MaxDepth = 3;
+    public const int MaxChildren = 64;
+    public const int MaxTotalRows = 256;
+    public static readonly TimeSpan ChildTimeout = TimeSpan.FromMilliseconds(500);
     private CancellationTokenSource? _pending;
     private long _generation;
 
@@ -22,6 +26,40 @@ internal sealed class DebugHoverController
     }
 
     public bool IsCurrent(long generation) => generation == _generation && !(_pending?.IsCancellationRequested ?? true);
+
+    internal sealed class TreeBudget
+    {
+        private int _remaining = MaxTotalRows;
+        public bool TryReserve() => Interlocked.Decrement(ref _remaining) >= 0;
+    }
+
+    public async Task<IReadOnlyList<IVariableInfo>> LoadChildrenAsync(IBreakpointHitContext context,
+        IVariableInfo variable, int depth, CancellationToken cancellationToken)
+    {
+        if (depth >= MaxDepth || variable.VariablesReference == 0) return [];
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(ChildTimeout);
+        var children = await context.GetChildrenAsync(variable.VariablesReference, timeout.Token).ConfigureAwait(false);
+        return children.Take(MaxChildren).ToArray();
+    }
+
+    public async Task<IVariableInfo?> EvaluateHoverAsync(IBreakpointHitContext context, string expression,
+        CancellationToken cancellationToken)
+    {
+        if (!IsSafeHoverExpression(expression)) return null;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(ChildTimeout);
+        return await context.EvaluateAsync(expression, timeout.Token).ConfigureAwait(false);
+    }
+
+    public static bool IsSafeHoverExpression(string? expression)
+    {
+        if (string.IsNullOrWhiteSpace(expression)) return false;
+        var parts = expression.Split('.');
+        return parts.All(part => part.Length > 0 &&
+            (char.IsLetter(part[0]) || part[0] == '_') &&
+            part.Skip(1).All(c => char.IsLetterOrDigit(c) || c == '_'));
+    }
 
     public static IReadOnlyList<IVariableInfo>? Capture(IBreakpointHitContext? context)
         => context?.LocalVariables.ToArray();

@@ -46,6 +46,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private readonly IWindowService _windowService;
     internal readonly EditorTabState State;
     private SemanticHighlighter? _semanticHighlighter;
+    private CancellationTokenSource? _debugTooltipCloseCts;
+    private bool _debugTooltipInside;
     private InlayHintRenderer? _inlayHintRenderer;
     private IIntelliSenseService? _intelliSense;
     internal IIntelliSenseService? IntelliSenseForTests => _intelliSense;
@@ -426,6 +428,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             State.CurrentDebugCtx?.Resume(DebugAction.Continue);
             _debugHover.Cancel();
+            State.Editor.ClearHoverTokenHighlight();
+            ToolTip.SetTip(State.Editor.TextArea.TextView, null);
             State.CurrentDebugCtx = null;
             _vm.DebugPanel.ClearStop();
             State.RunCts?.Cancel();
@@ -676,6 +680,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
         finally
         {
+            // A debuggee can terminate without going through ResumeDebug/Stop. Invalidate the
+            // snapshot and remove any tooltip before the session is torn down.
+            _debugHover.Cancel();
+            s.Editor.ClearHoverTokenHighlight();
+            ToolTip.SetTip(s.Editor.TextArea.TextView, null);
             try
             {
                 s.RunningHost = null;
@@ -741,6 +750,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _selectedSdkSub?.Dispose();
         _vm.DebugPanel.WatchExpressions.CollectionChanged -= OnWatchExpressionsCollectionChanged;
         _contextRefreshCts?.Cancel();
+        _debugTooltipCloseCts?.Cancel();
         DisposePreview();
         Cancel();
         // The run owns its CTS until its asynchronous cleanup has finished.
@@ -809,6 +819,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             if (ctx is null) return;
             var line = State.Editor.TextArea.Caret.Line;
             _debugHover.Cancel();
+            State.Editor.ClearHoverTokenHighlight();
+            ToolTip.SetTip(State.Editor.TextArea.TextView, null);
             State.CurrentDebugCtx = null;
             _vm.RunState = RunState.RunDebug;
             State.Editor.DebugCurrentLine = null;
@@ -1172,6 +1184,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         SetStatus("Process", "RunPad.Status.RunningBrush");
         var ctx = State.CurrentDebugCtx;
         _debugHover.Cancel();
+        State.Editor.ClearHoverTokenHighlight();
+        ToolTip.SetTip(State.Editor.TextArea.TextView, null);
         State.CurrentDebugCtx = null;
         ctx?.Resume(action);
         UpdateOutputUi();
@@ -1469,6 +1483,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         var s = State;
         _debugHover.Cancel();
+        s.Editor.ClearHoverTokenHighlight();
+        ToolTip.SetTip(s.Editor.TextArea.TextView, null);
         s.CurrentDebugCtx = context;
         _vm.RunState = RunState.Paused;
         State.Editor.DebugCurrentLine = context.CallStack.Count > 0
@@ -1936,9 +1952,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             // resources, so leaving the old one for the GC is safe.
             quickInfoCts.Cancel();
             quickInfoCts = new CancellationTokenSource();
+            _debugTooltipCloseCts?.Cancel();
+            _debugTooltipInside = false;
             var ct = quickInfoCts.Token;
+            _debugTooltipCloseCts?.Cancel();
             var (debugGeneration, debugToken) = _debugHover.Begin();
-            var debugLocals = DebugHoverController.Capture(State.CurrentDebugCtx);
             var pos = e.GetPosition(editor);
 
             _ = Task.Run(async () =>
@@ -1948,19 +1966,38 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 try
                 {
                     await Task.Delay(QuickInfoHoverDelay, requestCt);
-                    var (offset, text) =
-                        await Dispatcher.InvokeAsync(() => (editor.GetOffsetFromPoint(pos), editor.Text));
-                    if (offset < 0 || ct.IsCancellationRequested) return;
-
-                    var debugValue = DebugHoverController.ResolveSnapshot(
-                        debugLocals, DebugHoverSymbolExtractor.Extract(text, offset, State.Editor.IdentifierChars));
-                    if (debugValue is not null)
-                    {
+                    var (offset, text, identifierChars, debugContext, debugLocals) =
                         await Dispatcher.InvokeAsync(() =>
                         {
-                            if (_debugHover.IsCurrent(debugGeneration) && !ct.IsCancellationRequested)
+                            var context = State.CurrentDebugCtx;
+                            return (editor.GetOffsetFromPoint(pos), editor.Text,
+                                editor.IdentifierChars, context, DebugHoverController.Capture(context));
+                        });
+                    if (offset < 0 || ct.IsCancellationRequested) return;
+
+                    var symbol = DebugHoverSymbolExtractor.Extract(text, offset, identifierChars);
+                    var debugValue = DebugHoverController.ResolveSnapshot(debugLocals, symbol);
+                    // Snapshot locals are preferred. Only the bounded, identifier/dotted-token policy
+                    // may fall back to DAP evaluation; never send arbitrary editor text.
+                    if (debugValue is null && debugContext is not null &&
+                        ReferenceEquals(debugContext, State.CurrentDebugCtx) && symbol is not null)
+                        debugValue = await _debugHover.EvaluateHoverAsync(debugContext, symbol, requestCt);
+                    if (debugValue is not null)
+                    {
+                        if (symbol is null) return;
+                        await Dispatcher.InvokeAsync(() =>
+                        {
+                            if (_debugHover.IsCurrent(debugGeneration) && !ct.IsCancellationRequested &&
+                                ReferenceEquals(debugContext, State.CurrentDebugCtx))
+                            {
+                                var start = offset;
+                                while (start > 0 && identifierChars.Contains(text[start - 1])) start--;
+                                editor.SetHoverTokenHighlight(start, symbol.Length,
+                                    ThemeBrush("RunPad.Editor.HoverHighlightBrush", new SolidColorBrush(Color.FromArgb(55, 90, 140, 210))));
                                 ToolTip.SetTip(editor.TextArea.TextView,
-                                    $"{debugValue.Name} : {debugValue.TypeName}\n{debugValue.Value}");
+                                    BuildDebugHoverContent(debugValue!, debugContext, debugGeneration, debugToken,
+                                        symbol));
+                            }
                         });
                         return;
                     }
@@ -1998,9 +2035,93 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.TextArea.TextView.PointerExited += (_, _) =>
         {
             quickInfoCts.Cancel();
-            _debugHover.Cancel();
-            ToolTip.SetTip(editor.TextArea.TextView, null);
+            ScheduleDebugTooltipClose(editor);
         };
+    }
+
+    private void ScheduleDebugTooltipClose(CodeTextEditor editor)
+    {
+        _debugTooltipCloseCts?.Cancel();
+        var cts = _debugTooltipCloseCts = new CancellationTokenSource();
+        _ = CloseAfterGraceAsync(editor, cts.Token);
+    }
+
+    private async Task CloseAfterGraceAsync(CodeTextEditor editor, CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(300), token);
+            if (token.IsCancellationRequested || _debugTooltipInside) return;
+            _debugHover.Cancel();
+            editor.ClearHoverTokenHighlight();
+            ToolTip.SetTip(editor.TextArea.TextView, null);
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private Control BuildDebugHoverContent(IVariableInfo root, IBreakpointHitContext? context,
+        long generation, CancellationToken token, string symbol)
+    {
+        var panel = new StackPanel { Spacing = 2, MaxWidth = 520, MaxHeight = 360 };
+        AddDebugVariableRow(panel, root, 0, context, generation, token, new DebugHoverController.TreeBudget(), symbol);
+        var border = new Border
+        {
+            Padding = new Thickness(8, 5),
+            Background = ThemeBrush("RunPad.Panel.BackgroundBrush", Brushes.Transparent),
+            Child = panel,
+        };
+        border.PointerEntered += (_, _) =>
+        {
+            _debugTooltipInside = true;
+            _debugTooltipCloseCts?.Cancel();
+        };
+        border.PointerExited += (_, _) =>
+        {
+            _debugTooltipInside = false;
+            ScheduleDebugTooltipClose(State.Editor);
+        };
+        return border;
+    }
+
+    private void AddDebugVariableRow(Panel panel, IVariableInfo variable, int depth,
+        IBreakpointHitContext? context, long generation, CancellationToken token,
+        DebugHoverController.TreeBudget budget, string rootSymbol)
+    {
+        if (!budget.TryReserve()) return;
+        var row = new StackPanel { Orientation = global::Avalonia.Layout.Orientation.Horizontal, Spacing = 4,
+            Margin = new Thickness(depth * 14, 0, 0, 0),
+            Background = depth == 0 ? ThemeBrush("RunPad.Editor.HoverHighlightBrush", new SolidColorBrush(Color.FromArgb(35, 90, 140, 210))) : null };
+        if (variable.HasChildren && context is not null && depth < DebugHoverController.MaxDepth)
+        {
+            var expand = new Button { Content = ">", Padding = new Thickness(2, 0), MinWidth = 18 };
+            expand.Click += async (_, _) =>
+            {
+                expand.IsEnabled = false;
+                try
+                {
+                    if (token.IsCancellationRequested || !_debugHover.IsCurrent(generation) || !ReferenceEquals(context, State.CurrentDebugCtx)) return;
+                    var children = await _debugHover.LoadChildrenAsync(context, variable, depth, token);
+                    if (!_debugHover.IsCurrent(generation) || !ReferenceEquals(context, State.CurrentDebugCtx)) return;
+                    foreach (var child in children)
+                        AddDebugVariableRow(panel, child, depth + 1, context, generation, token, budget, rootSymbol);
+                    expand.Content = "v";
+                }
+                catch (OperationCanceledException) { }
+                finally { expand.IsEnabled = true; }
+            };
+            row.Children.Add(expand);
+        }
+        row.Children.Add(new TextBlock { Text = $"{variable.Name} =", Foreground = ThemeBrush("RunPad.Text.PrimaryBrush", Brushes.Black) });
+        row.Children.Add(new TextBlock { Text = $"{{{variable.TypeName}}}", Foreground = ThemeBrush("RunPad.Text.SecondaryBrush", Brushes.Gray) });
+        row.Children.Add(new TextBlock { Text = variable.Value, Foreground = ThemeBrush("RunPad.Dump.StringBrush", Brushes.DarkGreen) });
+        panel.Children.Add(row);
+    }
+
+    private static IBrush ThemeBrush(string key, IBrush fallback)
+    {
+        var app = Application.Current;
+        return app?.TryGetResource(key, app.ActualThemeVariant, out var value) == true
+            && value is IBrush brush ? brush : fallback;
     }
 
     // Applies a language's lexical/syntactic conventions (ILanguageHostFactory.EditorProfile) to the
