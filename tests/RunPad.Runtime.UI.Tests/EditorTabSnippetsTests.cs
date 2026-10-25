@@ -63,6 +63,12 @@ public class EditorTabSnippetsTests
         Assert.Contains('<', editor.ContextualTriggers); // generic type arguments, e.g. "List<"
         Assert.Contains("new", editor.WordTriggers);
         Assert.True(editor.BracePairs.ContainsKey('{'));
+        // '{' is matched but no longer auto-closed; '[' still is, '(' never was
+        Assert.Equal(new[] { '[' }, editor.AutoCloseBraces);
+        Assert.Equal("//", editor.LineCommentPrefix);
+        Assert.Equal("prop", editor.MemberTemplateSnippet);
+        Assert.True(editor.Snippets.ContainsKey("prop"));
+        Assert.NotNull(editor.MemberTemplatePositionProvider);
     }
 
     [AvaloniaFact]
@@ -75,6 +81,9 @@ public class EditorTabSnippetsTests
         // must not silently inherit C#'s profile (a bug this guards against).
         Assert.DoesNotContain('<', editor.ContextualTriggers);
         Assert.False(editor.BracePairs.ContainsKey('{'));
+        Assert.Equal(new[] { '[' }, editor.AutoCloseBraces); // unchanged for VB
+        Assert.Equal("'", editor.LineCommentPrefix);
+        Assert.Null(editor.MemberTemplateSnippet);
 
         // VB is case-insensitive (VbLanguageHostFactory.EditorProfile builds WordTriggers with
         // StringComparer.OrdinalIgnoreCase) — only "New" was ever added, so finding differently-cased

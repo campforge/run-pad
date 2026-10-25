@@ -1744,6 +1744,9 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         return new(error, suggestions);
     }
 
+    public Task<bool> IsEmptyTypeBodyPositionAsync(string code, int position, CancellationToken cancellationToken = default)
+        => Task.Run(() => CSharpMemberPosition.IsInEmptyTypeBody(code, position, cancellationToken), cancellationToken);
+
     private bool _useTabs;
     private int _indentationSize = 4;
 

@@ -37,8 +37,9 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
         ["try"] = "try\n{\n\t${0}\n}\ncatch (Exception ex)\n{\n\t\n}",
         ["tryf"] = "try\n{\n\t${0}\n}\nfinally\n{\n\t\n}",
         ["sw"] = "switch (${0})\n{\n\tcase :\n\t\tbreak;\n\tdefault:\n\t\tbreak;\n}",
-        ["prop"] = "public ${0} Property { get; set; }",
-        ["propg"] = "public ${0} Property { get; private set; }",
+        // ${1:…} fields: Tab moves from the type to the name; Enter leaves the snippet.
+        ["prop"] = "public ${1:int} ${2:Property} { get; set; }${0}",
+        ["propg"] = "public ${1:int} ${2:Property} { get; private set; }${0}",
         ["class"] = "class ${0}\n{\n\t\n}",
         ["interface"] = "interface I${0}\n{\n\t\n}",
         ["ctor"] = "public ${0}()\n{\n\t\n}",
@@ -62,7 +63,11 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
         // '(' deliberately excluded — see RunPad.Avalonia.CodeTextEditor.CodeTextEditor.AutoCloseBraces:
         // opening a call's parameter list is exactly when signature help is about to show the real
         // parameter list, and an auto-inserted ')' sitting there fights that instead of helping.
-        AutoCloseBraces = new HashSet<char> { '[', '{' },
+        // '{' too, by user request: a block's closing brace is typed, not inserted; in a new type body
+        // the editor offers a property template instead (MemberTemplateSnippet).
+        AutoCloseBraces = new HashSet<char> { '[' },
+        MemberTemplateSnippet = "prop",
+        MemberTemplateTitle = "Insert property",
         LineCommentPrefix = "//",
         IndentationStrategy = IndentationStrategyKind.CStyle,
         // File tree's per-language icon — pictogrammers.com/library/mdi/icon/language-csharp.
