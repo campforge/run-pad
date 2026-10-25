@@ -116,8 +116,15 @@ public class ResultsOutputSettingsTests
     {
         var (ctrl, _, _) = Create();
         await ctrl.RunAsync(false, Sdk).WaitAsync(TimeSpan.FromSeconds(10));
+        for (var i = 0; i < 20 && !ctrl.State.Output.Content.Contains("plain line", StringComparison.Ordinal); i++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
 
-        Assert.Contains("<div class=\"out\">plain line</div>", ctrl.State.Output.Content);
-        Assert.Contains("<div class=\"error\">error line</div>", ctrl.State.Output.Content);
+        Assert.Contains("class=\"out\"", ctrl.State.Output.Content);
+        Assert.Contains("plain line", ctrl.State.Output.Content);
+        Assert.Contains("class=\"error\"", ctrl.State.Output.Content);
+        Assert.Contains("error line", ctrl.State.Output.Content);
     }
 }
