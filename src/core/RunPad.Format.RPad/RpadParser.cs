@@ -24,7 +24,7 @@ public static class RpadParser
     private static readonly HashSet<string> KnownKeys = new(StringComparer.Ordinal)
     {
         "version", "id", "language", "targetSdk", "kind", "packages", "references", "namespaces", "args",
-        "allowUnsafe", "connections",
+        "argumentSets", "selectedArgumentSet", "allowUnsafe", "connections",
     };
 
     /// <summary>
@@ -74,8 +74,13 @@ public static class RpadParser
             fm.References ??= [];
             fm.Namespaces ??= [];
             fm.Args ??= [];
+            // "smoke:" with nothing after it is an empty set, like "smoke: []".
+            fm.ArgumentSets = (fm.ArgumentSets ?? []).ToDictionary(s => s.Key, s => s.Value ?? [], StringComparer.Ordinal);
+            if (string.IsNullOrEmpty(fm.SelectedArgumentSet)) fm.SelectedArgumentSet = null;
             fm.Connections ??= [];
             fm.UnknownEntries = UnknownEntries(yamlText);
+            if (RepeatedArgumentSet(yamlText) is { } repeated)
+                return RpadParseResult.Failure($"Invalid YAML front matter: the argument set '{repeated}' is defined twice.");
             if (fm.Kind == RpadKind.Unknown) fm.Kind = RpadKind.Statements;
             if (fm.Language == RpadLanguage.Unknown) fm.Language = RpadLanguage.CSharp;
         }
@@ -227,6 +232,33 @@ public static class RpadParser
             entries.Add((name, text));
         }
         return [.. entries.Select(e => e.Text)];
+    }
+
+    // The first set name argumentSets: repeats, or null. YAML reads a repeated key as its last value
+    // only, so a save would silently drop the other set.
+    private static string? RepeatedArgumentSet(string yaml)
+    {
+        var parser = new Parser(new StringReader(yaml));
+        parser.Consume<StreamStart>();
+        if (!parser.TryConsume<DocumentStart>(out _) || !parser.TryConsume<MappingStart>(out _)) return null;
+        while (!parser.TryConsume<MappingEnd>(out _))
+        {
+            var isSets = parser.Current is Scalar { Value: "argumentSets" };
+            SkipNode(parser, yaml);
+            if (!isSets || !parser.TryConsume<MappingStart>(out _))
+            {
+                SkipNode(parser, yaml);
+                continue;
+            }
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            while (!parser.TryConsume<MappingEnd>(out _))
+            {
+                if (parser.Current is Scalar { Value: var name } && !names.Add(name)) return name;
+                SkipNode(parser, yaml);
+                SkipNode(parser, yaml);
+            }
+        }
+        return null;
     }
 
     // Whether the block scalar header at `at` ("|+", ">2+", "|+ # note") asks to keep final line breaks.

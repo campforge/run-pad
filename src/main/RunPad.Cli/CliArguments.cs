@@ -16,6 +16,10 @@ internal sealed record CliArguments
     /// <c>args:</c> apply. A bare <c>--</c> gives an empty list: no arguments at all.</summary>
     public IReadOnlyList<string>? ScriptArguments { get; init; }
 
+    /// <summary><c>--args-set NAME</c>: run with the script's argument set of that name. Arguments given
+    /// after the script still replace it.</summary>
+    public string? ArgumentSet { get; init; }
+
     public RpadKind? Kind { get; init; }
 
     /// <summary>Set by the <c>VB…</c> values of <c>-lang</c>: the script must be Visual Basic.</summary>
@@ -119,6 +123,12 @@ internal sealed record CliArguments
                 return (current with { CompileOnly = true }, null);
             case "refresh-connections":
                 return (current with { RefreshConnections = true }, null);
+            case "args-set":
+                {
+                    if (!TryTakeValue(name, inlineValue, args, ref index, out var value, out var error))
+                        return (null, error);
+                    return (current with { ArgumentSet = value }, null);
+                }
             case "lang" or "kind" or "k":
                 {
                     if (!TryTakeValue(name, inlineValue, args, ref index, out var value, out var error))

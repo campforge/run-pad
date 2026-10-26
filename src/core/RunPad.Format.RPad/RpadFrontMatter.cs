@@ -41,8 +41,19 @@ public sealed class RpadFrontMatter
     public List<string>? References { get; set; }
     public List<string>? Namespaces { get; set; }
 
-    /// <summary>The script's command-line arguments: what <c>args</c> holds when the script runs.</summary>
+    /// <summary>The script's command-line arguments: what <c>args</c> holds when the script runs, unless
+    /// a named set is selected (<see cref="SelectedArgumentSet"/>).</summary>
     public List<string>? Args { get; set; }
+
+    /// <summary>
+    /// <c>argumentSets:</c> named argument lists, in the file's order, to run the script with one of
+    /// them. Each item is one argument as it reaches <c>args</c>: spaces, quotes and empty values are
+    /// kept, nothing is split. <see cref="RpadArguments"/> decides which list a run gets.
+    /// </summary>
+    public Dictionary<string, List<string>> ArgumentSets { get; set; } = new(StringComparer.Ordinal);
+
+    /// <summary><c>selectedArgumentSet:</c> the set a run uses instead of <see cref="Args"/>; null for none.</summary>
+    public string? SelectedArgumentSet { get; set; }
 
     /// <summary>
     /// <c>allowUnsafe:</c> compiles the script with unsafe code allowed (C#'s /unsafe), for pointers,

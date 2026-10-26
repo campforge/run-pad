@@ -63,17 +63,20 @@ public sealed record ExecutionRequest
 
     /// <summary>
     /// The request a script's front matter makes: its kind, packages, usings, references, unsafe
-    /// setting and arguments (unless <paramref name="arguments"/> replaces them), for a script at
-    /// <paramref name="currentQueryPath"/>. A script without front matter (untitled, never saved)
-    /// gets the defaults a new document has.
+    /// setting and arguments, for a script at <paramref name="currentQueryPath"/>. The arguments are
+    /// <see cref="RpadArguments"/>'s choice: <paramref name="arguments"/> when given, else the set
+    /// <paramref name="argumentSet"/> names, the selected set or <c>args:</c>. A run checks
+    /// <see cref="RpadArguments.Resolve"/>'s error first: with one, the arguments here are empty. A
+    /// script without front matter (untitled, never saved) gets the defaults a new document has.
     /// </summary>
-    public static ExecutionRequest For(RpadFrontMatter? frontMatter, string? currentQueryPath, IReadOnlyList<string>? arguments = null) => new()
+    public static ExecutionRequest For(RpadFrontMatter? frontMatter, string? currentQueryPath, IReadOnlyList<string>? arguments = null,
+        string? argumentSet = null) => new()
     {
         Kind = frontMatter?.Kind ?? RpadKind.Statements,
         Packages = frontMatter?.Packages.ToDictionary(p => p.Key, p => p.Value.Version) ?? [],
         Usings = frontMatter?.Namespaces ?? [],
         References = frontMatter?.References ?? [],
-        Arguments = arguments ?? frontMatter?.Args ?? [],
+        Arguments = RpadArguments.Resolve(frontMatter, arguments, argumentSet).Arguments,
         AllowUnsafe = frontMatter?.AllowUnsafe ?? false,
         CurrentQueryPath = currentQueryPath,
     };
