@@ -9,8 +9,6 @@ public class RpadArgumentSetsTests
     private const string Script = """
         ---
         version: "1.0"
-        args:
-          - extra
         arguments:
           - name: environment
             type: enum
@@ -136,8 +134,51 @@ public class RpadArgumentSetsTests
 
         Assert.Equal(
             ["--environment", "test", "--count", "3", "--verbose", "true", "--rate", "0.5", "--price", "9.99",
-             "--since", "2026-10-26T09:30:00", "--timeout", "00:01:30", "--tags", "x", "--title", "say \"hi\"", "extra"],
+             "--since", "2026-10-26T09:30:00", "--timeout", "00:01:30", "--tags", "x", "--title", "say \"hi\""],
             RpadArguments.Resolve(fm).Arguments);
+    }
+
+    [Fact]
+    public void Contract_Should_ExposeSelectedTypedValues()
+    {
+        var fm = Parse(Script).FrontMatter;
+
+        var contract = RpadArgumentContract.Build(fm, out var errors);
+
+        Assert.Empty(errors);
+        Assert.Equal(["environment", "count", "verbose", "rate", "price", "since", "timeout", "tags", "title"],
+            contract.Members.Select(m => m.Name));
+        Assert.Equal("int", contract.Members.Single(m => m.Name == "count").Type);
+        Assert.Equal(["3"], contract.Members.Single(m => m.Name == "count").Values);
+        Assert.Equal(["dev", "test"], contract.Members.Single(m => m.Name == "environment").EnumValues);
+        Assert.Contains("\"Name\":\"environment\"", contract.ToJson());
+        Assert.Contains("\"Type\":\"int\"", contract.ToJson());
+    }
+
+    [Fact]
+    public void Contract_Should_ReadExplicitNamedOverrides()
+    {
+        var fm = Parse(Script).FrontMatter;
+        fm.SelectedArgumentSet = null;
+
+        var contract = RpadArgumentContract.Build(fm, out var errors, ["--count", "7"]);
+
+        Assert.Empty(errors);
+        Assert.Equal(["7"], contract.Members.Single(m => m.Name == "count").Values);
+    }
+
+    [Fact]
+    public void Contract_Should_BeEmptyAndReportErrorsForInvalidMetadata()
+    {
+        var fm = Parse(Script).FrontMatter;
+        fm.ArgumentSets["smoke"]["count"] = RpadValue.Of("not-an-int");
+        fm.ArgumentSets["smoke"]["unknown"] = RpadValue.Of("x");
+
+        var contract = RpadArgumentContract.Build(fm, out var errors);
+
+        Assert.Empty(contract.Members);
+        Assert.Contains(errors, e => e.Contains("not-an-int"));
+        Assert.Contains(errors, e => e.Contains("unknown"));
     }
 
     // Defaults where the set gives nothing; an argument with neither is left out.
@@ -146,10 +187,10 @@ public class RpadArgumentSetsTests
     {
         var fm = Parse(Script).FrontMatter;
 
-        Assert.Equal(["--environment", "dev", "--count", "1", "--tags", "a", "--tags", "b c", "extra"],
+        Assert.Equal(["--environment", "dev", "--count", "1", "--tags", "a", "--tags", "b c"],
             RpadArguments.Resolve(fm, null, "defaults").Arguments);
         fm.SelectedArgumentSet = null;
-        Assert.Equal(["--environment", "dev", "--count", "1", "--tags", "a", "--tags", "b c", "extra"],
+        Assert.Equal(["--environment", "dev", "--count", "1", "--tags", "a", "--tags", "b c"],
             RpadArguments.Resolve(fm).Arguments);
     }
 
@@ -168,7 +209,7 @@ public class RpadArgumentSetsTests
     {
         var fm = Parse("---\nargs:\n  - \"from file\"\n---\n```csharp run\n1.Dump();\n```\n").FrontMatter;
 
-        Assert.Equal(["from file"], RpadArguments.Resolve(fm).Arguments);
+        Assert.Empty(RpadArguments.Resolve(fm).Arguments);
         Assert.Empty(RpadArguments.Resolve(null).Arguments);
     }
 
@@ -233,6 +274,59 @@ public class RpadArgumentSetsTests
         Assert.Contains(errors, e => e.Contains("'n' is declared twice"));
         Assert.Contains(errors, e => e.Contains("'level' is an enum without values"));
         Assert.Contains(errors, e => e.Contains("Default: 'count' is 'x'"));
+    }
+
+    [Fact]
+    public void Validate_Should_RejectGeneratedPropertyNameCollisions()
+    {
+        var fm = new RpadFrontMatter
+        {
+            Arguments = [new() { Name = "value" }, new() { Name = "Value" }],
+        };
+
+        var errors = RpadArguments.Validate(fm);
+
+        Assert.Contains(errors, e => e.Contains("conflicts with 'value'"));
+    }
+
+    [Theory]
+    [InlineData("prod-us", "prod us")]
+    [InlineData("dev", "Dev")]
+    [InlineData("", "Value")]
+    [InlineData("dev", "ArgumentsEnv")]
+    public void Validate_Should_ReportConflictingEnumIdentifiers(string first, string second)
+    {
+        var fm = new RpadFrontMatter
+        {
+            Arguments = [new() { Name = "env", Type = RpadArgumentType.Enum, Values = [first, second] }],
+        };
+        var contract = RpadArgumentContract.Build(fm, out var errors);
+        Assert.Contains(errors, e => e.Contains("conflicts with the generated enum name"));
+        Assert.Empty(contract.Members);
+    }
+
+    [Fact]
+    public void Contract_Should_GeneratePascalCaseArgumentsFacade()
+    {
+        var contract = new RpadArgumentContract([
+            new("value", "string", [], [], IsNullable: true),
+            new("count", "int", ["3"], []),
+        ]);
+
+        var source = contract.GenerateCSharpFacade();
+
+        Assert.Contains("public static global::System.String? Value", source);
+        Assert.Contains("ArgumentRuntime.Get(\"value\")", source);
+        Assert.Contains("public static global::System.Int32 Count", source);
+    }
+
+    [Fact]
+    public void Contract_Should_NotInferPropertiesFromUndeclaredCliArguments()
+    {
+        var contract = RpadArgumentContract.Build(new RpadFrontMatter(), out var errors, ["--value", "3", "--env", "prod"]);
+
+        Assert.Empty(errors);
+        Assert.Empty(contract.Members);
     }
 
     [Fact]

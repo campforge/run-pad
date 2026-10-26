@@ -41,10 +41,6 @@ public sealed class RpadFrontMatter
     public List<string>? References { get; set; }
     public List<string>? Namespaces { get; set; }
 
-    /// <summary>The script's command-line arguments as written, each one item of <c>args</c>. With
-    /// declared <see cref="Arguments"/>, they follow those (see <see cref="RpadArguments"/>).</summary>
-    public List<string>? Args { get; set; }
-
     /// <summary><c>arguments:</c> the arguments the script declares, with their types and defaults, in
     /// the file's order. A run passes each as <c>--name value</c>.</summary>
     public List<RpadArgument> Arguments { get; set; } = [];

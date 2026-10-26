@@ -62,8 +62,6 @@ public static class RpadPreview
             Row(sb, "References", string.Join(", ", references.Select(Code)));
         if (fm.Namespaces is { Count: > 0 } namespaces)
             Row(sb, "Namespaces", string.Join(", ", namespaces.Select(Code)));
-        if (fm.Args is { Count: > 0 } args)
-            Row(sb, "Arguments", string.Join(", ", args.Select(Code)));
         if (fm.Arguments.Count > 0)
             Row(sb, "Declared arguments", string.Join(", ", fm.Arguments.Select(a =>
                 $"{Code(a.Name)} ({Text(RpadArgument.TypeName(a.Type))})"

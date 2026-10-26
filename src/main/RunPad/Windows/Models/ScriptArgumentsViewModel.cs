@@ -177,12 +177,10 @@ public sealed record ArgumentRunChoice(ArgumentSetItemViewModel? Set)
 }
 
 // The Arguments tab of Dependencies: the arguments the script declares, sets of their values, the set
-// runs use and extra args:. Edits are a draft, applied with the dialog's other changes (ApplyTo).
+// runs use. Edits are a draft, applied with the dialog's other changes (ApplyTo).
 public sealed class ScriptArgumentsViewModel : ReactiveObject
 {
     private RpadFrontMatter? _original;
-    private string _extraText = "";
-    private IReadOnlyList<string> _originalExtra = [];
     private ArgumentSetItemViewModel? _selectedSet;
     private ArgumentRunChoice? _runChoice;
     private IReadOnlyList<ArgumentRunChoice> _runChoices = [];
@@ -230,18 +228,6 @@ public sealed class ScriptArgumentsViewModel : ReactiveObject
         }
     }
 
-    /// <summary>The script's args:, passed after the declared arguments, one per line.</summary>
-    public string ExtraText
-    {
-        get => _extraText;
-        set
-        {
-            if (_extraText == (value ?? "")) return;
-            this.RaiseAndSetIfChanged(ref _extraText, value ?? "");
-            OnDraftChanged();
-        }
-    }
-
     /// <summary>Everything wrong with the draft: names, values of the wrong type, missing enum values.</summary>
     public IReadOnlyList<string> Problems
     {
@@ -281,8 +267,6 @@ public sealed class ScriptArgumentsViewModel : ReactiveObject
         foreach (var set in Sets) set.Edited -= OnSetEdited;
         Arguments.Clear();
         Sets.Clear();
-        _originalExtra = fm?.Args ?? [];
-        _extraText = RpadArgumentLines.Format(_originalExtra);
         foreach (var argument in fm?.Arguments ?? []) Arguments.Add(Track(new ArgumentRowViewModel(argument, RemoveArgument)));
         foreach (var (name, values) in fm?.ArgumentSets ?? [])
         {
@@ -298,7 +282,6 @@ public sealed class ScriptArgumentsViewModel : ReactiveObject
         _missingSelection = selected is null ? fm?.SelectedArgumentSet : null;
         RefreshSets(selected);
         SelectedSet = Sets.FirstOrDefault();
-        this.RaisePropertyChanged(nameof(ExtraText));
         _loading = false;
         OnDraftChanged();
     }
@@ -308,7 +291,6 @@ public sealed class ScriptArgumentsViewModel : ReactiveObject
     internal void ApplyTo(RpadFrontMatter fm)
     {
         var draft = Draft();
-        fm.Args = fm.Args is null && draft.Args!.Count == 0 ? null : draft.Args;
         fm.Arguments = draft.Arguments;
         fm.ArgumentSets = draft.ArgumentSets;
         fm.SelectedArgumentSet = draft.SelectedArgumentSet;
@@ -317,7 +299,6 @@ public sealed class ScriptArgumentsViewModel : ReactiveObject
     // The draft as front matter, with only what this tab edits.
     private RpadFrontMatter Draft() => new()
     {
-        Args = [.. _extraText == RpadArgumentLines.Format(_originalExtra) ? _originalExtra : RpadArgumentLines.Parse(_extraText)],
         Arguments = [.. Arguments.Select(a => a.ToArgument())],
         ArgumentSets = SetsByName(),
         SelectedArgumentSet = RunChoice?.Set?.Name.Trim() ?? _missingSelection,
@@ -332,7 +313,7 @@ public sealed class ScriptArgumentsViewModel : ReactiveObject
     }
 
     private static string Json(RpadFrontMatter fm) =>
-        JsonSerializer.Serialize(new { Args = fm.Args ?? [], fm.Arguments, fm.ArgumentSets, fm.SelectedArgumentSet });
+        JsonSerializer.Serialize(new { fm.Arguments, fm.ArgumentSets, fm.SelectedArgumentSet });
 
     private ArgumentRowViewModel Track(ArgumentRowViewModel row)
     {

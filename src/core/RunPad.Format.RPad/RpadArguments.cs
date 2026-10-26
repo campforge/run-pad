@@ -8,7 +8,7 @@ namespace RunPad.Format.RPad;
 /// <item>arguments given for this run (the command line after the script), as they are;</item>
 /// <item>otherwise each declared argument (<c>arguments:</c>) as <c>--name value</c>, with the value
 /// of the set named for this run (<c>--args-set</c>) or the selected set (<c>selectedArgumentSet:</c>),
-/// else its default, followed by <c>args:</c> as written.</item>
+/// else its default.</item>
 /// </list>
 /// Every problem is reported at once: a set the script doesn't have, a value that isn't of its
 /// argument's type, a set value for an argument that isn't declared. With any, the run must not start.
@@ -42,7 +42,6 @@ public static partial class RpadArguments
             foreach (var item in RpadArgument.Items(value))
                 arguments.AddRange(["--" + argument.Name, item]);
         }
-        arguments.AddRange(frontMatter.Args ?? []);
         return errors.Count == 0 ? new(arguments, null) : new([], string.Join("\n", errors));
     }
 
@@ -54,23 +53,44 @@ public static partial class RpadArguments
         return errors;
     }
 
+    internal static IReadOnlyList<string> ValidateSchema(RpadFrontMatter frontMatter)
+        => ValidateDeclarations(frontMatter, out _);
+
     private static List<string> ValidateDeclarations(RpadFrontMatter frontMatter, out Dictionary<string, RpadArgument> declared)
     {
         var errors = new List<string>();
         declared = new Dictionary<string, RpadArgument>(StringComparer.Ordinal);
+        var generatedNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var argument in frontMatter.Arguments)
         {
             if (!ValidName().IsMatch(argument.Name))
                 errors.Add($"'{argument.Name}' can't be an argument name: use letters, digits and _, starting with a letter.");
             else if (!declared.TryAdd(argument.Name, argument))
                 errors.Add($"The argument '{argument.Name}' is declared twice.");
+            else if (!generatedNames.TryAdd(PropertyName(argument.Name), argument.Name))
+                errors.Add($"The argument '{argument.Name}' conflicts with '{generatedNames[PropertyName(argument.Name)]}' in the generated Arguments contract.");
             if (argument.Type == RpadArgumentType.Enum && argument.Values.Count == 0)
                 errors.Add($"'{argument.Name}' is an enum without values.");
+            if (argument.Type == RpadArgumentType.Enum)
+            {
+                var enumNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var enumType = "Arguments" + PropertyName(argument.Name);
+                foreach (var valueName in argument.Values)
+                {
+                    var identifier = RpadArgumentContractMember.EnumMemberName(valueName);
+                    if (!enumNames.Add(identifier) || string.Equals(identifier, enumType, StringComparison.OrdinalIgnoreCase))
+                        errors.Add($"'{argument.Name}' enum value '{valueName}' conflicts with the generated enum name '{identifier}'.");
+                }
+            }
             if (argument.Default is { } value && argument.Check(value) is { } problem)
                 errors.Add("Default: " + problem);
         }
         return errors;
     }
+
+    private static string PropertyName(string name) => name.Length == 0
+        ? name
+        : char.ToUpperInvariant(name[0]) + name[1..];
 
     private static IEnumerable<string> ValidateSet(string setName, Dictionary<string, RpadValue> values,
         Dictionary<string, RpadArgument> declared)
@@ -84,7 +104,7 @@ public static partial class RpadArguments
         }
     }
 
-    // What a generated Util.Args member and a --name option can both be.
+    // What a generated Arguments member and a --name option can both be.
     [GeneratedRegex("^[A-Za-z][A-Za-z0-9_]*$")]
     private static partial Regex ValidName();
 }

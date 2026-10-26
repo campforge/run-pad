@@ -205,6 +205,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     private string _preamble = "";
     private int _preambleLength;
     private RpadKind _kind = RpadKind.Statements;
+    private IReadOnlyList<RpadArgumentContractMember> _argumentContract = [];
     private string _lastCode = "";
 
     // The full synced document
@@ -378,6 +379,38 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         // changed underneath it, so diffing against it would compute a TextChange against text the
         // workspace no longer holds.
         lock (_syncLock) { _lastCode = ""; _lastFullText = ""; _lastSourceText = null; }
+    }
+
+    /// <summary>Updates the typed <c>Arguments</c> members offered by completion.</summary>
+    private (DocumentId Id, string Text)? _argumentSource;
+
+    public void UpdateArgumentContract(RpadArgumentContract? contract)
+    {
+        var members = contract?.Members ?? [];
+        lock (_syncLock)
+        {
+            var source = contract is { Members.Count: > 0 } ? contract.GenerateCSharpFacade() : "";
+            if (_argumentContract.SequenceEqual(members) && _argumentSource?.Text == source) return;
+
+            var project = _workspace.CurrentSolution.GetProject(_documentId.ProjectId);
+            if (project is null) return;
+            var solution = project.Solution;
+            if (_argumentSource is { } old) solution = solution.RemoveDocument(old.Id);
+            (DocumentId Id, string Text)? next = null;
+            if (source.Length > 0)
+            {
+                var id = DocumentId.CreateNewId(_documentId.ProjectId, "Arguments.g.cs");
+                solution = solution.AddDocument(id, "Arguments.g.cs", SourceText.From(GeneratedHeader + source, Encoding.UTF8));
+                next = (id, source);
+            }
+            if (!_workspace.TryApplyChanges(solution)) return;
+            _argumentContract = members;
+            _argumentSource = next;
+            _lastCode = "";
+            _lastFullText = "";
+            _lastSourceText = null;
+            _contextVersion++;
+        }
     }
 
     public void UpdateKind(RpadKind kind)
@@ -588,6 +621,24 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             if (root == null) return null;
 
             var pos = ToDocumentOffset(code, position);
+
+            // Arguments is generated from metadata, but completion is still supplied directly so it
+            // remains available before a compile has produced the generated source tree.
+            var beforeCaret = code[..Math.Min(position, code.Length)];
+            var argsPrefix = beforeCaret.LastIndexOf("Arguments.", StringComparison.Ordinal);
+            if (argsPrefix >= 0 && (argsPrefix == 0 || !char.IsLetterOrDigit(beforeCaret[argsPrefix - 1]))
+                && beforeCaret[(argsPrefix + "Arguments.".Length)..].All(char.IsLetterOrDigit))
+            {
+                var typed = beforeCaret[(argsPrefix + "Arguments.".Length)..];
+                var contractItems = _argumentContract
+                    .Where(m => m.PropertyName.StartsWith(typed, StringComparison.OrdinalIgnoreCase))
+                    .Select(m => (ICompletionItem)new SimpleCompletionItem(
+                        m.PropertyName, CompletionItemKind.Property,
+                        [new DisplayTextSegment(m.PropertyName, SemanticTokenKind.PropertyName)],
+                        $"{m.PropertyName} : {(m.Type == "enum" ? m.EnumTypeName : m.Type)}", m.PropertyName, 1, []))
+                    .ToList();
+                if (contractItems.Count > 0) return new SimpleCompletionList(contractItems);
+            }
 
             // Checked before the position guards below: "override" is a
             // reserved keyword that can only ever be a modifier, so if it's literally the word right

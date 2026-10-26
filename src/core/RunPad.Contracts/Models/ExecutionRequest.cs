@@ -28,6 +28,13 @@ public sealed record ExecutionRequest
     /// <summary>The script's <c>args</c>.</summary>
     public IReadOnlyList<string> Arguments { get; init; } = [];
 
+    /// <summary>Serialized selected typed-argument contract for <c>Arguments</c>; null when the
+    /// document has no declarations or metadata is invalid.</summary>
+    public string? ArgumentContractJson { get; init; }
+
+    /// <summary>Metadata diagnostics that made the typed contract empty.</summary>
+    public IReadOnlyList<string> ArgumentContractErrors { get; init; } = [];
+
     /// <summary>The script's <c>allowUnsafe:</c>: compile with unsafe code allowed, where the language has it.</summary>
     public bool AllowUnsafe { get; init; }
 
@@ -65,19 +72,26 @@ public sealed record ExecutionRequest
     /// The request a script's front matter makes: its kind, packages, usings, references, unsafe
     /// setting and arguments, for a script at <paramref name="currentQueryPath"/>. The arguments are
     /// <see cref="RpadArguments"/>'s choice: <paramref name="arguments"/> when given, else the set
-    /// <paramref name="argumentSet"/> names, the selected set or <c>args:</c>. A run checks
+    /// <paramref name="argumentSet"/> names, the selected set or declaration defaults. A run checks
     /// <see cref="RpadArguments.Resolve"/>'s error first: with one, the arguments here are empty. A
     /// script without front matter (untitled, never saved) gets the defaults a new document has.
     /// </summary>
     public static ExecutionRequest For(RpadFrontMatter? frontMatter, string? currentQueryPath, IReadOnlyList<string>? arguments = null,
-        string? argumentSet = null) => new()
+        string? argumentSet = null)
     {
-        Kind = frontMatter?.Kind ?? RpadKind.Statements,
-        Packages = frontMatter?.Packages.ToDictionary(p => p.Key, p => p.Value.Version) ?? [],
-        Usings = frontMatter?.Namespaces ?? [],
-        References = frontMatter?.References ?? [],
-        Arguments = RpadArguments.Resolve(frontMatter, arguments, argumentSet).Arguments,
-        AllowUnsafe = frontMatter?.AllowUnsafe ?? false,
-        CurrentQueryPath = currentQueryPath,
-    };
+        var contract = RpadArgumentContract.Build(frontMatter, out var contractErrors, arguments, argumentSet);
+        return new()
+        {
+            Kind = frontMatter?.Kind ?? RpadKind.Statements,
+            Packages = frontMatter?.Packages.ToDictionary(p => p.Key, p => p.Value.Version) ?? [],
+            Usings = frontMatter?.Namespaces ?? [],
+            References = frontMatter?.References ?? [],
+            Arguments = RpadArguments.Resolve(frontMatter, arguments, argumentSet).Arguments,
+            ArgumentContractJson = contractErrors.Count == 0 && contract.Members.Count > 0
+                ? contract.ToJson() : null,
+            ArgumentContractErrors = contractErrors,
+            AllowUnsafe = frontMatter?.AllowUnsafe ?? false,
+            CurrentQueryPath = currentQueryPath,
+        };
+    }
 }

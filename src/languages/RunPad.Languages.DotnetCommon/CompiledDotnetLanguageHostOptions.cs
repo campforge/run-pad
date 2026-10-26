@@ -59,11 +59,15 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
     public string? CurrentQueryPath { get; init; }
 
     /// <summary>
-    /// The script's command-line arguments (<c>args</c>), from the front matter's <c>args:</c> or the
+    /// The script's command-line arguments (<c>args</c>), resolved from declared arguments or the
     /// <c>runpad</c> command line. Passed to the script's process for a run and in the DAP launch
     /// request for a debug session.
     /// </summary>
     public IReadOnlyList<string> Arguments { get; init; } = [];
+
+    /// <summary>Serialized typed <c>Arguments</c> contract for the selected argument set.</summary>
+    public string? ArgumentContractJson { get; init; }
+    public IReadOnlyList<string> ArgumentContractErrors { get; init; } = [];
 
     /// <summary>The <c>Connections</c> class the script's connections add, compiled with the script; null without connections.</summary>
     public string? ConnectionSource { get; init; }
@@ -113,6 +117,8 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
             ReferenceWarnings = references.Warnings,
             CurrentQueryPath = request.CurrentQueryPath,
             Arguments = request.Arguments,
+            ArgumentContractJson = request.ArgumentContractJson,
+            ArgumentContractErrors = request.ArgumentContractErrors,
             NuGetConfigFile = RunPadNuGetConfigStore.ExistingDefaultConfigFile,
         };
     }

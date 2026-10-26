@@ -82,7 +82,7 @@ public static class CliRunner
         if (cli.Kind is { } kind) document.FrontMatter.Kind = kind;
         if (cli.TargetSdk is { } targetSdk) document.FrontMatter.TargetSdk = targetSdk;
 
-        // The same choice as the window's: given arguments, else --args-set, the selected set or args:.
+        // The same choice as the window's: given arguments, else --args-set, the selected set or defaults.
         var arguments = RpadArguments.Resolve(document.FrontMatter, cli.ScriptArguments, cli.ArgumentSet);
         if (arguments.Error is { } argumentsError)
         {
@@ -117,8 +117,8 @@ public static class CliRunner
             if (services.ConnectionSchemas is { } schemas && document.FrontMatter.Connections.Count > 0)
                 await schemas.EnsureAsync(document.FrontMatter.Connections, Path.GetDirectoryName(Path.GetFullPath(filePath)),
                     cli.RefreshConnections ? ConnectionSchemaRefresh.All : ConnectionSchemaRefresh.Failed, cancellationToken);
-            var request = BuildRequest(document.FrontMatter, platform, outputDirectory, filePath, arguments.Arguments,
-                services.ConnectionDrivers, services.ConnectionSchemas?.Cache);
+            var request = BuildRequest(document.FrontMatter, platform, outputDirectory, filePath, cli.ScriptArguments,
+                services.ConnectionDrivers, services.ConnectionSchemas?.Cache, cli.ArgumentSet);
 
             RunResult result;
             await using var host = registry.Create(languageId, request);
@@ -265,8 +265,8 @@ public static class CliRunner
     internal static ExecutionRequest BuildRequest(
         RpadFrontMatter frontMatter, DotnetSdk platform, string outputDirectory,
         string? currentQueryPath = null, IReadOnlyList<string>? arguments = null, ConnectionDriverRegistry? connectionDrivers = null,
-        ConnectionSchemaCache? connectionSchemas = null)
-        => ExecutionRequest.For(frontMatter, currentQueryPath, arguments) with
+        ConnectionSchemaCache? connectionSchemas = null, string? argumentSet = null)
+        => ExecutionRequest.For(frontMatter, currentQueryPath, arguments, argumentSet) with
         {
             Connections = GeneratedConnections.For(frontMatter.Connections, frontMatter.Language, frontMatter.Packages.Keys,
                 connectionDrivers ?? new ConnectionDriverRegistry(), connectionSchemas,

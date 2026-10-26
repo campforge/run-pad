@@ -69,6 +69,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // The last file WriteFile wrote an .rpad document to, and the document ID written there.
     private (string Path, Guid Id)? _writtenId;
     private IDisposable? _selectedSdkSub;
+    private IDisposable? _selectedArgumentSetSub;
+    private bool _syncingArgumentSet;
     private bool _disposed;
     private bool _runInProgress;
     private readonly DebugHoverController _debugHover = new();
@@ -173,6 +175,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _filePathSub = _vm.WhenAnyValue(x => x.FilePath).Skip(1).Subscribe(OnFilePathChanged);
         // Another target framework can mean other compile assets of the same packages.
         _selectedSdkSub = _vm.WhenAnyValue(x => x.SelectedSdk).Skip(1).Subscribe(OnSelectedSdkChanged);
+        _selectedArgumentSetSub = _vm.WhenAnyValue(x => x.SelectedArgumentSet).Skip(1).Subscribe(OnSelectedArgumentSetChanged);
 
         // Load document content first, without TextMate.
         // SetLanguage calls Redraw() internally, which crashes when the editor
@@ -779,6 +782,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _selectedKindSub?.Dispose();
         _filePathSub?.Dispose();
         _selectedSdkSub?.Dispose();
+        _selectedArgumentSetSub?.Dispose();
         _vm.DebugPanel.WatchExpressions.CollectionChanged -= OnWatchExpressionsCollectionChanged;
         _contextRefreshCts?.Cancel();
         _debugTooltipCloseCts?.Cancel();
@@ -2381,6 +2385,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _metadataBaseline = FrontMatterSnapshot();
         _vm.FrontMatter = rpad?.FrontMatter;
         _vm.SelectedKind = rpad?.FrontMatter.Kind.ToString() ?? "Statements";
+        _syncingArgumentSet = true;
+        try
+        {
+            _vm.SetArgumentSetChoices(rpad?.FrontMatter);
+        }
+        finally
+        {
+            _syncingArgumentSet = false;
+        }
         // The toolbar shows the SDK the script's targetSdk names: "latest (…)" for `latest`, else that
         // version (or the newest, when it isn't installed — RunAsync then says so).
         var targetSdk = rpad?.FrontMatter.TargetSdk ?? TargetSdk.Default;
@@ -2407,6 +2420,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // keystroke; for a file with front-matter packages/usings, spurious "type not found"
         // squiggles for anything only resolvable through them.
         RefreshIntelliSenseKind();
+        RefreshIntelliSenseArguments();
         // Applied off the UI thread now, so the text is analysed again once the context is in rather
         // than trusting the first pass to come after it.
         RefreshIntelliSenseContext(reanalyze: true);
@@ -2579,6 +2593,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // save unrelated unsaved editor text of a dirty named tab either.
     internal void OnDependenciesEdited()
     {
+        _syncingArgumentSet = true;
+        try
+        {
+            _vm.SetArgumentSetChoices(State.RpadDocument?.FrontMatter);
+        }
+        finally
+        {
+            _syncingArgumentSet = false;
+        }
         if (FrontMatterSnapshot() == _metadataBaseline) return;
 
         RefreshIntelliSensePackages();
@@ -2598,7 +2621,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             Packages = fm.Packages.OrderBy(p => p.Key, StringComparer.Ordinal).ToArray(),
             fm.References,
             fm.Namespaces,
-            fm.Args,
             fm.Arguments,
             fm.ArgumentSets,
             fm.SelectedArgumentSet,
@@ -2610,7 +2632,21 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     /// <summary>Pushes this tab's front-matter `namespaces:` list into its own IntelliSense instance.</summary>
     private void RefreshIntelliSenseUsings()
-        => _intelliSense?.UpdateGlobalUsings(State.RpadDocument?.FrontMatter.Namespaces ?? []);
+    {
+        _intelliSense?.UpdateGlobalUsings(State.RpadDocument?.FrontMatter.Namespaces ?? []);
+        RefreshIntelliSenseArguments();
+    }
+
+    private void RefreshIntelliSenseArguments()
+    {
+        if (_intelliSense is RunPad.Languages.CSharp.IntelliSense.CSharpIntelliSenseService csharp)
+        {
+            var contract = State.RpadDocument?.FrontMatter is { } frontMatter
+                ? RpadArgumentContract.Build(frontMatter, out _)
+                : RpadArgumentContract.Empty;
+            csharp.UpdateArgumentContract(contract);
+        }
+    }
 
     // Pushes this tab's front-matter `kind:` into its own IntelliSense instance, unconditionally
     // (unlike Packages/Namespaces above, Kind always has a meaningful value — there's no "empty" case
@@ -2692,6 +2728,16 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (target == rpad.FrontMatter.TargetSdk) return;
         rpad.FrontMatter.TargetSdk = target;
         UpdateProjectInfoBlock();
+        CommitMetadataChange();
+    }
+
+    private void OnSelectedArgumentSetChanged(string? choice)
+    {
+        if (_syncingArgumentSet || choice is null || State.RpadDocument is not { } rpad) return;
+        var selected = choice == "Defaults" ? null : choice;
+        if (rpad.FrontMatter.SelectedArgumentSet == selected) return;
+        rpad.FrontMatter.SelectedArgumentSet = selected;
+        RefreshIntelliSenseArguments();
         CommitMetadataChange();
     }
 
