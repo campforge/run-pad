@@ -13,7 +13,7 @@ internal sealed record CliArguments
     public string? ScriptPath { get; init; }
 
     /// <summary>The script's <c>args</c>; null when nothing follows the script, so the front matter's
-    /// <c>args:</c> apply. A bare <c>--</c> gives an empty list: no arguments at all.</summary>
+    /// declarations and selected preset apply. A bare <c>--</c> gives an empty list: no arguments at all.</summary>
     public IReadOnlyList<string>? ScriptArguments { get; init; }
 
     /// <summary><c>--args-set NAME</c>: run with the script's argument set of that name. Arguments given

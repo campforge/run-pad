@@ -109,7 +109,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
             var blank = Assert.Single(first.Vm.Tabs);
             first.Control(blank).State.Editor.Text = "untitled\r\n${0}";
             var fm = first.Control(blank).State.RpadDocument!.FrontMatter;
-            fm.Args = ["", "a b", "Ж"];
+            fm.Arguments = [new() { Name = "values", Type = RpadArgumentType.StringList, Default = RpadValue.List(new[] { "", "a b", "Ж" }.Select(RpadValue.Of)) }];
             fm.References = ["relative/a.dll", "$(RuntimeDirectory)/System.dll"];
             fm.Namespaces = ["System.Text"];
             fm.Packages["Example"] = new Package("1.2.3");
@@ -132,7 +132,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
         Assert.Equal(active, next.Vm.ActiveTab!.RecoveryId);
         var restored = next.Control(next.Vm.Tabs[0]);
         Assert.Equal("untitled\r\n${0}", restored.State.Editor.Text);
-        Assert.Equal(new[] { "", "a b", "Ж" }, restored.State.RpadDocument!.FrontMatter.Args);
+        Assert.Equal(new[] { "", "a b", "Ж" }, restored.State.RpadDocument!.FrontMatter.Arguments[0].Default!.Items!.Select(i => i.Text));
         Assert.Equal(2, restored.State.RpadDocument.FrontMatter.References!.Count);
         Assert.Equal("1.2.3", restored.State.RpadDocument.FrontMatter.Packages["Example"].Version);
         Assert.Equal("net8.0", restored.State.RpadDocument.FrontMatter.TargetSdk.ToString());
@@ -469,7 +469,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
     {
         var bytes = File.ReadAllBytes(path);
         var document = RpadParser.Parse(RpadWriter.NewFile(text, Path.GetFileNameWithoutExtension(path), kind: RpadKind.Program)
-            .Replace("kind: Program\n", $"kind: Program\nargs:\n  - \"{args}\"\n")).Document!;
+            .Replace("kind: Program\n", $"kind: Program\narguments:\n  - name: value\n    default: \"{args}\"\n")).Document!;
         return new RecoveryTab
         {
             FilePath = path,
@@ -502,9 +502,9 @@ public sealed class SessionDraftLifecycleTests : IDisposable
             Assert.True(copy.IsDirty);
             var copyState = session.Control(copy).State;
             Assert.Equal("other window's edit", copyState.Editor.Text);
-            Assert.Equal(["other-arg"], copyState.RpadDocument!.FrontMatter.Args);
+            Assert.Equal("other-arg", copyState.RpadDocument!.FrontMatter.Arguments.Single().Default!.Text);
             Assert.Equal(RpadKind.Program, copyState.RpadDocument.FrontMatter.Kind);
-            Assert.Equal(["own-arg"], session.Control(file).State.RpadDocument!.FrontMatter.Args);
+            Assert.Equal("own-arg", session.Control(file).State.RpadDocument!.FrontMatter.Arguments.Single().Default!.Text);
             Assert.Contains("untitled copy", session.Vm.RecoveryNotice);
             Assert.Equal(file, session.Vm.ActiveTab); // the restored session keeps its own active tab
             AssertNoModalNotice(session);
@@ -867,7 +867,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
         var saved = RpadParser.TryParse(File.ReadAllText(target))!;
         Assert.Equal([library, macro], ReferencePathResolver.Resolve(saved.FrontMatter.References!, target).Assemblies);
         Assert.StartsWith("$(CurrentQueryPath)/", saved.FrontMatter.References![1]);
-        Assert.Equal(["other-arg"], saved.FrontMatter.Args);
+        Assert.Equal("other-arg", saved.FrontMatter.Arguments.Single().Default!.Text);
         Assert.Equal("2.14.1", saved.FrontMatter.Packages["Humanizer"].Version);
         Assert.Equal(RpadKind.Program, saved.FrontMatter.Kind);
         Assert.Equal(original, File.ReadAllBytes(script));

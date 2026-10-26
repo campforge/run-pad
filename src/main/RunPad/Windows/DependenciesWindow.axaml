@@ -623,13 +623,6 @@
                             </StackPanel>
                         </Grid>
 
-                        <!-- args: as written, after the declared arguments -->
-                        <TextBlock Text="Extra arguments (args:), one per line, passed after the arguments above"/>
-                        <TextBox x:Name="ExtraArgumentsBox" Height="64" Text="{Binding ExtraText}"
-                                 AcceptsReturn="True" TextWrapping="NoWrap" VerticalContentAlignment="Top"
-                                 FontFamily="{x:Static cte:MonospaceFont.Default}"
-                                 AutomationProperties.Name="Extra arguments"/>
-
                         <ItemsControl x:Name="ArgumentProblems" ItemsSource="{Binding Problems}" IsVisible="{Binding HasProblems}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="x:String">

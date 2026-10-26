@@ -42,4 +42,5 @@ public sealed record DapSessionOptions(
     string? CurrentQueryPath = null,
     string? RuntimePath = null,
     TimeSpan? ExceptionInfoTimeout = null,
-    IReadOnlyList<string>? Arguments = null);
+    IReadOnlyList<string>? Arguments = null,
+    string? ArgumentContractJson = null);

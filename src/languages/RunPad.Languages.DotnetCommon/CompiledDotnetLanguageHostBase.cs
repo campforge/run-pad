@@ -109,8 +109,9 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
         _loggerFactory = loggerFactory;
         _compilerFactory = compilerFactory ?? ((_, o, lf) => CreateCompiler(o, lf));
         _executionProcessFactory = executionProcessFactory
-            ?? ((options, assemblyPath, parentPid, currentQueryPath, arguments)
-                => ChildProcess.ForExecution(options, assemblyPath, parentPid, currentQueryPath, arguments));
+            ?? new ExecutionChildProcessFactory((options, assemblyPath, parentPid, currentQueryPath, arguments)
+                => ChildProcess.ForExecution(options, assemblyPath, parentPid, currentQueryPath, arguments,
+                    _options.ArgumentContractJson));
         _debuggerProcessFactory = debuggerProcessFactory ?? ChildProcess.ForDebugger;
         Directory.CreateDirectory(options.OutputDirectory);
     }
@@ -329,7 +330,8 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
                 BreakOnUncaughtExceptions: _options.BreakOnUncaughtExceptions,
                 CurrentQueryPath: _options.CurrentQueryPath,
                 RuntimePath: _options.ExecutionOptions.Runtime.RuntimePath,
-                Arguments: _options.Arguments);
+                Arguments: _options.Arguments,
+                ArgumentContractJson: _options.ArgumentContractJson);
             OnStageChanged(RunStage.Running);
             await using var session = new DapSession(
                 process,

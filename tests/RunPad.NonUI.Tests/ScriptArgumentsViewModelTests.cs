@@ -10,7 +10,6 @@ public class ScriptArgumentsViewModelTests
 {
     private static RpadFrontMatter Script() => new()
     {
-        Args = ["extra"],
         Arguments =
         [
             new() { Name = "environment", Type = RpadArgumentType.Enum, Default = RpadValue.Of("dev"), Values = ["dev", "test"] },
@@ -111,7 +110,7 @@ public class ScriptArgumentsViewModelTests
         var fm = Applied(vm);
 
         Assert.False(fm.ArgumentSets["smoke"].ContainsKey("environment"));
-        Assert.Equal(["--environment", "dev", "--count", "3", "--tags", "a", "--tags", "", "--tags", "b c", "extra"],
+        Assert.Equal(["--environment", "dev", "--count", "3", "--tags", "a", "--tags", "", "--tags", "b c"],
             RpadArguments.Resolve(fm).Arguments);
     }
 
@@ -204,7 +203,6 @@ public class ScriptArgumentsViewModelTests
         vm.ApplyTo(fm);
 
         Assert.False(vm.HasChanges);
-        Assert.Null(fm.Args);
         Assert.Empty(fm.Arguments);
         Assert.Empty(fm.ArgumentSets);
         Assert.Null(fm.SelectedArgumentSet);

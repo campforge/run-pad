@@ -705,7 +705,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     /// <summary>The Connections tab: the script's <c>connections:</c>.</summary>
     public ScriptConnectionsViewModel Connections { get; }
 
-    /// <summary>The Arguments tab: the script's <c>args:</c>, its named sets and the one runs use.</summary>
+    /// <summary>The Arguments tab: typed declarations, their named sets and the one runs use.</summary>
     public ScriptArgumentsViewModel Arguments { get; } = new();
 
     public bool AllowUnsafe

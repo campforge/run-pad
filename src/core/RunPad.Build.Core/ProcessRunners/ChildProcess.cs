@@ -109,12 +109,13 @@ public sealed class ChildProcess : IChildProcess
     // RunPad.Runtime.Util.CancelFileEnvVar (see RequestStop).
     internal const string CancelFileEnvVar = "RUNPAD_CANCEL_FILE";
     internal const string ParentProcessIdEnvVar = "RUNPAD_PARENT_PID";
+    internal const string ArgumentContractEnvVar = "RUNPAD_ARGUMENT_CONTRACT";
 
     /// <summary>Creates a process for running a compiled .NET assembly.</summary>
     /// <param name="arguments">The script's own command-line arguments, its <c>args</c>.</param>
     public static ChildProcess ForExecution(
         ExecutionOptions options, string assemblyPath, string parentPid, string? currentQueryPath = null,
-        IReadOnlyList<string>? arguments = null)
+        IReadOnlyList<string>? arguments = null, string? argumentContractJson = null)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -135,6 +136,8 @@ public sealed class ChildProcess : IChildProcess
             startInfo.ArgumentList.Add(argument);
         if (currentQueryPath is not null)
             startInfo.Environment[CurrentQueryPathEnvVar] = currentQueryPath;
+        if (argumentContractJson is not null)
+            startInfo.Environment[ArgumentContractEnvVar] = argumentContractJson;
         startInfo.Environment[ParentProcessIdEnvVar] = parentPid;
         var cancelFile = Path.Combine(Path.GetTempPath(), $"runpad-stop-{Guid.NewGuid():N}");
         startInfo.Environment[CancelFileEnvVar] = cancelFile;

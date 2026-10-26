@@ -123,7 +123,12 @@ public sealed class ProgramSelectionExecutionTests : IDisposable
         var path = Path.Combine(_root, language == RpadLanguage.Vb ? "program-vb.rpad" : "program.rpad");
         var document = RpadWriter.NewFile(code, "Demo", kind: RpadKind.Program, language: language);
         if (args is { Count: > 0 })
-            document = document.Replace("kind: Program\n", "kind: Program\nargs:\n" + string.Concat(args.Select(a => $"  - \"{a}\"\n")));
+        {
+            var parsed = RpadParser.Parse(document).Document!;
+            parsed.FrontMatter.Arguments = [new() { Name = "values", Type = RpadArgumentType.StringList,
+                Default = RpadValue.List(args.Select(RpadValue.Of)) }];
+            document = RpadWriter.Write(parsed);
+        }
         File.WriteAllText(path, document);
         var registry = new LanguageHostRegistry();
         registry.Register(new CSharpLanguageHostFactory(NullLoggerFactory.Instance));
@@ -166,7 +171,7 @@ public sealed class ProgramSelectionExecutionTests : IDisposable
             await RunAsync(ctrl, "Console.WriteLine(\"selected:\" + string.Join(\",\", args));");
 
             var output = ctrl.State.Output.Content;
-            Assert.True(output.Contains("selected:a1,a2", StringComparison.Ordinal), output);
+            Assert.True(output.Contains("selected:--values,a1,--values,a2", StringComparison.Ordinal), output);
             Assert.DoesNotContain("not selected", output);
             Assert.DoesNotContain("helper", output);
             Assert.Equal("Success", ctrl.State.ExecStatusText);

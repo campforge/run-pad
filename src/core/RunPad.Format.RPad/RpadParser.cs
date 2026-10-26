@@ -23,6 +23,7 @@ public static class RpadParser
 
     // The front matter's own keys, as RpadWriter writes them; any other top-level key is kept
     // verbatim in RpadFrontMatter.UnknownEntries.
+    // The retired args key is discarded on save rather than preserved as unknown metadata.
     private static readonly HashSet<string> KnownKeys = new(StringComparer.Ordinal)
     {
         "version", "id", "language", "targetSdk", "kind", "packages", "references", "namespaces", "args",
@@ -75,7 +76,6 @@ public static class RpadParser
             fm.Packages ??= [];
             fm.References ??= [];
             fm.Namespaces ??= [];
-            fm.Args ??= [];
             fm.Arguments ??= [];
             // "smoke:" with nothing after it is a set that gives no values, like "smoke: {}".
             fm.ArgumentSets = (fm.ArgumentSets ?? []).ToDictionary(s => s.Key,

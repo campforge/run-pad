@@ -32,7 +32,6 @@ public sealed class RpadDocument
         Packages = source.Packages.ToDictionary(p => p.Key, p => p.Value),
         References = source.References?.ToList(),
         Namespaces = source.Namespaces?.ToList(),
-        Args = source.Args?.ToList(),
         Arguments = [.. source.Arguments.Select(a => a.Clone())],
         ArgumentSets = source.ArgumentSets.ToDictionary(s => s.Key,
             s => s.Value.ToDictionary(v => v.Key, v => v.Value.Clone(), StringComparer.Ordinal), StringComparer.Ordinal),
