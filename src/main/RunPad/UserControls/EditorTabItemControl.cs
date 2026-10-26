@@ -2516,7 +2516,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             try
             {
-                await schemas.EnsureAsync(list, scriptDirectory, ConnectionSchemaRefresh.Missing, CancellationToken.None).ConfigureAwait(false);
+                var before = list.Select(connection => schemas.Cache.TryGetLoaded(connection, scriptDirectory)).ToArray();
+                var changed = await schemas.EnsureAsync(list, scriptDirectory, ConnectionSchemaRefresh.Missing, CancellationToken.None).ConfigureAwait(false);
+                var loadedOrUpdated = list.Select((connection, index) =>
+                    !ReferenceEquals(before[index], schemas.Cache.TryGetLoaded(connection, scriptDirectory))).Any(x => x);
+                if (changed || loadedOrUpdated)
+                    Dispatcher.Post(() =>
+                    {
+                        if (_disposed) return;
+                        RefreshIntelliSensePackages();
+                        // The new classes (or error) change what the code already in the editor
+                        // means: analyse it again now rather than at the next keystroke.
+                        _intelliSense?.NotifyTextChanged(State.Editor.Text);
+                    });
             }
             catch (Exception ex)
             {
@@ -2786,7 +2798,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private GeneratedConnections? GeneratedConnectionsFor(RpadFrontMatter? frontMatter) =>
         frontMatter is null ? null
             : GeneratedConnections.For(frontMatter.Connections, frontMatter.Language, frontMatter.Packages.Keys, _connectionDrivers,
-                _connectionSchemas?.Cache, ScriptDirectory);
+                _connectionSchemas?.Cache, ScriptDirectory, readSchemaFromDisk: false);
 
     private sealed class ScriptBreakpoint(
         string fileName,

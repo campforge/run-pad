@@ -301,6 +301,16 @@ public sealed class ConnectionItemViewModel : ReactiveObject
     }
 }
 
+public sealed class ConnectionResourceViewModel(string name, string kind, string details = "")
+{
+    public string Name { get; } = name;
+    public string Kind { get; } = kind;
+    public string Details { get; } = details;
+    public ObservableCollection<ConnectionResourceViewModel> Children { get; } = [];
+}
+
+public sealed record ConnectionResourceDetail(string Name, string Value);
+
 // Tools → Connections: the user's own database, HTTP and gRPC connections, edited in one window.
 // Edits stay in the window until OK writes the whole list; Cancel drops them. A list that can't be
 // read is reported and never overwritten from here.
@@ -315,6 +325,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
     private readonly FileConnectionGroupingStore _groupStore;
     public ConnectionGroupingModel Grouping { get; }
     private string _saved = "";
+    private CancellationTokenSource? _browseCancellation;
 
     public ObservableCollection<ConnectionItemViewModel> Connections { get; } = [];
 
@@ -328,6 +339,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
             this.RaiseAndSetIfChanged(ref field, value);
             this.RaisePropertyChanged(nameof(HasSelection));
             this.RaisePropertyChanged(nameof(CanTest));
+            RefreshResources();
         }
     }
 
@@ -335,6 +347,32 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
     public bool IsEmpty => LoadError is null && Connections.Count == 0;
     // A connection with problems would only fail its test, or send the server half a configuration.
     public bool CanTest => SelectedConnection is { Driver: not null, HasProblems: false };
+
+    public ObservableCollection<ConnectionResourceViewModel> Resources { get; } = [];
+    public ObservableCollection<ConnectionResourceDetail> ResourceDetails { get; } = [];
+    public ConnectionResourceViewModel? SelectedResource
+    {
+        get;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref field, value);
+            ShowDetails(value);
+        }
+    }
+
+    public bool CanBrowse => _schemas is not null && SelectedConnection is { Driver: IConnectionSchemaDriver driver, HasProblems: false } item
+        && !driver.UsesScriptDirectory(item.ToConnection());
+    public bool IsBrowsing { get; private set => this.RaiseAndSetIfChanged(ref field, value); }
+    public string BrowserStatus
+    {
+        get;
+        private set
+        {
+            this.RaiseAndSetIfChanged(ref field, value);
+            this.RaisePropertyChanged(nameof(HasBrowserStatus));
+        }
+    } = "Select a connection to browse its resources.";
+    public bool HasBrowserStatus => !string.IsNullOrWhiteSpace(BrowserStatus);
 
     public string? LoadError { get; }
     public bool HasLoadError => LoadError is not null;
@@ -383,6 +421,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
     public ReactiveCommand<IConnectionDriver, Unit> AddCommand { get; }
     public ReactiveCommand<Unit, Unit> RemoveCommand { get; }
     public ReactiveCommand<Unit, Unit> TestCommand { get; }
+    public ReactiveCommand<Unit, Unit> BrowseCommand { get; }
 
     public ConnectionsWindowViewModel(IConnectionStore store, ConnectionDriverRegistry drivers, ISecretStore secrets,
         ConnectionSchemas? schemas = null)
@@ -413,6 +452,8 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
         RemoveCommand = ReactiveCommand.Create(RemoveSelected, this.WhenAnyValue(x => x.HasSelection));
         TestCommand = ReactiveCommand.CreateFromTask(TestSelectedAsync,
             this.WhenAnyValue(x => x.CanTest, x => x.IsTesting, (valid, testing) => valid && !testing));
+        BrowseCommand = ReactiveCommand.CreateFromTask(BrowseSelectedAsync,
+            this.WhenAnyValue(x => x.CanBrowse, x => x.IsBrowsing, (valid, browsing) => valid && !browsing));
         Validate();
     }
 
@@ -449,7 +490,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
     private ConnectionItemViewModel Add(RpadConnection connection)
     {
         var item = new ConnectionItemViewModel(connection, _drivers.Find(connection.Driver), _secretNames);
-        item.Edited += Validate;
+        item.Edited += OnConnectionEdited;
         Connections.Add(item);
         return item;
     }
@@ -467,7 +508,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
     {
         if (SelectedConnection is not { } item) return;
         var index = Connections.IndexOf(item);
-        item.Edited -= Validate;
+        item.Edited -= OnConnectionEdited;
         Connections.RemoveAt(index);
         SelectedConnection = Connections.Count == 0 ? null : Connections[Math.Min(index, Connections.Count - 1)];
         Validate();
@@ -516,6 +557,185 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
         finally { IsTesting = false; }
     }
 
+    private void RefreshResources()
+    {
+        _browseCancellation?.Cancel();
+        _browseCancellation = null;
+        IsBrowsing = false;
+        Resources.Clear();
+        ResourceDetails.Clear();
+        SelectedResource = null;
+        this.RaisePropertyChanged(nameof(CanBrowse));
+        if (SelectedConnection is not { } item)
+        {
+            BrowserStatus = "Select a connection to browse its resources.";
+            return;
+        }
+        if (item.Driver is not IConnectionSchemaDriver driver)
+        {
+            BrowserStatus = item.Driver is null
+                ? "This connection's driver is unavailable."
+                : "This connection type does not publish a browsable contract yet.";
+            return;
+        }
+        if (item.HasProblems)
+        {
+            BrowserStatus = "Fix the connection settings before browsing its resources.";
+            return;
+        }
+        if (driver.UsesScriptDirectory(item.ToConnection()))
+        {
+            BrowserStatus = "This database path is relative to a script. Open its Dependencies window to browse the schema in that script's folder.";
+            return;
+        }
+        if (_schemas is null)
+        {
+            BrowserStatus = "Resource browsing is unavailable because the schema service is not configured.";
+            return;
+        }
+        var schema = _schemas.Cache.TryGetLoaded(item.ToConnection());
+        if (schema is null)
+        {
+            BrowserStatus = "Resources are not loaded in this window. Choose Load / refresh to read the saved schema or connect.";
+            return;
+        }
+        try
+        {
+            PopulateResources(item.DriverId, schema);
+            BrowserStatus = schema.Summary;
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+        {
+            BrowserStatus = "The cached resource description is damaged. Choose Load / refresh to read it again.";
+        }
+    }
+
+    private async Task BrowseSelectedAsync()
+    {
+        if (_schemas is null || SelectedConnection is not { Driver: IConnectionSchemaDriver driver, HasProblems: false } item)
+            return;
+        if (driver.UsesScriptDirectory(item.ToConnection()))
+        {
+            BrowserStatus = "This database path is relative to a script. Open its Dependencies window to browse the schema in that script's folder.";
+            return;
+        }
+
+        _browseCancellation?.Cancel();
+        var cts = new CancellationTokenSource();
+        _browseCancellation = cts;
+        IsBrowsing = true;
+        BrowserStatus = "Loading resources…";
+        Resources.Clear();
+        ResourceDetails.Clear();
+        try
+        {
+            var secrets = SecretValues();
+            var connection = item.ToConnection();
+            var resolved = ConnectionPlaceholderResolver.Resolve(connection.Params,
+                name => secrets.GetValueOrDefault(name), Environment.GetEnvironmentVariable);
+            if (resolved.Errors.Count > 0)
+            {
+                BrowserStatus = "A secret or environment variable used by this connection is missing or invalid.";
+                return;
+            }
+            await _schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.All, cts.Token);
+            if (cts.IsCancellationRequested || !ReferenceEquals(SelectedConnection, item)) return;
+            var schema = _schemas.Cache.Get(connection);
+            var error = _schemas.Cache.ErrorFor(connection);
+            if (schema is null)
+            {
+                BrowserStatus = error is null ? "The connection returned no resources." : "Could not load resources. Check the connection settings and network access.";
+                return;
+            }
+            PopulateResources(item.DriverId, schema);
+            BrowserStatus = schema.Summary;
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
+        {
+            BrowserStatus = "Could not load resources. Check the connection settings and network access.";
+        }
+        finally
+        {
+            if (ReferenceEquals(_browseCancellation, cts))
+            {
+                _browseCancellation = null;
+                IsBrowsing = false;
+            }
+            cts.Dispose();
+        }
+    }
+
+    private void PopulateResources(string driverId, ConnectionSchema schema)
+    {
+        Resources.Clear();
+        ResourceDetails.Clear();
+        SelectedResource = null;
+        using var data = JsonDocument.Parse(schema.Data);
+        if (driverId.Equals("sqlite", StringComparison.OrdinalIgnoreCase) && data.RootElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var table in data.RootElement.EnumerateArray())
+            {
+                var name = ReadString(table, "Name") ?? "(unnamed table)";
+                var isView = ReadBoolean(table, "IsView");
+                var node = new ConnectionResourceViewModel(name, isView ? "View" : "Table",
+                    isView ? "Database view" : "Database table");
+                if (table.TryGetProperty("Columns", out var columns) && columns.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var column in columns.EnumerateArray())
+                    {
+                        var columnName = ReadString(column, "Name") ?? "(unnamed column)";
+                        var type = ReadString(column, "Type") ?? "";
+                        var nullable = !ReadBoolean(column, "NotNull");
+                        var primaryKey = ReadInt(column, "PrimaryKey") > 0;
+                        node.Children.Add(new ConnectionResourceViewModel(columnName, "Column",
+                            string.Join(" · ", new[] { type, nullable ? "nullable" : "not null", primaryKey ? "primary key" : "" }.Where(s => s.Length > 0))));
+                    }
+                }
+                Resources.Add(node);
+            }
+        }
+        else if (driverId.Equals("grpc", StringComparison.OrdinalIgnoreCase) && data.RootElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var service in data.RootElement.EnumerateArray())
+            {
+                var name = ReadString(service, "Service") ?? "(unnamed service)";
+                var property = ReadString(service, "Property") ?? "";
+                var clientType = ReadString(service, "ClientType") ?? "";
+                var node = new ConnectionResourceViewModel(name, "gRPC service", "Client: Connections." + property);
+                node.Children.Add(new ConnectionResourceViewModel(property, "Client property", clientType));
+                Resources.Add(node);
+            }
+            foreach (var file in schema.Files)
+                Resources.Add(new ConnectionResourceViewModel(file.Name, "Generated protobuf type", "Generated C# source"));
+        }
+        else
+        {
+            Resources.Add(new ConnectionResourceViewModel("Connection contract", "Resources", schema.Summary));
+            foreach (var file in schema.Files)
+                Resources.Add(new ConnectionResourceViewModel(file.Name, "Generated type", "Generated C# source"));
+        }
+        SelectedResource = Resources.FirstOrDefault();
+    }
+
+    private void ShowDetails(ConnectionResourceViewModel? resource)
+    {
+        ResourceDetails.Clear();
+        if (resource is null) return;
+        ResourceDetails.Add(new("Name", resource.Name));
+        ResourceDetails.Add(new("Kind", resource.Kind));
+        if (!string.IsNullOrWhiteSpace(resource.Details)) ResourceDetails.Add(new("Details", resource.Details));
+        foreach (var child in resource.Children)
+            ResourceDetails.Add(new(child.Kind, child.Name + (child.Details.Length == 0 ? "" : " — " + child.Details)));
+    }
+
+    private static string? ReadString(JsonElement element, string property) =>
+        element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+    private static bool ReadBoolean(JsonElement element, string property) =>
+        element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.True;
+    private static int ReadInt(JsonElement element, string property) =>
+        element.TryGetProperty(property, out var value) && value.TryGetInt32(out var result) ? result : 0;
+
     private Dictionary<string, string> SecretValues()
     {
         try { return _secrets.LoadSnapshot().Secrets.ToDictionary(s => s.Name, s => s.Value, StringComparer.OrdinalIgnoreCase); }
@@ -539,5 +759,21 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
         this.RaisePropertyChanged(nameof(CanTest));
         var errors = RpadConnection.Validate(Connections.Select(c => new RpadConnection { Name = c.Name.Trim(), Driver = c.DriverId }));
         ValidationError = errors.FirstOrDefault() ?? Connections.SelectMany(c => c.Fields).Select(f => f.MapError).FirstOrDefault(e => e is not null);
+    }
+
+    private void OnConnectionEdited()
+    {
+        Validate();
+        this.RaisePropertyChanged(nameof(CanBrowse));
+        if (SelectedConnection is { } selected)
+        {
+            _browseCancellation?.Cancel();
+            Resources.Clear();
+            ResourceDetails.Clear();
+            SelectedResource = null;
+            BrowserStatus = selected.HasProblems
+                ? "Fix the connection settings before browsing its resources."
+                : "Connection settings changed. Load / refresh to browse the updated resources.";
+        }
     }
 }
