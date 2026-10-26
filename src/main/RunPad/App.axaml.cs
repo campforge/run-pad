@@ -232,6 +232,8 @@ public class App : Application
         services.AddTransient<MainWindow>();
         services.AddSingleton<IRecoveryStore>(_ => new DiskRecoveryStore(Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RunPad", "recovery", "v1")));
+        services.AddSingleton<ISessionSnapshotLoader, DiskSessionSnapshotLoader>();
+        services.AddTransient<ISessionRecoveryCoordinator, SessionRecoveryCoordinator>();
         services.AddTransient<MainWindowViewModel>();
         services.AddTransient<PreferencesWindowViewModel>();
         services.AddTransient<DependenciesWindowViewModel>();
@@ -255,14 +257,16 @@ public class App : Application
             ConnectionSchemaCache.DefaultFolder, DotnetConnectionTools.Default,
             sp.GetRequiredService<ISecretStore>().Find));
         services.AddSingleton<IConnectionStore>(_ => new FileConnectionStore());
-        services.AddSingleton(sp => new RunPad.UserControls.Models.ConnectionNavigationViewModel(
+        // Navigation rows and attached/collapsed state belong to one main-window session.
+        services.AddTransient(sp => new RunPad.UserControls.Models.ConnectionNavigationViewModel(
             sp.GetRequiredService<IConnectionStore>(), sp.GetRequiredService<ConnectionDriverRegistry>(),
             secrets: sp.GetRequiredService<ISecretStore>(), schemas: sp.GetRequiredService<ConnectionSchemas>()));
         services.AddTransient<ConnectionsWindowViewModel>();
         services.AddTransient<ConnectionsWindow>();
         services.AddTransient<SetupWizardViewModel>();
         services.AddTransient<SetupWizardWindow>();
-        services.AddSingleton<EditorTabsControl>();
+        // The control owns tab controls and subscriptions; it must follow MainWindow's lifetime.
+        services.AddTransient<EditorTabsControl>();
 
         // WindowService's own Func<TWindow> factories (a fresh Transient instance
         // each time a dialog is shown).

@@ -659,22 +659,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 // The file the host compiles and its debugger reports (see ScriptBreakpoint).
                 var sourceFilePath = host.SourceFilePath ?? "";
                 s.SourceFilePath = sourceFilePath;
-                host.Compiled += binaryPath =>
-                {
-                    if (_disposed || generation != _runGeneration) return;
-                    UpdateIlOutput(binaryPath, generation);
-                    // The build has just restored the packages: completion and diagnostics now see the
-                    // versions and transitive packages it resolved.
-                    PostRun(RefreshIntelliSensePackages);
-                };
-                host.StageChanged += (stage, detail) =>
-                {
-                    Volatile.Write(ref _runStageValue, (int)stage);
-                    PostRun(() => ShowRunStage(stage, detail));
-                };
-                host.InputRequested += (prompt, isPassword) =>
-                    PostRun(() => ShowInputPrompt(prompt, isPassword));
-
                 if (debug && host.Supports(LanguageHostCapabilities.Debug))
                 {
                     foreach (var (line, condition, hitCondition) in enabledBreakpoints)
@@ -683,17 +667,69 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                         PostRun(() => OnBreakpointHit(ctx));
                     host.BreakpointVerified += (bp, verified, message) =>
                         PostRun(() => OnBreakpointVerified(bp, verified, message));
-                    await host.RunDebugAsync(
-                        script,
-                        (data, kind) => PostRun(() => AppendOutput(data, kind)),
-                        runCts.Token);
+                    var hostResult = await HostExecutionAdapter.DebugAsync(host, script, @event =>
+                    {
+                        if (@event is HostExecutionEvent.Stage stage)
+                        {
+                            Volatile.Write(ref _runStageValue, (int)stage.Value);
+                            PostRun(() => ShowRunStage(stage.Value, stage.Detail));
+                            return;
+                        }
+
+                        PostRun(() =>
+                        {
+                            switch (@event)
+                            {
+                                case HostExecutionEvent.Compiled compiled:
+                                    UpdateIlOutput(compiled.BinaryPath, generation);
+                                    RefreshIntelliSensePackages();
+                                    break;
+                                case HostExecutionEvent.Output output:
+                                    AppendOutput(output.Data, output.Kind);
+                                    break;
+                                case HostExecutionEvent.InputRequested input:
+                                    ShowInputPrompt(input.Prompt, input.IsPassword);
+                                    break;
+                            }
+                        });
+                    }, runCts.Token);
+                    if (hostResult.Error is not null) throw hostResult.Error;
+                    cancelled = hostResult.Cancelled;
+                    runResult = hostResult.RunResult;
                 }
                 else
                 {
-                    runResult = await host.RunAsync(
-                        script,
-                        (data, kind) => PostRun(() => AppendOutput(data, kind)),
-                        runCts.Token);
+                    var hostResult = await HostExecutionAdapter.RunAsync(host, script, @event =>
+                    {
+                        if (@event is HostExecutionEvent.Stage stage)
+                        {
+                            // Keep the failure/status decision synchronous with the host event;
+                            // the visual update remains marshalled to the UI thread below.
+                            Volatile.Write(ref _runStageValue, (int)stage.Value);
+                            PostRun(() => ShowRunStage(stage.Value, stage.Detail));
+                            return;
+                        }
+
+                        PostRun(() =>
+                        {
+                            switch (@event)
+                            {
+                                case HostExecutionEvent.Compiled compiled:
+                                    UpdateIlOutput(compiled.BinaryPath, generation);
+                                    RefreshIntelliSensePackages();
+                                    break;
+                                case HostExecutionEvent.Output output:
+                                    AppendOutput(output.Data, output.Kind);
+                                    break;
+                                case HostExecutionEvent.InputRequested input:
+                                    ShowInputPrompt(input.Prompt, input.IsPassword);
+                                    break;
+                            }
+                        });
+                    }, runCts.Token);
+                    if (hostResult.Error is not null) throw hostResult.Error;
+                    cancelled = hostResult.Cancelled;
+                    runResult = hostResult.RunResult;
                 }
             }, runCts.Token);
         }
@@ -940,8 +976,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (State.RunningHost is { } host && host.Supports(LanguageHostCapabilities.Breakpoints)
             && State.SourceFilePath is { } path)
         {
-            host.RemoveBreakpoint(new ScriptBreakpoint(path, line, null));
-            if (enabled) host.AddBreakpoint(new ScriptBreakpoint(path, line, condition, hitCondition));
+            BreakpointHostBridge.Remove(host, path, line);
+            if (enabled) BreakpointHostBridge.Add(host, path, line, condition, hitCondition);
         }
     }
 
@@ -1514,14 +1550,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (State.SourceFilePath is not { } path) return;
         var editorBp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == e.Line);
         if (editorBp?.IsEnabled != false)
-            host.AddBreakpoint(new ScriptBreakpoint(path, e.Line, editorBp?.Condition, editorBp?.HitCondition));
+            BreakpointHostBridge.Add(host, path, e.Line, editorBp?.Condition, editorBp?.HitCondition);
     }
 
     private void OnGutterBreakpointRemoved(object? sender, BreakpointEventArgs e)
     {
         if (State.RunningHost is not { } host || !host.Supports(LanguageHostCapabilities.Breakpoints)) return;
         if (State.SourceFilePath is not { } path) return;
-        host.RemoveBreakpoint(new ScriptBreakpoint(path, e.Line, null));
+        BreakpointHostBridge.Remove(host, path, e.Line);
     }
 
     internal void OnBreakpointHit(IBreakpointHitContext context)
@@ -2857,18 +2893,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // request then has the defaults a fresh document has. The references are passed as written —
         // the backend resolves them relative to the script's folder with macros, as the CLI's and
         // IntelliSense's are.
-        return ExecutionRequest.For(rpad?.FrontMatter, _vm.FilePath) with
-        {
-            Connections = GeneratedConnectionsFor(rpad?.FrontMatter),
-            ReferenceBasePath = _vm.ReferenceAnchorPath,
-            Platform = platform,
-            OutputDirectory = State.OutputDirectory,
-            WorkingDirectory = workDir,
-            RuntimePath = _prefs.Debugger.DotnetPath,
-            DebuggerPath = _prefs.Debugger.DebuggerPath,
-            BreakOnAllExceptions = _vm.DebugPanel.BreakOnAllExceptions,
-            BreakOnUncaughtExceptions = _vm.DebugPanel.BreakOnUncaughtExceptions,
-        };
+        return ExecutionRequestBuilder.Build(rpad?.FrontMatter, _vm.FilePath,
+            GeneratedConnectionsFor(rpad?.FrontMatter), _vm.ReferenceAnchorPath, platform,
+            State.OutputDirectory, workDir, _prefs.Debugger.DotnetPath, _prefs.Debugger.DebuggerPath,
+            _vm.DebugPanel.BreakOnAllExceptions, _vm.DebugPanel.BreakOnUncaughtExceptions);
     }
 
     // The client classes of the script's connections, for its build and for the editor alike.

@@ -31,6 +31,7 @@ public sealed partial class MainWindow : Window, IDisposable
     // A second Close (Cmd+Q / window button again) while the first confirmation is
     // still awaiting a dialog must not start a second, overlapping walk over the dirty tabs.
     private bool _closeConfirmationInProgress;
+    private bool _disposed;
 
     public MainWindow(
         IPreferencesService prefs,
@@ -89,6 +90,9 @@ public sealed partial class MainWindow : Window, IDisposable
         Activated += (_, _) => _ = editorTabsCtrl.CheckFilesChangedOnDiskAsync();
 
         Closing += OnClosing;
+        // The window owns the per-window view model and controls. Dispose them on every
+        // successful close so a recreated MainWindow cannot retain subscriptions or tabs.
+        Closed += (_, _) => Dispose();
     }
 
     // Quitting the app used to skip the per-tab
@@ -608,10 +612,13 @@ public sealed partial class MainWindow : Window, IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         GetViewModel().RecentFilesChanged -= OnRecentFilesChanged;
         _prefs.Changed -= OnPreferencesChanged;
         _restoreStateSubscription.Dispose();
         _editorTabs.Dispose();
+        GetViewModel().Dispose();
         GC.SuppressFinalize(this);
     }
 }

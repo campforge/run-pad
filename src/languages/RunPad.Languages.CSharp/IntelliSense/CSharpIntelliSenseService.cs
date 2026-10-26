@@ -519,7 +519,8 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             }
             if (_lastCode != code)
             {
-                var newFullText = _preamble + KindPrefix(code) + ProjectionFor(code).Text + KindSuffix(code) + TrailingPad;
+                var newFullText = ScriptDocumentProjection.Create(
+                    _preamble, KindPrefix(code), ProjectionFor(code).Text, KindSuffix(code), TrailingPad).FullText;
 
                 // Hand Roslyn a
                 // minimal TextChange against the previous SourceText instead of always building a fresh
@@ -529,7 +530,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
                 // full SourceText.From — there's no prior lineage to diff against at that point.
                 var text = _lastSourceText is null
                     ? SourceText.From(newFullText, Encoding.UTF8)
-                    : _lastSourceText.WithChanges(ComputeMinimalChange(_lastFullText, newFullText));
+                    : _lastSourceText.WithChanges(ScriptDocumentProjection.ComputeMinimalChange(_lastFullText, newFullText));
 
                 var newSolution = _workspace.CurrentSolution.WithDocumentText(_documentId, text);
                 // Only remember the new code once the workspace actually reflects it — TryApplyChanges
@@ -560,23 +561,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // directly against edge cases (identical text, pure insert/delete, full replace, empty strings)
     // without needing to drive a real SyncDocument call through the whole AdhocWorkspace.
     internal static TextChange ComputeMinimalChange(string oldText, string newText)
-    {
-        var maxCommon = Math.Min(oldText.Length, newText.Length);
-
-        var prefixLength = 0;
-        while (prefixLength < maxCommon && oldText[prefixLength] == newText[prefixLength])
-            prefixLength++;
-
-        var maxSuffix = maxCommon - prefixLength;
-        var suffixLength = 0;
-        while (suffixLength < maxSuffix
-            && oldText[oldText.Length - 1 - suffixLength] == newText[newText.Length - 1 - suffixLength])
-            suffixLength++;
-
-        var span = new TextSpan(prefixLength, oldText.Length - prefixLength - suffixLength);
-        var replacement = newText.Substring(prefixLength, newText.Length - prefixLength - suffixLength);
-        return new TextChange(span, replacement);
-    }
+        => ScriptDocumentProjection.ComputeMinimalChange(oldText, newText);
 
     // ── Completion ─────────────────────────────────────────────────────────────
 
