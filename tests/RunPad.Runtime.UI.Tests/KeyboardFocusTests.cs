@@ -107,6 +107,9 @@ public class KeyboardFocusTests
         throw new Xunit.Sdk.XunitException($"Timed out waiting for {typeof(T).Name}.");
     }
 
+    // A side-panel section header (Expander.bundle in MainWindow), which replaced the side panel's tab strip.
+    private static bool IsSectionHeader(ToggleButton button) => button.Classes.Contains("bundle-header");
+
     private static void Tab(Window w)
     {
         w.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, "");
@@ -141,17 +144,18 @@ public class KeyboardFocusTests
         window.Show();
         vm.OpenExample(vm.Examples[0]);
         await SettleAsync();
-        var start = await WaitForControlAsync<TabItem>(window);
+        // From the top of the side panel: its section headers and trees come before the document tab.
+        var start = await WaitForControlAsync<ToggleButton>(window, IsSectionHeader);
         Click(window, start);
         Assert.False(FocusFrames.IsShown(start));
 
-        var seen = new List<string>();
-        for (var i = 0; i < 9; i++)
+        var seen = new List<Control>();
+        for (var i = 0; i < 20; i++)
         {
             Tab(window);
             var focused = (Control)window.FocusManager!.GetFocusedElement()!;
             if (focused is AvaloniaEdit.Editing.TextArea) break; // the editor keeps Tab for indenting
-            seen.Add(focused.GetType().Name);
+            seen.Add(focused);
             Assert.True(FocusFrames.IsShown(focused), $"{focused.GetType().Name} has no keyboard-focus frame");
             Assert.Single(FocusFrames.Of(focused));
             focused.TryFindResource("RunPad.Focus.BorderBrush", focused.ActualThemeVariant, out var brush);
@@ -161,8 +165,11 @@ public class KeyboardFocusTests
             Assert.DoesNotContain(focused.GetVisualDescendants().OfType<Border>(), b => b.Name == "HighlightBackground" && b.IsEffectivelyVisible);
         }
 
-        Assert.Contains(nameof(IconButton), seen);
-        Assert.Contains(nameof(ToolbarComboBox), seen);
+        Assert.Contains(seen, c => c is ToggleButton t && IsSectionHeader(t));
+        Assert.Contains(seen, c => c is TreeViewItem);
+        Assert.Contains(seen, c => c is TabItem);
+        Assert.Contains(seen, c => c is IconButton);
+        Assert.Contains(seen, c => c is ToolbarComboBox);
         window.Close();
     }
 
@@ -176,7 +183,7 @@ public class KeyboardFocusTests
         await SettleAsync();
         var targets = new Control[]
         {
-            await WaitForControlAsync<TabItem>(window),
+            await WaitForControlAsync<ToggleButton>(window, IsSectionHeader),
             await WaitForControlAsync<TabItem>(window),
             await WaitForControlAsync<ToolbarComboBox>(window),
         };
