@@ -108,14 +108,14 @@
 
     <!-- Secondary form actions follow the palette instead of the platform's grey fill. -->
     <Style Selector=":is(Button).secondary">
-        <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="4"/>
     </Style>
     <Style Selector="Button.secondary /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
     </Style>
@@ -157,6 +157,35 @@
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="4"/>
+    </Style>
+    <!-- NumericUpDown is a ButtonSpinner around an inner TextBox.  Style both layers so its
+         value field and increment/decrement buttons stay on the same surface as other inputs. -->
+    <Style Selector="NumericUpDown">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="4"/>
+    </Style>
+    <Style Selector="NumericUpDown /template/ ButtonSpinner">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="NumericUpDown /template/ ButtonSpinner /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="NumericUpDown:pointerover /template/ ButtonSpinner /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <Style Selector="NumericUpDown /template/ ButtonSpinner /template/ RepeatButton /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="NumericUpDown:pointerover /template/ ButtonSpinner /template/ RepeatButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
     </Style>
     <Style Selector=":is(TextBox):not(:error) /template/ Border#PART_BorderElement">
         <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
@@ -234,7 +263,7 @@
          The contrasting inner edge keeps the ring visible on selected rows and primary buttons.
          Code editors keep their own caret/selection behavior. All dimensions and brushes are theme
          resources; neither a system accent nor a control's shape decides the focus appearance. -->
-    <Style Selector=":is(Button), :is(ComboBox), TabItem, TabStripItem, ListBoxItem, TextBox, TreeViewItem, :is(TreeView), :is(ListBox), GridSplitter, DataGridCell, DataGridColumnHeader">
+    <Style Selector=":is(Button), :is(ComboBox), NumericUpDown, TabItem, TabStripItem, ListBoxItem, TextBox, TreeViewItem, :is(TreeView), :is(ListBox), GridSplitter, DataGridCell, DataGridColumnHeader">
         <Setter Property="FocusAdorner" Value="{StaticResource RunPad.Focus.Adorner}"/>
     </Style>
     <Style Selector="TreeViewItem /template/ Border#PART_LayoutRoot">
@@ -359,6 +388,14 @@
         <Setter Property="Background" Value="{DynamicResource RunPad.ToolTab.SelectedBackgroundBrush}"/>
     </Style>
     <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.ToolTab.SelectedForegroundBrush}"/>
+    </Style>
+    <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+    </Style>
+    <Style Selector="ComboBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RunPad.ToolTab.SelectedBackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource RunPad.ToolTab.SelectedForegroundBrush}"/>
     </Style>
 </Styles>

@@ -5,7 +5,7 @@
              Width="420" MinWidth="360" MaxWidth="520">
     <UserControl.Styles>
         <Style Selector="TextBox.condition-input /template/ Border#PART_BorderElement, TextBox.condition-input:focus /template/ Border#PART_BorderElement, TextBox.condition-input:pointerover /template/ Border#PART_BorderElement">
-            <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
         </Style>
         <Style Selector="TextBox.condition-input:focus">
             <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Focus.BorderBrush}"/>

@@ -7,13 +7,13 @@
                          Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
     <local:DialogLayout x:Name="Layout" Heading="Save changes before closing RunPad?">
         <local:DialogLayout.LeadingActions>
-            <Button x:Name="KeepInStashButton" Content="Keep in Stash" MinWidth="88" TabIndex="1"
+            <Button Classes="secondary" x:Name="KeepInStashButton" Content="Keep in Stash" MinWidth="88" TabIndex="1"
                     Click="KeepInStashButton_Click"
                     ToolTip.Tip="Close without writing the files; the changes reopen next time"/>
         </local:DialogLayout.LeadingActions>
         <local:DialogLayout.Actions>
             <StackPanel Orientation="Horizontal" Spacing="{DynamicResource RunPad.Space.Control}">
-                <Button x:Name="CancelButton" Content="Cancel" MinWidth="72" TabIndex="2"
+                <Button Classes="secondary" x:Name="CancelButton" Content="Cancel" MinWidth="72" TabIndex="2"
                         Click="CancelButton_Click" IsCancel="True"/>
                 <Button x:Name="SaveAllButton" Content="Save All" MinWidth="72" TabIndex="0"
                         Click="SaveAllButton_Click" IsDefault="True"/>
