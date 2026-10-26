@@ -44,6 +44,8 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- On macOS, Control-click works as a right click: it opens context menus and selects the row under
+  the pointer, in the sidebar, the editor and every other window.
 - With result wrapping on, ordinary output and errors wrap at the pane width too, long unbroken text
   included, so no horizontal scroll bar into empty space is left; spaces in output are kept.
 - The classes RunPad generates for a gRPC connection use a nullable-annotations-only context

@@ -69,6 +69,8 @@ public class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        // macOS: Control-click opens context menus as a right click does (Services/ControlClick).
+        ControlClick.RegisterForApp();
         var serviceProvider = ConfigureServices();
         _serviceProvider = serviceProvider;
 
