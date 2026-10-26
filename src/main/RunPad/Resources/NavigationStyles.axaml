@@ -48,7 +48,7 @@
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
         <Setter Property="FontSize" Value="{DynamicResource RunPad.Type.Caption}"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontWeight" Value="Medium"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
             <ControlTemplate TargetType="ToggleButton">
