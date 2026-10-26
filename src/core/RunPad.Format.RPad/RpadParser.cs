@@ -16,13 +16,14 @@ public static class RpadParser
         .WithTypeConverter(new StrictEnumYamlConverter<RpadKind>(lowercase: false))
         .WithTypeConverter(new StrictEnumYamlConverter<RpadLanguage>(lowercase: true))
         .WithTypeConverter(new ConnectionYamlConverter())
+        .WithTypeConverter(new NullableGuidYamlConverter())
         .Build();
 
     // The front matter's own keys, as RpadWriter writes them; any other top-level key is kept
     // verbatim in RpadFrontMatter.UnknownEntries.
     private static readonly HashSet<string> KnownKeys = new(StringComparer.Ordinal)
     {
-        "version", "language", "targetSdk", "kind", "packages", "references", "namespaces", "args",
+        "version", "id", "language", "targetSdk", "kind", "packages", "references", "namespaces", "args",
         "allowUnsafe", "connections",
     };
 
@@ -426,4 +427,18 @@ internal sealed class PackageYamlConverter : IYamlTypeConverter
 
     public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
         => emitter.Emit(new Scalar(((Package)value!).Version));
+}
+
+internal sealed class NullableGuidYamlConverter : IYamlTypeConverter
+{
+    public bool Accepts(Type type) => type == typeof(Guid) || type == typeof(Guid?);
+
+    public object? ReadYaml(IParser parser, Type type, ObjectDeserializer rootDeserializer)
+    {
+        var value = parser.Consume<Scalar>().Value;
+        return Guid.TryParse(value, out var guid) ? guid : null;
+    }
+
+    public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
+        => emitter.Emit(new Scalar(value is Guid g ? g.ToString("D") : ""));
 }

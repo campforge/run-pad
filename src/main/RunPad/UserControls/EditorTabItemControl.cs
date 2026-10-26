@@ -364,6 +364,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (State.RpadDocument is { } rpad)
         {
             rpad.RunCode = State.Editor.Text;
+            // Stable document GUID (G07): a legacy file without an ID receives one on first save;
+            // Save As / Duplicate (path differs from the tab's own file) creates a new identity.
+            var isSaveAs = !string.Equals(path, _vm.FilePath, StringComparison.Ordinal);
+            if (rpad.FrontMatter.Id is null || isSaveAs)
+                rpad.FrontMatter.Id = Guid.NewGuid();
             // A script written to another folder (Save As) gets its relative references rewritten so
             // they still reach the same files; the tab adopts them only once it really moved there
             // (OnFilePathChanged) — a cancelled or failed Save As leaves its references as they were.
