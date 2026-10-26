@@ -71,10 +71,10 @@ public sealed class DebugHoverControllerTests
         var controller = new DebugHoverController();
         var parent = new Variable("root", "T", "{}", hasChildren: true, variablesReference: 1);
 
-        Assert.Empty(await controller.LoadChildrenAsync(context, parent, DebugHoverController.MaxDepth, default));
-        Assert.Empty(await controller.LoadChildrenAsync(context, new Variable("empty", "T", "", true, 0), 0, default));
+        Assert.Empty(await controller.LoadChildrenAsync(context, parent, DebugHoverController.MaxDepth, TestContext.Current.CancellationToken));
+        Assert.Empty(await controller.LoadChildrenAsync(context, new Variable("empty", "T", "", true, 0), 0, TestContext.Current.CancellationToken));
         Assert.Equal(DebugHoverController.MaxChildren,
-            (await controller.LoadChildrenAsync(context, parent, 0, default)).Count);
+            (await controller.LoadChildrenAsync(context, parent, 0, TestContext.Current.CancellationToken)).Count);
         Assert.Equal(1, context.Calls);
     }
 
@@ -99,7 +99,7 @@ public sealed class DebugHoverControllerTests
     public async Task EvaluateHover_ShouldNotCallDapForUnsafeExpression()
     {
         var context = new ChildContext([]);
-        Assert.Null(await new DebugHoverController().EvaluateHoverAsync(context, "obj[0]", default));
+        Assert.Null(await new DebugHoverController().EvaluateHoverAsync(context, "obj[0]", TestContext.Current.CancellationToken));
         Assert.Equal(0, context.EvaluateCalls);
     }
 
@@ -107,7 +107,7 @@ public sealed class DebugHoverControllerTests
     public async Task EvaluateHover_ShouldCallDapForSafeUnicodeExpression()
     {
         var context = new ChildContext([]);
-        Assert.Null(await new DebugHoverController().EvaluateHoverAsync(context, "привет.имя", default));
+        Assert.Null(await new DebugHoverController().EvaluateHoverAsync(context, "привет.имя", TestContext.Current.CancellationToken));
         Assert.Equal(1, context.EvaluateCalls);
     }
 
@@ -117,7 +117,7 @@ public sealed class DebugHoverControllerTests
         var controller = new DebugHoverController();
         var parent = new Variable("root", "T", "{}", true, 1);
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            controller.LoadChildrenAsync(new BlockingContext(), parent, 0, default));
+            controller.LoadChildrenAsync(new BlockingContext(), parent, 0, TestContext.Current.CancellationToken));
     }
 
     private class ChildContext(IReadOnlyList<IVariableInfo> children) : IBreakpointHitContext
