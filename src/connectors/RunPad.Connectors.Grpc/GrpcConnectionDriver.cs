@@ -110,7 +110,7 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
         CancellationToken cancellationToken)
     {
         // Compute cache key from address + metadata
-        var address = resolvedParams.TryGetValue("address", out var addrValue) ? addrValue.Text : "";
+        var address = resolvedParams.TryGetValue("address", out var addrValue) ? addrValue.Text ?? "" : "";
         var metadata = new Dictionary<string, string>();
         if (resolvedParams.TryGetValue("metadata", out var metaValue) && metaValue.Fields is { } fields)
         {

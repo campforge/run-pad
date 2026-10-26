@@ -1,12 +1,12 @@
 using Google.Protobuf.Reflection;
 using RunPad.Connectors.Grpc;
+using Xunit;
 
 namespace RunPad.NonUI.Tests;
 
-[TestClass]
 public sealed class GrpcConnectionSchemaCacheTests
 {
-    [TestMethod]
+    [Fact]
     public void ComputeCacheKey_SameAddressAndMetadata_ReturnsSameKey()
     {
         var address = "https://localhost:5001";
@@ -15,10 +15,10 @@ public sealed class GrpcConnectionSchemaCacheTests
         var key1 = GrpcConnectionSchemaCache.ComputeCacheKey(address, metadata);
         var key2 = GrpcConnectionSchemaCache.ComputeCacheKey(address, metadata);
         
-        Assert.AreEqual(key1, key2);
+        Assert.Equal(key1, key2);
     }
 
-    [TestMethod]
+    [Fact]
     public void ComputeCacheKey_DifferentMetadata_ReturnsDifferentKey()
     {
         var address = "https://localhost:5001";
@@ -28,10 +28,10 @@ public sealed class GrpcConnectionSchemaCacheTests
         var key1 = GrpcConnectionSchemaCache.ComputeCacheKey(address, metadata1);
         var key2 = GrpcConnectionSchemaCache.ComputeCacheKey(address, metadata2);
         
-        Assert.AreNotEqual(key1, key2);
+        Assert.NotEqual(key1, key2);
     }
 
-    [TestMethod]
+    [Fact]
     public void Cache_Stores_And_Retrieves_Descriptors()
     {
         var cache = new GrpcConnectionSchemaCache();
@@ -44,12 +44,12 @@ public sealed class GrpcConnectionSchemaCacheTests
         cache.CacheDescriptors(cacheKey, descriptors);
         var result = cache.TryGetCachedDescriptors(cacheKey, out var retrieved);
         
-        Assert.IsTrue(result);
-        Assert.AreEqual(descriptors.Count, retrieved.Count);
-        Assert.AreEqual("test.proto", retrieved[0].Name);
+        Assert.True(result);
+        Assert.Equal(descriptors.Count, retrieved.Count);
+        Assert.Equal("test.proto", retrieved[0].Name);
     }
 
-    [TestMethod]
+    [Fact]
     public void Cache_Invalidate_RemovesCachedEntry()
     {
         var cache = new GrpcConnectionSchemaCache();
@@ -63,10 +63,10 @@ public sealed class GrpcConnectionSchemaCacheTests
         cache.InvalidateCache(cacheKey);
         var result = cache.TryGetCachedDescriptors(cacheKey, out _);
         
-        Assert.IsFalse(result);
+        Assert.False(result);
     }
 
-    [TestMethod]
+    [Fact]
     public void ComputeDescriptorHash_SameDescriptors_ReturnsSameHash()
     {
         var cache = new GrpcConnectionSchemaCache();
@@ -78,10 +78,10 @@ public sealed class GrpcConnectionSchemaCacheTests
         var hash1 = cache.ComputeDescriptorHash(descriptors);
         var hash2 = cache.ComputeDescriptorHash(descriptors);
         
-        Assert.AreEqual(hash1, hash2);
+        Assert.Equal(hash1, hash2);
     }
 
-    [TestMethod]
+    [Fact]
     public void ComputeDescriptorHash_DifferentDescriptors_ReturnsDifferentHash()
     {
         var cache = new GrpcConnectionSchemaCache();
@@ -97,10 +97,10 @@ public sealed class GrpcConnectionSchemaCacheTests
         var hash1 = cache.ComputeDescriptorHash(descriptors1);
         var hash2 = cache.ComputeDescriptorHash(descriptors2);
         
-        Assert.AreNotEqual(hash1, hash2);
+        Assert.NotEqual(hash1, hash2);
     }
 
-    [TestMethod]
+    [Fact]
     public void VerifyDescriptorHash_CorrectHash_ReturnsTrue()
     {
         var cache = new GrpcConnectionSchemaCache();
@@ -112,10 +112,10 @@ public sealed class GrpcConnectionSchemaCacheTests
         var hash = cache.ComputeDescriptorHash(descriptors);
         var isValid = cache.VerifyDescriptorHash(descriptors, hash);
         
-        Assert.IsTrue(isValid);
+        Assert.True(isValid);
     }
 
-    [TestMethod]
+    [Fact]
     public void VerifyDescriptorHash_IncorrectHash_ReturnsFalse()
     {
         var cache = new GrpcConnectionSchemaCache();
@@ -126,14 +126,14 @@ public sealed class GrpcConnectionSchemaCacheTests
         
         var isValid = cache.VerifyDescriptorHash(descriptors, "wrong-hash");
         
-        Assert.IsFalse(isValid);
+        Assert.False(isValid);
     }
 
 
 
 
-    [TestMethod]
-    public void ConcurrentCacheAccess_ThreadSafe()
+    [Fact]
+    public async Task ConcurrentCacheAccess_ThreadSafe()
     {
         var cache = new GrpcConnectionSchemaCache();
         var descriptors = new List<FileDescriptorProto>
@@ -143,23 +143,24 @@ public sealed class GrpcConnectionSchemaCacheTests
         var cacheKey = "test-key";
         
         // Concurrent write and read
+        var cancellationToken = TestContext.Current.CancellationToken;
         var writeTask = Task.Run(() =>
         {
             for (int i = 0; i < 100; i++)
                 cache.CacheDescriptors(cacheKey, descriptors);
-        });
+        }, cancellationToken);
         
         var readTask = Task.Run(() =>
         {
             for (int i = 0; i < 100; i++)
                 cache.TryGetCachedDescriptors(cacheKey, out _);
-        });
+        }, cancellationToken);
         
-        Task.WaitAll(writeTask, readTask);
+        await Task.WhenAll(writeTask, readTask);
         
         // Verify final state is valid
         var result = cache.TryGetCachedDescriptors(cacheKey, out var retrieved);
-        Assert.IsTrue(result);
-        Assert.AreEqual("test.proto", retrieved[0].Name);
+        Assert.True(result);
+        Assert.Equal("test.proto", retrieved[0].Name);
     }
 }

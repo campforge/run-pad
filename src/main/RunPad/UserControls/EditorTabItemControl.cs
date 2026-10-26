@@ -1171,6 +1171,16 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             return;
         }
 
+        // A connection's generated message/client class, before any build has cached a compiled
+        // contract assembly for it to decompile from (see handoffs/g03-navigation-cold-start-gap.md):
+        // its source is already in hand, so show it directly instead of decompiling.
+        if (definition.GeneratedDocument is { } generated)
+        {
+            await _windowService.ShowDefinitionInAssemblyExplorerAsync(
+                new DecompiledMemberResult(generated.Text, generated.Line, definition.DisplayName), definition);
+            return;
+        }
+
         DecompiledMemberResult decompiled;
         try
         {
