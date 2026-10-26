@@ -245,9 +245,17 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
         }
     }
 
+    /// <summary>A script is active, so connections can be added to it.</summary>
+    public bool HasActiveScript
+    {
+        get;
+        private set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
     /// <summary>Marks the connections the active script uses (null: no script is active).</summary>
     public void SetAttached(IEnumerable<RpadConnection>? scriptConnections)
     {
+        HasActiveScript = scriptConnections is not null;
         _attached = (scriptConnections ?? []).Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
         foreach (var node in AllNodes().Where(n => n.IsConnection)) node.IsAttached = _attached.Contains(node.Id);
     }
@@ -334,6 +342,10 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
         Walk(null, "", 0);
         return targets;
     }
+
+    /// <summary>Whether the connection can be offered to the active script: there is one, it doesn't use it yet, and this RunPad has its driver.</summary>
+    public bool CanAddToScript(ConnectionNavigationNode node)
+        => HasActiveScript && node is { IsConnection: true, IsAttached: false, IsDriverMissing: false };
 
     public void DismissNotice() => Notice = null;
 

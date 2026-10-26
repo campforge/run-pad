@@ -165,6 +165,8 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
         Assert.True(warehouse.IsConnection);
         Assert.Null(warehouse.Children);
         Assert.True(warehouse.IsDriverMissing);
+        vm.SetAttached([]);
+        Assert.False(vm.CanAddToScript(warehouse)); // no driver to build its client with
         Assert.Equal("Icon.DriverDatabase", warehouse.IconKey);
         Assert.Contains("driver not available", warehouse.AccessibleName);
         Assert.Equal("APIs group, 1 connection", vm.Nodes[0].AccessibleName);
@@ -193,8 +195,14 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
         Assert.True(rows[1].IsAttached);
         Assert.Contains("used by this script", rows[1].AccessibleName);
 
+        Assert.True(vm.HasActiveScript);
+        Assert.True(vm.CanAddToScript(rows[0]));
+        Assert.False(vm.CanAddToScript(rows[1])); // already in the script
+
         vm.SetAttached(null);
         Assert.DoesNotContain(rows, r => r.IsAttached);
+        Assert.False(vm.HasActiveScript);
+        Assert.False(vm.CanAddToScript(rows[0])); // no script to add to
     }
 
     [Fact]

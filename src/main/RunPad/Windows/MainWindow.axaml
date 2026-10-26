@@ -145,7 +145,8 @@
                                 </StackPanel>
                             </Expander.Header>
                             <uc:ConnectionNavigationView x:Name="ConnectionNavigationView" DataContext="{Binding ConnectionNavigation}"
-                                                         OpenConnections="ConnectionNavigation_OpenConnections"/>
+                                                         OpenConnections="ConnectionNavigation_OpenConnections"
+                                                         AddToScript="ConnectionNavigation_AddToScript"/>
                         </Expander>
                         <Expander x:Name="ScriptsBundle" Classes="bundle" IsExpanded="True"
                                   AutomationProperties.Name="Scripts navigation bundle">
