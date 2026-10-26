@@ -564,7 +564,7 @@
                                                      PlaceholderText="none"
                                                      AutomationProperties.Name="Default value"/>
                                         </Grid>
-                                        <Button Grid.Column="3" Content="Remove" Command="{Binding RemoveCommand}"
+                                        <Button Classes="secondary" Grid.Column="3" Content="Remove" Command="{Binding RemoveCommand}"
                                                 AutomationProperties.Name="Remove argument"/>
                                     </Grid>
                                 </DataTemplate>
@@ -607,8 +607,8 @@
                                     </ListBox>
                                 </Border>
                                 <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
-                                    <Button x:Name="AddArgumentSetButton" Content="Add Set" Command="{Binding AddSetCommand}"/>
-                                    <Button x:Name="RemoveArgumentSetButton" Content="Remove" Command="{Binding RemoveSetCommand}"/>
+                                    <Button Classes="secondary" x:Name="AddArgumentSetButton" Content="Add Set" Command="{Binding AddSetCommand}"/>
+                                    <Button Classes="secondary" x:Name="RemoveArgumentSetButton" Content="Remove" Command="{Binding RemoveSetCommand}"/>
                                 </StackPanel>
                             </Grid>
                             <StackPanel Grid.Column="1" Spacing="6"
@@ -767,7 +767,7 @@
              and the window's close button ask whether to save pending changes. Save is deliberately
              not IsDefault so Enter in a field never applies the dialog. -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
-            <Button x:Name="CancelButton" Content="Cancel" Width="80" Click="Cancel_Click" IsCancel="True"/>
+                        <Button x:Name="CancelButton" Classes="secondary" Content="Cancel" Width="80" Click="Cancel_Click" IsCancel="True"/>
             <Button x:Name="OkButton" Classes="primary" Content="Save" Width="80" Click="Ok_Click"
                     IsEnabled="{Binding CanApply}"/>
         </StackPanel>

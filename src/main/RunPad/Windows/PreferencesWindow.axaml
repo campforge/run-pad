@@ -119,7 +119,7 @@
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
-                        <Button Content="Reset to 100%" Command="{Binding ResetInterfaceScaleCommand}"/>
+                        <Button Classes="secondary" Content="Reset to 100%" Command="{Binding ResetInterfaceScaleCommand}"/>
                     </StackPanel>
                     <TextBlock Text="Text, icons and spacing of every RunPad window, code included. Code zoom (Editor) is applied on top."
                                TextWrapping="Wrap" Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
@@ -185,7 +185,7 @@
                             <WrapPanel Grid.Column="1" Orientation="Horizontal">
                                 <TextBlock x:Name="CodeZoomText" VerticalAlignment="Center" Margin="0,0,8,0"
                                            Text="{Binding CodeZoomPercent, StringFormat={}{0}%}"/>
-                                <Button Content="Reset to 100%" Command="{Binding ResetCodeZoomCommand}"/>
+                        <Button Classes="secondary" Content="Reset to 100%" Command="{Binding ResetCodeZoomCommand}"/>
                             </WrapPanel>
                         </Grid>
                         <TextBlock Classes="settings-help"
@@ -270,7 +270,7 @@
                                                     <TextBlock Grid.Column="0" Text="{Binding Title}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                     <TextBox Grid.Column="1" Text="{Binding Key, UpdateSourceTrigger=LostFocus}"
                                                              PlaceholderText="none"/>
-                                                    <Button Grid.Column="2" Content="Reset" Margin="6,0,0,0" Padding="8,2"
+                                                    <Button Classes="secondary" Grid.Column="2" Content="Reset" Margin="6,0,0,0" Padding="8,2"
                                                             Command="{Binding ResetCommand}" IsVisible="{Binding IsCustomized}"
                                                             ToolTip.Tip="{Binding DefaultKeyText}"/>
                                                     <TextBlock Grid.Column="3" Text="{Binding DefaultKeyText}" VerticalAlignment="Center" Margin="8,0,0,0"

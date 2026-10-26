@@ -40,12 +40,12 @@
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Spacing="{DynamicResource RunPad.Space.Control}">
-            <Button x:Name="OkButton"
+            <Button Classes="primary" x:Name="OkButton"
                     Content="Rename"
                     Width="80"
                     Click="OkButton_Click"
                     IsDefault="True"/>
-            <Button Content="Cancel"
+            <Button Classes="secondary" Content="Cancel"
                     Width="80"
                     Click="CancelButton_Click"
                     IsCancel="True"/>

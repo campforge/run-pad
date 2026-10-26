@@ -32,16 +32,16 @@
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Spacing="{DynamicResource RunPad.Space.Control}">
-            <Button x:Name="SaveAsButton"
+            <Button Classes="primary" x:Name="SaveAsButton"
                     Content="Save As…"
                     MinWidth="88"
                     Click="SaveAsButton_Click"
                     IsDefault="True"/>
-            <Button x:Name="OverwriteButton"
+            <Button Classes="secondary" x:Name="OverwriteButton"
                     Content="Overwrite"
                     MinWidth="88"
                     Click="OverwriteButton_Click"/>
-            <Button x:Name="CancelButton"
+            <Button Classes="secondary" x:Name="CancelButton"
                     Content="Cancel"
                     MinWidth="80"
                     Click="CancelButton_Click"

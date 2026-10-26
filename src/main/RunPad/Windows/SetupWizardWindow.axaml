@@ -25,9 +25,9 @@
                 <TextBlock Text="❌" IsVisible="{Binding !HasSuitableSdk}"/>
                 <TextBlock Text=".NET SDK" VerticalAlignment="Center"/>
             </StackPanel>
-            <Button Grid.Column="1" Name="BrowseDotnetButton" Content="Browse…" Click="BrowseDotnet_Click"
+            <Button Classes="secondary" Grid.Column="1" Name="BrowseDotnetButton" Content="Browse…" Click="BrowseDotnet_Click"
                     IsVisible="{Binding !HasSuitableSdk}" IsEnabled="{Binding !IsBusy}" Margin="0,0,8,0"/>
-            <Button Grid.Column="2" Content="Install" Command="{Binding InstallSdkCommand}"
+            <Button Classes="primary" Grid.Column="2" Content="Install" Command="{Binding InstallSdkCommand}"
                     IsVisible="{Binding !HasSuitableSdk}" IsEnabled="{Binding !IsBusy}"/>
         </Grid>
 
@@ -38,9 +38,9 @@
                 <TextBlock Text="❌" IsVisible="{Binding !HasValidDebugger}"/>
                 <TextBlock Text="netcoredbg (debugger)" VerticalAlignment="Center"/>
             </StackPanel>
-            <Button Grid.Column="1" Name="BrowseDebuggerButton" Content="Browse…" Click="BrowseDebugger_Click"
+            <Button Classes="secondary" Grid.Column="1" Name="BrowseDebuggerButton" Content="Browse…" Click="BrowseDebugger_Click"
                     IsVisible="{Binding !HasValidDebugger}" IsEnabled="{Binding !IsBusy}" Margin="0,0,8,0"/>
-            <Button Grid.Column="2" Content="Install" Command="{Binding InstallDebuggerCommand}"
+            <Button Classes="primary" Grid.Column="2" Content="Install" Command="{Binding InstallDebuggerCommand}"
                     IsVisible="{Binding !HasValidDebugger}" IsEnabled="{Binding !IsBusy}"/>
         </Grid>
 
@@ -62,8 +62,8 @@
         </ScrollViewer>
 
         <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
-            <Button Content="Cancel" Command="{Binding CancelInstallCommand}" IsVisible="{Binding IsBusy}"/>
-            <Button Name="ContinueButton" Content="Continue to RunPad" Click="Continue_Click"/>
+            <Button Classes="secondary" Content="Cancel" Command="{Binding CancelInstallCommand}" IsVisible="{Binding IsBusy}"/>
+            <Button Classes="primary" Name="ContinueButton" Content="Continue to RunPad" Click="Continue_Click"/>
         </StackPanel>
     </Grid>
 </Window>

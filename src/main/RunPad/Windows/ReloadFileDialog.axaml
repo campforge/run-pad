@@ -31,10 +31,10 @@
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Spacing="{DynamicResource RunPad.Space.Control}">
-            <Button x:Name="ReloadButton"
+            <Button Classes="secondary" x:Name="ReloadButton"
                     MinWidth="88"
                     Click="ReloadButton_Click"/>
-            <Button x:Name="KeepButton"
+            <Button Classes="primary" x:Name="KeepButton"
                     MinWidth="88"
                     Click="KeepButton_Click"
                     IsDefault="True"

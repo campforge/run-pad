@@ -8,8 +8,8 @@
     <local:DialogLayout x:Name="Layout" Heading="Add connection to script?">
         <local:DialogLayout.Actions>
             <StackPanel Orientation="Horizontal" Spacing="{DynamicResource RunPad.Space.Control}">
-                <Button Content="Cancel" MinWidth="72" Click="Cancel_Click" IsCancel="True"/>
-                <Button Content="Add Connection and Packages" MinWidth="190" Click="Add_Click" IsDefault="True"/>
+                <Button Classes="secondary" Content="Cancel" MinWidth="72" Click="Cancel_Click" IsCancel="True"/>
+                <Button Classes="primary" Content="Add Connection and Packages" MinWidth="190" Click="Add_Click" IsDefault="True"/>
             </StackPanel>
         </local:DialogLayout.Actions>
     </local:DialogLayout>
