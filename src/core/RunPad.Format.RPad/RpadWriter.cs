@@ -90,20 +90,32 @@ public static partial class RpadWriter
                 sb.Append('\n').Append("  - ").Append(YamlEscape(a));
         }
 
+        if (fm.Arguments.Count > 0)
+        {
+            sb.Append('\n').Append("arguments:");
+            foreach (var argument in fm.Arguments)
+            {
+                sb.Append('\n').Append("  - name: ").Append(Scalar(argument.Name));
+                sb.Append('\n').Append("    type: ").Append(RpadArgument.TypeName(argument.Type)); // fixed names, plain in YAML
+                if (argument.Default is { } value) WriteEntry(sb, "default", value, 4);
+                if (argument.Type == RpadArgumentType.Enum)
+                    WriteEntry(sb, "values", RpadValue.List(argument.Values.Select(RpadValue.Of)), 4);
+            }
+        }
+
         if (fm.ArgumentSets.Count > 0)
         {
             sb.Append('\n').Append("argumentSets:");
-            foreach (var (name, arguments) in fm.ArgumentSets)
+            foreach (var (name, values) in fm.ArgumentSets)
             {
-                sb.Append('\n').Append("  ").Append(YamlEscape(name)).Append(':');
-                if (arguments.Count == 0) sb.Append(" []");
-                foreach (var a in arguments)
-                    sb.Append('\n').Append("    - ").Append(YamlEscape(a));
+                sb.Append('\n').Append("  ").Append(Scalar(name)).Append(':');
+                if (values.Count == 0) sb.Append(" {}");
+                foreach (var (key, value) in values) WriteEntry(sb, key, value, 4);
             }
         }
 
         if (fm.SelectedArgumentSet is { } selected)
-            sb.Append('\n').Append("selectedArgumentSet: ").Append(YamlEscape(selected));
+            sb.Append('\n').Append("selectedArgumentSet: ").Append(Scalar(selected));
 
         // Written only when on, so existing documents stay byte-for-byte unchanged.
         if (fm.AllowUnsafe) sb.Append('\n').Append("allowUnsafe: true");

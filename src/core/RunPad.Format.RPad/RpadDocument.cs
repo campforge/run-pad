@@ -33,7 +33,9 @@ public sealed class RpadDocument
         References = source.References?.ToList(),
         Namespaces = source.Namespaces?.ToList(),
         Args = source.Args?.ToList(),
-        ArgumentSets = source.ArgumentSets.ToDictionary(s => s.Key, s => s.Value.ToList(), StringComparer.Ordinal),
+        Arguments = [.. source.Arguments.Select(a => a.Clone())],
+        ArgumentSets = source.ArgumentSets.ToDictionary(s => s.Key,
+            s => s.Value.ToDictionary(v => v.Key, v => v.Value.Clone(), StringComparer.Ordinal), StringComparer.Ordinal),
         SelectedArgumentSet = source.SelectedArgumentSet,
         AllowUnsafe = source.AllowUnsafe,
         Connections = [.. source.Connections.Select(c => new RpadConnection

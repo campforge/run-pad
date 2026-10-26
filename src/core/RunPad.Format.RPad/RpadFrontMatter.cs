@@ -41,18 +41,21 @@ public sealed class RpadFrontMatter
     public List<string>? References { get; set; }
     public List<string>? Namespaces { get; set; }
 
-    /// <summary>The script's command-line arguments: what <c>args</c> holds when the script runs, unless
-    /// a named set is selected (<see cref="SelectedArgumentSet"/>).</summary>
+    /// <summary>The script's command-line arguments as written, each one item of <c>args</c>. With
+    /// declared <see cref="Arguments"/>, they follow those (see <see cref="RpadArguments"/>).</summary>
     public List<string>? Args { get; set; }
 
-    /// <summary>
-    /// <c>argumentSets:</c> named argument lists, in the file's order, to run the script with one of
-    /// them. Each item is one argument as it reaches <c>args</c>: spaces, quotes and empty values are
-    /// kept, nothing is split. <see cref="RpadArguments"/> decides which list a run gets.
-    /// </summary>
-    public Dictionary<string, List<string>> ArgumentSets { get; set; } = new(StringComparer.Ordinal);
+    /// <summary><c>arguments:</c> the arguments the script declares, with their types and defaults, in
+    /// the file's order. A run passes each as <c>--name value</c>.</summary>
+    public List<RpadArgument> Arguments { get; set; } = [];
 
-    /// <summary><c>selectedArgumentSet:</c> the set a run uses instead of <see cref="Args"/>; null for none.</summary>
+    /// <summary>
+    /// <c>argumentSets:</c> named sets of values for the declared arguments, in the file's order, keyed
+    /// by argument name. An argument a set doesn't give takes its default.
+    /// </summary>
+    public Dictionary<string, Dictionary<string, RpadValue>> ArgumentSets { get; set; } = new(StringComparer.Ordinal);
+
+    /// <summary><c>selectedArgumentSet:</c> the set runs use; null for the defaults.</summary>
     public string? SelectedArgumentSet { get; set; }
 
     /// <summary>

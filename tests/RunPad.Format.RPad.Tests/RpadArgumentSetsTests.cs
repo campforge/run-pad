@@ -2,106 +2,251 @@ using Xunit;
 
 namespace RunPad.Format.RPad.Tests;
 
-// Named argument sets (argumentSets:, selectedArgumentSet:) and which list a run gets (RpadArguments).
+// Declared arguments (arguments:), sets of their values (argumentSets:, selectedArgumentSet:) and the
+// args a run gets from them (RpadArguments).
 public class RpadArgumentSetsTests
 {
-    private const string WithSets = "---\nversion: \"1.0\"\nargs:\n  - legacy\nargumentSets:\n  smoke:\n    - --verbose\n    - \"file with spaces.txt\"\n    - \"\"\n    - \"say \\\"hi\\\"\"\n  quiet: []\n  bare:\n  \"ünï code\":\n    - é\nselectedArgumentSet: smoke\n---\n```csharp run\n1.Dump();\n```\n";
+    private const string Script = """
+        ---
+        version: "1.0"
+        args:
+          - extra
+        arguments:
+          - name: environment
+            type: enum
+            default: dev
+            values:
+              - dev
+              - test
+          - name: count
+            type: int
+            default: "1"
+          - name: verbose
+            type: bool
+          - name: rate
+            type: double
+          - name: price
+            type: decimal
+          - name: since
+            type: datetime
+          - name: timeout
+            type: timespan
+          - name: tags
+            type: string[]
+            default:
+              - a
+              - "b c"
+          - name: title
+            type: string
+        argumentSets:
+          smoke:
+            environment: test
+            count: "3"
+            verbose: "true"
+            rate: "0.5"
+            price: "9.99"
+            since: 2026-10-26T09:30:00
+            timeout: "00:01:30"
+            tags:
+              - x
+            title: "say \"hi\""
+          defaults: {}
+        selectedArgumentSet: smoke
+        ---
+        ```csharp run
+        1.Dump();
+        ```
 
-    private static RpadDocument Parse(string text) => RpadParser.TryParse(text) ?? throw new Xunit.Sdk.XunitException("not parsed");
+        """;
+
+    private static RpadDocument Parse(string text) =>
+        RpadParser.Parse(text.Replace("\r\n", "\n")) is { IsSuccess: true } r ? r.Document : throw new Xunit.Sdk.XunitException(RpadParser.Parse(text).Error);
 
     [Fact]
-    public void Sets_Should_ParseInTheFilesOrder_WithEveryItemAsWritten()
+    public void Arguments_Should_ParseWithTheirTypesDefaultsAndValues()
     {
-        var fm = Parse(WithSets).FrontMatter;
+        var fm = Parse(Script).FrontMatter;
 
-        Assert.Equal(["smoke", "quiet", "bare", "ünï code"], fm.ArgumentSets.Keys);
-        Assert.Equal(["--verbose", "file with spaces.txt", "", "say \"hi\""], fm.ArgumentSets["smoke"]);
-        Assert.Empty(fm.ArgumentSets["quiet"]);
-        Assert.Empty(fm.ArgumentSets["bare"]); // "bare:" with no value is an empty set
-        Assert.Equal(["é"], fm.ArgumentSets["ünï code"]);
-        Assert.Equal("smoke", fm.SelectedArgumentSet);
-        Assert.Equal(["legacy"], fm.Args);
+        Assert.Equal(["environment", "count", "verbose", "rate", "price", "since", "timeout", "tags", "title"], fm.Arguments.Select(a => a.Name));
+        Assert.Equal(RpadArgumentType.Enum, fm.Arguments[0].Type);
+        Assert.Equal(["dev", "test"], fm.Arguments[0].Values);
+        Assert.Equal(RpadArgumentType.StringList, fm.Arguments[7].Type);
+        Assert.Equal(["a", "b c"], fm.Arguments[7].Default!.Items!.Select(i => i.Text));
+        Assert.Null(fm.Arguments[2].Default);
+        Assert.Equal(["smoke", "defaults"], fm.ArgumentSets.Keys);
+        Assert.Equal("say \"hi\"", fm.ArgumentSets["smoke"]["title"].Text);
+        Assert.Empty(fm.ArgumentSets["defaults"]);
         Assert.Empty(fm.UnknownEntries);
+        Assert.Empty(RpadArguments.Validate(fm));
     }
 
     [Fact]
-    public void Sets_Should_SurviveWriteAndParse()
+    public void Arguments_Should_SurviveWriteAndParse()
     {
-        var written = RpadWriter.Write(Parse(WithSets));
-        var again = Parse(written);
+        var written = RpadWriter.Write(Parse(Script));
+        var again = Parse(written).FrontMatter;
 
-        Assert.Equal(Parse(WithSets).FrontMatter.ArgumentSets, again.FrontMatter.ArgumentSets);
-        Assert.Equal("smoke", again.FrontMatter.SelectedArgumentSet);
-        Assert.Equal(written, RpadWriter.Write(again));
-        Assert.Contains("\n  \"quiet\": []\n", written);
+        Assert.Equal(written, RpadWriter.Write(Parse(written)));
+        Assert.Equal(RpadArguments.Resolve(Parse(Script).FrontMatter).Arguments, RpadArguments.Resolve(again).Arguments);
+        Assert.Contains("\n  - name: tags\n    type: string[]\n", written);
+        Assert.Contains("\n  defaults: {}\n", written);
     }
 
-    // A file without sets is written as before: no new keys appear.
     [Fact]
-    public void AFileWithoutSets_Should_NotGainTheKeys()
+    public void AFileWithoutArguments_Should_NotGainTheKeys()
     {
-        var written = RpadWriter.Write(Parse("---\nversion: \"1.0\"\nargs:\n  - a\n---\n```csharp run\n1.Dump();\n```\n"));
+        var written = RpadWriter.Write(Parse("---\nargs:\n  - a\n---\n```csharp run\n1.Dump();\n```\n"));
 
+        Assert.DoesNotContain("arguments", written);
         Assert.DoesNotContain("argumentSets", written);
         Assert.DoesNotContain("selectedArgumentSet", written);
     }
 
-    [Fact]
-    public void ADuplicateSetName_Should_BeAParseError()
+    [Theory]
+    [InlineData("---\nargumentSets:\n  a: {}\n  a: {}\n---\n", "the argument set 'a' is defined twice")]
+    [InlineData("---\nargumentSets:\n  a:\n    n: x\n    n: y\n---\n", "the argument set 'a' gives 'n' twice")]
+    [InlineData("---\narguments:\n  - name: n\n    type: float\n---\n", "Unknown argument type 'float'")]
+    public void AStructuralProblem_Should_BeAParseError(string frontMatter, string error)
     {
-        var result = RpadParser.Parse("---\nargumentSets:\n  a: []\n  a: [x]\n---\n```csharp run\n1.Dump();\n```\n");
+        var result = RpadParser.Parse(frontMatter + "```csharp run\n1.Dump();\n```\n");
 
         Assert.False(result.IsSuccess);
+        Assert.Contains(error, result.Error);
     }
 
     [Fact]
-    public void Snapshot_Should_CopyTheSets()
+    public void Snapshot_Should_CopyArgumentsAndSets()
     {
-        var doc = Parse(WithSets);
+        var doc = Parse(Script);
         var restored = RpadDocument.FromSnapshot(doc.CaptureSnapshot());
-        doc.FrontMatter.ArgumentSets["smoke"].Add("later");
+        doc.FrontMatter.Arguments[0].Values.Add("prod");
+        doc.FrontMatter.ArgumentSets["smoke"].Remove("count");
 
-        Assert.Equal(["--verbose", "file with spaces.txt", "", "say \"hi\""], restored.FrontMatter.ArgumentSets["smoke"]);
+        Assert.Equal(["dev", "test"], restored.FrontMatter.Arguments[0].Values);
+        Assert.True(restored.FrontMatter.ArgumentSets["smoke"].ContainsKey("count"));
         Assert.Equal("smoke", restored.FrontMatter.SelectedArgumentSet);
     }
 
-    // ── Which arguments a run gets ─────────────────────────────────────────────
+    // ── The args a run gets ─────────────────────────────────────────────────────
 
     [Fact]
-    public void Resolve_Should_PreferGiven_ThenNamed_ThenSelected_ThenArgs()
+    public void Resolve_Should_PassEachArgumentAsNameAndValue_FromTheSelectedSet_ThenArgs()
     {
-        var fm = Parse(WithSets).FrontMatter;
+        var fm = Parse(Script).FrontMatter;
 
-        Assert.Equal(["cli"], RpadArguments.Resolve(fm, ["cli"], "quiet").Arguments);
-        Assert.Empty(RpadArguments.Resolve(fm, [], "quiet").Arguments); // given but empty: none at all
-        Assert.Empty(RpadArguments.Resolve(fm, null, "quiet").Arguments);
-        Assert.Equal(4, RpadArguments.Resolve(fm).Arguments.Count);
+        Assert.Equal(
+            ["--environment", "test", "--count", "3", "--verbose", "true", "--rate", "0.5", "--price", "9.99",
+             "--since", "2026-10-26T09:30:00", "--timeout", "00:01:30", "--tags", "x", "--title", "say \"hi\"", "extra"],
+            RpadArguments.Resolve(fm).Arguments);
+    }
+
+    // Defaults where the set gives nothing; an argument with neither is left out.
+    [Fact]
+    public void Resolve_Should_UseDefaults_AndLeaveOutArgumentsWithoutAValue()
+    {
+        var fm = Parse(Script).FrontMatter;
+
+        Assert.Equal(["--environment", "dev", "--count", "1", "--tags", "a", "--tags", "b c", "extra"],
+            RpadArguments.Resolve(fm, null, "defaults").Arguments);
         fm.SelectedArgumentSet = null;
-        Assert.Equal(["legacy"], RpadArguments.Resolve(fm).Arguments);
-        Assert.Empty(RpadArguments.Resolve(null).Arguments);
+        Assert.Equal(["--environment", "dev", "--count", "1", "--tags", "a", "--tags", "b c", "extra"],
+            RpadArguments.Resolve(fm).Arguments);
     }
 
     [Fact]
-    public void Resolve_Should_RefuseAnUnknownSet_InsteadOfFallingBack()
+    public void Resolve_Should_PassGivenArgumentsAsTheyAre()
     {
-        var fm = Parse(WithSets).FrontMatter;
+        var fm = Parse(Script).FrontMatter;
+
+        Assert.Equal(["cli"], RpadArguments.Resolve(fm, ["cli"], "nightly").Arguments);
+        Assert.Empty(RpadArguments.Resolve(fm, [], null).Arguments);
+        Assert.Null(RpadArguments.Resolve(fm, ["cli"], "nightly").Error);
+    }
+
+    [Fact]
+    public void ScriptsWithOnlyArgs_Should_RunAsBefore()
+    {
+        var fm = Parse("---\nargs:\n  - \"from file\"\n---\n```csharp run\n1.Dump();\n```\n").FrontMatter;
+
+        Assert.Equal(["from file"], RpadArguments.Resolve(fm).Arguments);
+        Assert.Empty(RpadArguments.Resolve(null).Arguments);
+    }
+
+    // Every problem at once, and no run.
+    [Fact]
+    public void Resolve_Should_ReportEveryInvalidValue()
+    {
+        var fm = Parse(Script).FrontMatter;
+        var smoke = fm.ArgumentSets["smoke"];
+        smoke["count"] = RpadValue.Of("three");
+        smoke["verbose"] = RpadValue.Of("yes");
+        smoke["rate"] = RpadValue.Of("0,5");
+        smoke["since"] = RpadValue.Of("26.10.2026");
+        smoke["timeout"] = RpadValue.Of("90s");
+        smoke["environment"] = RpadValue.Of("prod");
+        smoke["title"] = RpadValue.List([RpadValue.Of("a")]);
+        smoke["missing"] = RpadValue.Of("x");
+
+        var result = RpadArguments.Resolve(fm);
+
+        Assert.Empty(result.Arguments);
+        Assert.Contains("'count' is 'three', which is not a int", result.Error);
+        Assert.Contains("'verbose' is 'yes', which is not a bool", result.Error);
+        Assert.Contains("'rate' is '0,5', which is not a double", result.Error);
+        Assert.Contains("'since' is '26.10.2026', which is not a datetime", result.Error);
+        Assert.Contains("'timeout' is '90s', which is not a timespan", result.Error);
+        Assert.Contains("'environment' is 'prod', which is not one of dev, test", result.Error);
+        Assert.Contains("'title' must be a single value, not a list", result.Error);
+        Assert.Contains("The set 'smoke' gives 'missing', which is not a declared argument", result.Error);
+    }
+
+    // A mistake in a set this run doesn't use doesn't stop it; Validate still reports it.
+    [Fact]
+    public void AnotherSetsMistake_Should_NotStopTheRun()
+    {
+        var fm = Parse(Script).FrontMatter;
+        fm.ArgumentSets["defaults"]["count"] = RpadValue.Of("three");
+
+        Assert.Null(RpadArguments.Resolve(fm).Error);
+        Assert.NotNull(RpadArguments.Resolve(fm, null, "defaults").Error);
+        Assert.Contains(RpadArguments.Validate(fm), e => e.Contains("In the set 'defaults'"));
+    }
+
+    [Fact]
+    public void Validate_Should_ReportBadDeclarations()
+    {
+        var fm = new RpadFrontMatter
+        {
+            Arguments =
+            [
+                new() { Name = "two words" },
+                new() { Name = "n" },
+                new() { Name = "n" },
+                new() { Name = "level", Type = RpadArgumentType.Enum },
+                new() { Name = "count", Type = RpadArgumentType.Int, Default = RpadValue.Of("x") },
+            ],
+        };
+
+        var errors = RpadArguments.Validate(fm);
+
+        Assert.Contains(errors, e => e.Contains("'two words' can't be an argument name"));
+        Assert.Contains(errors, e => e.Contains("'n' is declared twice"));
+        Assert.Contains(errors, e => e.Contains("'level' is an enum without values"));
+        Assert.Contains(errors, e => e.Contains("Default: 'count' is 'x'"));
+    }
+
+    [Fact]
+    public void Resolve_Should_RefuseAnUnknownSet()
+    {
+        var fm = Parse(Script).FrontMatter;
 
         var named = RpadArguments.Resolve(fm, null, "nightly");
         fm.SelectedArgumentSet = "gone";
         var selected = RpadArguments.Resolve(fm);
-        var none = RpadArguments.Resolve(new RpadFrontMatter { SelectedArgumentSet = "x", Args = ["legacy"] });
 
         Assert.Empty(named.Arguments);
-        Assert.Contains("'nightly'", named.Error);
-        Assert.Contains("smoke, quiet, bare, ünï code", named.Error);
+        Assert.Contains("no argument set 'nightly'. Its sets: smoke, defaults.", named.Error);
         Assert.Contains("'gone'", selected.Error);
-        Assert.Empty(none.Arguments);
-        Assert.Contains("defines none", none.Error);
-        Assert.Null(RpadArguments.Resolve(fm, ["given"]).Error); // given arguments need no set
+        Assert.Contains("defines none", RpadArguments.Resolve(new RpadFrontMatter { SelectedArgumentSet = "x" }).Error);
     }
-
-    // Names are compared exactly: "Smoke" is not "smoke".
-    [Fact]
-    public void Resolve_Should_MatchNamesExactly()
-        => Assert.NotNull(RpadArguments.Resolve(Parse(WithSets).FrontMatter, null, "Smoke").Error);
 }
