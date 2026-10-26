@@ -127,7 +127,7 @@ public class KeyboardFocusTests
     private static Color FrameColor(Control c) =>
         ((ISolidColorBrush)FocusFrames.Of(c).SelectMany(a => new[] { (Visual)a }.Concat(a.GetVisualDescendants())).OfType<Border>().First().BorderBrush!).Color;
 
-    // Tab goes through the side panel, the tree, the document tab and the toolbar: every stop shows
+    // Tab goes from the side panel through the document tab and the toolbar: every stop shows
     // exactly one frame in the theme's focus colour, and nothing draws a second one.
     [AvaloniaTheory]
     [InlineData("VsCodeDark")]
@@ -144,7 +144,7 @@ public class KeyboardFocusTests
         window.Show();
         vm.OpenExample(vm.Examples[0]);
         await SettleAsync();
-        // From the top of the side panel: its section headers and trees come before the document tab.
+        // From the top of the side panel, so every stop after it is reached by Tab.
         var start = await WaitForControlAsync<ToggleButton>(window, IsSectionHeader);
         Click(window, start);
         Assert.False(FocusFrames.IsShown(start));
@@ -165,8 +165,8 @@ public class KeyboardFocusTests
             Assert.DoesNotContain(focused.GetVisualDescendants().OfType<Border>(), b => b.Name == "HighlightBackground" && b.IsEffectivelyVisible);
         }
 
-        Assert.Contains(seen, c => c is ToggleButton t && IsSectionHeader(t));
-        Assert.Contains(seen, c => c is TreeViewItem);
+        // The side panel's section headers and trees are not Tab stops: Tab leaves the panel for the
+        // document tab and the toolbar.
         Assert.Contains(seen, c => c is TabItem);
         Assert.Contains(seen, c => c is IconButton);
         Assert.Contains(seen, c => c is ToolbarComboBox);
