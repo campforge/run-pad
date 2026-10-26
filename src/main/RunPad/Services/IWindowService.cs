@@ -10,8 +10,8 @@ public interface IWindowService
     // available after it's already open (see EditorTabItemViewModel.FrontMatter).
     Task ShowDependenciesAsync(IObservable<RpadFrontMatter?>? frontMatter = null, IObservable<string?>? scriptPath = null);
 
-    /// <summary>Opens Dependencies on its Connections tab, already adding the named saved connection to the script.</summary>
-    Task AddConnectionToScriptAsync(IObservable<RpadFrontMatter?>? frontMatter, IObservable<string?>? scriptPath, string connectionName);
+    /// <summary>Asks whether to add a connection together with the NuGet packages its driver needs; false when declined or no window is open.</summary>
+    Task<bool> ConfirmConnectionPackagesAsync(string message);
     Task ShowPreferencesAsync();
     Task ShowErrorAsync(string title, string message);
     Task ShowAboutAsync();

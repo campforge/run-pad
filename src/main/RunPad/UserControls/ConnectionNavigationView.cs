@@ -227,7 +227,7 @@ public partial class ConnectionNavigationView : UserControl
 
         if (node is { IsConnection: true })
         {
-            menu.Items.Add(Item(node.IsAttached ? "In This Script" : "Add to Script…", "Icon.ConnectionAttached", vm.CanAddToScript(node),
+            menu.Items.Add(Item(node.IsAttached ? "In This Script" : "Add to Script", "Icon.ConnectionAttached", vm.CanAddToScript(node),
                 () => RaiseEvent(new ConnectionNavigationEventArgs(AddToScriptEvent, node.Id))));
             menu.Items.Add(Item("Edit Connection…", "Icon.Rename", true, () => RaiseOpen(node.Id)));
             menu.Items.Add(new Separator());

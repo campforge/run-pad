@@ -59,25 +59,6 @@ public partial class DependenciesWindow : Window
 
     private DependenciesWindowViewModel? ViewModel => DataContext as DependenciesWindowViewModel;
 
-    // Opens on the Connections tab and starts adding that saved connection, once the window is shown
-    // (its package confirmation is a dialog over this window).
-    internal void StartAddingConnection(string connectionName)
-    {
-        void OnOpened(object? sender, EventArgs e)
-        {
-            Opened -= OnOpened;
-            global::Avalonia.Threading.Dispatcher.UIThread.Post(() => AddConnection(connectionName));
-        }
-        Opened += OnOpened;
-    }
-
-    internal void AddConnection(string connectionName)
-    {
-        if (ViewModel is not { } vm) return;
-        ConnectionsTab.IsSelected = true;
-        vm.Connections.RequestAdd(connectionName);
-    }
-
     private bool _askingToSave;
 
     public void SetFrontMatter(RpadFrontMatter? fm) => ViewModel?.SetFrontMatter(fm);

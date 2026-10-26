@@ -344,8 +344,10 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
 
     internal void CancelPendingAdd() => CancelAddConfirmation();
 
-    // Adding a saved connection named from outside the window (the sidebar's Connections tree): the
-    // same Add as choosing it here, with its package confirmation; nothing is applied until Save.
+    internal void ConfirmPendingAdd() => ConfirmAdd();
+
+    // Adding a saved connection by name (the sidebar's Connections tree): the same Add as choosing it
+    // here, with the same checks and package confirmation.
     internal void RequestAdd(string connectionName)
     {
         CreateMessage = null;

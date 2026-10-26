@@ -72,7 +72,12 @@ public sealed class NavigationSidebarTests : IDisposable
         var drivers = new ConnectionDriverRegistry();
         drivers.Register(new HttpConnectionDriver());
         var store = new FileConnectionStore(Path.Combine(_dataFolder, "connections.json"));
-        store.Save([new RpadConnection { Name = "billing", Driver = "http" }, new RpadConnection { Name = "orders", Driver = "http" }], null);
+        RpadConnection Http(string name) => new()
+        {
+            Name = name, Driver = "http",
+            Params = new(StringComparer.Ordinal) { ["baseAddress"] = RpadValue.Of($"https://{name}.test/") },
+        };
+        store.Save([Http("billing"), Http("orders")], null);
         var vm = new MainWindowViewModel(
             sdkProviders: [],
             fileSystemService: fileSystem.Object,
@@ -199,7 +204,7 @@ public sealed class NavigationSidebarTests : IDisposable
         var headers = menu.Items.OfType<MenuItem>().Select(m => m.Header as string).ToList();
         Assert.Contains("Edit Connection…", headers);
         // No script is open in this window, so there is nothing to add the connection to yet.
-        Assert.False(menu.Items.OfType<MenuItem>().Single(m => m.Header as string == "Add to Script…").IsEnabled);
+        Assert.False(menu.Items.OfType<MenuItem>().Single(m => m.Header as string == "Add to Script").IsEnabled);
         Assert.Contains("Move To", headers);
         Assert.Contains("Manage Connections…", headers);
     }

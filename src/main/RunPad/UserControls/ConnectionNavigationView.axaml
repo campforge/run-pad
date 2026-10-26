@@ -98,9 +98,9 @@
                                           Width="12" Height="12" IsVisible="{Binding IsAttached}"
                                           ToolTip.Tip="Used by this script"
                                           Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
-                                <PathIcon Data="{StaticResource Icon.Warning}" Width="12" Height="12"
-                                          IsVisible="{Binding IsDriverMissing}" ToolTip.Tip="Driver not available in this RunPad"
-                                          Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+                                <PathIcon x:Name="ProblemBadge" Data="{StaticResource Icon.Warning}" Width="12" Height="12"
+                                          IsVisible="{Binding ShowsProblem}"
+                                          Foreground="{DynamicResource RunPad.Status.ErrorBrush}"/>
                                 <TextBlock Classes="count" Text="{Binding ConnectionCount}" IsVisible="{Binding HasChildrenCount}"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">

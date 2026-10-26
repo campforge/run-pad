@@ -240,7 +240,8 @@ public class App : Application
             sp.GetRequiredService<ISecretStore>().Find));
         services.AddSingleton<IConnectionStore>(_ => new FileConnectionStore());
         services.AddSingleton(sp => new RunPad.UserControls.Models.ConnectionNavigationViewModel(
-            sp.GetRequiredService<IConnectionStore>(), sp.GetRequiredService<ConnectionDriverRegistry>()));
+            sp.GetRequiredService<IConnectionStore>(), sp.GetRequiredService<ConnectionDriverRegistry>(),
+            secrets: sp.GetRequiredService<ISecretStore>(), schemas: sp.GetRequiredService<ConnectionSchemas>()));
         services.AddTransient<ConnectionsWindowViewModel>();
         services.AddTransient<ConnectionsWindow>();
         services.AddTransient<SetupWizardViewModel>();
