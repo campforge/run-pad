@@ -409,6 +409,18 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
         Assert.Contains("StandardOutput: defines ok", output);
     }
 
+    [Fact]
+    public async Task ProgramMain_GuardedByATargetFrameworkSymbol_Should_Execute()
+    {
+        var output = await RunAsync(Options(kind: RpadKind.Program), """
+            #if NET8_0_OR_GREATER
+            static void Main() => Console.WriteLine("main ran");
+            #endif
+            """);
+
+        Assert.Contains("StandardOutput: main ran", output);
+    }
+
     // ── Target framework, generators, references ─────────────────────────────
 
     public static TheoryData<string> InstalledTargetFrameworks()
