@@ -2,7 +2,7 @@ using RunPad.Contracts.Models;
 
 namespace RunPad.UserControls;
 
-internal sealed class DebugHoverController
+internal sealed class DebugHoverController : IDisposable
 {
     public const int MaxDepth = 3;
     public const int MaxChildren = 64;
@@ -10,9 +10,11 @@ internal sealed class DebugHoverController
     public static readonly TimeSpan ChildTimeout = TimeSpan.FromMilliseconds(500);
     private CancellationTokenSource? _pending;
     private long _generation;
+    private bool _disposed;
 
     public (long Generation, CancellationToken Token) Begin()
     {
+        if (_disposed) return (++_generation, new CancellationToken(canceled: true));
         _pending?.Cancel();
         _pending = new CancellationTokenSource();
         return (++_generation, _pending.Token);
@@ -20,12 +22,27 @@ internal sealed class DebugHoverController
 
     public void Cancel()
     {
+        if (_disposed)
+        {
+            _generation++;
+            return;
+        }
         _pending?.Cancel();
         _pending = null;
         _generation++;
     }
 
     public bool IsCurrent(long generation) => generation == _generation && !(_pending?.IsCancellationRequested ?? true);
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _pending?.Cancel();
+        _pending?.Dispose();
+        _pending = null;
+        _generation++;
+    }
 
     internal sealed class TreeBudget
     {
