@@ -511,6 +511,74 @@
                 </Grid>
             </TabItem>
 
+            <!-- ─── Arguments: args:, the named sets and the one runs use ───────── -->
+            <TabItem x:Name="ArgumentsTab" Header="Arguments">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto" Margin="0,12,0,0" RowSpacing="8"
+                      DataContext="{Binding Arguments}" x:DataType="viewModels:ScriptArgumentsViewModel"
+                      IsEnabled="{Binding $parent[Window].((viewModels:DependenciesWindowViewModel)DataContext).HasFrontMatter}">
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                        <TextBlock VerticalAlignment="Center" Text="Run with:"/>
+                        <ComboBox x:Name="ArgumentRunChoiceBox" Grid.Column="1" MinWidth="240"
+                                  ItemsSource="{Binding RunChoices}" SelectedItem="{Binding RunChoice}"
+                                  AutomationProperties.Name="Arguments runs use">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="viewModels:ArgumentRunChoice">
+                                    <TextBlock Text="{Binding Label}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </Grid>
+                    <TextBlock Grid.Row="1" Classes="hint"
+                               Text="One argument per line, exactly as the script gets it in args: spaces and quotes are kept, and an empty line is an empty argument. On the command line, --args-set NAME picks a set and arguments after the script replace them all."/>
+                    <TextBlock Grid.Row="2" Text="Default arguments (args:)"/>
+                    <TextBox x:Name="DefaultArgumentsBox" Grid.Row="3" Height="72"
+                             Text="{Binding DefaultText}"
+                             AcceptsReturn="True" TextWrapping="NoWrap" VerticalContentAlignment="Top"
+                             FontFamily="{x:Static cte:MonospaceFont.Default}"
+                             AutomationProperties.Name="Default arguments"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                    <Grid Grid.Row="4" ColumnDefinitions="200,*" ColumnSpacing="12">
+                        <Grid RowDefinitions="Auto,*,Auto" RowSpacing="6">
+                            <TextBlock Text="Argument sets"/>
+                            <Border Grid.Row="1" Classes="pane">
+                                <ListBox x:Name="ArgumentSetList" ItemsSource="{Binding Sets}" SelectedItem="{Binding SelectedSet}"
+                                         Background="Transparent" BorderThickness="0"
+                                         AutomationProperties.Name="Argument sets">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="viewModels:ArgumentSetItemViewModel">
+                                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Border>
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
+                                <Button x:Name="AddArgumentSetButton" Content="Add Set" Command="{Binding AddCommand}"/>
+                                <Button x:Name="RemoveArgumentSetButton" Content="Remove" Command="{Binding RemoveCommand}"/>
+                            </StackPanel>
+                        </Grid>
+                        <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="6"
+                              DataContext="{Binding SelectedSet}" x:DataType="viewModels:ArgumentSetItemViewModel"
+                              IsVisible="{Binding Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <TextBlock Text="Name"/>
+                            <TextBox x:Name="ArgumentSetNameBox" Grid.Row="1" Text="{Binding Name}"
+                                     AutomationProperties.Name="Argument set name"/>
+                            <TextBox x:Name="ArgumentSetArgumentsBox" Grid.Row="2"
+                                     Text="{Binding Text}"
+                                     AcceptsReturn="True" TextWrapping="NoWrap" VerticalContentAlignment="Top"
+                                     FontFamily="{x:Static cte:MonospaceFont.Default}"
+                                     AutomationProperties.Name="Arguments of the set"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                            <TextBlock Grid.Row="3" Classes="hint" IsVisible="{Binding !Fits}"
+                                       Text="An argument of this set has a line break, which a line can't show: it stays as it is unless you edit this text."/>
+                        </Grid>
+                    </Grid>
+                    <TextBlock x:Name="ArgumentsError" Grid.Row="5" Classes="error"
+                               Text="{Binding Error}" IsVisible="{Binding HasError}"/>
+                </Grid>
+            </TabItem>
+
             <!-- ─── Compilation (C# only) ──────────────────────────────────────── -->
             <TabItem x:Name="CompilationTab" Header="Compilation" IsVisible="{Binding HasUnsafeOption}">
                 <StackPanel Margin="0,12,0,0" Spacing="6">
