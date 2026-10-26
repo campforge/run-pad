@@ -6,23 +6,34 @@ using Xunit;
 
 namespace RunPad.Cli.Tests;
 
-// Which arguments a run from the command line gets: given ones, --args-set, the script's selected
-// set, its args:. The build is never reached: the language stops the run once it has the request.
+// Which arguments a run from the command line gets: given ones, else the declared arguments with the
+// values of --args-set or the selected set (or their defaults), then args:. The build is never reached: the language stops the run once it has the request.
 public class CliArgumentSetTests
 {
     private const string Script = """
         ---
         language: csharp
         args:
-          - legacy
+          - extra
+        arguments:
+          - name: environment
+            type: enum
+            default: dev
+            values: [dev, test]
+          - name: file
+            type: string
+          - name: tags
+            type: string[]
         argumentSets:
           smoke:
-            - --verbose
-            - "file with spaces.txt"
-            - ""
-          quiet: []
+            environment: test
+            file: "file with spaces.txt"
+            tags: ["", "say \"hi\""]
+          quiet: {}
           "ünï code":
-            - "say \"hi\""
+            file: é
+          broken:
+            environment: prod
         {SELECTED}---
 
         ```csharp run
@@ -85,26 +96,23 @@ public class CliArgumentSetTests
     }
 
     [Fact]
-    public async Task WithoutASelectedSet_Should_RunWithArgs()
-        => Assert.Equal(["legacy"], (await RunAsync(null, "{path}")).Arguments);
+    public async Task WithoutASelectedSet_Should_RunWithTheDefaults_ThenArgs()
+        => Assert.Equal(["--environment", "dev", "extra"], (await RunAsync(null, "{path}")).Arguments);
 
     [Fact]
-    public async Task TheSelectedSet_Should_ReplaceArgs_WithEveryItemAsWritten()
-        => Assert.Equal(["--verbose", "file with spaces.txt", ""], (await RunAsync("smoke", "{path}")).Arguments);
-
-    [Fact]
-    public async Task AnEmptySet_Should_RunWithNoArguments()
-        => Assert.Empty((await RunAsync("quiet", "{path}")).Arguments!);
+    public async Task TheSelectedSet_Should_GiveItsValues_WithEveryItemAsWritten()
+        => Assert.Equal(["--environment", "test", "--file", "file with spaces.txt", "--tags", "", "--tags", "say \"hi\"", "extra"],
+            (await RunAsync("smoke", "{path}")).Arguments);
 
     [Theory]
     [InlineData("--args-set", "quiet")]
     [InlineData("--args-set=quiet")]
     public async Task ArgsSet_Should_ReplaceTheSelectedSet(params string[] option)
-        => Assert.Empty((await RunAsync("smoke", [.. option, "{path}"])).Arguments!);
+        => Assert.Equal(["--environment", "dev", "extra"], (await RunAsync("smoke", [.. option, "{path}"])).Arguments);
 
     [Fact]
-    public async Task ArgsSet_Should_TakeANameWithUnicodeAndKeepQuotes()
-        => Assert.Equal(["say \"hi\""], (await RunAsync(null, "--args-set", "ünï code", "{path}")).Arguments);
+    public async Task ArgsSet_Should_TakeANameWithUnicode()
+        => Assert.Equal(["--environment", "dev", "--file", "é", "extra"], (await RunAsync(null, "--args-set", "ünï code", "{path}")).Arguments);
 
     // Arguments on the command line win over every set, and a bare -- means none at all.
     [Fact]
@@ -121,7 +129,7 @@ public class CliArgumentSetTests
 
         Assert.Equal(CliRunner.NotRunExitCode, exit);
         Assert.Contains("no argument set 'nightly'", error);
-        Assert.Contains("smoke, quiet, ünï code", error);
+        Assert.Contains("smoke, quiet, ünï code, broken", error);
     }
 
     [Fact]
@@ -131,6 +139,15 @@ public class CliArgumentSetTests
 
         Assert.Equal(CliRunner.NotRunExitCode, exit);
         Assert.Contains("no argument set 'gone'", error);
+    }
+
+    [Fact]
+    public async Task AValueOfTheWrongType_Should_NotRun()
+    {
+        var (_, exit, error) = await RunAsync(null, "--args-set", "broken", "{path}");
+
+        Assert.Equal(CliRunner.NotRunExitCode, exit);
+        Assert.Contains("'environment' is 'prod', which is not one of dev, test", error);
     }
 
     [Fact]

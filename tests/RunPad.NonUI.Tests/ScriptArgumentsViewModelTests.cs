@@ -4,16 +4,22 @@ using Xunit;
 
 namespace RunPad.NonUI.Tests;
 
-// The Dependencies window's Arguments tab: args:, named sets and the one runs use, as a draft.
+// The Dependencies window's Arguments tab: declared arguments as rows, sets of their values and the
+// set runs use, as a draft applied on Save.
 public class ScriptArgumentsViewModelTests
 {
     private static RpadFrontMatter Script() => new()
     {
-        Args = ["legacy"],
+        Args = ["extra"],
+        Arguments =
+        [
+            new() { Name = "environment", Type = RpadArgumentType.Enum, Default = RpadValue.Of("dev"), Values = ["dev", "test"] },
+            new() { Name = "count", Type = RpadArgumentType.Int },
+            new() { Name = "tags", Type = RpadArgumentType.StringList, Default = RpadValue.List([RpadValue.Of("two\nlines")]) },
+        ],
         ArgumentSets = new(StringComparer.Ordinal)
         {
-            ["smoke"] = ["--verbose", "file with spaces.txt"],
-            ["multi"] = ["two\nlines"],
+            ["smoke"] = new(StringComparer.Ordinal) { ["environment"] = RpadValue.Of("test"), ["count"] = RpadValue.Of("3") },
         },
         SelectedArgumentSet = "smoke",
     };
@@ -25,96 +31,143 @@ public class ScriptArgumentsViewModelTests
         return vm;
     }
 
+    private static RpadFrontMatter Applied(ScriptArgumentsViewModel vm)
+    {
+        var fm = new RpadFrontMatter();
+        vm.ApplyTo(fm);
+        return fm;
+    }
+
     [Fact]
-    public void Load_Should_ShowTheScriptsArguments_AndHaveNoChanges()
+    public void Load_Should_ShowRowsAndSets_WithoutChanges()
     {
         var vm = Load(Script());
 
-        Assert.Equal("legacy", vm.DefaultText);
-        Assert.Equal(["smoke", "multi"], vm.Sets.Select(s => s.Name));
-        Assert.Equal("--verbose\nfile with spaces.txt", vm.Sets[0].Text);
+        Assert.Equal(["environment", "count", "tags"], vm.Arguments.Select(a => a.Name));
+        Assert.Equal("enum", vm.Arguments[0].Type.Label);
+        Assert.Equal("dev, test", vm.Arguments[0].ValuesText);
+        Assert.True(vm.Arguments[0].IsEnum);
+        Assert.True(vm.Arguments[2].IsList);
+        Assert.Equal(["environment", "count", "tags"], vm.Sets[0].Values.Select(v => v.Argument.Name));
+        Assert.Equal(["test", "3", ""], vm.Sets[0].Values.Select(v => v.Text));
+        Assert.Equal("default: dev", vm.Sets[0].Values[0].Hint);
+        Assert.Equal("not passed", vm.Sets[0].Values[1].Hint);
         Assert.Equal("smoke", vm.RunChoice!.Set!.Name);
-        Assert.Equal(["Default (args:)", "smoke", "multi"], vm.RunChoices.Select(c => c.Label));
+        Assert.Equal(["Defaults", "smoke"], vm.RunChoices.Select(c => c.Label));
         Assert.False(vm.HasChanges);
+        Assert.False(vm.HasProblems);
+    }
+
+    // Untouched, a value saves as it was loaded, even a list item with a line break.
+    [Fact]
+    public void Apply_Should_GiveBackWhatWasLoaded()
+    {
+        var fm = Applied(Load(Script()));
+
+        Assert.Equal(RpadArguments.Resolve(Script()).Arguments, RpadArguments.Resolve(fm).Arguments);
+        Assert.Equal("two\nlines", fm.Arguments[2].Default!.Items![0].Text);
+    }
+
+    [Fact]
+    public void AddingARow_Should_DeclareAnArgument_InEverySet()
+    {
+        var vm = Load(Script());
+
+        vm.AddArgumentCommand.Execute().Subscribe();
+        var row = vm.Arguments[^1];
+        row.Name = "since";
+        row.Type = ArgumentRowViewModel.Types.First(t => t.Type == RpadArgumentType.DateTime);
+        vm.Sets[0].Values[^1].Text = "2026-10-26";
+        var fm = Applied(vm);
+
+        Assert.True(vm.HasChanges);
+        Assert.Equal(RpadArgumentType.DateTime, fm.Arguments[^1].Type);
+        Assert.Equal("2026-10-26", fm.ArgumentSets["smoke"]["since"].Text);
+        Assert.Contains("--since", RpadArguments.Resolve(fm).Arguments);
+    }
+
+    // A renamed argument keeps its values in the sets; a removed one takes them along.
+    [Fact]
+    public void RenamingAndRemovingRows_Should_CarryTheirValues()
+    {
+        var vm = Load(Script());
+
+        vm.Arguments[1].Name = "n";
+        vm.Arguments[0].RemoveCommand.Execute().Subscribe();
+        var fm = Applied(vm);
+
+        Assert.Equal(["n", "tags"], fm.Arguments.Select(a => a.Name));
+        Assert.Equal(["n"], fm.ArgumentSets["smoke"].Keys);
+        Assert.Equal("3", fm.ArgumentSets["smoke"]["n"].Text);
+    }
+
+    [Fact]
+    public void AnEmptyValue_Should_UseTheDefault_AndAListTakesOneItemPerLine()
+    {
+        var vm = Load(Script());
+
+        vm.Sets[0].Values[0].Text = "";
+        vm.Sets[0].Values[2].Text = "a\n\nb c";
+        var fm = Applied(vm);
+
+        Assert.False(fm.ArgumentSets["smoke"].ContainsKey("environment"));
+        Assert.Equal(["--environment", "dev", "--count", "3", "--tags", "a", "--tags", "", "--tags", "b c", "extra"],
+            RpadArguments.Resolve(fm).Arguments);
+    }
+
+    [Fact]
+    public void AValueOfTheWrongType_Should_BeAProblem_ButNotBlockSaving()
+    {
+        var vm = Load(Script());
+
+        vm.Sets[0].Values[1].Text = "three";
+
+        Assert.Contains(vm.Problems, p => p.Contains("'count' is 'three', which is not a int"));
         Assert.False(vm.HasError);
     }
 
-    // An argument with a line break has no line of its own: untouched, it is saved as it was.
-    [Fact]
-    public void AnUneditedSet_Should_KeepItsArgumentsExactly()
-    {
-        var fm = Script();
-        var vm = Load(fm);
-        vm.DefaultText = "new";
-
-        vm.ApplyTo(fm);
-
-        Assert.False(vm.Sets[1].Fits);
-        Assert.Equal(["two\nlines"], fm.ArgumentSets["multi"]);
-        Assert.Equal(["new"], fm.Args);
-    }
-
-    [Fact]
-    public void Edits_Should_ApplyAsWritten()
-    {
-        var fm = Script();
-        var vm = Load(fm);
-        vm.Sets[0].Text = "a\n\n\"q\"";
-        vm.Sets[0].Name = "renamed";
-        vm.AddCommand.Execute().Subscribe();
-        vm.Sets[2].Text = "";
-
-        Assert.True(vm.HasChanges);
-        vm.ApplyTo(fm);
-
-        Assert.Equal(["renamed", "multi", "set"], fm.ArgumentSets.Keys);
-        Assert.Equal(["a", "", "\"q\""], fm.ArgumentSets["renamed"]);
-        Assert.Empty(fm.ArgumentSets["set"]);
-        Assert.Equal("renamed", fm.SelectedArgumentSet); // the choice follows its set's new name
-    }
-
-    [Fact]
-    public void RemovingTheSetRunsUse_Should_GoBackToTheDefault()
-    {
-        var fm = Script();
-        var vm = Load(fm);
-        vm.SelectedSet = vm.Sets[0];
-
-        vm.RemoveCommand.Execute().Subscribe();
-        vm.ApplyTo(fm);
-
-        Assert.Null(vm.RunChoice!.Set);
-        Assert.Null(fm.SelectedArgumentSet);
-        Assert.Equal(["multi"], fm.ArgumentSets.Keys);
-    }
-
-    [Fact]
-    public void ChoosingTheDefault_Should_ClearTheSelection()
-    {
-        var fm = Script();
-        var vm = Load(fm);
-
-        vm.RunChoice = vm.RunChoices[0];
-        vm.ApplyTo(fm);
-
-        Assert.Null(fm.SelectedArgumentSet);
-    }
-
     [Theory]
-    [InlineData("multi", "Two argument sets are named 'multi'.")]
-    [InlineData(" ", "Every argument set needs a name.")]
-    public void AnEmptyOrRepeatedName_Should_BeAnError(string name, string error)
+    [InlineData("two words")]
+    [InlineData("count")]
+    public void ABadOrRepeatedArgumentName_Should_BlockSaving(string name)
     {
         var vm = Load(Script());
 
-        vm.Sets[0].Name = name;
+        vm.Arguments[0].Name = name;
 
-        Assert.Equal(error, vm.Error);
-        vm.Sets[0].Name = "smoke";
-        Assert.Null(vm.Error);
+        Assert.True(vm.HasError);
+        vm.Arguments[0].Name = "environment";
+        Assert.False(vm.HasError);
     }
 
-    // A selected set the script doesn't have stays in the file until a choice is made.
+    [Fact]
+    public void ARepeatedSetName_Should_BlockSaving_WithoutLosingASet()
+    {
+        var vm = Load(Script());
+
+        vm.AddSetCommand.Execute().Subscribe();
+        vm.Sets[1].Name = "smoke";
+
+        Assert.Equal("Two argument sets are named 'smoke'.", vm.BlockingError);
+        vm.Sets[1].Name = "nightly";
+        Assert.Null(vm.BlockingError);
+        Assert.Equal(["smoke", "nightly"], Applied(vm).ArgumentSets.Keys);
+    }
+
+    [Fact]
+    public void RunChoice_Should_FollowARenamedSet_AndFallBackWhenItIsRemoved()
+    {
+        var vm = Load(Script());
+
+        vm.Sets[0].Name = "renamed";
+        Assert.Equal("renamed", Applied(vm).SelectedArgumentSet);
+
+        vm.SelectedSet = vm.Sets[0];
+        vm.RemoveSetCommand.Execute().Subscribe();
+        Assert.Null(vm.RunChoice!.Set);
+        Assert.Null(Applied(vm).SelectedArgumentSet);
+    }
+
     [Fact]
     public void AMissingSelectedSet_Should_StayUntilAChoiceIsMade()
     {
@@ -124,13 +177,22 @@ public class ScriptArgumentsViewModelTests
 
         Assert.Null(vm.RunChoice!.Set);
         Assert.False(vm.HasChanges);
-        vm.DefaultText = "x";
-        vm.ApplyTo(fm);
-        Assert.Equal("gone", fm.SelectedArgumentSet);
+        Assert.Equal("gone", Applied(vm).SelectedArgumentSet);
 
         vm.RunChoice = vm.RunChoices[1];
-        vm.ApplyTo(fm);
-        Assert.Equal("smoke", fm.SelectedArgumentSet);
+        Assert.Equal("smoke", Applied(vm).SelectedArgumentSet);
+    }
+
+    // A set value for a name that isn't declared (a hand-edited file) is kept, and reported.
+    [Fact]
+    public void AnUndeclaredSetValue_Should_BeKept_AndReported()
+    {
+        var fm = Script();
+        fm.ArgumentSets["smoke"]["old"] = RpadValue.Of("x");
+        var vm = Load(fm);
+
+        Assert.Contains(vm.Problems, p => p.Contains("'old', which is not a declared argument"));
+        Assert.Equal("x", Applied(vm).ArgumentSets["smoke"]["old"].Text);
     }
 
     [Fact]
@@ -143,6 +205,7 @@ public class ScriptArgumentsViewModelTests
 
         Assert.False(vm.HasChanges);
         Assert.Null(fm.Args);
+        Assert.Empty(fm.Arguments);
         Assert.Empty(fm.ArgumentSets);
         Assert.Null(fm.SelectedArgumentSet);
     }

@@ -16,6 +16,8 @@ public static class RpadParser
         .WithTypeConverter(new StrictEnumYamlConverter<RpadKind>(lowercase: false))
         .WithTypeConverter(new StrictEnumYamlConverter<RpadLanguage>(lowercase: true))
         .WithTypeConverter(new ConnectionYamlConverter())
+        .WithTypeConverter(new ArgumentYamlConverter())
+        .WithTypeConverter(new ValueYamlConverter())
         .WithTypeConverter(new NullableGuidYamlConverter())
         .Build();
 
@@ -24,7 +26,7 @@ public static class RpadParser
     private static readonly HashSet<string> KnownKeys = new(StringComparer.Ordinal)
     {
         "version", "id", "language", "targetSdk", "kind", "packages", "references", "namespaces", "args",
-        "argumentSets", "selectedArgumentSet", "allowUnsafe", "connections",
+        "arguments", "argumentSets", "selectedArgumentSet", "allowUnsafe", "connections",
     };
 
     /// <summary>
@@ -74,13 +76,15 @@ public static class RpadParser
             fm.References ??= [];
             fm.Namespaces ??= [];
             fm.Args ??= [];
-            // "smoke:" with nothing after it is an empty set, like "smoke: []".
-            fm.ArgumentSets = (fm.ArgumentSets ?? []).ToDictionary(s => s.Key, s => s.Value ?? [], StringComparer.Ordinal);
+            fm.Arguments ??= [];
+            // "smoke:" with nothing after it is a set that gives no values, like "smoke: {}".
+            fm.ArgumentSets = (fm.ArgumentSets ?? []).ToDictionary(s => s.Key,
+                s => new Dictionary<string, RpadValue>(s.Value ?? [], StringComparer.Ordinal), StringComparer.Ordinal);
             if (string.IsNullOrEmpty(fm.SelectedArgumentSet)) fm.SelectedArgumentSet = null;
             fm.Connections ??= [];
             fm.UnknownEntries = UnknownEntries(yamlText);
             if (RepeatedArgumentSet(yamlText) is { } repeated)
-                return RpadParseResult.Failure($"Invalid YAML front matter: the argument set '{repeated}' is defined twice.");
+                return RpadParseResult.Failure($"Invalid YAML front matter: {repeated}.");
             if (fm.Kind == RpadKind.Unknown) fm.Kind = RpadKind.Statements;
             if (fm.Language == RpadLanguage.Unknown) fm.Language = RpadLanguage.CSharp;
         }
@@ -234,8 +238,8 @@ public static class RpadParser
         return [.. entries.Select(e => e.Text)];
     }
 
-    // The first set name argumentSets: repeats, or null. YAML reads a repeated key as its last value
-    // only, so a save would silently drop the other set.
+    // What argumentSets: repeats (a set name, or a value within a set), or null. YAML reads a repeated
+    // key as its last value only, so a save would silently drop the other one.
     private static string? RepeatedArgumentSet(string yaml)
     {
         var parser = new Parser(new StringReader(yaml));
@@ -253,9 +257,22 @@ public static class RpadParser
             var names = new HashSet<string>(StringComparer.Ordinal);
             while (!parser.TryConsume<MappingEnd>(out _))
             {
-                if (parser.Current is Scalar { Value: var name } && !names.Add(name)) return name;
+                var name = parser.Current is Scalar { Value: var n } ? n : "";
+                if (!names.Add(name)) return $"the argument set '{name}' is defined twice";
                 SkipNode(parser, yaml);
-                SkipNode(parser, yaml);
+                if (!parser.TryConsume<MappingStart>(out _))
+                {
+                    SkipNode(parser, yaml);
+                    continue;
+                }
+                var keys = new HashSet<string>(StringComparer.Ordinal);
+                while (!parser.TryConsume<MappingEnd>(out _))
+                {
+                    if (parser.Current is Scalar { Value: var key } && !keys.Add(key))
+                        return $"the argument set '{name}' gives '{key}' twice";
+                    SkipNode(parser, yaml);
+                    SkipNode(parser, yaml);
+                }
             }
         }
         return null;
@@ -445,6 +462,52 @@ internal sealed class ConnectionYamlConverter : IYamlTypeConverter
 
     public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
         => throw new NotSupportedException("RpadWriter writes connections.");
+}
+
+// One declared argument: name, type, default and, for an enum, its values.
+internal sealed class ArgumentYamlConverter : IYamlTypeConverter
+{
+    public bool Accepts(Type type) => type == typeof(RpadArgument);
+
+    public object ReadYaml(IParser parser, Type type, ObjectDeserializer rootDeserializer)
+    {
+        var start = parser.Current!.Start;
+        if (!parser.TryConsume<MappingStart>(out _))
+            throw new YamlException(start, start, "An argument must be a mapping with name and type.");
+        var argument = new RpadArgument();
+        while (!parser.TryConsume<MappingEnd>(out _))
+        {
+            var key = parser.Consume<Scalar>().Value;
+            var value = ConnectionYamlConverter.ReadValue(parser);
+            switch (key)
+            {
+                case "name": argument.Name = value.Text ?? throw new YamlException(start, start, "An argument's name must be text."); break;
+                case "type":
+                    argument.Type = value.Text is { } name && RpadArgument.ParseType(name) is { } parsed ? parsed
+                        : throw new YamlException(start, start,
+                            $"Unknown argument type '{value.Text}'. Use string, int, bool, double, decimal, datetime, timespan, string[] or enum.");
+                    break;
+                case "default": argument.Default = value; break;
+                case "values": argument.Values = [.. value.Items?.Select(i => i.Text ?? "") ?? (value.Text is { Length: > 0 } t ? [t] : [])]; break;
+                default: throw new YamlException(start, start, $"Unknown key '{key}' in an argument.");
+            }
+        }
+        return argument;
+    }
+
+    public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
+        => throw new NotSupportedException("RpadWriter writes arguments.");
+}
+
+// A set's value for an argument: text or a list of text, as in connections.
+internal sealed class ValueYamlConverter : IYamlTypeConverter
+{
+    public bool Accepts(Type type) => type == typeof(RpadValue);
+
+    public object ReadYaml(IParser parser, Type type, ObjectDeserializer rootDeserializer) => ConnectionYamlConverter.ReadValue(parser);
+
+    public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
+        => throw new NotSupportedException("RpadWriter writes values.");
 }
 
 internal sealed class PackageYamlConverter : IYamlTypeConverter
