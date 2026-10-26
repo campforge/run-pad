@@ -107,6 +107,7 @@ public sealed class DapSession : IDapSession
     // reference to either — same precedent as RsPrefix/InputRequestPrefix mirroring across the same
     // process boundary elsewhere in the DAP/runtime split).
     private const string CurrentQueryPathEnvVar = "RUNPAD_CURRENT_QUERY_PATH";
+    private readonly string? _argumentContractJson;
 
     // Serializes writes to stdin so PauseAsync from the UI thread can't interleave.
     private readonly SemaphoreSlim _writeLock = new(1, 1);
@@ -167,6 +168,7 @@ public sealed class DapSession : IDapSession
         _currentQueryPath = options.CurrentQueryPath;
         _runtimePath = options.RuntimePath;
         _arguments = options.Arguments ?? [];
+        _argumentContractJson = options.ArgumentContractJson;
         _exceptionInfoTimeout = options.ExceptionInfoTimeout ?? DefaultExceptionInfoTimeout;
     }
 
@@ -948,10 +950,16 @@ public sealed class DapSession : IDapSession
             stopAtEntry = false,
             justMyCode = _justMyCode,
             console = "internalConsole",
-            env = _currentQueryPath is null
-                ? null
-                : new Dictionary<string, string> { [CurrentQueryPathEnvVar] = _currentQueryPath },
+            env = LaunchEnvironment(),
         };
+    }
+
+    private Dictionary<string, string>? LaunchEnvironment()
+    {
+        var environment = new Dictionary<string, string>();
+        if (_currentQueryPath is not null) environment[CurrentQueryPathEnvVar] = _currentQueryPath;
+        if (_argumentContractJson is not null) environment["RUNPAD_ARGUMENT_CONTRACT"] = _argumentContractJson;
+        return environment.Count == 0 ? null : environment;
     }
 
     private void ThrowIfFatalResponseFailed(JsonElement root)

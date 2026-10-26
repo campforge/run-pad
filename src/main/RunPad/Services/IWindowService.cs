@@ -9,6 +9,9 @@ public interface IWindowService
     // Takes a live stream rather than a snapshot so the dialog picks up front matter that becomes
     // available after it's already open (see EditorTabItemViewModel.FrontMatter).
     Task ShowDependenciesAsync(IObservable<RpadFrontMatter?>? frontMatter = null, IObservable<string?>? scriptPath = null);
+
+    /// <summary>Asks whether to add a connection together with the NuGet packages its driver needs; false when declined or no window is open.</summary>
+    Task<bool> ConfirmConnectionPackagesAsync(string message);
     Task ShowPreferencesAsync();
     Task ShowErrorAsync(string title, string message);
     Task ShowAboutAsync();
@@ -17,7 +20,8 @@ public interface IWindowService
     Task ShowSecretStoreAsync();
 
     /// <summary>Tools → Connections: the user's own database, HTTP and gRPC connections.</summary>
-    Task ShowConnectionsAsync();
+    /// <summary>Opens the Connections editor, with the named connection selected when it is in the list.</summary>
+    Task ShowConnectionsAsync(string? connectionName = null);
 
     /// <summary>
     /// Shows a native Save As dialog defaulting to <paramref name="startFolder"/> (the user can still

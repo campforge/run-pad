@@ -216,6 +216,45 @@ public class EditorTabItemControlPreviewTests
     }
 
     [AvaloniaFact]
+    public void SelectingAnArgumentPreset_Should_UpdateTheNextRunContract()
+    {
+        var (ctrl, vm) = CreateControl(out var window);
+        try
+        {
+            var fm = ctrl.State.RpadDocument!.FrontMatter;
+            fm.Arguments = [new() { Name = "value", Type = RpadArgumentType.Int }];
+            fm.ArgumentSets["dev"] = new() { ["value"] = RpadValue.Of("3") };
+            fm.ArgumentSets["prod"] = new() { ["value"] = RpadValue.Of("7") };
+            fm.SelectedArgumentSet = "dev";
+            ctrl.OnDependenciesEdited();
+            Dispatcher.UIThread.RunJobs();
+
+            var selector = ctrl.FindControl<RunPad.TemplatedControls.ToolbarComboBox>("ArgumentSetSelector")!;
+            Assert.Equal("dev", selector.SelectedItem);
+            selector.SelectedItem = "prod";
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal("prod", vm.SelectedArgumentSet);
+            Assert.Equal("prod", fm.SelectedArgumentSet);
+            var request = RunPad.Contracts.Models.ExecutionRequest.For(fm, null);
+            Assert.Equal(["--value", "7"], request.Arguments);
+            Assert.Equal(["7"], RpadArgumentContract.FromJson(request.ArgumentContractJson).Members.Single().Values);
+
+            selector.SelectedItem = "dev";
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("dev", fm.SelectedArgumentSet);
+            selector.SelectedItem = "Defaults";
+            Dispatcher.UIThread.RunJobs();
+            Assert.Null(fm.SelectedArgumentSet);
+            Assert.Empty(RpadArgumentContract.Build(fm, out _).Members.Single().Values);
+        }
+        finally
+        {
+            window.Close(); ctrl.Dispose(); vm.Dispose();
+        }
+    }
+
+    [AvaloniaFact]
     public void AHiddenPreview_Should_NotFollowTheText()
     {
         var (ctrl, vm) = CreateControl();

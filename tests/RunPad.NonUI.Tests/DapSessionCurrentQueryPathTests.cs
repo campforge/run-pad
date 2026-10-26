@@ -148,4 +148,28 @@ public class DapSessionCurrentQueryPathTests
         process.Output.Push(Frame(new { seq = 2, type = "event", @event = "exited" }));
         await runTask;
     }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("/root/a.rpad")]
+    public async Task RunAsync_Should_ForwardTypedArguments_InTheLaunchEnvironment(string? path)
+    {
+        const string contract = "{\"Members\":[{\"Name\":\"value\",\"Type\":\"int\",\"Values\":[\"3\"]}]}";
+        var process = new FakeChildProcess();
+        await using var session = new DapSession(process,
+            new DapSessionOptions("out.dll", ".", [], ".cs", 0, CurrentQueryPath: path,
+                Arguments: ["--value", "3"], ArgumentContractJson: contract),
+            null, static _ => { }, NullLogger<DapSession>.Instance);
+        var runTask = session.RunAsync(TestContext.Current.CancellationToken);
+        process.Output.Push(Frame(new { seq = 1, type = "response", request_seq = 1, command = "initialize", success = true }));
+        var written = await WaitForWrittenRequestAsync(process.Input, "\"command\":\"launch\"");
+        var start = written.LastIndexOf("Content-Length:", StringComparison.Ordinal);
+        var body = written[(written.IndexOf("\r\n\r\n", start, StringComparison.Ordinal) + 4)..];
+        using var json = JsonDocument.Parse(body);
+        var launch = json.RootElement.GetProperty("arguments");
+        Assert.Equal(contract, launch.GetProperty("env").GetProperty("RUNPAD_ARGUMENT_CONTRACT").GetString());
+        Assert.Equal(["--value", "3"], launch.GetProperty("args").EnumerateArray().Select(a => a.GetString()));
+        process.Output.Push(Frame(new { seq = 2, type = "event", @event = "exited" }));
+        await runTask;
+    }
 }

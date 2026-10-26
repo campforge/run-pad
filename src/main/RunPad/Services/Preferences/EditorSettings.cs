@@ -15,6 +15,10 @@ public sealed class EditorSettings
         set => field = Math.Clamp(value, 1, 16);
     } = 4;
 
+    /// <summary>One level of indentation as these settings type it: a tab, or the width in spaces.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string IndentationUnit => UseTabs ? "\t" : new string(' ', IndentationSize);
+
     public bool ShowTabs { get; set; }
     public bool ShowSpaces { get; set; }
     public bool ShowEndOfLine { get; set; }

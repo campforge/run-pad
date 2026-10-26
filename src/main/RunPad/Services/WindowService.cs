@@ -58,6 +58,12 @@ public sealed class WindowService : IWindowService
         await ShowDialogAsync(window);
     }
 
+    public async Task<bool> ConfirmConnectionPackagesAsync(string message)
+    {
+        if (MainWindow is not { } owner) return false;
+        return await new ConnectionPackageConfirmationDialog(message).ShowDialog<bool?>(owner) == true;
+    }
+
     public Task ShowPreferencesAsync()
         => ShowDialogAsync(_preferencesWindowFactory());
 
@@ -70,8 +76,13 @@ public sealed class WindowService : IWindowService
     public Task ShowSecretStoreAsync()
         => _secretStoreWindowFactory is { } factory ? ShowDialogAsync(factory()) : Task.CompletedTask;
 
-    public Task ShowConnectionsAsync()
-        => _connectionsWindowFactory is { } factory ? ShowDialogAsync(factory()) : Task.CompletedTask;
+    public Task ShowConnectionsAsync(string? connectionName = null)
+    {
+        if (_connectionsWindowFactory is not { } factory) return Task.CompletedTask;
+        var window = factory();
+        if (connectionName is not null) window.Select(connectionName);
+        return ShowDialogAsync(window);
+    }
 
     public async Task<string?> ShowSaveFileDialogAsync(string suggestedFileName, string startFolder)
     {

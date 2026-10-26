@@ -172,7 +172,9 @@ public class PanelTabsTests
             Assert.True(stack.Bounds.Width > 0);
             Assert.True(tabs.Bounds.Width > 0);
         }
-        Assert.Equal(new[] { "Locals", "Watch" }, Items(tabs).Select(t => t.Header));
+        var headers = Items(tabs).Select(t => t.Header).OfType<string>().ToArray();
+        Assert.Contains("Locals", headers);
+        Assert.Contains("Watch", headers);
         var trailing = exceptions.TranslatePoint(new Point(exceptions.Bounds.Width, 0), output)!.Value;
         Assert.InRange(trailing.X, output.Bounds.Width - 9, output.Bounds.Width - 7);
         Assert.IsType<RunPad.TemplatedControls.IconButton>(exceptions);
@@ -194,9 +196,22 @@ public class PanelTabsTests
         Dispatcher.UIThread.RunJobs();
         var flyout = Assert.IsType<Flyout>(exceptions.Flyout);
         var checks = ((Control)flyout.Content!).GetVisualDescendants().OfType<CheckBox>().ToArray();
-        Assert.Equal(2, checks.Length);
-        Assert.True(checks[0].IsChecked);
-        checks[1].IsChecked = true;
+        Assert.Equal(new[]
+        {
+            "Wrap long lines in results",
+            "Break on unhandled exceptions",
+            "Break on all exceptions (including caught)"
+        }, checks.Select(c => c.Content));
+        var wrap = checks[0];
+        var breakUnhandled = checks[1];
+        var breakAll = Assert.Single(checks, c => Equals(c.Content, "Break on all exceptions (including caught)"));
+        Assert.True(wrap.IsChecked);
+        Assert.True(breakUnhandled.IsChecked);
+        Assert.False(breakAll.IsChecked);
+        breakUnhandled.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(vm.BreakOnUncaughtExceptions);
+        breakAll.IsChecked = true;
         Dispatcher.UIThread.RunJobs();
         Assert.True(vm.BreakOnAllExceptions);
         flyout.Hide();

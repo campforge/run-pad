@@ -41,7 +41,8 @@ public static partial class RpadWriter
         // lands on the code's line, and RpadParser.FindClosingFence only recognizes a fence that
         // starts a line. Write() applies the same guard to RunCode.
         if (!code.EndsWith('\n')) code += "\n";
-        return $"---\nversion: \"1.0\"\nlanguage: {languageId}\ntargetSdk: {targetSdk}\nkind: {kind}\n---\n\n# {title}\n\n```{languageId} run\n{code}```\n";
+        var id = Guid.NewGuid().ToString("D");
+        return $"---\nversion: \"1.0\"\nid: {id}\nlanguage: {languageId}\ntargetSdk: {targetSdk}\nkind: {kind}\n---\n\n# {title}\n\n```{languageId} run\n{code}```\n";
     }
 
     private static string SerializeFm(RpadFrontMatter fm, bool windowsPaths)
@@ -53,6 +54,7 @@ public static partial class RpadWriter
         var sb = new StringBuilder();
         // Connections came with format 1.1; a reader that knows only 1.0 can tell from the version.
         sb.Append("version: ").Append(fm.Connections.Count > 0 && fm.Version == "1.0" ? "1.1" : fm.Version).Append('\n');
+        if (fm.Id is { } id) sb.Append("id: ").Append(id.ToString("D")).Append('\n');
         sb.Append("language: ").Append(fm.Language.ToString().ToLowerInvariant()).Append('\n');
         sb.Append("targetSdk: ").Append(fm.TargetSdk).Append('\n');
         sb.Append("kind: ").Append(fm.Kind);
@@ -81,12 +83,32 @@ public static partial class RpadWriter
                 sb.Append('\n').Append("  - ").Append(YamlEscape(u));
         }
 
-        if (fm.Args?.Count > 0)
+        if (fm.Arguments.Count > 0)
         {
-            sb.Append('\n').Append("args:");
-            foreach (var a in fm.Args)
-                sb.Append('\n').Append("  - ").Append(YamlEscape(a));
+            sb.Append('\n').Append("arguments:");
+            foreach (var argument in fm.Arguments)
+            {
+                sb.Append('\n').Append("  - name: ").Append(Scalar(argument.Name));
+                sb.Append('\n').Append("    type: ").Append(RpadArgument.TypeName(argument.Type)); // fixed names, plain in YAML
+                if (argument.Default is { } value) WriteEntry(sb, "default", value, 4);
+                if (argument.Type == RpadArgumentType.Enum)
+                    WriteEntry(sb, "values", RpadValue.List(argument.Values.Select(RpadValue.Of)), 4);
+            }
         }
+
+        if (fm.ArgumentSets.Count > 0)
+        {
+            sb.Append('\n').Append("argumentSets:");
+            foreach (var (name, values) in fm.ArgumentSets)
+            {
+                sb.Append('\n').Append("  ").Append(Scalar(name)).Append(':');
+                if (values.Count == 0) sb.Append(" {}");
+                foreach (var (key, value) in values) WriteEntry(sb, key, value, 4);
+            }
+        }
+
+        if (fm.SelectedArgumentSet is { } selected)
+            sb.Append('\n').Append("selectedArgumentSet: ").Append(Scalar(selected));
 
         // Written only when on, so existing documents stay byte-for-byte unchanged.
         if (fm.AllowUnsafe) sb.Append('\n').Append("allowUnsafe: true");

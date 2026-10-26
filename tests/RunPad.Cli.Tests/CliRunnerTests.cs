@@ -175,7 +175,7 @@ public class CliRunnerTests
     public void BuildRequest_Should_CarryTheScriptsMetadata_AsWritten()
     {
         var frontMatter = CreateFrontMatter();
-        frontMatter.Args = ["from", "file"];
+        frontMatter.Arguments = [new() { Name = "value", Default = RpadValue.Of("from file") }];
 
         var request = CliRunner.BuildRequest(frontMatter, Platform, "/tmp/out", "/scripts/a.rpad", ["cli"]);
 
@@ -521,14 +521,14 @@ public class CliRunnerTests
     public void BuildOptions_Should_UseTheFrontMatterArgs_UnlessTheCommandLineGivesSome()
     {
         var frontMatter = CreateFrontMatter();
-        frontMatter.Args = ["from", "file"];
+        frontMatter.Arguments = [new() { Name = "value", Default = RpadValue.Of("from file") }];
 
         var fromFile = Assert.IsType<CompiledDotnetLanguageHostOptions>(
             BuildOptions(frontMatter, Platform, Path.GetTempPath(), RuntimeLib));
         var fromCommandLine = Assert.IsType<CompiledDotnetLanguageHostOptions>(
             BuildOptions(frontMatter, Platform, Path.GetTempPath(), RuntimeLib, arguments: ["cli"]));
 
-        Assert.Equal(["from", "file"], fromFile.Arguments);
+        Assert.Equal(["--value", "from file"], fromFile.Arguments);
         Assert.Equal(["cli"], fromCommandLine.Arguments);
     }
 
@@ -547,7 +547,7 @@ public class CliRunnerTests
         try
         {
             await File.WriteAllTextAsync(path,
-                $"---\nlanguage: {language}\nkind: {kind}\nargs:\n  - \"from file\"\n---\n\n```{language} run\n{code}\n```\n");
+                $"---\nlanguage: {language}\nkind: {kind}\narguments:\n  - name: value\n    type: string\n    default: \"from file\"\n---\n\n```{language} run\n{code}\n```\n");
 
             var fromFile = new TestConsole();
             var fromCommandLine = new TestConsole();
@@ -557,7 +557,7 @@ public class CliRunnerTests
             var cliExit = await CliRunner.RunAsync(["run", path, "a b", "--", "-x"], fromCommandLine, stderr, CancellationToken.None);
 
             Assert.True(fileExit == 0 && cliExit == 0, $"exit codes {fileExit}/{cliExit}\nstderr:\n{stderr.Output}");
-            Assert.Equal("from file", fromFile.Output.Trim());
+            Assert.Equal("--value|from file", fromFile.Output.Trim());
             Assert.Equal("a b|-x", fromCommandLine.Output.Trim());
         }
         finally { File.Delete(path); }

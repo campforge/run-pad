@@ -85,6 +85,9 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
 
     protected abstract SyntaxTree Parse(SourceText text, string path, ScriptTarget target, CancellationToken ct);
 
+    /// <summary>Allows a language to redirect typed facade accesses without changing source locations.</summary>
+    protected virtual SyntaxTree TransformScriptTree(SyntaxTree tree) => tree;
+
     /// <summary>What the SDK generates into obj/ (implicit usings, TargetFrameworkAttribute).</summary>
     protected abstract string GeneratedSource(ScriptTarget target);
 
@@ -120,6 +123,8 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
             return Failed(Message("",
                 "Project references are no longer supported: " + string.Join(", ", Options.ProjectReferences.Select(Path.GetFileName)) +
                 ". Reference the project's built .dll instead."));
+        if (Options.ArgumentContractErrors.Count > 0)
+            return Failed(Message("", string.Join("\n", Options.ArgumentContractErrors)));
 
         // Front-matter namespaces become import lines at the top of the compiled file, exactly as the old
         // MSBuild path did — the hosts' CalcKindOffset counts them for breakpoint lines.
@@ -201,8 +206,9 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
         }
         var connectionFiles = Options.ConnectionFiles.Select(f => (Path: DebugSourcePath.Canonicalize(
             Path.Combine(_objDir, "Connections", f.Name)), f.Text)).ToList();
-        var keyCode = Options.ConnectionSource is null ? code
-            : code + "\n\0" + generatedSource + string.Concat(connectionFiles.Select(f => "\n\0" + f.Path + "\n" + f.Text));
+        // Argument declarations change the generated facade even without connections.
+        var keyCode = code + "\n\0" + generatedSource
+            + string.Concat(connectionFiles.Select(f => "\n\0" + f.Path + "\n" + f.Text));
         var key = Fingerprint(keyCode, pack, [sourcePath, generatedPath], userReferences, packageReferences, runtimeFiles, generatorPaths);
         var keyPath = Path.Combine(_objDir, Options.OutputName + ".roslyn.key");
         if (IsUpToDate(keyPath, key))
@@ -226,7 +232,7 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
             await File.WriteAllTextAsync(_sourcePath, code, Encoding.UTF8, ct);
 
         var scriptText = SourceText.From(code, Encoding.UTF8, SourceHashAlgorithm.Sha256);
-        var scriptTree = Parse(scriptText, sourcePath, target, ct);
+        var scriptTree = TransformScriptTree(Parse(scriptText, sourcePath, target, ct));
         var generatedTree = Parse(SourceText.From(generatedSource, Encoding.UTF8, SourceHashAlgorithm.Sha256),
             generatedPath, target, ct);
 

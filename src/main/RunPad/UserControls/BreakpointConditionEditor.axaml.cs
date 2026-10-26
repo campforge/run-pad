@@ -13,6 +13,9 @@ public partial class BreakpointConditionEditor : UserControl, IDisposable
     private readonly string? _hitCondition;
     public event Action<(string? Condition, string? HitCondition, bool Enabled)?>? Finished;
 
+    internal bool IsDisposed => _disposed;
+    internal bool HasFinishedHandlers => Finished is not null;
+
     public BreakpointConditionEditor() : this(null, null, true, (_, _) => Task.FromResult<BreakpointConditionAnalysis?>(null)) { }
 
     public BreakpointConditionEditor(string? condition, string? hitCount, bool enabled,

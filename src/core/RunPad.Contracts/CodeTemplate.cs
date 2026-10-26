@@ -16,7 +16,8 @@ public static class CodeTemplate
     }
 
     /// <summary>The code a new script of <paramref name="language"/> and <paramref name="kind"/> starts
-    /// with, caret marker included: the kind's template (a Program's <c>Main</c>), or empty.</summary>
-    public static string NewScriptCode(this ILanguageHostRegistry registry, RpadLanguage language, RpadKind kind)
-        => registry.GetCodeForKind(language.ToLanguageId(), "", kind) ?? "";
+    /// with, caret marker included: the kind's template (a Program's <c>Main</c>), or empty.
+    /// <paramref name="indent"/> is one level of the editor's indentation.</summary>
+    public static string NewScriptCode(this ILanguageHostRegistry registry, RpadLanguage language, RpadKind kind, string indent = "    ")
+        => registry.GetCodeForKind(language.ToLanguageId(), "", kind, indent) ?? "";
 }

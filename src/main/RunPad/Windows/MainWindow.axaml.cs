@@ -12,6 +12,7 @@ using RunPad.Format.RPad;
 using RunPad.Services.Examples;
 using RunPad.Services.Preferences;
 using RunPad.UserControls;
+using RunPad.UserControls.Models;
 using RunPad.Windows.Models;
 
 namespace RunPad.Windows;
@@ -60,7 +61,20 @@ public sealed partial class MainWindow : Window, IDisposable
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
         AddHandler(GotFocusEvent, OnAnyGotFocus, RoutingStrategies.Bubble, handledEventsToo: true);
 
-        this.FindControl<ContentControl>("EditorTabsHost")!.Content = editorTabsCtrl;
+        foreach (var section in new[] { ConnectionsBundle, ScriptsBundle, SamplesBundle })
+        {
+            section.GetObservable(Expander.IsExpandedProperty).Subscribe(_ => UpdateSidebarRows());
+            section.GetObservable(IsVisibleProperty).Subscribe(_ => UpdateSidebarRows());
+        }
+
+        var editorHost = this.FindControl<ContentControl>("EditorTabsHost")!;
+        editorHost.Content = editorTabsCtrl;
+        // A connection dragged from the sidebar's tree onto the editor is added to the active script.
+        // handledEventsToo: the code editor answers text drags itself and leaves this one at None.
+        DragDrop.SetAllowDrop(editorHost, true);
+        editorHost.AddHandler(DragDrop.DragEnterEvent, EditorHost_DragOver, RoutingStrategies.Bubble, handledEventsToo: true);
+        editorHost.AddHandler(DragDrop.DragOverEvent, EditorHost_DragOver, RoutingStrategies.Bubble, handledEventsToo: true);
+        editorHost.AddHandler(DragDrop.DropEvent, EditorHost_Drop, RoutingStrategies.Bubble, handledEventsToo: true);
         _restoreStateSubscription = viewModel.WhenAnyValue(vm => vm.IsRestoringWorkspace).Subscribe(restoring =>
         {
             if (!_closeConfirmationInProgress) IsEnabled = !restoring;
@@ -479,22 +493,77 @@ public sealed partial class MainWindow : Window, IDisposable
         GetViewModel().NewRpadFile(language, kind.Value);
     }
 
-    // ── Examples ──────────────────────────────────────────────────────────────
+    // ── Samples ───────────────────────────────────────────────────────────────
 
-    // A click (also on the example already selected, e.g. after closing its tab) or Enter opens it.
-    private void ExampleList_Tapped(object? sender, TappedEventArgs e) => OpenSelectedExample(sender);
-
-    private void ExampleList_KeyDown(object? sender, KeyEventArgs e)
+    // A click on a sample (also the one already selected, e.g. after closing its tab) or Enter opens
+    // it; a folder only opens or folds.
+    private void SampleTree_Tapped(object? sender, TappedEventArgs e)
     {
-        if (e.Key != Key.Return) return;
-        OpenSelectedExample(sender);
+        // Control-click is the secondary click on macOS (Services/ControlClick): it never opens a sample.
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && OperatingSystem.IsMacOS()) return;
+        Visual? visual = e.Source as Visual;
+        while (visual is not null and not TreeViewItem) visual = visual.GetVisualParent();
+        if (visual is TreeViewItem item && item.DataContext is SampleTreeNode sample)
+        {
+            if (sample.Example is { } example)
+                GetViewModel().OpenExample(example);
+            else if (sample.Children is { Count: > 0 })
+                item.IsExpanded = !item.IsExpanded;
+        }
+    }
+
+    private void SampleTree_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Return || sender is not TreeView { SelectedItem: SampleTreeNode { Example: { } example } }) return;
+        GetViewModel().OpenExample(example);
         e.Handled = true;
     }
 
-    private void OpenSelectedExample(object? sender)
+    // ── Sidebar sections ──────────────────────────────────────────────────────
+
+    // Open sections share the sidebar's height and each tree scrolls inside its own section; a folded
+    // or hidden one takes its header only. The last row takes what is left when all are folded.
+    private void UpdateSidebarRows()
     {
-        if (sender is ListBox { SelectedItem: ExampleScript example })
-            GetViewModel().OpenExample(example);
+        var grid = this.FindControl<Grid>("SidebarSections")!;
+        var sections = new[] { ConnectionsBundle, ScriptsBundle, SamplesBundle };
+        var anyOpen = false;
+        for (var i = 0; i < sections.Length; i++)
+        {
+            var open = sections[i].IsVisible && sections[i].IsExpanded;
+            anyOpen |= open;
+            grid.RowDefinitions[i].Height = open ? new GridLength(1, GridUnitType.Star) : GridLength.Auto;
+        }
+        grid.RowDefinitions[3].Height = anyOpen ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+    }
+
+    // ── Connections tree ──────────────────────────────────────────────────────
+
+    private void ConnectionNavigation_OpenConnections(object? sender, ConnectionNavigationEventArgs e)
+        => _ = GetViewModel().OpenConnectionsAsync(e.ConnectionName);
+
+    private void ConnectionNavigation_AddToScript(object? sender, ConnectionNavigationEventArgs e)
+    {
+        if (e.ConnectionName is { } name) _ = GetViewModel().AddConnectionToScriptAsync(name);
+    }
+
+    private string? DroppableConnection(DragEventArgs e)
+        => GetViewModel() is { ActiveTab: not null, ConnectionNavigation.HasActiveScript: true }
+            ? ConnectionNavigationView.DraggedConnectionName(e.DataTransfer) : null;
+
+    private void EditorHost_DragOver(object? sender, DragEventArgs e)
+    {
+        if (DroppableConnection(e) is null) return;
+        e.DragEffects = DragDropEffects.Copy;
+        e.Handled = true;
+    }
+
+    private void EditorHost_Drop(object? sender, DragEventArgs e)
+    {
+        if (DroppableConnection(e) is not { } name) return;
+        e.DragEffects = DragDropEffects.Copy;
+        e.Handled = true;
+        _ = GetViewModel().AddConnectionToScriptAsync(name);
     }
 
     // ── File tree ─────────────────────────────────────────────────────────────

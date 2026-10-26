@@ -1,8 +1,11 @@
 using System.Collections.Immutable;
+using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.CodeAnalysis.VisualBasic;
+using Microsoft.CodeAnalysis.VisualBasic.Syntax;
 using Microsoft.Extensions.Logging;
+using RunPad.Format.RPad;
 using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.DotnetCommon.Compiler;
 
@@ -39,7 +42,30 @@ public sealed class VbScriptCompiler(CompiledDotnetLanguageHostOptions options, 
 
     protected override string GeneratedSource(ScriptTarget target) =>
         $"<Assembly: Global.System.Runtime.Versioning.TargetFrameworkAttribute(\".NETCoreApp,Version=v{target.Major}.{target.Minor}\", " +
-        $"FrameworkDisplayName:=\".NET {target.Major}.{target.Minor}\")>\n";
+        $"FrameworkDisplayName:=\".NET {target.Major}.{target.Minor}\")>\n" +
+        RpadArgumentContract.FromJson(Options.ArgumentContractJson).GenerateVisualBasicFacade();
+
+    protected override SyntaxTree TransformScriptTree(SyntaxTree tree)
+        => new ArgumentAccessRewriter().Visit(tree.GetRoot()) is { } root
+            ? VisualBasicSyntaxTree.Create((VisualBasicSyntaxNode)root, (VisualBasicParseOptions)tree.Options,
+                tree.FilePath, Encoding.UTF8)
+            : tree;
+
+    private sealed class ArgumentAccessRewriter : VisualBasicSyntaxRewriter
+    {
+        public override SyntaxNode? VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
+        {
+            if (node.Expression is MemberAccessExpressionSyntax args
+                && args.Expression is IdentifierNameSyntax util
+                && util.Identifier.ValueText.Equals("Util", StringComparison.OrdinalIgnoreCase)
+                && args.Name.Identifier.ValueText.Equals("Args", StringComparison.OrdinalIgnoreCase))
+            {
+                var replacement = SyntaxFactory.IdentifierName("Arguments").WithTriviaFrom(args);
+                return node.WithExpression(replacement);
+            }
+            return base.VisitMemberAccessExpression(node);
+        }
+    }
 
     protected override Microsoft.CodeAnalysis.Compilation CreateCompilation(
         string assemblyName, IReadOnlyList<SyntaxTree> trees, IEnumerable<MetadataReference> references, ScriptTarget target)

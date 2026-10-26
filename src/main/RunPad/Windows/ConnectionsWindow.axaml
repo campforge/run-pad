@@ -4,7 +4,7 @@
         xmlns:viewModels="clr-namespace:RunPad.Windows.Models"
         x:Class="RunPad.Windows.ConnectionsWindow" x:DataType="viewModels:ConnectionsWindowViewModel"
         Title="Connections" Icon="/Assets/icon.ico"
-        Width="820" Height="660" MinWidth="640" MinHeight="460"
+        Width="1180" Height="760" MinWidth="1020" MinHeight="560"
         CanResize="True" WindowStartupLocation="CenterOwner"
         Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
         Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
@@ -21,7 +21,7 @@
         </Style>
     </Window.Styles>
     <Grid RowDefinitions="*,Auto,Auto,Auto" Margin="16" RowSpacing="8">
-        <Grid ColumnDefinitions="190,8,*">
+        <Grid ColumnDefinitions="190,8,*,8,300">
             <Grid Grid.Column="0" RowDefinitions="*,Auto" RowSpacing="8">
                 <Border BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}" BorderThickness="1" CornerRadius="4">
                     <Panel>
@@ -37,7 +37,11 @@
                                 <DataTemplate DataType="viewModels:ConnectionItemViewModel">
                                     <StackPanel Spacing="2">
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
-                                        <TextBlock Text="{Binding DriverName}" FontSize="12" TextTrimming="CharacterEllipsis"
+                                        <TextBlock Text="{Binding DriverName}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DriverName}"
+                                                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                                        <!-- A narrow list cuts the line short; the tooltip has the whole answer. -->
+                                        <TextBlock Text="{Binding TestSummary}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding TestResult}"
+                                                   IsVisible="{Binding TestSummary, Converter={x:Static ObjectConverters.IsNotNull}}"
                                                    Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                                     </StackPanel>
                                 </DataTemplate>
@@ -48,14 +52,28 @@
                     </Panel>
                 </Border>
                 <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="6">
-                    <DropDownButton Classes="secondary" x:Name="AddButton" Content="Add" IsEnabled="{Binding !HasLoadError}" AutomationProperties.Name="Add a connection">
+                    <DropDownButton Classes="secondary" x:Name="AddButton" IsEnabled="{Binding !HasLoadError}" AutomationProperties.Name="Add a connection"
+                                    ToolTip.Tip="Choose the type of connection to add">
+                        <DropDownButton.Content>
+                            <!-- The dropdown's own chevron follows the label. -->
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource Icon.Plus}" Width="14" Height="14"/>
+                                <TextBlock Text="Add" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </DropDownButton.Content>
                         <DropDownButton.Flyout><MenuFlyout Placement="Bottom"/></DropDownButton.Flyout>
                     </DropDownButton>
-                    <Button Classes="secondary" x:Name="RemoveButton" Grid.Column="1" Content="Remove" Command="{Binding RemoveCommand}"/>
+                    <Button Classes="secondary" x:Name="RemoveButton" Grid.Column="1" Command="{Binding RemoveCommand}"
+                            AutomationProperties.Name="Remove connection" ToolTip.Tip="Remove the selected connection">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource Icon.Delete}" Width="14" Height="14"/>
+                            <TextBlock Text="Remove" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </Grid>
             </Grid>
             <GridSplitter Grid.Column="1" Width="8" Background="Transparent" ResizeDirection="Columns"/>
-            <StackPanel Grid.Column="2" IsVisible="{Binding IsEmpty}" VerticalAlignment="Center" Spacing="8" Margin="16">
+            <StackPanel Grid.Column="2" Grid.ColumnSpan="3" IsVisible="{Binding IsEmpty}" VerticalAlignment="Center" Spacing="8" Margin="16">
                 <TextBlock Text="Add your first connection" FontWeight="SemiBold" TextWrapping="Wrap"/>
                 <TextBlock Classes="hint" Text="Use Add to choose a connection type, then enter its settings. Secrets can stay in Secret Store."/>
             </StackPanel>
@@ -87,21 +105,30 @@
                                             <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Spacing="10"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate DataType="viewModels:ConnectionMapRowViewModel">
-                                                    <Grid ColumnDefinitions="*,32" RowDefinitions="Auto,Auto,Auto" RowSpacing="4" ColumnSpacing="6">
+                                                    <Grid ColumnDefinitions="*,32" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="4" ColumnSpacing="6">
                                                         <TextBox Classes="form-field" Text="{Binding Name}" PlaceholderText="Name" AutomationProperties.Name="{Binding NameFieldLabel}"/>
-                                                        <Button Classes="secondary" Grid.Column="1" Content="✕" HorizontalAlignment="Right" Width="32" ToolTip.Tip="{Binding RemoveRowLabel}"
+                                                        <Button Classes="secondary" Grid.Column="1" HorizontalAlignment="Right" Width="32" ToolTip.Tip="{Binding RemoveRowLabel}"
                                                                 AutomationProperties.Name="{Binding RemoveRowLabel}"
-                                                                Command="{Binding $parent[ItemsControl].((viewModels:ConnectionFieldViewModel)DataContext).RemoveRowCommand}" CommandParameter="{Binding}"/>
-                                                        <TextBox Classes="form-field" Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Value}" PlaceholderText="Value"
+                                                                Command="{Binding $parent[ItemsControl].((viewModels:ConnectionFieldViewModel)DataContext).RemoveRowCommand}" CommandParameter="{Binding}">
+                                                            <PathIcon Data="{StaticResource Icon.Close}" Width="12" Height="12"/>
+                                                        </Button>
+                                                        <TextBlock Classes="error" Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding NameError}" IsVisible="{Binding HasNameError}"/>
+                                                        <TextBox Classes="form-field" Grid.Row="2" Grid.ColumnSpan="2" Text="{Binding Value}" PlaceholderText="Value"
                                                                  AutomationProperties.Name="{Binding ValueFieldLabel}"/>
-                                                        <controls:SecretPicker Grid.Row="2" Grid.ColumnSpan="2" HorizontalAlignment="Right"
+                                                        <controls:SecretPicker Grid.Row="3" Grid.ColumnSpan="2" HorizontalAlignment="Right"
                                                                   SecretNames="{Binding SecretNames}" SelectedSecret="{Binding SecretToInsert}" IsVisible="{Binding HasSecrets}"
                                                                   AutomationProperties.Name="{Binding InsertSecretLabel}" ToolTip.Tip="Insert secret"/>
                                                     </Grid>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                        <Button Classes="secondary" Content="{Binding AddRowLabel}" Command="{Binding AddRowCommand}" HorizontalAlignment="Left"/>
+                                        <Button Classes="secondary" Command="{Binding AddRowCommand}" HorizontalAlignment="Left"
+                                                ToolTip.Tip="{Binding AddRowLabel}" AutomationProperties.Name="{Binding AddRowLabel}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <PathIcon Data="{StaticResource Icon.Plus}" Width="14" Height="14"/>
+                                                <TextBlock Text="{Binding AddRowLabel}" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
                                     </StackPanel>
                                     <TextBlock Classes="hint" Text="{Binding Description}" IsVisible="{Binding HasDescription}"/>
                                 </StackPanel>
@@ -117,6 +144,43 @@
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>
+            <GridSplitter Grid.Column="3" Width="8" Background="Transparent" ResizeDirection="Columns"/>
+            <Border Grid.Column="4" IsVisible="{Binding HasSelection}"
+                    BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}" BorderThickness="1" CornerRadius="4" Padding="10">
+                <Grid RowDefinitions="Auto,Auto,*,Auto,120" RowSpacing="8">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                        <TextBlock Text="Browse resources" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Classes="secondary" Content="Load / refresh" ToolTip.Tip="Load or refresh this connection's resources"
+                                AutomationProperties.Name="Load or refresh connection resources"
+                                Command="{Binding BrowseCommand}" IsEnabled="{Binding CanBrowse}"/>
+                    </Grid>
+                    <TextBlock Grid.Row="1" Classes="hint" Text="{Binding BrowserStatus}" TextWrapping="Wrap"/>
+                    <TreeView Grid.Row="2" x:Name="ResourceTree" ItemsSource="{Binding Resources}"
+                              SelectionChanged="ResourceTree_SelectionChanged" AutomationProperties.Name="Connection resources">
+                        <TreeView.ItemTemplate>
+                            <TreeDataTemplate DataType="viewModels:ConnectionResourceViewModel" ItemsSource="{Binding Children}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                                    <TextBlock Text="{Binding Kind}" Classes="hint"/>
+                                </StackPanel>
+                            </TreeDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+                    <TextBlock Grid.Row="3" Text="Details" FontWeight="SemiBold"/>
+                    <ScrollViewer Grid.Row="4" HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding ResourceDetails}" AutomationProperties.Name="Selected resource details">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="viewModels:ConnectionResourceDetail">
+                                <StackPanel Spacing="2" Margin="2,4">
+                                    <TextBlock Text="{Binding Name}" Classes="hint"/>
+                                    <TextBlock Text="{Binding Value}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
         </Grid>
         <StackPanel Grid.Row="1" Spacing="4">
             <TextBlock Classes="error" x:Name="StoreError" Text="{Binding StoreError}" IsVisible="{Binding HasStoreError}"/>

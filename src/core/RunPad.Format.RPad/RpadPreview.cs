@@ -62,8 +62,13 @@ public static class RpadPreview
             Row(sb, "References", string.Join(", ", references.Select(Code)));
         if (fm.Namespaces is { Count: > 0 } namespaces)
             Row(sb, "Namespaces", string.Join(", ", namespaces.Select(Code)));
-        if (fm.Args is { Count: > 0 } args)
-            Row(sb, "Arguments", string.Join(", ", args.Select(Code)));
+        if (fm.Arguments.Count > 0)
+            Row(sb, "Declared arguments", string.Join(", ", fm.Arguments.Select(a =>
+                $"{Code(a.Name)} ({Text(RpadArgument.TypeName(a.Type))})"
+                + (a.Default is { } d ? " = " + string.Join(" ", RpadArgument.Items(d).Select(Code)) : ""))));
+        foreach (var (name, set) in fm.ArgumentSets)
+            Row(sb, $"Argument set {Text(name)}{(name == fm.SelectedArgumentSet ? " (selected)" : "")}",
+                set.Count == 0 ? "defaults" : string.Join(", ", set.Select(v => $"{Code(v.Key)} = {string.Join(" ", RpadArgument.Items(v.Value).Select(Code))}")));
         if (fm.AllowUnsafe)
             Row(sb, "Unsafe code", "allowed");
         if (fm.Connections.Count > 0)

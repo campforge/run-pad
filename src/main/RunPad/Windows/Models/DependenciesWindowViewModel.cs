@@ -242,7 +242,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     }
 
     // The Save button: something changed and nothing blocks applying it.
-    public bool CanApply => HasChanges && !HasNamespaceError;
+    public bool CanApply => HasChanges && !HasNamespaceError && !Arguments.HasError;
 
     // ── Online column ──────────────────────────────────────────────────────────
 
@@ -705,6 +705,9 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     /// <summary>The Connections tab: the script's <c>connections:</c>.</summary>
     public ScriptConnectionsViewModel Connections { get; }
 
+    /// <summary>The Arguments tab: typed declarations, their named sets and the one runs use.</summary>
+    public ScriptArgumentsViewModel Arguments { get; } = new();
+
     public bool AllowUnsafe
     {
         get => _allowUnsafe;
@@ -752,6 +755,11 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
             (id, version) => AddPackage(id, version),
             RemovePackage);
         Connections.Edited += UpdateHasChanges;
+        Arguments.Edited += () =>
+        {
+            UpdateHasChanges();
+            this.RaisePropertyChanged(nameof(CanApply));
+        };
         OpenLinkCommand = ReactiveCommand.CreateFromTask<string>(OpenLinkAsync).DisposeWith(_disposables);
         _search = search;
         _cache = cache;
@@ -827,6 +835,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         NamespaceError = null;
         _allowUnsafe = fm?.AllowUnsafe ?? false;
         Connections.Load(fm);
+        Arguments.Load(fm);
 
         this.RaisePropertyChanged(nameof(HasFrontMatter));
         this.RaisePropertyChanged(nameof(HasUnsafeOption));
@@ -845,13 +854,13 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
             target.Add(new DependencyEntryViewModel(value, remove));
     }
 
-    // Copies the draft's packages/references/namespaces (and, for C#, the unsafe setting) into the
+    // Copies the draft's packages/references/namespaces/arguments (and, for C#, the unsafe setting) into the
     // original front matter — the only place it is ever mutated. Everything else on it (version,
     // language, kind, target SDK) is left alone. Applies at most once and only when something actually changed.
     public bool ApplyChanges()
     {
         // An invalid namespace line blocks applying (OK is disabled too) rather than being dropped.
-        if (_disposed || _applied || _original is not { } fm || HasNamespaceError || !ComputeHasChanges()) return false;
+        if (_disposed || _applied || _original is not { } fm || HasNamespaceError || Arguments.HasError || !ComputeHasChanges()) return false;
         _applied = true;
 
         var previous = fm.Packages is null
@@ -868,6 +877,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         fm.Namespaces = CopyBack(fm.Namespaces, ParseNamespaces(_namespacesText).Names);
         if (HasUnsafeOption) fm.AllowUnsafe = _allowUnsafe;
         fm.Connections = Connections.ToList();
+        Arguments.ApplyTo(fm);
         return true;
     }
 
@@ -894,7 +904,8 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
                || !(fm.References ?? []).SequenceEqual(References.Select(r => r.Value), StringComparer.Ordinal)
                || !(fm.Namespaces ?? []).SequenceEqual(ParseNamespaces(_namespacesText).Names, StringComparer.Ordinal)
                || (HasUnsafeOption && fm.AllowUnsafe != _allowUnsafe)
-               || Connections.HasChanges;
+               || Connections.HasChanges
+               || Arguments.HasChanges;
     }
 
     private void UpdateHasChanges() => HasChanges = ComputeHasChanges();

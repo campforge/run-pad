@@ -13,21 +13,25 @@ internal static partial class VbProgramTemplate
 {
     public const string Comment = "' Other methods and fields used by Main go here.";
 
-    public static string Skeleton { get; } = Wrap("");
+    private const string DefaultIndent = "    ";
 
-    public static string? CodeForKind(string code, RpadKind kind)
+    public static string Skeleton { get; } = Wrap("", DefaultIndent);
+
+    // <indent> is one level of the editor's indentation: Sub Main sits one level in, its body two.
+    public static string? CodeForKind(string code, RpadKind kind, string indent = DefaultIndent)
     {
         if (kind != RpadKind.Program || DeclaresModuleOrClass().IsMatch(code)) return null;
-        return Wrap(code);
+        return Wrap(code, indent);
     }
 
-    private static string Wrap(string code)
+    private static string Wrap(string code, string indent)
     {
         var body = code.Replace("\r\n", "\n").Trim('\n');
+        var inMain = indent + indent;
         var lines = body.Length == 0
-            ? ["        ${0}"]
-            : body.Split('\n').Select((line, i) => (i == 0 ? "        ${0}" : line.Length == 0 ? "" : "        ") + line.TrimEnd());
-        return $"Module Program\n    Sub Main()\n{string.Join("\n", lines)}\n    End Sub\n\n    {Comment}\nEnd Module\n";
+            ? [inMain + "${0}"]
+            : body.Split('\n').Select((line, i) => (i == 0 ? inMain + "${0}" : line.Length == 0 ? "" : inMain) + line.TrimEnd());
+        return $"Module Program\n{indent}Sub Main()\n{string.Join("\n", lines)}\n{indent}End Sub\n\n{indent}{Comment}\nEnd Module\n";
     }
 
     [GeneratedRegex(@"^\s*((Public|Friend|Partial)\s+)*(Module|Class|Structure)\s", RegexOptions.IgnoreCase | RegexOptions.Multiline)]

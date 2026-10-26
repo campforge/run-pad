@@ -5,13 +5,15 @@
              x:Class="RunPad.UserControls.FileTreeView"
              x:DataType="models:FileTreeViewModel">
 
-    <!-- The sidebar's Queries tab names this panel (MainWindow), so it has no heading of its own. -->
+    <!-- The sidebar's Scripts section names this panel (MainWindow), so it has no heading of its own;
+         its rows use the shared sidebar tree template (TreeView.navigation, Resources/NavigationStyles.axaml). -->
     <Grid>
         <TreeView Name="FileTree"
+                  Classes="navigation"
                   ItemsSource="{Binding Nodes}"
                   Background="Transparent"
                   BorderThickness="0"
-                  Padding="4,4,4,8"
+                  Padding="4,0,4,0"
                   SelectionMode="Single"
                   KeyDown="FileTree_KeyDown"
                   SelectionChanged="FileTree_SelectionChanged">
@@ -48,46 +50,6 @@
                 </ContextMenu>
             </TreeView.ContextMenu>
 
-            <TreeView.Styles>
-                <Style Selector="TreeViewItem">
-                    <Setter Property="Padding" Value="6,0,6,0" />
-                    <Setter Property="MinHeight" Value="27" />
-                    <Setter Property="Margin" Value="0,0" />
-                    <Setter Property="Background" Value="Transparent" />
-                    <Setter Property="Cursor" Value="Hand" />
-                    <!-- AllowDrop on the outer TreeView alone wasn't enough for a real
-                         drop to land on individual rows — needs to be set on each TreeViewItem
-                         container too. -->
-                    <Setter Property="(DragDrop.AllowDrop)" Value="True" />
-                </Style>
-                <Style Selector="TreeViewItem:pointerover /template/ Border#PART_LayoutRoot">
-                    <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}" />
-                    <Setter Property="CornerRadius" Value="5" />
-                </Style>
-                <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot">
-                    <Setter Property="Background" Value="{DynamicResource RunPad.Accent.BackgroundBrush}" />
-                    <Setter Property="CornerRadius" Value="5" />
-                </Style>
-                <Style Selector="TreeViewItem:selected /template/ Border#SelectionIndicator">
-                    <Setter Property="IsVisible" Value="False" />
-                </Style>
-                <!-- The text color is set on each item's own header, not on "TreeViewItem:selected TextBlock":
-                     that selector also matched the text of the selected item's children, which turned white
-                     on the light background. -->
-                <Style Selector="TreeViewItem /template/ ContentPresenter#PART_HeaderPresenter">
-                    <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}" />
-                </Style>
-                <Style Selector="TreeViewItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
-                    <Setter Property="Foreground" Value="{DynamicResource RunPad.Accent.ForegroundBrush}" />
-                </Style>
-                <Style Selector="TreeViewItem TextBlock">
-                    <Setter Property="FontSize" Value="13" />
-                    <Setter Property="VerticalAlignment" Value="Center" />
-                </Style>
-                <Style Selector="TreeViewItem:focus /template/ Border#PART_LayoutRoot">
-                    <Setter Property="BorderThickness" Value="0" />
-                </Style>
-            </TreeView.Styles>
 
             <TreeView.ItemTemplate>
                 <TreeDataTemplate DataType="models:FileTreeViewNode" ItemsSource="{Binding SubNodes}">
@@ -116,12 +78,14 @@
                                           Foreground="{DynamicResource RunPad.Text.PrimaryBrush}" />
                                 <Path IsVisible="{Binding LanguageIconKey, Converter={x:Static ObjectConverters.IsNotNull}}"
                                       Data="{Binding LanguageIconKey, Converter={x:Static conv:ResourceKeyToGeometryConverter.Instance}}"
+                                      Width="14" Height="14"
                                       Stretch="Uniform"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"
                                       Opacity="0.55"
                                       Fill="{DynamicResource RunPad.Text.PrimaryBrush}" />
                                 <Path IsVisible="{Binding ShowGenericFileIcon}"
                                       Width="12" Height="14"
-                                      HorizontalAlignment="Left"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"
                                       Stretch="Fill"
                                       Opacity="0.55"
                                       Fill="{DynamicResource RunPad.Text.PrimaryBrush}"

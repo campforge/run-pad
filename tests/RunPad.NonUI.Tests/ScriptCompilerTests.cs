@@ -37,7 +37,7 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
     private CompiledDotnetLanguageHostOptions Options(
         DotnetSdk? sdk = null, RpadKind kind = RpadKind.Statements, IReadOnlyList<string>? usings = null,
         IReadOnlyList<string>? assemblyReferences = null, IReadOnlyList<string>? projectReferences = null,
-        string? runtimeLib = null, string? outputDirectory = null)
+        string? runtimeLib = null, string? outputDirectory = null, string? argumentContractJson = null)
     {
         var dir = outputDirectory ?? Directory.CreateDirectory(Path.Combine(_root, $"out{++_dirs}")).FullName;
         return new CompiledDotnetLanguageHostOptions
@@ -55,6 +55,7 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
             Usings = usings ?? [],
             AssemblyReferences = assemblyReferences ?? [],
             ProjectReferences = projectReferences ?? [],
+            ArgumentContractJson = argumentContractJson,
         };
     }
 
@@ -86,6 +87,176 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
 
         Assert.Contains(output, line => line.EndsWith(": RunPad", StringComparison.Ordinal));
         Assert.DoesNotContain(output, line => line.EndsWith(": Other", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(false, "var value = Arguments.Count; Console.WriteLine(value);")]
+    [InlineData(true, "Dim value As Integer = Arguments.Count\nConsole.WriteLine(value)")]
+    public async Task TypedUtilArgs_Should_CompileForCSharpAndVisualBasic(bool vb, string code)
+    {
+        var contract = new RpadArgumentContract(
+            [new("count", "int", ["3"], [])]).ToJson();
+        var options = Options(argumentContractJson: contract);
+        using var compiler = vb ? Vb(options) : CSharp(options);
+
+        var result = await compiler.Compilation(
+            vb ? $"Module Program\nSub Main()\n{code}\nEnd Sub\nEnd Module\n" : code,
+            TestContext.Current.CancellationToken);
+
+        Assert.True(result.Success, Errors(result));
+        var output = await RunAsync(options, code, vb);
+        Assert.True(output.Any(line => line.EndsWith(": 3", StringComparison.Ordinal)), string.Join("\n", output));
+    }
+
+    [Fact]
+    public async Task TypedUtilArgs_Should_AggregateRuntimeConversionErrors()
+    {
+        var contract = new RpadArgumentContract(
+        [
+            new("count", "int", ["not-an-int"], []),
+            new("Enabled", "bool", ["maybe"], []),
+        ]).ToJson();
+        var output = await RunAsync(Options(argumentContractJson: contract), "var value = Arguments.Count;");
+
+        var text = string.Join("\n", output);
+        Assert.Contains("count", text, StringComparison.Ordinal);
+        Assert.Contains("Enabled", text, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TypedArguments_Should_ExposeARealEnum_InCSharpAndVisualBasic(bool vb)
+    {
+        var fm = new RpadFrontMatter
+        {
+            Arguments = [new() { Name = "env", Type = RpadArgumentType.Enum, Values = ["dev", "prod"], Default = RpadValue.Of("dev") }],
+            SelectedArgumentSet = "production",
+            ArgumentSets = new() { ["production"] = new() { ["env"] = RpadValue.Of("prod") } },
+        };
+        var request = ExecutionRequest.For(fm, null);
+        Assert.Empty(request.ArgumentContractErrors);
+        var options = Options(argumentContractJson: request.ArgumentContractJson);
+        var code = vb
+            ? "Dim environment As ArgumentsEnv = Arguments.Env\nConsole.WriteLine(environment = ArgumentsEnv.Prod)\nConsole.WriteLine(environment.GetType().IsEnum)\nConsole.WriteLine(environment.ToString())"
+            : "ArgumentsEnv environment = Arguments.Env; Console.WriteLine(environment == ArgumentsEnv.Prod); Console.WriteLine(environment.GetType().IsEnum); Console.WriteLine(environment.ToString());";
+        using var compiler = vb ? Vb(options) : CSharp(options);
+        var result = await compiler.Compilation(vb ? $"Module Program\nSub Main()\n{code}\nEnd Sub\nEnd Module\n" : code,
+            TestContext.Current.CancellationToken);
+        Assert.True(result.Success, Errors(result));
+        Assert.Empty(result.Warnings);
+        var output = await RunAsync(options, code, vb);
+        Assert.Equal(2, output.Count(line => line.EndsWith(": True", StringComparison.Ordinal)));
+        Assert.Contains(output, line => line.EndsWith(": Prod", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TypedArguments_Should_KeepAnUnsetEnumNullable(bool vb)
+    {
+        var fm = new RpadFrontMatter
+        {
+            Arguments = [new() { Name = "env", Type = RpadArgumentType.Enum, Values = ["dev", "prod"] }],
+        };
+        var contract = RpadArgumentContract.Build(fm, out var errors);
+        Assert.Empty(errors);
+        var code = vb
+            ? "Dim environment As ArgumentsEnv? = Arguments.Env\nConsole.WriteLine(environment.HasValue)"
+            : "ArgumentsEnv? environment = Arguments.Env; Console.WriteLine(environment.HasValue);";
+        var output = await RunAsync(Options(argumentContractJson: contract.ToJson()), code, vb);
+        Assert.Contains(output, line => line.EndsWith(": False", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TypedArguments_Should_MapEnumLabelsToSafeIdentifiers(bool vb)
+    {
+        var contract = new RpadArgumentContract([new("env", "enum", ["prod-us"], ["dev", "prod-us", "true"])]);
+        var code = vb
+            ? "Console.WriteLine(Arguments.Env = ArgumentsEnv.ProdUs)\nConsole.WriteLine(CInt(ArgumentsEnv.[True]))"
+            : "Console.WriteLine(Arguments.Env == ArgumentsEnv.ProdUs); Console.WriteLine((int)ArgumentsEnv.True);";
+        var output = await RunAsync(Options(argumentContractJson: contract.ToJson()), code, vb);
+        Assert.Contains(output, line => line.EndsWith(": True", StringComparison.Ordinal));
+        Assert.Contains(output, line => line.EndsWith(": 2", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task TypedArguments_Should_RejectUnknownEnumValuesAtRuntime()
+    {
+        var contract = new RpadArgumentContract([new("env", "enum", ["unknown"], ["dev", "prod"])]);
+        var output = await RunAsync(Options(argumentContractJson: contract.ToJson()), "Console.WriteLine(Arguments.Env);");
+        var message = string.Join("\n", output);
+        Assert.Contains("env", message);
+        Assert.Contains("unknown", message);
+        Assert.Contains("dev, prod", message);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task TypedArguments_Should_RunTheCapturedRequestValues(bool vb, bool empty)
+    {
+        var fm = new RpadFrontMatter
+        {
+            Arguments = [new() { Name = "value", Type = RpadArgumentType.Int }],
+            SelectedArgumentSet = "old",
+            ArgumentSets = new()
+            {
+                ["old"] = new() { ["value"] = RpadValue.Of("99") },
+                ["selected"] = empty ? new() : new() { ["value"] = RpadValue.Of("3") },
+            },
+        };
+        var request = ExecutionRequest.For(fm, null, argumentSet: "selected");
+        var options = CompiledDotnetLanguageHostOptions.From(request with
+        {
+            Platform = LatestSdk,
+            OutputDirectory = Directory.CreateDirectory(Path.Combine(_root, $"out{++_dirs}")).FullName,
+        }, new CSharpReferenceService().GetExtensionReference());
+        var code = vb
+            ? "Console.WriteLine(If(Arguments.Value.HasValue, Arguments.Value.Value.ToString(), \"missing\"))"
+            : "Console.WriteLine(Arguments.Value.HasValue ? Arguments.Value.Value.ToString() : \"missing\");";
+        var output = await RunAsync(options, code, vb);
+        Assert.True(output.Any(line => line.EndsWith(empty ? ": missing" : ": 3", StringComparison.Ordinal)), string.Join("\n", output));
+    }
+
+    [Fact]
+    public async Task TypedArguments_Should_ChangeOnRerun_WhenPresetChanges()
+    {
+        var fm = new RpadFrontMatter
+        {
+            Arguments = [new() { Name = "value", Type = RpadArgumentType.Int }],
+            ArgumentSets = new()
+            {
+                ["dev"] = new() { ["value"] = RpadValue.Of("3") },
+                ["prod"] = new() { ["value"] = RpadValue.Of("7") },
+            },
+        };
+        var directory = Path.Combine(_root, "preset-rerun");
+        foreach (var (preset, expected) in new[] { ("dev", "3"), ("prod", "7"), ("dev", "3") })
+        {
+            fm.SelectedArgumentSet = preset;
+            var request = ExecutionRequest.For(fm, null);
+            var options = Options(outputDirectory: directory, argumentContractJson: request.ArgumentContractJson);
+            var output = await RunAsync(options, "Console.WriteLine(Arguments.Value);");
+            Assert.True(output.Any(line => line.EndsWith(": " + expected, StringComparison.Ordinal)), string.Join("\n", output));
+        }
+    }
+
+    [Fact]
+    public async Task TypedArguments_Should_RecompileWhenTheDeclaredTypeChanges()
+    {
+        var directory = Path.Combine(_root, "argument-types");
+        foreach (var (type, value, expected) in new[] { ("int", "3", "Int32"), ("string", "text", "String") })
+        {
+            var contract = new RpadArgumentContract([new("value", type, [value], [])]);
+            var options = Options(outputDirectory: directory, argumentContractJson: contract.ToJson());
+            var output = await RunAsync(options, "Console.WriteLine(Arguments.Value.GetType().Name);");
+            Assert.True(output.Any(line => line.EndsWith(": " + expected, StringComparison.Ordinal)), string.Join("\n", output));
+        }
     }
 
     // Compiler errors stay English on a Russian OS, for both languages, like the SDK with
@@ -407,6 +578,18 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
 
         Assert.Contains("StandardOutput: RunPadQuery.M 4 6 hello", output);
         Assert.Contains("StandardOutput: defines ok", output);
+    }
+
+    [Fact]
+    public async Task ProgramMain_GuardedByATargetFrameworkSymbol_Should_Execute()
+    {
+        var output = await RunAsync(Options(kind: RpadKind.Program), """
+            #if NET8_0_OR_GREATER
+            static void Main() => Console.WriteLine("main ran");
+            #endif
+            """);
+
+        Assert.Contains("StandardOutput: main ran", output);
     }
 
     // ── Target framework, generators, references ─────────────────────────────

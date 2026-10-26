@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
+using RunPad.Format.RPad;
 using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.DotnetCommon.Compiler;
 
@@ -36,7 +37,30 @@ public sealed class CSharpScriptCompiler(CompiledDotnetLanguageHostOptions optio
             builder.Append("global using global::").Append(ns).Append(";\n");
         builder.Append("[assembly: global::System.Runtime.Versioning.TargetFrameworkAttribute(")
             .Append($"\".NETCoreApp,Version=v{target.Major}.{target.Minor}\", FrameworkDisplayName = \".NET {target.Major}.{target.Minor}\")]\n");
+        builder.Append(RpadArgumentContract.FromJson(Options.ArgumentContractJson).GenerateCSharpFacade());
         return builder.ToString();
+    }
+
+    protected override SyntaxTree TransformScriptTree(SyntaxTree tree)
+        => new ArgumentAccessRewriter().Visit(tree.GetRoot()) is { } root
+            ? CSharpSyntaxTree.Create((CSharpSyntaxNode)root, (CSharpParseOptions)tree.Options,
+                tree.FilePath, Encoding.UTF8)
+            : tree;
+
+    private sealed class ArgumentAccessRewriter : CSharpSyntaxRewriter
+    {
+        public override SyntaxNode? VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
+        {
+            if (node.Expression is MemberAccessExpressionSyntax args
+                && args.Expression is IdentifierNameSyntax util
+                && util.Identifier.ValueText == "Util"
+                && args.Name.Identifier.ValueText == "Args")
+            {
+                var replacement = SyntaxFactory.IdentifierName("Arguments").WithTriviaFrom(args);
+                return node.WithExpression(replacement);
+            }
+            return base.VisitMemberAccessExpression(node);
+        }
     }
 
     protected override Microsoft.CodeAnalysis.Compilation CreateCompilation(

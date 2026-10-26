@@ -27,6 +27,10 @@ public class ExampleScriptsTests
         Assert.Equal(
             ["Quick start", "Expression kind", "Program kind", "Products overview", "Live output", "Debugging loop"],
             examples.Select(e => e.Title));
+        // Each in its Samples folder, whatever separator the build kept in the resource name.
+        Assert.Equal(
+            ["getting-started", "getting-started", "getting-started", "output", "output", "debugging"],
+            examples.Select(e => e.Folder));
         Assert.DoesNotContain(examples, e => e.Id.Contains("analyzer", StringComparison.Ordinal)); // the broken-on-purpose demo
     }
 
@@ -125,23 +129,14 @@ public class ExampleScriptsTests
     }
 
     [Fact]
-    public void SwitchingSidebarTabs_Should_OnlyChangeWhichPanelIsShown()
+    public void TheSamplesBundle_Should_NotShowTheNoExamplesHint_WhenThereAreExamples()
     {
         var (vm, _, folder) = CreateViewModel();
         try
         {
-            var tabs = vm.Tabs.ToList();
-            Assert.True(vm.IsQueriesTabShown);
-            Assert.False(vm.IsExamplesTabShown);
-
-            vm.SidebarTab = MainWindowViewModel.ExamplesTab;
-            Assert.False(vm.IsQueriesTabShown);
-            Assert.True(vm.IsExamplesTabShown);
             Assert.False(vm.ShowNoExamplesHint);
-
-            vm.SidebarTab = MainWindowViewModel.QueriesTab;
-            Assert.True(vm.IsQueriesTabShown);
-            Assert.Equal(tabs, vm.Tabs); // editor tabs untouched
+            Assert.Null(vm.ConnectionNavigation); // no store given: the Connections bundle is hidden
+            Assert.False(vm.HasConnectionNavigation);
         }
         finally { Directory.Delete(folder, recursive: true); }
     }

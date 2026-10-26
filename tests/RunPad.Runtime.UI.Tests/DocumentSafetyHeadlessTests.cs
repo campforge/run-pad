@@ -328,4 +328,35 @@ public class DocumentSafetyHeadlessTests
             Cleanup(h);
         }
     }
+    [AvaloniaFact]
+    public async Task FailedSaveAsAndRetry_Should_PreserveLiveTextAndOldFile()
+    {
+        var h = CreateHarness();
+        try
+        {
+            var (tab, ctrl) = await OpenNamedAsync(h, "original.rpad");
+            var oldPath = tab.FilePath!;
+            var oldBytes = File.ReadAllBytes(oldPath);
+            const string edited = "Console.WriteLine(\"Привет 🌍\");";
+            ctrl.State.Editor.Text = edited;
+            var destination = Path.Combine(h.Root, "retry.rpad");
+            h.WindowService.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), h.Root))
+                .ReturnsAsync(destination);
+
+            await h.MainVm.SaveTabAsAsync(tab, ThrowDiskFull);
+            Assert.True(tab.IsDirty);
+            Assert.Equal(oldPath, tab.FilePath);
+            Assert.Equal(edited, ctrl.State.Editor.Text);
+            Assert.Equal(oldBytes, File.ReadAllBytes(oldPath));
+            Assert.Contains(tab, h.MainVm.Tabs);
+
+            await h.MainVm.SaveTabAsAsync(tab, ctrl.WriteFile);
+            Assert.False(tab.IsDirty);
+            Assert.Equal(destination, tab.FilePath);
+            Assert.Equal(edited + "\n", RpadParser.TryParse(File.ReadAllText(destination))!.RunCode);
+            Assert.Equal(oldBytes, File.ReadAllBytes(oldPath));
+        }
+        finally { Cleanup(h); }
+    }
+
 }
