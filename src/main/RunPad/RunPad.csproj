@@ -15,8 +15,9 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**"/>
-    <!-- The Examples panel's scripts (Services/Examples/ExampleScripts): read from the assembly, never from disk. -->
-    <EmbeddedResource Include="Examples\*.rpad" LogicalName="RunPad.Examples.%(Filename)%(Extension)" />
+    <!-- The sidebar's Samples (Services/Examples/ExampleScripts): read from the assembly, never from disk.
+         A subfolder is a folder of the Samples tree, kept in the resource name. -->
+    <EmbeddedResource Include="Examples\**\*.rpad" LogicalName="RunPad.Examples.%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>
@@ -40,7 +41,6 @@
     <PackageReference Include="Avalonia.Controls.DataGrid"/>
     <PackageReference Include="TextMateSharp.Grammars"/>
 
-    <PackageReference Include="Avalonia.Browser"/>
     <PackageReference Include="Avalonia.Desktop"/>
     <PackageReference Include="Avalonia.Themes.Fluent"/>
     <PackageReference Include="Avalonia.Fonts.Inter"/>

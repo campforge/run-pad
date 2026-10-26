@@ -28,6 +28,12 @@ public partial class ConnectionsWindow : Window
         if (!vm.HasLoadError) vm.AddCommand.Execute(driver).Subscribe(_ => { }, _ => { });
     }
 
+    // Opens at that connection, if it is in the list.
+    internal void Select(string connectionName)
+    {
+        if (ViewModel?.Connections.FirstOrDefault(c => c.Name == connectionName) is { } connection) ViewModel.SelectedConnection = connection;
+    }
+
     private ConnectionsWindowViewModel? ViewModel => DataContext as ConnectionsWindowViewModel;
 
     private void Ok_Click(object? sender, RoutedEventArgs e)
@@ -79,5 +85,11 @@ public partial class ConnectionsWindow : Window
         {
             _askingToSave = false;
         }
+    }
+
+    private void ResourceTree_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (ViewModel is not { } viewModel || sender is not TreeView tree) return;
+        viewModel.SelectedResource = tree.SelectedItem as ConnectionResourceViewModel;
     }
 }

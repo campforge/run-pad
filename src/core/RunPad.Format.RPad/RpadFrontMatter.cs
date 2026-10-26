@@ -25,6 +25,14 @@ public record Package(string Version)
 
 public sealed class RpadFrontMatter
 {
+    /// <summary>
+    /// A stable identity for the document, generated once when the file is first created or saved
+    /// and preserved across ordinary saves. Save As creates a new ID (the copy is a separate document).
+    /// Legacy files without an ID receive one on their first save. Null only while parsing an older
+    /// file that has not been saved yet.
+    /// </summary>
+    public Guid? Id { get; set; }
+
     public string Version { get; set; } = "1.0";
     public RpadLanguage Language { get; set; } = RpadLanguage.CSharp;
     public TargetSdk TargetSdk { get; set; } = TargetSdk.Default;
@@ -33,8 +41,18 @@ public sealed class RpadFrontMatter
     public List<string>? References { get; set; }
     public List<string>? Namespaces { get; set; }
 
-    /// <summary>The script's command-line arguments: what <c>args</c> holds when the script runs.</summary>
-    public List<string>? Args { get; set; }
+    /// <summary><c>arguments:</c> the arguments the script declares, with their types and defaults, in
+    /// the file's order. A run passes each as <c>--name value</c>.</summary>
+    public List<RpadArgument> Arguments { get; set; } = [];
+
+    /// <summary>
+    /// <c>argumentSets:</c> named sets of values for the declared arguments, in the file's order, keyed
+    /// by argument name. An argument a set doesn't give takes its default.
+    /// </summary>
+    public Dictionary<string, Dictionary<string, RpadValue>> ArgumentSets { get; set; } = new(StringComparer.Ordinal);
+
+    /// <summary><c>selectedArgumentSet:</c> the set runs use; null for the defaults.</summary>
+    public string? SelectedArgumentSet { get; set; }
 
     /// <summary>
     /// <c>allowUnsafe:</c> compiles the script with unsafe code allowed (C#'s /unsafe), for pointers,

@@ -3,6 +3,67 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [Unreleased]
+
+### Added
+
+- Scripts expose declared arguments as typed `Arguments` properties with C# completion. Selected
+  sets and command-line overrides supply the same values during execution and debugging.
+  Argument metadata uses typed declarations, defaults and presets; the raw YAML `args:` field and
+  the extra-arguments editor have been removed. The script's `args` array remains available.
+- Enum arguments generate real enum types: an `env` declaration exposes `Arguments.Env` as
+  `ArgumentsEnv`, with values such as `ArgumentsEnv.Dev` and `ArgumentsEnv.Prod` in C# and Visual Basic.
+- **Toggle Line Comment** (Ctrl+/, Cmd+/ on macOS) comments or uncomments every line the selection
+  touches, or the caret's line, with `//` in C# and `'` in Visual Basic. It is one undo step, and its
+  key can be changed in Preferences → Keyboard.
+- The sidebar's **Connections** section shows the saved connections as a tree, in groups you make:
+  new, renamed, nested (up to three levels), reordered and deleted groups, with connections moved by
+  drag and drop or **Move To** in the context menu; connections outside any group stay at the top.
+  Deleting a group keeps what was in it, moving it up a level. Groups are stored beside the
+  connection list and never change a script; a link badge marks the connections the active script
+  uses. Enter or a double click opens a connection in Tools → Connections.
+- A connection from that tree is added to the active script with **Add to Script** in its context
+  menu or by dragging it onto the editor. When its driver needs NuGet packages the script doesn't
+  have, RunPad asks first and adds them with it.
+- Connections that can't be used as they are — no driver for them, settings the driver rejects, a
+  secret or environment variable that isn't there, or a contract that couldn't be read — are marked
+  in the tree with a warning that says why, and so is a group that contains one. A connection whose
+  contract is being read shows it, and one still using a contract read earlier after a failed refresh
+  is marked as out of date. **Refresh** in a connection's context menu reads its contract again
+  (gRPC) or checks it again; **Refresh All** does it for every connection.
+
+### Changed
+
+- Sidebar tree hover now affects only the row under the pointer. Script selection is more subdued,
+  while Connections and Samples use transient hover and keyboard focus instead of a persistent
+  selected-row fill. Expanded branches have subtle dotted indentation guides, and section headers
+  use distinct plus/minus accordion markers.
+- The sidebar's Queries and Examples tabs became three full-width sections that open and close on
+  their own: Connections, Scripts and Samples. Open sections share the sidebar's height and each
+  scrolls on its own; which sections, connection groups and sample folders are open is kept between
+  runs. Samples are a tree of folders. Trees in the sidebar start closer to the edge.
+- Typing `{` in C# no longer inserts `}`. Instead, pressing Enter in a new, still empty class,
+  struct, record or interface body offers a property template: Tab inserts it, any other key leaves
+  the code as it is.
+- The `prop` and `propg` snippets have fields: after inserting one, Tab moves from the type to the
+  name, and Enter or Escape leaves the snippet.
+- **Wrap long lines in results** moved from Preferences to the gear menu beside the output tabs,
+  now called **Output settings**, next to the exception break options.
+- In Tools → Connections, the test status under a connection shows the whole test result as a
+  tooltip, so a status cut short in a narrow list can still be read.
+
+### Fixed
+
+- On macOS, Control-click works as a right click: it opens context menus and selects the row under
+  the pointer, in the sidebar, the editor and every other window.
+- With result wrapping on, ordinary output and errors wrap at the pane width too, long unbroken text
+  included, so no horizontal scroll bar into empty space is left; spaces in output are kept.
+- The classes RunPad generates for a gRPC connection use a nullable-annotations-only context
+  (`#nullable enable annotations`), so they keep their nullable annotations without reporting
+  nullable warnings of their own — CS8669 and the warnings generated code shouldn't raise.
+  Descriptions cached by an earlier RunPad are read again, so scripts that already have one get the
+  new directive too. RunPad's own connection wrapper is unchanged.
+
 ## [0.9.5] — 2026-10-24
 
 ### Changed
@@ -385,6 +446,9 @@ give a script a typed client for each, and keep passwords and tokens out of scri
   Results panel are now thin lines; they are dragged in the same place as before.
 
 ### Fixed
+
+- Closing a running script no longer faults while cancellation finishes; unexpected run and stop
+  errors are logged and reported without escaping the editor action.
 
 - IntelliSense checks framework APIs against the script's selected .NET target when its reference
   pack is available, including when a script without packages is first opened, before any run.

@@ -48,8 +48,8 @@ public sealed class LanguageHostRegistry : ILanguageHostRegistry
         GetFactory(language).DisplayName;
 
     // Null for a language that isn't registered, as for one without a template.
-    public string? GetCodeForKind(string language, string code, RpadKind kind) =>
-        _factories.TryGetValue(language, out var factory) ? factory.CodeForKind(code, kind) : null;
+    public string? GetCodeForKind(string language, string code, RpadKind kind, string indent = "    ") =>
+        _factories.TryGetValue(language, out var factory) ? factory.CodeForKind(code, kind, indent) : null;
 
     public IIntelliSenseService? CreateIntelliSense(string language, CancellationToken cancellationToken) =>
         _factories.TryGetValue(language, out var factory) ? factory.CreateIntelliSense(cancellationToken) : null;

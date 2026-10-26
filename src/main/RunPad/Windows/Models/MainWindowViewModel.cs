@@ -462,31 +462,95 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     {
         await _windowService.ShowDependenciesAsync(ActiveTab?.WhenAnyValue(x => x.FrontMatter), ActiveTab?.WhenAnyValue(x => x.FilePath));
         DependenciesWindowClosed?.Invoke();
+        // Dependencies can edit the reusable connections too.
+        RefreshConnectionNavigation();
     }
 
-    // ── Sidebar tabs: Queries (the file tree) and Examples ──────────────────────
+    // ── Sidebar: Connections bundle ─────────────────────────────────────────────
 
-    public const int QueriesTab = 0;
-    public const int ExamplesTab = 1;
+    /// <summary>The sidebar's Connections tree; null when RunPad was started without a connection store.</summary>
+    public ConnectionNavigationViewModel? ConnectionNavigation { get; }
 
-    /// <summary>Which of the sidebar's tabs is shown; both keep their state while hidden.</summary>
-    public int SidebarTab
+    public bool HasConnectionNavigation => ConnectionNavigation is not null;
+
+    /// <summary>Opens the Connections editor (at the named connection), then shows what it saved in the tree.</summary>
+    public async Task OpenConnectionsAsync(string? connectionName = null)
     {
-        get;
-        set
-        {
-            this.RaiseAndSetIfChanged(ref field, value);
-            this.RaisePropertyChanged(nameof(IsQueriesTabShown));
-            this.RaisePropertyChanged(nameof(IsExamplesTabShown));
-            this.RaisePropertyChanged(nameof(ShowNoExamplesHint));
-        }
+        await _windowService.ShowConnectionsAsync(connectionName);
+        RefreshConnectionNavigation();
     }
 
-    // Both panels stay in the tree and are only hidden, so the file tree keeps its selection,
-    // expanded folders and scroll position while Examples is shown.
-    public bool IsQueriesTabShown => SidebarTab != ExamplesTab;
-    public bool IsExamplesTabShown => SidebarTab == ExamplesTab;
-    public bool ShowNoExamplesHint => IsExamplesTabShown && Examples.Count == 0;
+    /// <summary>
+    /// Adds a saved connection to the active script right away, asking first only when its driver
+    /// needs NuGet packages the script doesn't have; the tab then takes the change like an edit made
+    /// in Dependencies (marked changed, IntelliSense refreshed). Why it couldn't be added shows in the tree.
+    /// </summary>
+    public async Task AddConnectionToScriptAsync(string connectionName)
+    {
+        if (ConnectionNavigation is not { } navigation || ActiveTab is not { FrontMatter: { } frontMatter } tab) return;
+        if (await navigation.AddToScriptAsync(frontMatter, tab.FilePath, connectionName, _windowService.ConfirmConnectionPackagesAsync))
+            DependenciesWindowClosed?.Invoke();
+    }
+
+    // Reading happens off the UI thread; an unexpected failure is logged, the tree keeps what it showed.
+    private void RefreshConnectionNavigation()
+    {
+        if (ConnectionNavigation is not { } navigation) return;
+        _ = navigation.RefreshAsync().ContinueWith(
+            t => _logger.LogError(t.Exception, "Refreshing the connections tree failed"),
+            CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+    }
+
+    // ── Sidebar: sections and the Samples tree ──────────────────────────────────
+
+    public const string ConnectionsSection = "Connections";
+    public const string ScriptsSection = "Scripts";
+    public const string SamplesSection = "Samples";
+
+    // Which sections are open is kept in the layout settings, so the sidebar looks the same next time.
+    public bool IsConnectionsSectionExpanded
+    {
+        get => IsSectionExpanded(ConnectionsSection);
+        set => SetSectionExpanded(ConnectionsSection, value);
+    }
+
+    public bool IsScriptsSectionExpanded
+    {
+        get => IsSectionExpanded(ScriptsSection);
+        set => SetSectionExpanded(ScriptsSection, value);
+    }
+
+    public bool IsSamplesSectionExpanded
+    {
+        get => IsSectionExpanded(SamplesSection);
+        set => SetSectionExpanded(SamplesSection, value);
+    }
+
+    private bool IsSectionExpanded(string section) => !(_prefs.Layout.CollapsedSidebarSections ?? []).Contains(section);
+
+    private void SetSectionExpanded(string section, bool expanded, [System.Runtime.CompilerServices.CallerMemberName] string? property = null)
+    {
+        if (IsSectionExpanded(section) == expanded) return;
+        var collapsed = (_prefs.Layout.CollapsedSidebarSections ?? []).Where(s => s != section).ToList();
+        if (!expanded) collapsed.Add(section);
+        _prefs.Layout.CollapsedSidebarSections = collapsed;
+        _prefs.Save();
+        this.RaisePropertyChanged(property);
+    }
+
+    public bool ShowNoExamplesHint => Examples.Count == 0;
+
+    /// <summary>The samples in their folders; folded folders are kept in the layout settings.</summary>
+    public IReadOnlyList<SampleTreeNode> SampleTree => field ??= SampleTreeNode.Build(
+        Examples, _prefs.Layout.CollapsedSampleFolders ?? [], OnSampleFolderExpandedChanged);
+
+    private void OnSampleFolderExpandedChanged(SampleTreeNode folder)
+    {
+        var collapsed = (_prefs.Layout.CollapsedSampleFolders ?? []).Where(p => p != folder.Id).ToList();
+        if (!folder.IsExpanded) collapsed.Add(folder.Id);
+        _prefs.Layout.CollapsedSampleFolders = collapsed;
+        _prefs.Save();
+    }
 
     /// <summary>The bundled examples (empty if none could be read).</summary>
     public IReadOnlyList<ExampleScript> Examples { get; init; } = ExampleScripts.All;
@@ -1093,7 +1157,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     public async Task<string> CreateFileAsync(string? contextPath, RpadLanguage language, RpadKind kind)
     {
         var parentDir = ResolveParentDir(contextPath);
-        var code = CodeTemplate.TakeCaret(_languageRegistry.NewScriptCode(language, kind)).Text;
+        var code = CodeTemplate.TakeCaret(_languageRegistry.NewScriptCode(language, kind, _prefs.Editor.IndentationUnit)).Text;
         var path = _fileSystemService.CreateNewFile(parentDir, language, kind, code);
         await RefreshNodesAsync();
         OpenTab(path);
@@ -1136,7 +1200,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         // logger they don't care about — real app startup (App.axaml.cs's AddTransient) still gets
         // a real one, since DI resolves ILogger<MainWindowViewModel> from the registered logging
         // provider regardless of the parameter having a default.
-        ILogger<MainWindowViewModel>? logger = null, IRecoveryStore? recovery = null)
+        ILogger<MainWindowViewModel>? logger = null, IRecoveryStore? recovery = null,
+        ConnectionNavigationViewModel? connectionNavigation = null)
     {
         _fileSystemService = fileSystemService;
         _windowService = windowService;
@@ -1172,7 +1237,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         OpenPreferencesCommand = ReactiveCommand.CreateFromTask(_windowService.ShowPreferencesAsync);
         OpenAboutCommand = ReactiveCommand.CreateFromTask(_windowService.ShowAboutAsync);
         OpenSecretStoreCommand = ReactiveCommand.CreateFromTask(_windowService.ShowSecretStoreAsync);
-        OpenConnectionsCommand = ReactiveCommand.CreateFromTask(_windowService.ShowConnectionsAsync);
+        OpenConnectionsCommand = ReactiveCommand.CreateFromTask(() => OpenConnectionsAsync());
         ImportLinqFileCommand = ReactiveCommand.CreateFromTask(ImportLinqFileAsync);
         OpenAssemblyExplorerCommand = ReactiveCommand.CreateFromTask(
             () => _windowService.ShowAssemblyExplorerAsync(_fileSystemService.Folder));
@@ -1199,6 +1264,30 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             });
 
         RefreshNodes();
+
+        ConnectionNavigation = connectionNavigation;
+        if (ConnectionNavigation is { } navigation)
+        {
+            navigation.RestoreCollapsedGroups(_prefs.Layout.CollapsedConnectionGroups);
+            navigation.CollapsedGroupsChanged += groups =>
+            {
+                _prefs.Layout.CollapsedConnectionGroups = [.. groups];
+                _prefs.Save();
+            };
+            // The attached badges follow the active script's own connections list.
+            this.WhenAnyValue(x => x.ActiveTab)
+                .Select(tab => tab?.WhenAnyValue(t => t.FrontMatter) ?? Observable.Return<RpadFrontMatter?>(null))
+                .Switch()
+                .Subscribe(frontMatter => navigation.SetAttached(frontMatter is null ? null : frontMatter.Connections ?? []));
+            // A finished run may have changed connection schema cache entries (EnsureAsync reads
+            // contracts before compiling): recheck statuses so the tree reflects successes and failures.
+            this.WhenAnyValue(x => x.ActiveTab)
+                .Select(tab => tab?.WhenAnyValue(t => t.RunState) ?? Observable.Return(RunState.Idle))
+                .Switch()
+                .Where(state => state == RunState.Idle)
+                .Subscribe(state => { _ = navigation.RefreshStatusesAsync(); });
+            RefreshConnectionNavigation();
+        }
 
         _fileSystemService.WatcherEvent += OnWatcherEvent;
         _fileSystemService.StartWatcher();

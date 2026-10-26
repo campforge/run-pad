@@ -10,7 +10,8 @@ namespace RunPad.Avalonia.CodeTextEditor;
 // of (offset, length) spans.
 internal sealed class OccurrenceHighlighter : IBackgroundRenderer
 {
-    private static readonly IBrush HighlightBrush = new SolidColorBrush(Color.FromArgb(60, 160, 160, 160));
+    private static readonly IBrush DefaultHighlightBrush = new SolidColorBrush(Color.FromArgb(60, 160, 160, 160));
+    public IBrush HighlightBrush { get; set; } = DefaultHighlightBrush;
 
     // Tracked segments: typing shifts them, so the highlights stay on their words until the next
     // lookup arrives instead of sitting on stale offsets.

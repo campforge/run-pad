@@ -49,14 +49,14 @@ public sealed class TabRecoveryTests : IDisposable
         var (ctrl, vm) = Open();
         var text = "// ${0}\r\nПривет\n\r\n";
         ctrl.State.Editor.Text = text;
-        ctrl.State.RpadDocument!.FrontMatter.Args = ["", "a b", "Ж"];
+        ctrl.State.RpadDocument!.FrontMatter.Arguments = [new() { Name = "values", Type = RpadArgumentType.StringList, Default = RpadValue.List(new[] { "", "a b", "Ж" }.Select(RpadValue.Of)) }];
         ctrl.State.RpadDocument.FrontMatter.References = ["$(CurrentQueryPath)/a.dll"];
         ctrl.State.Editor.CaretOffset = 5;
         var snapshot = ctrl.CaptureRecovery();
-        ctrl.State.RpadDocument.FrontMatter.Args.Add("later");
+        ctrl.State.RpadDocument.FrontMatter.Arguments[0].Default!.Items!.Add(RpadValue.Of("later"));
         var (restored, restoredVm) = Open(snapshot: snapshot);
         Assert.Equal(text, restored.State.Editor.Text);
-        Assert.Equal(new[] { "", "a b", "Ж" }, restored.State.RpadDocument!.FrontMatter.Args);
+        Assert.Equal(new[] { "", "a b", "Ж" }, restored.State.RpadDocument!.FrontMatter.Arguments[0].Default!.Items!.Select(i => i.Text));
         Assert.Equal(snapshot.Document!.FrontMatter.References, restored.State.RpadDocument.FrontMatter.References);
         Assert.True(restoredVm.IsDirty);
         Assert.Null(restoredVm.FilePath);
@@ -117,7 +117,7 @@ public sealed class TabRecoveryTests : IDisposable
     {
         var (ctrl, vm) = Open();
         Assert.False(vm.IsDirty);
-        ctrl.State.RpadDocument!.FrontMatter.Args = ["metadata-only"];
+        ctrl.State.RpadDocument!.FrontMatter.Arguments = [new() { Name = "value", Default = RpadValue.Of("metadata-only") }];
         Assert.True(ctrl.CaptureRecovery().IsDirty);
     }
 

@@ -58,16 +58,16 @@
     <Grid RowDefinitions="Auto,Auto,*" Margin="12">
 
         <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="4">
-            <Button x:Name="BackButton" IsEnabled="False"
+            <Button Classes="secondary" x:Name="BackButton" IsEnabled="False"
                     ToolTip.Tip="Back" AutomationProperties.Name="Back">
                 <PathIcon Data="{StaticResource Icon.ChevronLeft}" Width="14" Height="14"/>
             </Button>
-            <Button x:Name="ForwardButton" IsEnabled="False"
+            <Button Classes="secondary" x:Name="ForwardButton" IsEnabled="False"
                     ToolTip.Tip="Forward" AutomationProperties.Name="Forward">
                 <PathIcon Data="{StaticResource Icon.ChevronRight}" Width="14" Height="14"/>
             </Button>
-            <Button x:Name="BrowseButton" Content="Browse..." Margin="8,0,0,0"/>
-            <Button x:Name="SaveCodeButton" IsEnabled="False"
+            <Button Classes="secondary" x:Name="BrowseButton" Content="Browse..." Margin="8,0,0,0"/>
+            <Button Classes="secondary" x:Name="SaveCodeButton" IsEnabled="False"
                     ToolTip.Tip="Save the shown code" AutomationProperties.Name="Save Code">
                 <StackPanel Orientation="Horizontal" Spacing="4">
                     <PathIcon Data="{StaticResource Icon.Save}" Width="14" Height="14"/>

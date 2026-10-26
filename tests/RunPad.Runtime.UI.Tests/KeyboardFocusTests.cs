@@ -85,12 +85,31 @@ public class KeyboardFocusTests
 
     private static async Task SettleAsync()
     {
-        for (var i = 0; i < 20; i++)
+        for (var i = 0; i < 100; i++)
         {
             Dispatcher.UIThread.RunJobs();
             await Task.Delay(10, TestContext.Current.CancellationToken);
         }
     }
+
+    private static async Task<T> WaitForControlAsync<T>(Window window, Func<T, bool>? predicate = null)
+        where T : Control
+    {
+        for (var i = 0; i < 100; i++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            var control = window.GetVisualDescendants().OfType<T>().FirstOrDefault(c => predicate?.Invoke(c) ?? true);
+            if (control is not null)
+                return control;
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+
+        throw new Xunit.Sdk.XunitException($"Timed out waiting for {typeof(T).Name}.");
+    }
+
+    // A side-panel section header shown in the window (Expander.bundle in MainWindow), which replaced the
+    // side panel's tab strip. Connections is hidden while there are none, as in these tests.
+    private static bool IsSectionHeader(ToggleButton button) => button.Classes.Contains("bundle-header") && button.IsEffectivelyVisible;
 
     private static void Tab(Window w)
     {
@@ -109,7 +128,7 @@ public class KeyboardFocusTests
     private static Color FrameColor(Control c) =>
         ((ISolidColorBrush)FocusFrames.Of(c).SelectMany(a => new[] { (Visual)a }.Concat(a.GetVisualDescendants())).OfType<Border>().First().BorderBrush!).Color;
 
-    // Tab goes through the side panel, the tree, the document tab and the toolbar: every stop shows
+    // Tab goes through the side panel's sections and trees, the document tab and the toolbar: every stop shows
     // exactly one frame in the theme's focus colour, and nothing draws a second one.
     [AvaloniaTheory]
     [InlineData("VsCodeDark")]
@@ -126,17 +145,21 @@ public class KeyboardFocusTests
         window.Show();
         vm.OpenExample(vm.Examples[0]);
         await SettleAsync();
-        var start = window.GetVisualDescendants().OfType<TabStripItem>().First();
+        // From the top of the side panel: its other section headers and its trees come before the document tab.
+        var start = await WaitForControlAsync<ToggleButton>(window, IsSectionHeader);
+        // A click folds the section; the second one opens it again, so its tree is still there for Tab.
         Click(window, start);
+        Click(window, start);
+        Assert.True(start.IsChecked);
         Assert.False(FocusFrames.IsShown(start));
 
-        var seen = new List<string>();
-        for (var i = 0; i < 9; i++)
+        var seen = new List<Control>();
+        for (var i = 0; i < 20; i++)
         {
             Tab(window);
             var focused = (Control)window.FocusManager!.GetFocusedElement()!;
             if (focused is AvaloniaEdit.Editing.TextArea) break; // the editor keeps Tab for indenting
-            seen.Add(focused.GetType().Name);
+            seen.Add(focused);
             Assert.True(FocusFrames.IsShown(focused), $"{focused.GetType().Name} has no keyboard-focus frame");
             Assert.Single(FocusFrames.Of(focused));
             focused.TryFindResource("RunPad.Focus.BorderBrush", focused.ActualThemeVariant, out var brush);
@@ -146,11 +169,11 @@ public class KeyboardFocusTests
             Assert.DoesNotContain(focused.GetVisualDescendants().OfType<Border>(), b => b.Name == "HighlightBackground" && b.IsEffectivelyVisible);
         }
 
-        Assert.Contains(nameof(TabStripItem), seen);
-        Assert.Contains(nameof(TreeViewItem), seen);
-        Assert.Contains(nameof(TabItem), seen);
-        Assert.Contains(nameof(IconButton), seen);
-        Assert.Contains(nameof(ToolbarComboBox), seen);
+        Assert.Contains(seen, c => c is ToggleButton t && IsSectionHeader(t));
+        Assert.Contains(seen, c => c is TreeViewItem);
+        Assert.Contains(seen, c => c is TabItem);
+        Assert.Contains(seen, c => c is IconButton);
+        Assert.Contains(seen, c => c is ToolbarComboBox);
         window.Close();
     }
 
@@ -164,9 +187,9 @@ public class KeyboardFocusTests
         await SettleAsync();
         var targets = new Control[]
         {
-            window.GetVisualDescendants().OfType<TabStripItem>().Last(),
-            window.GetVisualDescendants().OfType<TabItem>().First(),
-            window.GetVisualDescendants().OfType<ToolbarComboBox>().First(),
+            await WaitForControlAsync<ToggleButton>(window, IsSectionHeader),
+            await WaitForControlAsync<TabItem>(window),
+            await WaitForControlAsync<ToolbarComboBox>(window),
         };
 
         foreach (var target in targets)

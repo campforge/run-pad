@@ -149,15 +149,61 @@
         <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
     </Style>
 
-    <!-- Form inputs share the secondary action border; keyboard focus still has its own ring. -->
-    <Style Selector=":is(TextBox).form-field, ComboBox.form-field">
-        <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
+    <!-- All form inputs use the toolbar surface instead of the editor's near-black canvas. This keeps
+         fields legible in every dialog while keyboard focus still has its shared focus ring. -->
+    <Style Selector=":is(TextBox), ComboBox">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="4"/>
     </Style>
-    <Style Selector=":is(TextBox).form-field:not(:error) /template/ Border#PART_BorderElement">
+    <!-- NumericUpDown is a ButtonSpinner around an inner TextBox.  Style both layers so its
+         value field and increment/decrement buttons stay on the same surface as other inputs. -->
+    <Style Selector="NumericUpDown">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="4"/>
+    </Style>
+    <Style Selector="NumericUpDown /template/ ButtonSpinner">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="NumericUpDown /template/ ButtonSpinner /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="NumericUpDown:pointerover /template/ ButtonSpinner /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <Style Selector="NumericUpDown /template/ ButtonSpinner /template/ RepeatButton /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="NumericUpDown:pointerover /template/ ButtonSpinner /template/ RepeatButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <Style Selector=":is(TextBox):not(:error) /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+    </Style>
+    <!-- Fluent's ComboBox paints hover on its internal Background border, so styling only the
+         control itself leaves the field turning black on pointer-over. Keep all states on our
+         theme surfaces. -->
+    <Style Selector="ComboBox /template/ Border#Background">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="ComboBox:pointerover /template/ Border#Background">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="ComboBox:pressed /template/ Border#Background">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
     </Style>
 
@@ -217,7 +263,7 @@
          The contrasting inner edge keeps the ring visible on selected rows and primary buttons.
          Code editors keep their own caret/selection behavior. All dimensions and brushes are theme
          resources; neither a system accent nor a control's shape decides the focus appearance. -->
-    <Style Selector=":is(Button), :is(ComboBox), TabItem, TabStripItem, ListBoxItem, TextBox, TreeViewItem, :is(TreeView), :is(ListBox), GridSplitter, DataGridCell, DataGridColumnHeader">
+    <Style Selector=":is(Button), :is(ComboBox), NumericUpDown, TabItem, TabStripItem, ListBoxItem, TextBox, TreeViewItem, :is(TreeView), :is(ListBox), GridSplitter, DataGridCell, DataGridColumnHeader">
         <Setter Property="FocusAdorner" Value="{StaticResource RunPad.Focus.Adorner}"/>
     </Style>
     <Style Selector="TreeViewItem /template/ Border#PART_LayoutRoot">
@@ -334,5 +380,22 @@
     </Style>
     <Style Selector="TabControl.panel.tool > TabItem:selected /template/ Border#Root">
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.ToolTab.SelectedBorderBrush}"/>
+    </Style>
+
+    <!-- List selections use the same subdued tool-surface treatment as panel tabs instead of the
+         platform's saturated blue fill. Keep the text contrast from the theme. -->
+    <Style Selector="ListBoxItem:selected /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource RunPad.ToolTab.SelectedBackgroundBrush}"/>
+    </Style>
+    <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.ToolTab.SelectedForegroundBrush}"/>
+    </Style>
+    <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+    </Style>
+    <Style Selector="ComboBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RunPad.ToolTab.SelectedBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.ToolTab.SelectedForegroundBrush}"/>
     </Style>
 </Styles>

@@ -699,4 +699,36 @@ public class ScriptConnectionsViewModelTests
             ],
             vm.Connections.Items.Select(i => i.Problem));
     }
+
+    // From the sidebar's Connections tree (context menu or a drag onto the editor): the named
+    // connection goes through the same Add, package confirmation included, and only Save applies it.
+    [Fact]
+    public void AddingByName_Should_UseTheSameAdd_AndExplainWhatCannotBeAdded()
+    {
+        var sql = new RpadConnection { Name = "warehouse", Driver = "sqlish" };
+        var (vm, _, _) = CreateVm(Http("billing", "https://billing.local/"), Http("github", "https://api.github.com/"), sql);
+        var fm = new RpadFrontMatter { Connections = [Http("billing", "https://billing.local/")] };
+        vm.SetFrontMatter(fm);
+        var connections = vm.Connections;
+
+        connections.RequestAdd("github");
+        Assert.Equal(["billing", "github"], connections.Items.Select(i => i.Name));
+
+        connections.RequestAdd("warehouse");
+        Assert.True(connections.IsAddConfirmationPending); // its driver brings a package
+        Assert.Equal(["billing", "github"], connections.Items.Select(i => i.Name));
+        Execute(connections.ConfirmAddCommand);
+        Assert.Equal(["billing", "github", "warehouse"], connections.Items.Select(i => i.Name));
+
+        connections.RequestAdd("billing");
+        Assert.Equal("'billing' is already in this script.", connections.CreateMessage);
+        Assert.Equal("billing", connections.SelectedItem?.Name);
+
+        connections.RequestAdd("gone");
+        Assert.Equal("'gone' is no longer in your connections.", connections.CreateMessage);
+
+        Assert.Single(fm.Connections); // nothing reaches the script before Save
+        Assert.True(vm.ApplyChanges());
+        Assert.Equal(["billing", "github", "warehouse"], fm.Connections.Select(c => c.Name));
+    }
 }

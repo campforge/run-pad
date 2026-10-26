@@ -6,7 +6,7 @@
     xmlns:chrome="using:Avalonia.Controls.Chrome"
     xmlns:uc="clr-namespace:RunPad.UserControls"
     xmlns:ucm="clr-namespace:RunPad.UserControls.Models"
-    xmlns:ex="clr-namespace:RunPad.Services.Examples" mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450" x:Class="RunPad.Windows.MainWindow" x:DataType="vm:MainWindowViewModel" Icon="/Assets/icon.ico" Title="RunPad" WindowDecorations="BorderOnly" ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="32">
+    xmlns:conv="clr-namespace:RunPad.Converters" mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450" x:Class="RunPad.Windows.MainWindow" x:DataType="vm:MainWindowViewModel" Icon="/Assets/icon.ico" Title="RunPad" WindowDecorations="BorderOnly" ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="32">
 
     <Window.Resources>
         <!-- Referenced via ContentTemplate on the sidebar's ContentControl below. DataTemplate.Build()
@@ -19,55 +19,9 @@
     </Window.Resources>
 
     <Window.Styles>
-
-        <!-- Sidebar tabs (Queries / Examples), styled like the code-document tabs (EditorTabsControl):
-             the strip and inactive tabs in the editor background, the selected tab in the colour of
-             what it opens onto (here the side panel, as a document tab takes the editor's), a 1 px
-             separator after each tab, the hover brush on hover. No accent line; keyboard focus shows
-             Fluent's focus frame, as everywhere else. -->
-        <Style Selector="TabStrip.sidebar">
-            <Setter Property="Margin" Value="0"/>
-            <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
-        </Style>
-        <Style Selector="TabStrip.sidebar > TabStripItem">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="MinHeight" Value="30"/>
-            <Setter Property="Height" Value="30"/>
-            <Setter Property="Padding" Value="12,0"/>
-            <Setter Property="Margin" Value="0"/>
-            <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
-            <Setter Property="Template">
-                <ControlTemplate TargetType="TabStripItem">
-                    <!-- Transparent: the whole tab takes clicks whatever brush the theme supplies. -->
-                    <Panel Background="Transparent">
-                        <Border x:Name="Root"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}"
-                                BorderThickness="0,0,1,0">
-                            <ContentPresenter x:Name="PART_ContentPresenter"
-                                              Content="{TemplateBinding Content}"
-                                              Padding="{TemplateBinding Padding}"
-                                              VerticalAlignment="Center"
-                                              TextBlock.Foreground="{TemplateBinding Foreground}"/>
-                        </Border>
-                    </Panel>
-                </ControlTemplate>
-            </Setter>
-        </Style>
-        <Style Selector="TabStrip.sidebar > TabStripItem:selected">
-            <Setter Property="Background" Value="{DynamicResource RunPad.Sidebar.BackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
-        </Style>
-        <Style Selector="TabStrip.sidebar > TabStripItem:pointerover /template/ Border#Root">
-            <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
-        </Style>
-        <Style Selector="ListBox.examples > ListBoxItem">
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Padding" Value="8,0"/>
-            <Setter Property="MinHeight" Value="27"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
+        <!-- The sidebar's sections and trees. Included by the window itself, not the app, so the
+             sidebar looks and lays out the same wherever the window is shown (tests included). -->
+        <StyleInclude Source="avares://RunPad/Resources/NavigationStyles.axaml"/>
 
         <!-- Window control buttons -->
         <Style Selector="Button.wc-btn">
@@ -157,33 +111,80 @@
             <!-- ── Sidebar ───────────────────────────────────────────────── -->
             <DockPanel Grid.Column="0" ClipToBounds="True" Background="{DynamicResource RunPad.Sidebar.BackgroundBrush}">
 
-                <!-- Queries / Examples, as compact as the editor's own tab strip (30 px) and styled
-                     like it (see TabStrip.sidebar above): the selected tab joins the panel below. -->
-                <Border DockPanel.Dock="Top" Height="30" Background="{DynamicResource RunPad.Editor.BackgroundBrush}">
-                    <TabStrip x:Name="SidebarTabs" Classes="sidebar" SelectedIndex="{Binding SidebarTab}">
-                        <TabStripItem Content="Queries"/>
-                        <TabStripItem Content="Examples"/>
-                    </TabStrip>
-                </Border>
-
-                <Panel>
-                    <ContentControl Content="{Binding FileTree}" ContentTemplate="{StaticResource FileTreeTemplate}"
-                                    IsVisible="{Binding IsQueriesTabShown}"/>
-                    <ListBox x:Name="ExampleList" Classes="examples" ItemsSource="{Binding Examples}"
-                             IsVisible="{Binding IsExamplesTabShown}"
-                             Background="Transparent" BorderThickness="0" Padding="4,4,4,8"
-                             SelectionMode="Single"
-                             Tapped="ExampleList_Tapped" KeyDown="ExampleList_KeyDown">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="ex:ExampleScript">
-                                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                    <TextBlock Text="No examples available" Margin="12,8" Opacity="0.6"
-                               Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
-                               IsVisible="{Binding ShowNoExamplesHint}"/>
-                </Panel>
+                <!-- Three sections that open and close independently (Resources/NavigationStyles.axaml):
+                     Connections first, then the scripts folder, then the bundled samples. Open sections
+                     share the height and each scrolls its own tree; folded ones take only their header
+                     (rows set by MainWindow.UpdateSidebarRows). Which are open is kept between runs. -->
+                <Grid x:Name="SidebarSections" RowDefinitions="Auto,Auto,Auto,*">
+                        <Expander x:Name="ConnectionsBundle" Grid.Row="0" Classes="bundle"
+                                  IsExpanded="{Binding IsConnectionsSectionExpanded, Mode=TwoWay}"
+                                  IsVisible="{Binding HasConnectionNavigation}"
+                                  AutomationProperties.Name="Connections navigation bundle">
+                            <Expander.Header>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Path Classes="bundle-icon" Data="{StaticResource Icon.NavigationConnections}"/>
+                                    <TextBlock Text="Connections"/>
+                                </StackPanel>
+                            </Expander.Header>
+                            <uc:ConnectionNavigationView x:Name="ConnectionNavigationView" DataContext="{Binding ConnectionNavigation}"
+                                                         OpenConnections="ConnectionNavigation_OpenConnections"
+                                                         AddToScript="ConnectionNavigation_AddToScript"/>
+                        </Expander>
+                        <Expander x:Name="ScriptsBundle" Grid.Row="1" Classes="bundle"
+                                  IsExpanded="{Binding IsScriptsSectionExpanded, Mode=TwoWay}"
+                                  AutomationProperties.Name="Scripts navigation bundle">
+                            <Expander.Header>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Path Classes="bundle-icon" Data="{StaticResource Icon.NavigationScripts}"/>
+                                    <TextBlock Text="Scripts"/>
+                                </StackPanel>
+                            </Expander.Header>
+                            <ContentControl Content="{Binding FileTree}" ContentTemplate="{StaticResource FileTreeTemplate}"
+                                            HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+                        </Expander>
+                        <Expander x:Name="SamplesBundle" Grid.Row="2" Classes="bundle"
+                                  IsExpanded="{Binding IsSamplesSectionExpanded, Mode=TwoWay}"
+                                  AutomationProperties.Name="Samples navigation bundle">
+                            <Expander.Header>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Path Classes="bundle-icon" Data="{StaticResource Icon.NavigationSamples}"/>
+                                    <TextBlock Text="Samples"/>
+                                </StackPanel>
+                            </Expander.Header>
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="No samples available." Margin="26,4,8,4"
+                                           FontSize="{DynamicResource RunPad.Type.Caption}"
+                                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
+                                           IsVisible="{Binding ShowNoExamplesHint}"/>
+                                <!-- Read-only: a sample opens as an untitled copy (MainWindowViewModel.OpenExample). -->
+                                <TreeView x:Name="SampleTree" Classes="navigation transient-selection" ItemsSource="{Binding SampleTree}"
+                                          Background="Transparent" BorderThickness="0" Padding="4,0,4,0"
+                                          SelectionMode="Single" AutomationProperties.Name="Samples"
+                                          Tapped="SampleTree_Tapped" KeyDown="SampleTree_KeyDown">
+                                    <TreeView.Styles>
+                                        <Style Selector="TreeViewItem" x:DataType="ucm:SampleTreeNode">
+                                            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                                            <Setter Property="(AutomationProperties.Name)" Value="{Binding AccessibleName}"/>
+                                        </Style>
+                                    </TreeView.Styles>
+                                    <TreeView.ItemTemplate>
+                                        <TreeDataTemplate DataType="ucm:SampleTreeNode" ItemsSource="{Binding Children}">
+                                            <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center" Margin="0,1">
+                                                <Panel Width="14" Height="14" VerticalAlignment="Center">
+                                                    <PathIcon IsVisible="{Binding IsFolder}" Data="{StaticResource Icon.FolderOpen}"
+                                                              Width="14" Height="14" Opacity="0.55"/>
+                                                    <Path IsVisible="{Binding !IsFolder}" Stretch="Uniform" Opacity="0.55"
+                                                          Data="{Binding IconKey, Converter={x:Static conv:ResourceKeyToGeometryConverter.Instance}}"
+                                                          Fill="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+                                                </Panel>
+                                                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </TreeDataTemplate>
+                                    </TreeView.ItemTemplate>
+                                </TreeView>
+                            </DockPanel>
+                        </Expander>
+                </Grid>
             </DockPanel>
 
             <GridSplitter Grid.Column="1" Classes="seam" ResizeDirection="Columns"/>

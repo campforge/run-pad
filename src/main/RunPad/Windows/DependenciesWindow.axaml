@@ -511,6 +511,155 @@
                 </Grid>
             </TabItem>
 
+            <!-- ─── Arguments: declared arguments, sets of their values, the set runs use ── -->
+            <TabItem x:Name="ArgumentsTab" Header="Arguments">
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="0,12,0,0" Spacing="14"
+                                DataContext="{Binding Arguments}" x:DataType="viewModels:ScriptArgumentsViewModel"
+                                IsEnabled="{Binding $parent[Window].((viewModels:DependenciesWindowViewModel)DataContext).HasFrontMatter}">
+                        <TextBlock Classes="hint"
+                                   Text="A run passes each argument as --name value (a list as --name once per item), with the values of the set it uses or else the defaults; an argument with neither is left out. On the command line, --args-set NAME picks a set, and arguments after the script replace them all."/>
+
+                        <!-- The declared arguments -->
+                        <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Declared arguments" FontWeight="SemiBold"/>
+                                <TextBlock Classes="hint" Text="Typed values exposed as Arguments.Name at runtime."/>
+                            </StackPanel>
+                            <Button x:Name="AddArgumentButton" Grid.Column="1" Content="+ Add argument" Command="{Binding AddArgumentCommand}"/>
+                        </Grid>
+                        <Border Classes="pane" Padding="8,6">
+                          <StackPanel Spacing="6">
+                            <Grid ColumnDefinitions="160,110,*,Auto" ColumnSpacing="8">
+                                <TextBlock Grid.Column="0" Classes="hint" Text="Name"/>
+                                <TextBlock Grid.Column="1" Classes="hint" Text="Type"/>
+                                <TextBlock Grid.Column="2" Classes="hint" Text="Value"/>
+                            </Grid>
+                            <ItemsControl x:Name="ArgumentRows" ItemsSource="{Binding Arguments}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="6"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="viewModels:ArgumentRowViewModel">
+                                    <Grid ColumnDefinitions="160,110,*,Auto" ColumnSpacing="8">
+                                        <TextBox Grid.Column="0" Text="{Binding Name}" AutomationProperties.Name="Argument name"/>
+                                        <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                                                  ItemsSource="{x:Static viewModels:ArgumentRowViewModel.Types}"
+                                                  SelectedItem="{Binding Type}"
+                                                  AutomationProperties.Name="Argument type">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="viewModels:ArgumentTypeOption">
+                                                    <TextBlock Text="{Binding Label}"/>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                        <Grid Grid.Column="2" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                            <TextBox Grid.Column="0" Width="170" Text="{Binding ValuesText}" IsVisible="{Binding IsEnum}"
+                                                     PlaceholderText="dev, test, prod"
+                                                     AutomationProperties.Name="Enum values"/>
+                                            <TextBox Grid.Column="1" HorizontalAlignment="Stretch" Text="{Binding DefaultText}"
+                                                     AcceptsReturn="{Binding IsList}" TextWrapping="NoWrap"
+                                                     PlaceholderText="none"
+                                                     AutomationProperties.Name="Default value"/>
+                                        </Grid>
+                                        <Button Classes="secondary" Grid.Column="3" Content="Remove" Command="{Binding RemoveCommand}"
+                                                AutomationProperties.Name="Remove argument"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                          </StackPanel>
+                        </Border>
+
+                        <!-- Sets of values, and the one runs use -->
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" VerticalAlignment="Center">
+                            <TextBlock Classes="hint" VerticalAlignment="Center" Text="Next run uses:"/>
+                            <ComboBox x:Name="ArgumentRunChoiceBox" Grid.Column="1" MinWidth="240"
+                                      ItemsSource="{Binding RunChoices}" SelectedItem="{Binding RunChoice}"
+                                      AutomationProperties.Name="Argument set runs use">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="viewModels:ArgumentRunChoice">
+                                        <TextBlock Text="{Binding Label}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+                        <Grid ColumnDefinitions="200,*" ColumnSpacing="12" MinHeight="190">
+                            <Grid RowDefinitions="Auto,*,Auto" RowSpacing="6">
+                                <TextBlock Text="Argument sets" FontWeight="SemiBold"/>
+                                <Border Grid.Row="1" Classes="pane">
+                                    <ListBox x:Name="ArgumentSetList" ItemsSource="{Binding Sets}" SelectedItem="{Binding SelectedSet}"
+                                             Background="Transparent" BorderThickness="0"
+                                             AutomationProperties.Name="Argument sets">
+                                        <ListBox.Styles>
+                                            <Style Selector="ListBoxItem:selected">
+                                                <Setter Property="Background" Value="{DynamicResource RunPad.ToolTab.SelectedBackgroundBrush}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+                                            </Style>
+                                        </ListBox.Styles>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate x:DataType="viewModels:ArgumentSetItemViewModel">
+                                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Border>
+                                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
+                                    <Button Classes="secondary" x:Name="AddArgumentSetButton" Content="Add Set" Command="{Binding AddSetCommand}"/>
+                                    <Button Classes="secondary" x:Name="RemoveArgumentSetButton" Content="Remove" Command="{Binding RemoveSetCommand}"/>
+                                </StackPanel>
+                            </Grid>
+                            <StackPanel Grid.Column="1" Spacing="6"
+                                        DataContext="{Binding SelectedSet}" x:DataType="viewModels:ArgumentSetItemViewModel"
+                                        IsVisible="{Binding Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <TextBlock Text="Set name"/>
+                                <TextBox x:Name="ArgumentSetNameBox" Text="{Binding Name}" AutomationProperties.Name="Argument set name"/>
+                                <ItemsControl x:Name="ArgumentSetValues" ItemsSource="{Binding Values}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Spacing="6"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="viewModels:ArgumentSetValueViewModel">
+                                            <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="200,*" ColumnSpacing="8" RowSpacing="3">
+                                                <TextBlock Grid.Row="0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+                                                    <Run Text="{Binding Argument.Name}"/>
+                                                    <Run Text="{Binding Argument.Type.Label}" Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                                                </TextBlock>
+                                                <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding Argument.EnumValues}"
+                                                          SelectedItem="{Binding Text}"
+                                                          IsVisible="{Binding Argument.IsEnum}"
+                                                          ToolTip.Tip="{Binding ValueError}"
+                                                          AutomationProperties.Name="{Binding Argument.Name}"/>
+                                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Text}" PlaceholderText="{Binding Hint}"
+                                                         IsVisible="{Binding !Argument.IsEnum}"
+                                                         AcceptsReturn="{Binding Argument.IsList}" TextWrapping="NoWrap"
+                                                         ToolTip.Tip="{Binding ValueError}"
+                                                         AutomationProperties.Name="{Binding Argument.Name}"/>
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Classes="error"
+                                                           Text="{Binding ValueError}" IsVisible="{Binding HasError}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Grid>
+
+                        <ItemsControl x:Name="ArgumentProblems" ItemsSource="{Binding Problems}" IsVisible="{Binding HasProblems}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <TextBlock Classes="error" Text="{Binding}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock x:Name="ArgumentsError" Classes="error" Text="{Binding BlockingError}" IsVisible="{Binding HasError}"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
             <!-- ─── Compilation (C# only) ──────────────────────────────────────── -->
             <TabItem x:Name="CompilationTab" Header="Compilation" IsVisible="{Binding HasUnsafeOption}">
                 <StackPanel Margin="0,12,0,0" Spacing="6">
@@ -597,7 +746,8 @@
                                 ToolTip.Tip="Reads this connection's description (such as a gRPC server's services) again, for a contract that changed"/>
                     </StackPanel>
                     <StackPanel Grid.Row="5" Spacing="6">
-                        <TextBlock Classes="hint" Text="Imports save to your connections immediately; Save below applies changes to this script."/>
+                        <TextBlock Classes="hint" TextWrapping="Wrap"
+                                   Text="Import to Your Connections saves right away in Tools → Connections. Add to Script and Remove from Script change this script only when you press Save below."/>
                         <TextBlock x:Name="RefreshMessage" Text="{Binding RefreshMessage}" TextWrapping="Wrap"
                                    IsVisible="{Binding RefreshMessage, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                         <TextBlock x:Name="ImportMessage" Text="{Binding ImportMessage}" TextWrapping="Wrap"/>
@@ -617,7 +767,7 @@
              and the window's close button ask whether to save pending changes. Save is deliberately
              not IsDefault so Enter in a field never applies the dialog. -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
-            <Button x:Name="CancelButton" Content="Cancel" Width="80" Click="Cancel_Click" IsCancel="True"/>
+                        <Button x:Name="CancelButton" Classes="secondary" Content="Cancel" Width="80" Click="Cancel_Click" IsCancel="True"/>
             <Button x:Name="OkButton" Classes="primary" Content="Save" Width="80" Click="Ok_Click"
                     IsEnabled="{Binding CanApply}"/>
         </StackPanel>

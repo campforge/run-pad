@@ -102,9 +102,10 @@ public sealed record GeneratedConnections(string Source, IReadOnlyList<string> E
     /// <param name="schemas">The schemas read so far, for drivers that need one; such a connection
     /// without a schema is an error naming why it couldn't be read.</param>
     /// <param name="scriptDirectory">The script's folder, which a schema may depend on; null for a script never saved.</param>
+    /// <param name="readSchemaFromDisk">Whether a missing in-memory schema may be loaded from disk.</param>
     public static GeneratedConnections? For(IReadOnlyList<RpadConnection> connections, RpadLanguage language,
         IEnumerable<string> scriptPackages, ConnectionDriverRegistry drivers, ConnectionSchemaCache? schemas = null,
-        string? scriptDirectory = null)
+        string? scriptDirectory = null, bool readSchemaFromDisk = true)
     {
         if (connections.Count == 0) return null;
         if (language != RpadLanguage.CSharp)
@@ -147,7 +148,9 @@ public sealed record GeneratedConnections(string Source, IReadOnlyList<string> E
             ConnectionSchema? schema = null;
             if (driver is IConnectionSchemaDriver)
             {
-                schema = schemas?.Get(connection, scriptDirectory);
+                schema = readSchemaFromDisk
+                    ? schemas?.Get(connection, scriptDirectory)
+                    : schemas?.TryGetLoaded(connection, scriptDirectory);
                 if (schema is null)
                 {
                     errors.Add($"Connection '{connection.Name}': " + (schemas?.ErrorFor(connection, scriptDirectory) is { } why

@@ -84,6 +84,7 @@ public sealed class EditorTabConnectionSchemaChangeTests : IDisposable
             tab.State.RpadDocument = new RpadDocument { FrontMatter = new RpadFrontMatter { Connections = [listed] }, RunCode = "" };
             // The refresh the new document starts has landed before the test counts.
             await TestWait.WhileAsync(() => intelliSense.Invocations.All(i => i.Method.Name != nameof(IIntelliSenseService.NotifyTextChanged)));
+            await TestWait.WhileAsync(() => intelliSense.Invocations.All(i => i.Method.Name != nameof(IIntelliSenseService.ApplyExecutionContext)));
             await TestWait.SettleAsync(() => intelliSense.Invocations.Count); // and any further ones it started
             intelliSense.Invocations.Clear();
 

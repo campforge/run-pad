@@ -135,6 +135,23 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 
     public List<string> Kinds { get; } = new() { "Statements", "Program", "Expression" };
 
+    public IReadOnlyList<string> ArgumentSetChoices { get; private set; } = ["Defaults"];
+
+    private string _selectedArgumentSet = "Defaults";
+    public string SelectedArgumentSet
+    {
+        get => _selectedArgumentSet;
+        internal set => this.RaiseAndSetIfChanged(ref _selectedArgumentSet, value);
+    }
+
+    internal void SetArgumentSetChoices(RpadFrontMatter? frontMatter)
+    {
+        IEnumerable<string> names = frontMatter?.ArgumentSets.Keys ?? Enumerable.Empty<string>();
+        ArgumentSetChoices = ["Defaults", .. names];
+        this.RaisePropertyChanged(nameof(ArgumentSetChoices));
+        SelectedArgumentSet = frontMatter?.SelectedArgumentSet ?? "Defaults";
+    }
+
     private string? _selectedKind = "Statements";
     public string? SelectedKind
     {

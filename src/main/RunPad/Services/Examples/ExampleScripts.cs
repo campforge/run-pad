@@ -3,11 +3,20 @@ using RunPad.Format.RPad;
 
 namespace RunPad.Services.Examples;
 
-/// <summary>A sample script shipped inside the application (Examples/*.rpad, embedded resources).</summary>
-/// <param name="Id">Its resource file name, e.g. "quick-start.rpad" — one open tab per example.</param>
+/// <summary>A sample script shipped inside the application (Examples/**/*.rpad, embedded resources).</summary>
+/// <param name="Id">Its file name, e.g. "quick-start.rpad" — one open tab per example; unique across folders.</param>
 /// <param name="Title">The document's first Markdown heading, else a name made from the file name.</param>
 /// <param name="Text">The whole .rpad document, front matter and Markdown included.</param>
-public sealed record ExampleScript(string Id, string Title, string Text, RpadLanguage Language, RpadKind Kind);
+/// <param name="Folder">Its folder under Examples, e.g. "getting-started"; empty at the top.</param>
+public sealed record ExampleScript(string Id, string Title, string Text, RpadLanguage Language, RpadKind Kind, string Folder = "")
+{
+    /// <summary>The folder's name as the Samples tree shows it: "getting-started" → "Getting started".</summary>
+    public static string FolderTitle(string folder)
+    {
+        var name = folder.Replace('-', ' ');
+        return name.Length == 0 ? name : char.ToUpperInvariant(name[0]) + name[1..];
+    }
+}
 
 /// <summary>
 /// The examples of the Examples panel. They are the user guide's sample scripts, bundled with the
@@ -18,11 +27,13 @@ public static class ExampleScripts
 {
     private const string ResourcePrefix = "RunPad.Examples.";
 
-    // The panel's order: from a first script to the debugger.
+    // The Samples order, folders included: from a first script to the debugger. Anything not listed
+    // follows, by path.
     private static readonly string[] Order =
     [
-        "quick-start.rpad", "expression-kind.rpad", "program-kind.rpad", "products-overview.rpad",
-        "live-output.rpad", "debugging-loop.rpad",
+        "getting-started/quick-start.rpad", "getting-started/expression-kind.rpad", "getting-started/program-kind.rpad",
+        "output/products-overview.rpad", "output/live-output.rpad",
+        "debugging/debugging-loop.rpad",
     ];
 
     private static readonly Lazy<IReadOnlyList<ExampleScript>> Loaded = new(() => Load(typeof(ExampleScripts).Assembly));
@@ -31,24 +42,29 @@ public static class ExampleScripts
 
     internal static IReadOnlyList<ExampleScript> Load(Assembly assembly)
     {
+        // The build keeps a subfolder in the name with the platform's separator, '/' or a backslash.
         var names = assembly.GetManifestResourceNames()
             .Where(n => n.StartsWith(ResourcePrefix, StringComparison.Ordinal) && n.EndsWith(".rpad", StringComparison.Ordinal))
-            .Select(n => n[ResourcePrefix.Length..])
-            .OrderBy(n => Array.IndexOf(Order, n) is var i and >= 0 ? i : int.MaxValue)
-            .ThenBy(n => n, StringComparer.Ordinal);
+            .Select(n => (Resource: n, Path: n[ResourcePrefix.Length..].Replace('\\', '/')))
+            .OrderBy(n => Array.IndexOf(Order, n.Path) is var i and >= 0 ? i : int.MaxValue)
+            .ThenBy(n => n.Path, StringComparer.Ordinal);
 
         var result = new List<ExampleScript>();
-        foreach (var id in names)
+        foreach (var (resource, path) in names)
         {
+            var slash = path.LastIndexOf('/');
+            var id = path[(slash + 1)..];
+            var folder = slash < 0 ? "" : path[..slash];
+            if (result.Any(e => e.Id == id)) continue; // ids identify tabs: the first of a name wins
             try
             {
-                using var stream = assembly.GetManifestResourceStream(ResourcePrefix + id);
+                using var stream = assembly.GetManifestResourceStream(resource);
                 if (stream is null) continue;
                 using var reader = new StreamReader(stream);
                 var text = reader.ReadToEnd();
                 if (RpadParser.TryParse(text) is not { } document) continue; // not a valid script: left out
                 result.Add(new ExampleScript(id, TitleOf(text, id), text,
-                    document.FrontMatter.Language, document.FrontMatter.Kind));
+                    document.FrontMatter.Language, document.FrontMatter.Kind, folder));
             }
             catch (IOException)
             {

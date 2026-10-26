@@ -205,6 +205,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     private string _preamble = "";
     private int _preambleLength;
     private RpadKind _kind = RpadKind.Statements;
+    private IReadOnlyList<RpadArgumentContractMember> _argumentContract = [];
     private string _lastCode = "";
 
     // The full synced document
@@ -342,7 +343,15 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             "Script.cs",
             loader: TextLoader.From(TextAndVersion.Create(
                 SourceText.From(_preamble, Encoding.UTF8),
-                VersionStamp.Create()))));
+                VersionStamp.Create())),
+            filePath: Path.Combine(ScriptFolder, "Script.cs")));
+        // Code actions format what they write with the options an .editorconfig beside the document
+        // gives, not with the formatting options passed to Formatter: this one carries the editor's
+        // indentation (UpdateIndentation). It is never written to disk.
+        _editorConfigId = DocumentId.CreateNewId(projectId, ".editorconfig");
+        _workspace.TryApplyChanges(_workspace.CurrentSolution.AddAnalyzerConfigDocument(
+            _editorConfigId, ".editorconfig", SourceText.From(EditorConfig(_useTabs, _indentationSize)),
+            filePath: Path.Combine(ScriptFolder, ".editorconfig")));
     }
 
     private void RebuildPreamble()
@@ -370,6 +379,38 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         // changed underneath it, so diffing against it would compute a TextChange against text the
         // workspace no longer holds.
         lock (_syncLock) { _lastCode = ""; _lastFullText = ""; _lastSourceText = null; }
+    }
+
+    /// <summary>Updates the typed <c>Arguments</c> members offered by completion.</summary>
+    private (DocumentId Id, string Text)? _argumentSource;
+
+    public void UpdateArgumentContract(RpadArgumentContract? contract)
+    {
+        var members = contract?.Members ?? [];
+        lock (_syncLock)
+        {
+            var source = contract is { Members.Count: > 0 } ? contract.GenerateCSharpFacade() : "";
+            if (_argumentContract.SequenceEqual(members) && _argumentSource?.Text == source) return;
+
+            var project = _workspace.CurrentSolution.GetProject(_documentId.ProjectId);
+            if (project is null) return;
+            var solution = project.Solution;
+            if (_argumentSource is { } old) solution = solution.RemoveDocument(old.Id);
+            (DocumentId Id, string Text)? next = null;
+            if (source.Length > 0)
+            {
+                var id = DocumentId.CreateNewId(_documentId.ProjectId, "Arguments.g.cs");
+                solution = solution.AddDocument(id, "Arguments.g.cs", SourceText.From(GeneratedHeader + source, Encoding.UTF8));
+                next = (id, source);
+            }
+            if (!_workspace.TryApplyChanges(solution)) return;
+            _argumentContract = members;
+            _argumentSource = next;
+            _lastCode = "";
+            _lastFullText = "";
+            _lastSourceText = null;
+            _contextVersion++;
+        }
     }
 
     public void UpdateKind(RpadKind kind)
@@ -580,6 +621,24 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             if (root == null) return null;
 
             var pos = ToDocumentOffset(code, position);
+
+            // Arguments is generated from metadata, but completion is still supplied directly so it
+            // remains available before a compile has produced the generated source tree.
+            var beforeCaret = code[..Math.Min(position, code.Length)];
+            var argsPrefix = beforeCaret.LastIndexOf("Arguments.", StringComparison.Ordinal);
+            if (argsPrefix >= 0 && (argsPrefix == 0 || !char.IsLetterOrDigit(beforeCaret[argsPrefix - 1]))
+                && beforeCaret[(argsPrefix + "Arguments.".Length)..].All(char.IsLetterOrDigit))
+            {
+                var typed = beforeCaret[(argsPrefix + "Arguments.".Length)..];
+                var contractItems = _argumentContract
+                    .Where(m => m.PropertyName.StartsWith(typed, StringComparison.OrdinalIgnoreCase))
+                    .Select(m => (ICompletionItem)new SimpleCompletionItem(
+                        m.PropertyName, CompletionItemKind.Property,
+                        [new DisplayTextSegment(m.PropertyName, SemanticTokenKind.PropertyName)],
+                        $"{m.PropertyName} : {(m.Type == "enum" ? m.EnumTypeName : m.Type)}", m.PropertyName, 1, []))
+                    .ToList();
+                if (contractItems.Count > 0) return new SimpleCompletionList(contractItems);
+            }
 
             // Checked before the position guards below: "override" is a
             // reserved keyword that can only ever be a modifier, so if it's literally the word right
@@ -1522,6 +1581,13 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
                     ParameterTypeNames: [], DisplayName: symbol.Name);
             }
 
+            if (GeneratedDocumentFor(symbol) is { } generated)
+                return new SimpleDefinitionResult(
+                    IsInSource: false, Offset: 0,
+                    AssemblyPath: null, ContainingTypeFullName: null, MemberName: null,
+                    ParameterTypeNames: [], DisplayName: symbol.ToDisplayString(),
+                    GeneratedDocument: generated);
+
             // Extension methods resolve to their REDUCED form (receiver dropped from Parameters) —
             // metadata (and so the decompiler's own type system) only knows the original static
             // method, receiver included as parameter 0. Un-reduce before reading Name/Parameters so
@@ -1744,8 +1810,18 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         return new(error, suggestions);
     }
 
+    public Task<bool> IsEmptyTypeBodyPositionAsync(string code, int position, CancellationToken cancellationToken = default)
+        => Task.Run(() => CSharpMemberPosition.IsInEmptyTypeBody(code, position, cancellationToken), cancellationToken);
+
     private bool _useTabs;
     private int _indentationSize = 4;
+    private readonly DocumentId _editorConfigId;
+
+    // Where the script document and its .editorconfig appear to be; nothing is stored there.
+    private static readonly string ScriptFolder = Path.Combine(Path.GetTempPath(), "RunPadScript");
+
+    private static string EditorConfig(bool useTabs, int indentationSize) =>
+        $"root = true\n[*.cs]\nindent_style = {(useTabs ? "tab" : "space")}\nindent_size = {indentationSize}\ntab_width = {indentationSize}\n";
 
     private OptionSet FormattingOptionsSnapshot() => _workspace.CurrentSolution.Options
         .WithChangedOption(FormattingOptions.UseTabs, LanguageNames.CSharp, _useTabs)
@@ -1759,6 +1835,8 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             // Applying solution options writes shared Roslyn services; keep each editor's policy local.
             _useTabs = useTabs;
             _indentationSize = Math.Clamp(indentationSize, 1, 16);
+            _workspace.TryApplyChanges(_workspace.CurrentSolution.WithAnalyzerConfigDocumentText(
+                _editorConfigId, SourceText.From(EditorConfig(_useTabs, _indentationSize))));
         }
     }
 
@@ -2343,6 +2421,26 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     private bool IsInScript(Location location) =>
         location.IsInSource && location.SourceTree is { } tree && _workspace.CurrentSolution.GetDocumentId(tree) == _documentId;
 
+    // A symbol declared in one of the generated connection documents (UpdateConnections) rather
+    // than the script itself or a compiled metadata assembly -- the state every gRPC/HTTP-contract
+    // message and client class is in until the first successful build produces a cached contract
+    // assembly (ConnectionContractAssemblyCache). Neither IsInScript nor a metadata reference
+    // matches a symbol there, so without this, TryGetDefinitionAsync falls through and F12 is a
+    // silent no-op (see handoffs/g03-navigation-cold-start-gap.md for how this was found).
+    private (string Text, int Line)? GeneratedDocumentFor(ISymbol symbol)
+    {
+        foreach (var location in symbol.Locations)
+        {
+            if (!location.IsInSource || location.SourceTree is not { } tree) continue;
+            var id = _workspace.CurrentSolution.GetDocumentId(tree);
+            if (id is null) continue;
+            foreach (var (_, (docId, text)) in _connectionFiles)
+                if (docId == id)
+                    return (text, location.GetLineSpan().StartLinePosition.Line + 1);
+        }
+        return null;
+    }
+
     private const string GeneratedHeader = "// <auto-generated/>\n";
 
     // The small Connections wrapper stays source. Schema types use the build's cached assembly
@@ -2633,7 +2731,8 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
 
     private sealed record SimpleDefinitionResult(
         bool IsInSource, int Offset, string? AssemblyPath, string? ContainingTypeFullName,
-        string? MemberName, IReadOnlyList<string> ParameterTypeNames, string DisplayName) : IDefinitionResult;
+        string? MemberName, IReadOnlyList<string> ParameterTypeNames, string DisplayName,
+        (string Text, int Line)? GeneratedDocument = null) : IDefinitionResult;
 
     private sealed record SimpleImplementationLocation(int Offset, string DisplayName) : IImplementationLocation;
 

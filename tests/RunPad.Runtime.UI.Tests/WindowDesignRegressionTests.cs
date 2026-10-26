@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
 using Avalonia.Controls;
@@ -130,6 +131,89 @@ public class WindowDesignRegressionTests
     }
 
     [AvaloniaFact]
+    public void IconButtons_Should_HaveTooltipsNamesAndFocus_AndTheLabelledActionsShouldFit()
+    {
+        var (window, _) = Connections();
+        window.Width = window.MinWidth;
+        window.Height = window.MinHeight;
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            // Scrollbar arrows are RepeatButtons with their own icons and names; they aren't this window's controls.
+            var iconButtons = window.GetVisualDescendants().OfType<Button>()
+                .Where(b => b is not RepeatButton && b.IsEffectivelyVisible && b.GetVisualDescendants().OfType<PathIcon>().Any()).ToArray();
+            Assert.NotEmpty(iconButtons);
+            foreach (var button in iconButtons)
+            {
+                Assert.False(string.IsNullOrWhiteSpace(ToolTip.GetTip(button) as string));
+                Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(button)));
+                Assert.True(button.Focusable);
+            }
+
+            // Icon plus label: the label must not be clipped at the minimum width.
+            foreach (var name in new[] { "AddButton", "RemoveButton" })
+            {
+                var control = window.FindControl<Control>(name)!;
+                Assert.True(control.DesiredSize.Width <= control.Bounds.Width, $"{name} needs {control.DesiredSize.Width} but has {control.Bounds.Width}");
+            }
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void TestProgress_Should_BeVisibleInTheList()
+    {
+        var (window, vm) = Connections();
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            vm.SelectedConnection!.TestResult = "Testing…";
+            Dispatcher.UIThread.RunJobs();
+            var status = window.FindControl<ListBox>("ConnectionList")!.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text == "Testing…");
+            Assert.True(status.IsEffectivelyVisible);
+
+            // The list line is short and may be cut off; its tooltip carries the whole answer, and follows it.
+            Assert.Equal("Testing…", ToolTip.GetTip(status));
+            vm.SelectedConnection!.TestResult = "Success: Connected.\nFailed: its description couldn't be read: No schema is offered.";
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("Test succeeded", status.Text);
+            Assert.Equal(vm.SelectedConnection!.TestResult, ToolTip.GetTip(status));
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void TestStatus_Should_BeInTheListItemsName_AndFollowItsChanges()
+    {
+        var (window, vm) = Connections();
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var list = window.FindControl<ListBox>("ConnectionList")!;
+            var item = list.ContainerFromIndex(0)!;
+            var plain = $"billing-api, {vm.SelectedConnection!.DriverName}";
+            Assert.Equal(plain, AutomationProperties.GetName(item));
+
+            vm.SelectedConnection!.TestResult = "Testing…";
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(plain + ", Testing…", AutomationProperties.GetName(item));
+            // The same container keeps its selection, so keyboard focus and the status line stay where they were.
+            Assert.Same(item, list.ContainerFromIndex(0));
+            Assert.True(((ListBoxItem)item).IsSelected);
+
+            vm.SelectedConnection!.TestResult = "Success: Connected.";
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(plain + ", Test succeeded", AutomationProperties.GetName(item));
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
     public void SecretPicker_Should_InsertOnlyThePlaceholder_AndAllowRepeatedChoices()
     {
         var (window, vm) = Connections();
@@ -178,19 +262,23 @@ public class WindowDesignRegressionTests
                     Assert.True(theme.TryGetResource(role, window.ActualThemeVariant, out var value));
                     return value;
                 }
-                Assert.Same(Resource("RunPad.Text.PrimaryBrush"), presenter.Foreground);
+                var initiallyEnabled = button.IsEffectivelyEnabled;
+                Assert.Same(Resource(initiallyEnabled ? "RunPad.Text.PrimaryBrush" : "RunPad.Text.SecondaryBrush"), presenter.Foreground);
                 var root = button is DropDownButton
                     ? button.GetVisualDescendants().OfType<Border>().Single(b => b.Name == "RootBorder") : null;
                 object? Background() => root is null ? presenter.Background : root.Background;
                 if (root is not null)
                     Assert.Equal(global::Avalonia.Media.Colors.Transparent, Assert.IsAssignableFrom<global::Avalonia.Media.ISolidColorBrush>(presenter.Background).Color);
                 Assert.Same(Resource("RunPad.Editor.BackgroundBrush"), Background());
-                ((IPseudoClasses)button.Classes).Add(":pointerover");
-                Dispatcher.UIThread.RunJobs();
-                Assert.Same(Resource("RunPad.Toolbar.Button.HoverBrush"), Background());
-                ((IPseudoClasses)button.Classes).Add(":pressed");
-                Dispatcher.UIThread.RunJobs();
-                Assert.Same(Resource("RunPad.Toolbar.BackgroundBrush"), Background());
+                if (initiallyEnabled)
+                {
+                    ((IPseudoClasses)button.Classes).Add(":pointerover");
+                    Dispatcher.UIThread.RunJobs();
+                    Assert.Same(Resource("RunPad.Toolbar.Button.HoverBrush"), Background());
+                    ((IPseudoClasses)button.Classes).Add(":pressed");
+                    Dispatcher.UIThread.RunJobs();
+                    Assert.Same(Resource("RunPad.Toolbar.BackgroundBrush"), Background());
+                }
                 button.IsEnabled = false;
                 Dispatcher.UIThread.RunJobs();
                 Assert.Same(Resource("RunPad.Text.SecondaryBrush"), presenter.Foreground);

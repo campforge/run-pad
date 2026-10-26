@@ -35,7 +35,7 @@ public sealed class ExecutionRequestTests : IDisposable
         Packages = new Dictionary<string, Package> { ["Newtonsoft.Json"] = new("13.0.3") },
         Namespaces = ["System.Text"],
         References = ["lib/Greeter.dll", "$(CurrentQueryPath)/lib/Greeter.dll", "Some.Project.csproj"],
-        Args = ["from", "file"],
+        Arguments = [new() { Name = "value", Default = RpadValue.Of("from file") }],
         AllowUnsafe = true,
     };
 
@@ -51,7 +51,7 @@ public sealed class ExecutionRequestTests : IDisposable
         Assert.Equal("13.0.3", request.Packages["Newtonsoft.Json"]);
         Assert.Equal(["System.Text"], request.Usings);
         Assert.Equal(["lib/Greeter.dll", "$(CurrentQueryPath)/lib/Greeter.dll", "Some.Project.csproj"], request.References);
-        Assert.Equal(["from", "file"], request.Arguments);
+        Assert.Equal(["--value", "from file"], request.Arguments);
         Assert.True(request.AllowUnsafe);
         Assert.Equal(_script, request.CurrentQueryPath);
         // Arguments given apart (the command line) replace args:, an empty list included.
@@ -73,6 +73,48 @@ public sealed class ExecutionRequestTests : IDisposable
         Assert.Null(request.CurrentQueryPath);
         Assert.True(request.BreakOnUncaughtExceptions);
         Assert.False(request.BreakOnAllExceptions);
+    }
+
+    [Fact]
+    public void TypedArguments_Should_UseTheSameSetAndOverridesAsRawArguments()
+    {
+        var fm = new RpadFrontMatter
+        {
+            Arguments = [new() { Name = "value", Type = RpadArgumentType.Int }],
+            SelectedArgumentSet = "dev",
+            ArgumentSets = new()
+            {
+                ["dev"] = new() { ["value"] = RpadValue.Of("3") },
+                ["prod"] = new() { ["value"] = RpadValue.Of("7") },
+                ["empty"] = new(),
+            },
+        };
+        var selected = ExecutionRequest.For(fm, null, argumentSet: "prod");
+        Assert.Equal(["--value", "7"], selected.Arguments);
+        var contract = RpadArgumentContract.FromJson(selected.ArgumentContractJson);
+        Assert.Equal(["7"], contract.Members.Single().Values);
+
+        var overridden = ExecutionRequest.For(fm, null, ["--value", "9"]);
+        Assert.Equal(["9"], RpadArgumentContract.FromJson(overridden.ArgumentContractJson).Members.Single().Values);
+        var empty = ExecutionRequest.For(fm, null, argumentSet: "empty");
+        Assert.Equal(contract.GenerateCSharpFacade(), RpadArgumentContract.FromJson(empty.ArgumentContractJson).GenerateCSharpFacade());
+        Assert.Equal(contract.GenerateVisualBasicFacade(), RpadArgumentContract.FromJson(empty.ArgumentContractJson).GenerateVisualBasicFacade());
+    }
+
+    [Fact]
+    public void TypedArguments_Should_PreserveAllListItemsAndEmptyStrings()
+    {
+        var fm = new RpadFrontMatter
+        {
+            Arguments = [new() { Name = "tags", Type = RpadArgumentType.StringList }],
+        };
+        var request = ExecutionRequest.For(fm, null, ["--tags", "", "--tags", "two words"]);
+        Assert.Equal(["", "two words"], RpadArgumentContract.FromJson(request.ArgumentContractJson).Members.Single().Values);
+
+        fm.Arguments[0].Default = RpadValue.List([RpadValue.Of("default")]);
+        fm.ArgumentSets["empty"] = new() { ["tags"] = RpadValue.List([]) };
+        var empty = ExecutionRequest.For(fm, null, argumentSet: "empty");
+        Assert.Empty(RpadArgumentContract.FromJson(empty.ArgumentContractJson).Members.Single().Values);
     }
 
     // The backend resolves the references exactly as ReferencePathResolver does (relative to the
@@ -99,7 +141,7 @@ public sealed class ExecutionRequestTests : IDisposable
         Assert.Equal(RpadKind.Program, options.Kind);
         Assert.Equal("13.0.3", options.Packages["Newtonsoft.Json"]);
         Assert.Equal(["System.Text"], options.Usings);
-        Assert.Equal(["from", "file"], options.Arguments);
+        Assert.Equal(["--value", "from file"], options.Arguments);
         Assert.True(options.AllowUnsafe);
         Assert.Equal(_script, options.CurrentQueryPath);
         Assert.True(options.BreakOnAllExceptions);

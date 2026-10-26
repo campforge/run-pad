@@ -53,25 +53,30 @@ public class RpadParserWriterTests
     }
 
     [Fact]
-    public void Write_ThenParse_RoundTripsArgs()
+    public void Write_ThenParse_RoundTripsDeclaredArgumentDefaults()
     {
         var doc = new RpadDocument
         {
-            FrontMatter = new RpadFrontMatter { Args = ["plain", "with space", "--flag", "quote\"d", "# not a comment"] },
+            FrontMatter = new RpadFrontMatter
+            {
+                Arguments = [new() { Name = "values", Type = RpadArgumentType.StringList,
+                    Default = RpadValue.List(new[] { "plain", "with space", "--flag", "quote\"d", "# not a comment" }.Select(RpadValue.Of)) }],
+            },
             RunCode = "args.Dump();\n",
         };
 
         var parsed = RpadParser.TryParse(RpadWriter.Write(doc));
 
-        Assert.Equal(["plain", "with space", "--flag", "quote\"d", "# not a comment"], parsed!.FrontMatter.Args);
+        Assert.Equal(["plain", "with space", "--flag", "quote\"d", "# not a comment"], parsed!.FrontMatter.Arguments.Single().Default!.Items!.Select(i => i.Text));
     }
 
     [Fact]
-    public void TryParse_WithoutArgs_GivesAnEmptyList_AndWriteOmitsTheKey()
+    public void TryParse_RetiredArgs_DoesNotSupplyArguments_AndWriteRemovesTheKey()
     {
-        var parsed = RpadParser.TryParse("---\nlanguage: csharp\nargs:\n---\n\n```csharp run\n1.Dump();\n```\n");
+        var parsed = RpadParser.TryParse("---\nlanguage: csharp\nargs:\n  - ignored\n---\n\n```csharp run\n1.Dump();\n```\n");
 
-        Assert.Empty(parsed!.FrontMatter.Args!);
+        Assert.Empty(parsed!.FrontMatter.Arguments);
+        Assert.Empty(RpadArguments.Resolve(parsed.FrontMatter).Arguments);
         Assert.DoesNotContain("args:", RpadWriter.Write(parsed));
     }
 

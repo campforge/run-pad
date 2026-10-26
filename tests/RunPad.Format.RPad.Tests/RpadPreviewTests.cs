@@ -89,7 +89,7 @@ public class RpadPreviewTests
             {
                 TargetSdk = new TargetSdk("net|*x*"),
                 References = ["a|b.dll", "``tick`.dll"],
-                Args = ["two\nlines"],
+                Arguments = [new() { Name = "value", Default = RpadValue.Of("two\nlines") }],
             },
         };
 

@@ -13,7 +13,7 @@ public sealed class SnippetCompletionData(string keyword, string template, IImag
 {
     public string Text => keyword;
     public object Content => keyword;
-    public object Description => template;
+    public object Description => SnippetTemplate.Preview(template);
     public double Priority => 0.8;
     public IImage? Image => image;
 

@@ -33,7 +33,7 @@ public sealed class VbLanguageHostFactory : ILanguageHostFactory
     // CompletionTriggers). No required statement terminator — a newline ends a statement. VB is
     // case-insensitive, so "New"/"new" both starting completion is a real language property, not
     // sloppiness, hence the case-insensitive HashSet.
-    public string? CodeForKind(string code, RpadKind kind) => VbProgramTemplate.CodeForKind(code, kind);
+    public string? CodeForKind(string code, RpadKind kind, string indent = "    ") => VbProgramTemplate.CodeForKind(code, kind, indent);
 
     public EditorLanguageProfile EditorProfile { get; } = new()
     {
@@ -45,6 +45,7 @@ public sealed class VbLanguageHostFactory : ILanguageHostFactory
         StatementTerminators = new HashSet<char>(),
         BracePairs = new Dictionary<char, char> { ['('] = ')', ['['] = ']' },
         AutoCloseBraces = new HashSet<char> { '[' },
+        LineCommentPrefix = "'",
         IndentationStrategy = IndentationStrategyKind.Default,
         // VB's blocks aren't brace-delimited, so the default brace-based
         // folding strategy folded nothing at all in a .vb file. VbFoldingRegions.Compute lives right

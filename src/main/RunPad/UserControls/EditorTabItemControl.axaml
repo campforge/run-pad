@@ -117,6 +117,16 @@
                         SelectedItem="{Binding SelectedKind}">
                     </tc:ToolbarComboBox>
 
+                    <tc:ToolbarComboBox
+                        Margin="4,0,0,0"
+                        Height="24"
+                        VerticalAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        ItemsSource="{Binding ArgumentSetChoices}"
+                        x:Name="ArgumentSetSelector"
+                        SelectedItem="{Binding SelectedArgumentSet}"
+                        ToolTip.Tip="Argument set"/>
+
                     <Border Width="1" Height="16"
                             Background="{DynamicResource RunPad.Separator.BackgroundBrush}"
                             Margin="4,0"/>
@@ -232,14 +242,18 @@
         <!-- Row 3: Output tabs -->
         <TabControl x:Name="OutputTabsControl" Grid.Row="3" Classes="OutputTabs panel tool">
             <TabControl.Tag>
-                            <tc:IconButton x:Name="ExceptionsButton" Width="24" Height="24" Padding="6" Margin="0,0,8,0" IconData="{StaticResource Icon.Settings}"
-                                    Foreground="{DynamicResource RunPad.Text.SecondaryBrush}" ToolTip.Tip="Exception break settings" AutomationProperties.Name="Exception break settings">
+                            <tc:IconButton x:Name="OutputSettingsButton" Width="24" Height="24" Padding="6" Margin="0,0,8,0" IconData="{StaticResource Icon.Settings}"
+                                    Foreground="{DynamicResource RunPad.Text.SecondaryBrush}" ToolTip.Tip="Output settings" AutomationProperties.Name="Output settings">
                                 <tc:IconButton.Resources>
                                     <x:Double x:Key="RunPad.Size.ToolbarIcon">12</x:Double>
                                 </tc:IconButton.Resources>
                                 <tc:IconButton.Flyout>
                                     <Flyout Placement="BottomEdgeAlignedRight">
-                                        <StackPanel Spacing="6" MaxWidth="320">
+                                        <StackPanel x:Name="OutputSettingsPanel" Spacing="6" MaxWidth="320">
+                                            <TextBlock Text="Output settings" FontWeight="SemiBold"/>
+                                            <CheckBox x:Name="ResultsWrapCheckBox" Content="Wrap long lines in results"/>
+                                            <Separator Margin="0,2"/>
+                                            <TextBlock Text="When debugging" Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                                             <CheckBox IsChecked="{Binding DebugPanel.BreakOnUncaughtExceptions, Mode=TwoWay}"
                                                       Content="Break on unhandled exceptions"/>
                                             <CheckBox IsChecked="{Binding DebugPanel.BreakOnAllExceptions, Mode=TwoWay}"

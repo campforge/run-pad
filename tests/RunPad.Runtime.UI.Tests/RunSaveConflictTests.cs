@@ -102,13 +102,13 @@ public class RunSaveConflictTests : IDisposable
         try
         {
             ctrl.State.Editor.Text = "throw new Exception();\n42.Dump();\nthrow new Exception();";
-            ctrl.State.RpadDocument!.FrontMatter.Args = ["argument"];
+            ctrl.State.RpadDocument!.FrontMatter.Arguments = [new() { Name = "value", Default = RpadValue.Of("argument") }];
             ctrl.State.Editor.Select(ctrl.State.Editor.Text.IndexOf("42.Dump", StringComparison.Ordinal), 10);
             await ctrl.RunSelectionAsync(Sdk);
             var script = Assert.Single(_scripts);
             Assert.Equal("42.Dump();", script.Trim());
             Assert.Equal(1, script.Count(c => c == '\n'));
-            Assert.Equal(["argument"], Assert.Single(_runs).Arguments);
+            Assert.Equal(["--value", "argument"], Assert.Single(_runs).Arguments);
             Assert.Equal(original, File.ReadAllBytes(_script));
             Assert.True(vm.IsDirty);
         }
