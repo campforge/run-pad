@@ -114,10 +114,16 @@ public partial class ConnectionNavigationView : UserControl
     {
         var point = e.GetCurrentPoint(_tree);
         var node = NodeAt(e.Source);
-        if (point.Properties.IsRightButtonPressed)
+        var controlClick = OperatingSystem.IsMacOS()
+            && e.KeyModifiers == KeyModifiers.Control
+            && point.Properties.PointerUpdateKind == PointerUpdateKind.LeftButtonPressed;
+        if (point.Properties.IsRightButtonPressed || controlClick)
         {
             // A right click acts on the row under the pointer, or on the bundle itself on empty space.
             Selected = node;
+            if (controlClick && node is not null)
+                _tree.ContextMenu?.Open(_tree);
+            e.Handled = true;
             return;
         }
         _possibleDragStart = point.Properties.IsLeftButtonPressed && node is { IsRenaming: false }

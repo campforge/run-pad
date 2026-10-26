@@ -47,7 +47,11 @@ public static class ControlClick
         var properties = e.GetCurrentPoint(topLevel).Properties;
         if (properties.PointerUpdateKind != PointerUpdateKind.LeftButtonPressed) return;
         e.Handled = true;
-        if (e.Source is not Interactive source) return;
+        // Synthetic/headless pointer events can report the TopLevel as Source even when the
+        // pointer is over a child. Resolve the hit-tested control so the converted right click
+        // still reaches TreeViewItem selection and context-menu handlers.
+        var source = e.Source as Interactive ?? topLevel.InputHitTest(e.GetPosition(topLevel)) as Interactive;
+        if (source is null) return;
         Converted.Add(e.Pointer.Id);
         source.RaiseEvent(new PointerPressedEventArgs(source, e.Pointer, topLevel, e.GetPosition(topLevel), e.Timestamp,
             new PointerPointProperties(RawInputModifiers.Control | RawInputModifiers.RightMouseButton, PointerUpdateKind.RightButtonPressed),
@@ -58,7 +62,8 @@ public static class ControlClick
     {
         if (e.InitialPressMouseButton != MouseButton.Left || !Converted.Remove(e.Pointer.Id)) return;
         e.Handled = true;
-        if (e.Source is not Interactive source) return;
+        var source = e.Source as Interactive ?? topLevel.InputHitTest(e.GetPosition(topLevel)) as Interactive;
+        if (source is null) return;
         source.RaiseEvent(new PointerReleasedEventArgs(source, e.Pointer, topLevel, e.GetPosition(topLevel), e.Timestamp,
             new PointerPointProperties(RawInputModifiers.Control, PointerUpdateKind.RightButtonReleased),
             e.KeyModifiers, MouseButton.Right));
