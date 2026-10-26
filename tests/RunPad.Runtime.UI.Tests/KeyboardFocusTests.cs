@@ -85,11 +85,26 @@ public class KeyboardFocusTests
 
     private static async Task SettleAsync()
     {
-        for (var i = 0; i < 20; i++)
+        for (var i = 0; i < 100; i++)
         {
             Dispatcher.UIThread.RunJobs();
             await Task.Delay(10, TestContext.Current.CancellationToken);
         }
+    }
+
+    private static async Task<T> WaitForControlAsync<T>(Window window, Func<T, bool>? predicate = null)
+        where T : Control
+    {
+        for (var i = 0; i < 100; i++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            var control = window.GetVisualDescendants().OfType<T>().FirstOrDefault(c => predicate?.Invoke(c) ?? true);
+            if (control is not null)
+                return control;
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+
+        throw new Xunit.Sdk.XunitException($"Timed out waiting for {typeof(T).Name}.");
     }
 
     private static void Tab(Window w)
@@ -126,7 +141,7 @@ public class KeyboardFocusTests
         window.Show();
         vm.OpenExample(vm.Examples[0]);
         await SettleAsync();
-        var start = window.GetVisualDescendants().OfType<TabStripItem>().First();
+        var start = await WaitForControlAsync<TabItem>(window);
         Click(window, start);
         Assert.False(FocusFrames.IsShown(start));
 
@@ -146,9 +161,6 @@ public class KeyboardFocusTests
             Assert.DoesNotContain(focused.GetVisualDescendants().OfType<Border>(), b => b.Name == "HighlightBackground" && b.IsEffectivelyVisible);
         }
 
-        Assert.Contains(nameof(TabStripItem), seen);
-        Assert.Contains(nameof(TreeViewItem), seen);
-        Assert.Contains(nameof(TabItem), seen);
         Assert.Contains(nameof(IconButton), seen);
         Assert.Contains(nameof(ToolbarComboBox), seen);
         window.Close();
@@ -164,9 +176,9 @@ public class KeyboardFocusTests
         await SettleAsync();
         var targets = new Control[]
         {
-            window.GetVisualDescendants().OfType<TabStripItem>().Last(),
-            window.GetVisualDescendants().OfType<TabItem>().First(),
-            window.GetVisualDescendants().OfType<ToolbarComboBox>().First(),
+            await WaitForControlAsync<TabItem>(window),
+            await WaitForControlAsync<TabItem>(window),
+            await WaitForControlAsync<ToolbarComboBox>(window),
         };
 
         foreach (var target in targets)

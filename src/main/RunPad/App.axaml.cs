@@ -169,17 +169,31 @@ public class App : Application
     {
         var previous = desktop.MainWindow;
         desktop.MainWindow = window;
+        var targetOpacity = window.Opacity;
+        // Construct and lay out the destination while it remains invisible. This prevents a
+        // partially initialized editor (empty tabs, unstyled controls, or placeholder panes)
+        // from flashing between the splash screen and the ready workspace.
+        window.Opacity = 0;
         try { window.Show(); }
         catch
         {
+            window.Opacity = targetOpacity;
             desktop.MainWindow = previous;
             if (window.IsVisible) window.Close();
             throw;
         }
-        // Give the destination a frame before closing the previous startup window.
+        // Give the destination two frames: one for the initial layout and one for bindings and
+        // deferred control initialization. Only then reveal it and close the previous window.
         Dispatcher.UIThread.Post(() =>
         {
-            if (window.IsVisible && ReferenceEquals(desktop.MainWindow, window)) previous?.Close();
+            if (!window.IsVisible || !ReferenceEquals(desktop.MainWindow, window)) return;
+            window.UpdateLayout();
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (!window.IsVisible || !ReferenceEquals(desktop.MainWindow, window)) return;
+                window.Opacity = targetOpacity;
+                previous?.Close();
+            }, DispatcherPriority.Render);
         }, DispatcherPriority.Background);
     }
 
