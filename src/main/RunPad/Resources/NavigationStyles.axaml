@@ -148,6 +148,15 @@
             </ControlTemplate>
         </Setter>
     </Style>
+    <!-- Virtualise the top-level items so large trees don't realise every row at once. -->
+    <Style Selector="TreeView.navigation">
+        <Setter Property="ItemsPanel">
+            <ItemsPanelTemplate>
+                <VirtualizingStackPanel/>
+            </ItemsPanelTemplate>
+        </Setter>
+    </Style>
+
     <!-- The rows' look, shared by every sidebar tree: 27 px rows, 13 pt text, the same hover and
          selection brushes and corner radius. Items accept drops (each tree decides what it takes). -->
     <Style Selector="TreeView.navigation TreeViewItem">
@@ -157,6 +166,11 @@
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="(DragDrop.AllowDrop)" Value="True"/>
+        <Setter Property="ItemsPanel">
+            <ItemsPanelTemplate>
+                <VirtualizingStackPanel/>
+            </ItemsPanelTemplate>
+        </Setter>
     </Style>
     <Style Selector="TreeView.navigation TreeViewItem:pointerover /template/ Border#PART_LayoutRoot">
         <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>

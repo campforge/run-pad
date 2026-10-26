@@ -1279,6 +1279,13 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
                 .Select(tab => tab?.WhenAnyValue(t => t.FrontMatter) ?? Observable.Return<RpadFrontMatter?>(null))
                 .Switch()
                 .Subscribe(frontMatter => navigation.SetAttached(frontMatter is null ? null : frontMatter.Connections ?? []));
+            // A finished run may have changed connection schema cache entries (EnsureAsync reads
+            // contracts before compiling): recheck statuses so the tree reflects successes and failures.
+            this.WhenAnyValue(x => x.ActiveTab)
+                .Select(tab => tab?.WhenAnyValue(t => t.RunState) ?? Observable.Return(RunState.Idle))
+                .Switch()
+                .Where(state => state == RunState.Idle)
+                .Subscribe(state => { _ = navigation.RefreshStatusesAsync(); });
             RefreshConnectionNavigation();
         }
 
