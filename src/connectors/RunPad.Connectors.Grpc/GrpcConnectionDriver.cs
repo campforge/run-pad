@@ -118,7 +118,7 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
                 if (v.Text is not null) metadata[k] = v.Text;
         }
         var cacheKey = GrpcConnectionSchemaCache.ComputeCacheKey(address, metadata);
-        
+
         // Try cache first
         IReadOnlyList<FileDescriptorProto> files;
         IReadOnlyList<string> services;
@@ -138,7 +138,7 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
             }, cancellationToken).ConfigureAwait(false);
             _schemaCache.CacheDescriptors(cacheKey, files);
         }
-        
+
         if (services.Count == 0) throw new GrpcConnectionException("The server offers no services besides reflection.");
 
         var toolsFolder = await tools.GetPackageFolderAsync("Grpc.Tools", GrpcVersion, cancellationToken).ConfigureAwait(false);
@@ -328,7 +328,7 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
         try
         {
             var set = new FileDescriptorSet();
-            set.File.AddRange(files);
+            set.File.AddRange(files.Select(NormalizeProto3RequiredFields));
             var setPath = Path.Combine(work.FullName, "schema.pb");
             await File.WriteAllBytesAsync(setPath, set.ToByteArray(), cancellationToken).ConfigureAwait(false);
             var output = Directory.CreateDirectory(Path.Combine(work.FullName, "out")).FullName;
@@ -380,6 +380,29 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
         {
             try { work.Delete(true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
+    }
+
+    // Some reflection-serving servers (Postman Echo's HelloService among them) describe a file as
+    // proto3 while still marking one or more fields LABEL_REQUIRED -- legal on the wire (proto3 has
+    // no "required" semantics to violate), but protoc itself refuses to generate code for it
+    // ("Required fields are not allowed in proto3"). Reflection still succeeds; only code generation
+    // sees the inconsistency. Proto3 never enforces required-ness, so downgrading the label to
+    // LABEL_OPTIONAL for a proto3 file changes nothing observable at runtime and lets protoc accept
+    // an otherwise-valid descriptor. Proto2 files (Syntax != "proto3") are left untouched.
+    internal static FileDescriptorProto NormalizeProto3RequiredFields(FileDescriptorProto file)
+    {
+        if (file.Syntax != "proto3" || AllMessages(file.MessageType).SelectMany(m => m.Field)
+                .All(f => f.Label != FieldDescriptorProto.Types.Label.Required))
+            return file;
+        var clone = file.Clone();
+        foreach (var message in AllMessages(clone.MessageType))
+            foreach (var field in message.Field)
+                if (field.Label == FieldDescriptorProto.Types.Label.Required)
+                    field.Label = FieldDescriptorProto.Types.Label.Optional;
+        return clone;
+
+        static IEnumerable<DescriptorProto> AllMessages(IEnumerable<DescriptorProto> messages) =>
+            messages.SelectMany(m => new[] { m }.Concat(AllMessages(m.NestedType)));
     }
 
     private static (string Protoc, string Plugin) ToolPaths(string toolsPackage)
