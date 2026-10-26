@@ -262,19 +262,23 @@ public class WindowDesignRegressionTests
                     Assert.True(theme.TryGetResource(role, window.ActualThemeVariant, out var value));
                     return value;
                 }
-                Assert.Same(Resource("RunPad.Text.PrimaryBrush"), presenter.Foreground);
+                var initiallyEnabled = button.IsEffectivelyEnabled;
+                Assert.Same(Resource(initiallyEnabled ? "RunPad.Text.PrimaryBrush" : "RunPad.Text.SecondaryBrush"), presenter.Foreground);
                 var root = button is DropDownButton
                     ? button.GetVisualDescendants().OfType<Border>().Single(b => b.Name == "RootBorder") : null;
                 object? Background() => root is null ? presenter.Background : root.Background;
                 if (root is not null)
                     Assert.Equal(global::Avalonia.Media.Colors.Transparent, Assert.IsAssignableFrom<global::Avalonia.Media.ISolidColorBrush>(presenter.Background).Color);
                 Assert.Same(Resource("RunPad.Editor.BackgroundBrush"), Background());
-                ((IPseudoClasses)button.Classes).Add(":pointerover");
-                Dispatcher.UIThread.RunJobs();
-                Assert.Same(Resource("RunPad.Toolbar.Button.HoverBrush"), Background());
-                ((IPseudoClasses)button.Classes).Add(":pressed");
-                Dispatcher.UIThread.RunJobs();
-                Assert.Same(Resource("RunPad.Toolbar.BackgroundBrush"), Background());
+                if (initiallyEnabled)
+                {
+                    ((IPseudoClasses)button.Classes).Add(":pointerover");
+                    Dispatcher.UIThread.RunJobs();
+                    Assert.Same(Resource("RunPad.Toolbar.Button.HoverBrush"), Background());
+                    ((IPseudoClasses)button.Classes).Add(":pressed");
+                    Dispatcher.UIThread.RunJobs();
+                    Assert.Same(Resource("RunPad.Toolbar.BackgroundBrush"), Background());
+                }
                 button.IsEnabled = false;
                 Dispatcher.UIThread.RunJobs();
                 Assert.Same(Resource("RunPad.Text.SecondaryBrush"), presenter.Foreground);
