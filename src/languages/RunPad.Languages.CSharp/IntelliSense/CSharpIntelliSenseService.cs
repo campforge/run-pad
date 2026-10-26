@@ -158,7 +158,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // that fast typing doesn't re-run the full Roslyn analysis on every keystroke, short enough to
     // still feel live. Settable only by tests (InternalsVisibleTo): a test that calls
     // NotifyTextChanged exactly once has nothing to debounce, and 500ms x ~500 such tests was most of
-    // CSharpIntelliSenseAnalyzersTests' run time.
+    // Keep the shared reference set stable across analysis requests.
     internal TimeSpan BackgroundAnalysisDebounce { get; set; } = TimeSpan.FromMilliseconds(500);
 
     // How long Dispose waits for an in-flight background analysis pass to actually observe

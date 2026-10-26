@@ -16,12 +16,9 @@ namespace RunPad.Languages.CSharp.IntelliSense;
 // their triggering diagnostic never got computed when only the compiler's own diagnostics fed the
 // lightbulb.
 //
-// Also reflects over THIS assembly (RunPad.Languages.CSharp),
-// alongside Microsoft's own Features assembly, so a hand-written analyzer here (IntelliSense/
-// Analyzers/) is discovered the same way, no separate registration list to keep in sync. First tenants:
-// EmptyCatchClauseAnalyzer/DuplicateEnumValueAnalyzer — ported ideas from Roslynator (RCS1075/RCS1234,
-// see that project's Apache-2.0-licensed source referenced in each file), not a dependency on it (written by hand,
-// not pulled in as a package).
+// Also reflects over THIS assembly (RunPad.Languages.CSharp), alongside Microsoft's own Features
+// assembly. This keeps the engine ready for an optional analyzer package/plugin without a second
+// registration path; the experimental in-tree analyzer set is archived and therefore absent here.
 internal sealed class RoslynAnalyzerEngine
 {
     // Roslyn's own IDE analyzers, and RunPad's (RPAD…), which the user can turn off.
