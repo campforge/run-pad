@@ -80,7 +80,9 @@ public sealed class NavigationSidebarTests : IDisposable
             Name = name, Driver = "http",
             Params = new(StringComparer.Ordinal) { ["baseAddress"] = RpadValue.Of($"https://{name}.test/") },
         };
-        store.Save([Http("billing"), Http("orders")], null);
+        // One list per test: a second window of the same test reads it rather than writing it again,
+        // which the store would refuse as a conflicting save.
+        if (!File.Exists(store.FilePath)) store.Save([Http("billing"), Http("orders")], null);
         var vm = new MainWindowViewModel(
             sdkProviders: [],
             fileSystemService: fileSystem.Object,
@@ -144,8 +146,8 @@ public sealed class NavigationSidebarTests : IDisposable
         Assert.DoesNotContain(window.GetVisualDescendants().OfType<TabStrip>(), t => t.Name == "SidebarTabs");
         Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == "FILES");
         // The three sections fill the sidebar's width and their headers share one geometry.
-        var sidebar = bundles[0].GetVisualAncestors().OfType<ScrollViewer>().First();
-        Assert.All(bundles, b => Assert.Equal(sidebar.Viewport.Width, b.Bounds.Width, 1));
+        var sidebar = Named<Grid>(window, "SidebarSections");
+        Assert.All(bundles, b => Assert.Equal(sidebar.Bounds.Width, b.Bounds.Width, 1));
         var headerHeights = bundles.Select(b => b.GetVisualDescendants().OfType<ToggleButton>().First().Bounds.Height).Distinct();
         Assert.Single(headerHeights);
     }
@@ -265,6 +267,35 @@ public sealed class NavigationSidebarTests : IDisposable
         Assert.False(menu.Items.OfType<MenuItem>().Single(m => m.Header as string == "Add to Script").IsEnabled);
         Assert.Contains("Move To", headers);
         Assert.Contains("Manage Connections…", headers);
+    }
+
+    // macOS: Control-click is the secondary click. On a connection row it selects the row and opens
+    // the context menu, as a right click does; a plain click opens no menu.
+    [AvaloniaFact]
+    public async Task ControlClick_Should_ActAsARightClick()
+    {
+        var (window, vm, _) = CreateMainWindow();
+        using var controlClick = ControlClick.AttachTo(window); // the app registers it for macOS only
+        for (var i = 0; i < 100 && vm.ConnectionNavigation!.IsLoaded is false; i++) { Settle(); await Task.Delay(10); }
+        Settle();
+        var view = Named<ConnectionNavigationView>(window, "ConnectionNavigationView");
+        var rows = view.Tree.GetVisualDescendants().OfType<TreeViewItem>().ToList();
+        var orders = rows[1];
+        var point = orders.TranslatePoint(new Point(orders.Bounds.Width / 2, 13), window)!.Value;
+
+        window.MouseDown(point, MouseButton.Left);
+        window.MouseUp(point, MouseButton.Left);
+        Settle();
+        Assert.False(view.Tree.ContextMenu!.IsOpen);
+
+        view.Selected = null;
+        window.MouseDown(point, MouseButton.Left, RawInputModifiers.Control);
+        window.MouseUp(point, MouseButton.Left, RawInputModifiers.Control);
+        Settle();
+        Assert.Equal("orders", view.Selected?.Name);
+        Assert.True(view.Tree.ContextMenu!.IsOpen);
+        Assert.Contains(view.Tree.ContextMenu.Items.OfType<MenuItem>(), m => m.Header as string == "Refresh");
+        view.Tree.ContextMenu.Close();
     }
 
     // The tree's drag carries the connection; dropped on the editor it is added to the active script

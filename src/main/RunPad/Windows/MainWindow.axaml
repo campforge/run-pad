@@ -19,6 +19,9 @@
     </Window.Resources>
 
     <Window.Styles>
+        <!-- The sidebar's sections and trees. Included by the window itself, not the app, so the
+             sidebar looks and lays out the same wherever the window is shown (tests included). -->
+        <StyleInclude Source="avares://RunPad/Resources/NavigationStyles.axaml"/>
 
         <!-- Window control buttons -->
         <Style Selector="Button.wc-btn">

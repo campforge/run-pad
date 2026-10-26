@@ -499,6 +499,8 @@ public sealed partial class MainWindow : Window, IDisposable
     // it; a folder only opens or folds.
     private void SampleTree_Tapped(object? sender, TappedEventArgs e)
     {
+        // Control-click is the secondary click on macOS (Services/ControlClick): it never opens a sample.
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && OperatingSystem.IsMacOS()) return;
         Visual? visual = e.Source as Visual;
         while (visual is not null and not TreeViewItem) visual = visual.GetVisualParent();
         if (visual is TreeViewItem { DataContext: SampleTreeNode { Example: { } example } })
