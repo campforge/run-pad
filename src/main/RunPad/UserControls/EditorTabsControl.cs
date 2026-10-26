@@ -73,6 +73,9 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
     public void Attach(MainWindowViewModel vm)
     {
+        if (_vm is not null)
+            throw new InvalidOperationException("EditorTabsControl can only be attached once.");
+
         _vm = vm;
 
         var fileTabControl = this.FindControl<TabControl>("FileTabControl")!;

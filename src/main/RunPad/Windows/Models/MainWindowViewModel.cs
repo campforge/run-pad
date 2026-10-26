@@ -27,6 +27,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     private readonly ILanguageHostRegistry _languageRegistry;
     private readonly ILogger<MainWindowViewModel> _logger;
     private readonly IRecoveryStore? _recovery;
+    private readonly ISessionSnapshotLoader _snapshotLoader;
+    private readonly ISessionRecoveryCoordinator? _recoveryCoordinator;
     private readonly bool _recoveryMode;
     private readonly SemaphoreSlim _recoveryGate = new(1);
     private Task? _restoreTask;
@@ -64,47 +66,19 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         if (!RestoresDrafts) { RestoreSession(); return; }
         try
         {
-            var snapshot = await _recovery!.LoadAsync();
+            var loaded = await _recoveryCoordinator!.LoadAsync();
+            var snapshot = loaded.Snapshot;
             if (_disposed) return;
-            var imports = _recovery.Imports ?? [];
+            var imports = loaded.Imports;
             if (snapshot is null)
             {
                 RestoreSession();
                 AddImportedDrafts(imports);
-                RecoveryNotice = JoinNotice(_importNotice, _recovery.Warning);
+                RecoveryNotice = JoinNotice(_importNotice, loaded.Warning);
                 return;
             }
             _recoveryRevision = snapshot.Revision;
-            var frames = new List<RecoveryTab>();
-            foreach (var tab in snapshot.Tabs)
-            {
-                var frame = tab;
-                if (!tab.IsDirty && tab.FilePath is { } path)
-                {
-                    try
-                    {
-                        var bytes = await Task.Run(() => File.ReadAllBytes(path));
-                        string text;
-                        using (var reader = new StreamReader(new MemoryStream(bytes), Encoding.UTF8, true)) text = reader.ReadToEnd();
-                        var parsed = RpadParser.Parse(text);
-                        frame = tab with
-                        {
-                            EditorText = parsed.Document?.RunCode ?? text,
-                            Document = parsed.Document?.CaptureSnapshot(),
-                            ParseError = parsed.Error,
-                            BaselineKnown = true,
-                            DiskHash = ScriptFileState.Of(bytes).Hash,
-                            MetadataBaseline = null,
-                        };
-                    }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                    {
-                        frame = tab with { IsDirty = true };
-                    }
-                }
-                else if (tab.FilePath is null) frame = tab with { IsDirty = true };
-                frames.Add(frame);
-            }
+            var frames = snapshot.Tabs;
             if (_disposed) return;
             if (frames.Where(t => t.FilePath is not null).Select(t => t.FilePath!).Distinct(FilePathComparer).Count()
                 != frames.Count(t => t.FilePath is not null)) throw new InvalidDataException("Duplicate recovery paths.");
@@ -128,7 +102,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             finally { _restoringSession = false; }
             AddImportedDrafts(imports);
             PersistSession();
-            RecoveryNotice = JoinNotice(_importNotice, _recovery.Warning);
+            RecoveryNotice = JoinNotice(_importNotice, loaded.Warning);
         }
         catch (Exception ex)
         {
@@ -286,7 +260,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             var frames = tabs.Select(t => t.CaptureRecovery?.Invoke()
                 ?? throw new InvalidOperationException("Editor capture is unavailable.")).ToList();
             var active = frames.FirstOrDefault(t => t.Id == ActiveTab?.RecoveryId)?.Id ?? frames.LastOrDefault()?.Id;
-            await _recovery!.CommitAsync(new RecoverySnapshot { Revision = ++_recoveryRevision, Tabs = frames, ActiveTab = active });
+            await _recoveryCoordinator!.CommitAsync(new RecoverySnapshot { Revision = ++_recoveryRevision, Tabs = frames, ActiveTab = active });
             return true;
         }
         catch (Exception ex)
@@ -360,11 +334,15 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     private bool _treeErrorReported;
     private bool _disposed;
     private readonly CancellationTokenSource _disposeCts = new();
+    private readonly RecentFilesService _recentFiles;
+    private IDisposable? _activeTabFrontMatterSubscription;
+    private IDisposable? _activeTabRunStateSubscription;
+    private Action<IReadOnlyCollection<string>>? _collapsedGroupsChangedHandler;
 
     private bool _restoringSession;
     private bool _openingFile;
     public event Action? RecentFilesChanged;
-    public IReadOnlyList<string> RecentFiles => _prefs.Session.RecentFiles;
+    public IReadOnlyList<string> RecentFiles => _recentFiles.Paths;
     public bool HasRecentFiles => RecentFiles.Count > 0;
     public ReactiveCommand<Unit, Unit> OpenFileCommand { get; }
     public ReactiveCommand<string, Unit> OpenRecentFileCommand { get; }
@@ -410,7 +388,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     private void RememberRecentFile(string path)
     {
         if (_restoringSession) return;
-        _prefs.Session.RecentFiles = RecentFiles.Where(p => !FilePathComparer.Equals(p, path)).Prepend(path).Take(50).ToList();
+        _recentFiles.Remember(path);
+        _prefs.Session.RecentFiles = _recentFiles.Paths.ToList();
         RecentFilesUpdated();
     }
 
@@ -1201,13 +1180,17 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         // a real one, since DI resolves ILogger<MainWindowViewModel> from the registered logging
         // provider regardless of the parameter having a default.
         ILogger<MainWindowViewModel>? logger = null, IRecoveryStore? recovery = null,
-        ConnectionNavigationViewModel? connectionNavigation = null)
+        ConnectionNavigationViewModel? connectionNavigation = null,
+        ISessionSnapshotLoader? snapshotLoader = null,
+        ISessionRecoveryCoordinator? recoveryCoordinator = null)
     {
         _fileSystemService = fileSystemService;
         _windowService = windowService;
         _prefs = prefs;
         _logger = logger ?? NullLogger<MainWindowViewModel>.Instance;
         _recovery = recovery;
+        _snapshotLoader = snapshotLoader ?? new DiskSessionSnapshotLoader();
+        _recoveryCoordinator = recoveryCoordinator ?? (_recovery is null ? null : new SessionRecoveryCoordinator(_recovery, _snapshotLoader));
         _recoveryMode = prefs.Appearance?.RestoreUnsavedTabs ?? true;
         // FileTreeViewModel now needs IPreferencesService (RenameGesture/
         // DeleteGesture) and ILanguageHostRegistry (per-language file icon), so this moves from a
@@ -1222,12 +1205,14 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             try { recent.Add(Path.GetFullPath(path)); }
             catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException) { }
         }
-        _prefs.Session.RecentFiles = recent.Distinct(FilePathComparer).Take(50).ToList();
+        _recentFiles = new RecentFilesService(recent, FilePathComparer);
+        _prefs.Session.RecentFiles = _recentFiles.Paths.ToList();
         FileTree = new FileTreeViewModel(_prefs, languageRegistry);
         OpenFileCommand = ReactiveCommand.CreateFromTask(OpenFileAsync);
         OpenRecentFileCommand = ReactiveCommand.CreateFromTask<string>(OpenScriptAsync);
         ClearRecentFilesCommand = ReactiveCommand.Create(() =>
         {
+            _recentFiles.Clear();
             _prefs.Session.RecentFiles = [];
             RecentFilesUpdated();
         }, this.WhenAnyValue(x => x.HasRecentFiles));
@@ -1269,19 +1254,20 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         if (ConnectionNavigation is { } navigation)
         {
             navigation.RestoreCollapsedGroups(_prefs.Layout.CollapsedConnectionGroups);
-            navigation.CollapsedGroupsChanged += groups =>
+            _collapsedGroupsChangedHandler = groups =>
             {
                 _prefs.Layout.CollapsedConnectionGroups = [.. groups];
                 _prefs.Save();
             };
+            navigation.CollapsedGroupsChanged += _collapsedGroupsChangedHandler;
             // The attached badges follow the active script's own connections list.
-            this.WhenAnyValue(x => x.ActiveTab)
+            _activeTabFrontMatterSubscription = this.WhenAnyValue(x => x.ActiveTab)
                 .Select(tab => tab?.WhenAnyValue(t => t.FrontMatter) ?? Observable.Return<RpadFrontMatter?>(null))
                 .Switch()
                 .Subscribe(frontMatter => navigation.SetAttached(frontMatter is null ? null : frontMatter.Connections ?? []));
             // A finished run may have changed connection schema cache entries (EnsureAsync reads
             // contracts before compiling): recheck statuses so the tree reflects successes and failures.
-            this.WhenAnyValue(x => x.ActiveTab)
+            _activeTabRunStateSubscription = this.WhenAnyValue(x => x.ActiveTab)
                 .Select(tab => tab?.WhenAnyValue(t => t.RunState) ?? Observable.Return(RunState.Idle))
                 .Switch()
                 .Where(state => state == RunState.Idle)
@@ -1360,6 +1346,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     {
         if (_disposed) return;
         _disposed = true;
+        _activeTabFrontMatterSubscription?.Dispose();
+        _activeTabRunStateSubscription?.Dispose();
+        if (ConnectionNavigation is { } navigation && _collapsedGroupsChangedHandler is { } handler)
+            navigation.CollapsedGroupsChanged -= handler;
+        if (ConnectionNavigation is IDisposable disposableNavigation) disposableNavigation.Dispose();
         _disposeCts.Cancel();
         _disposeCts.Dispose();
         _fileSystemService.WatcherEvent -= OnWatcherEvent;
