@@ -18,12 +18,12 @@ internal sealed class GrpcConnectionSchemaCache
 
     // Per cache key (address + metadata combination): the cached descriptor set and its hash
     private readonly Dictionary<string, CacheEntry> _descriptorCache = new(StringComparer.Ordinal);
-    
+
     /// <summary>
     /// Attempt to retrieve cached descriptors for the given cache key.
     /// Returns true and sets <paramref name="descriptors"/> if available.
     /// </summary>
-    public bool TryGetCachedDescriptors(string cacheKey, 
+    public bool TryGetCachedDescriptors(string cacheKey,
                                         out IReadOnlyList<FileDescriptorProto> descriptors)
     {
         descriptors = null!;
@@ -95,7 +95,7 @@ internal sealed class GrpcConnectionSchemaCache
     {
         var sb = new System.Text.StringBuilder();
         sb.Append(address);
-        
+
         // Include metadata to differentiate connections with different auth/headers
         if (metadata is not null)
         {
@@ -104,7 +104,7 @@ internal sealed class GrpcConnectionSchemaCache
                 sb.Append('|').Append(key).Append('=').Append(value);
             }
         }
-        
+
         // Hash to a fixed-size key
         using var hasher = SHA256.Create();
         var hash = hasher.ComputeHash(System.Text.Encoding.UTF8.GetBytes(sb.ToString()));
