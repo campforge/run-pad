@@ -1,8 +1,5 @@
-using System.Text.Json;
-using Google.Protobuf;
 using Google.Protobuf.Reflection;
 using RunPad.Connectors.Grpc;
-using RunPad.Contracts.Connections;
 
 namespace RunPad.NonUI.Tests;
 
@@ -132,44 +129,8 @@ public sealed class GrpcConnectionSchemaCacheTests
         Assert.IsFalse(isValid);
     }
 
-    [TestMethod]
-    public void StorePreviousSchema_StoresAndRetrievesSchema()
-    {
-        var cache = new GrpcConnectionSchemaCache();
-        var connectionId = "test-connection";
-        var schema = new ConnectionSchema("Test services", [], "{}");
-        var hash = "test-hash";
-        
-        cache.StorePreviousSchema(connectionId, schema, hash);
-        var result = cache.TryGetPreviousSchema(connectionId, out var retrieved, out var retrievedHash);
-        
-        Assert.IsTrue(result);
-        Assert.AreEqual("Test services", retrieved.Summary);
-        Assert.AreEqual(hash, retrievedHash);
-    }
 
-    [TestMethod]
-    public void ClearPreviousSchema_RemovesPreviousSchema()
-    {
-        var cache = new GrpcConnectionSchemaCache();
-        var connectionId = "test-connection";
-        var schema = new ConnectionSchema("Test services", [], "{}");
-        
-        cache.StorePreviousSchema(connectionId, schema, "hash");
-        cache.ClearPreviousSchema(connectionId);
-        var result = cache.TryGetPreviousSchema(connectionId, out _, out _);
-        
-        Assert.IsFalse(result);
-    }
 
-    [TestMethod]
-    public void TryGetPreviousSchema_NoSchema_ReturnsFalse()
-    {
-        var cache = new GrpcConnectionSchemaCache();
-        var result = cache.TryGetPreviousSchema("non-existent", out _, out _);
-        
-        Assert.IsFalse(result);
-    }
 
     [TestMethod]
     public void ConcurrentCacheAccess_ThreadSafe()

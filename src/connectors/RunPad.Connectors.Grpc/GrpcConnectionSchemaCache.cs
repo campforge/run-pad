@@ -1,18 +1,12 @@
 using System.Security.Cryptography;
-using System.Text.Json;
 using Google.Protobuf.Reflection;
-using RunPad.Contracts.Connections;
 
 namespace RunPad.Connectors.Grpc;
 
 /// <summary>
-/// Per-connection schema descriptor cache with atomic refresh and rollback capability.
-/// Stores fetched FileDescriptorProto sets by cache key (address + metadata hash) and provides
-/// rollback to a previous schema on fetch failure.
-/// 
-/// Versioning is managed by the caller (e.g., ScriptConnectionsViewModel) to prevent race
-/// conditions: the ViewModel tags each fetch request with a version, and ignores results
-/// if a newer version has been requested in the meantime.
+/// Per-connection schema descriptor cache. Stores fetched FileDescriptorProto sets by cache key
+/// (address + metadata hash), so a refresh of an unchanged connection can skip the server round
+/// trip that GrpcReflection.FilesForAsync would otherwise repeat.
 /// </summary>
 internal sealed class GrpcConnectionSchemaCache
 {
@@ -24,9 +18,6 @@ internal sealed class GrpcConnectionSchemaCache
     // Per cache key (address + metadata combination): the cached descriptor set and its hash
     private readonly Dictionary<string, CacheEntry> _descriptorCache = new(StringComparer.Ordinal);
     
-    // Per connection ID: previous successful schema for rollback on error
-    private readonly Dictionary<string, (ConnectionSchema Schema, string DescriptorHash)> _previousSchema = new(StringComparer.Ordinal);
-
     /// <summary>
     /// Attempt to retrieve cached descriptors for the given cache key.
     /// Returns true and sets <paramref name="descriptors"/> if available.
@@ -57,47 +48,13 @@ internal sealed class GrpcConnectionSchemaCache
         }
     }
 
-    /// <summary>
-    /// Store a successful schema for rollback on subsequent fetch failure.
-    /// </summary>
-    public void StorePreviousSchema(string connectionId, ConnectionSchema schema, string descriptorHash)
-    {
-        lock (_previousSchema)
-        {
-            _previousSchema[connectionId] = (schema, descriptorHash);
-        }
-    }
+    // Rollback-on-failure is already provided by the caller: ConnectionSchemaCache
+    // (RunPad.Contracts/Connections/ConnectionSchema.cs) only replaces its stored schema on a
+    // successful fetch and records an error otherwise, so the previous schema is never overwritten
+    // by a failed refresh. No separate previous-schema tracking is needed here.
 
     /// <summary>
-    /// Attempt to retrieve the previous schema for rollback.
-    /// </summary>
-    public bool TryGetPreviousSchema(string connectionId, out ConnectionSchema schema, out string descriptorHash)
-    {
-        schema = null!;
-        descriptorHash = null!;
-        lock (_previousSchema)
-        {
-            if (!_previousSchema.TryGetValue(connectionId, out var entry))
-                return false;
-            schema = entry.Schema;
-            descriptorHash = entry.DescriptorHash;
-            return true;
-        }
-    }
-
-    /// <summary>
-    /// Clear the previous schema entry (e.g., after successful refresh).
-    /// </summary>
-    public void ClearPreviousSchema(string connectionId)
-    {
-        lock (_previousSchema)
-        {
-            _previousSchema.Remove(connectionId);
-        }
-    }
-
-    /// <summary>
-    /// Compute a SHA256 hash of the descriptor set for integrity verification.
+    /// Compute a SHA256 hash of the descriptor set, to check a cached set is still what was fetched.
     /// </summary>
     public string ComputeDescriptorHash(IReadOnlyList<FileDescriptorProto> descriptors)
     {
@@ -108,8 +65,7 @@ internal sealed class GrpcConnectionSchemaCache
     }
 
     /// <summary>
-    /// Verify that a descriptor set matches its stored hash.
-    /// Used during rollback to confirm the previous schema is still valid.
+    /// Verify that a descriptor set matches a previously computed <see cref="ComputeDescriptorHash"/>.
     /// </summary>
     public bool VerifyDescriptorHash(IReadOnlyList<FileDescriptorProto> descriptors, string expectedHash)
         => ComputeDescriptorHash(descriptors).Equals(expectedHash, StringComparison.OrdinalIgnoreCase);
