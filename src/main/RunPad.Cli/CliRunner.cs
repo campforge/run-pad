@@ -82,6 +82,14 @@ public static class CliRunner
         if (cli.Kind is { } kind) document.FrontMatter.Kind = kind;
         if (cli.TargetSdk is { } targetSdk) document.FrontMatter.TargetSdk = targetSdk;
 
+        // The same choice as the window's: given arguments, else --args-set, the selected set or args:.
+        var arguments = RpadArguments.Resolve(document.FrontMatter, cli.ScriptArguments, cli.ArgumentSet);
+        if (arguments.Error is { } argumentsError)
+        {
+            stderr.WriteLine(argumentsError);
+            return NotRunExitCode;
+        }
+
         var languageId = document.FrontMatter.Language.ToLanguageId();
 
         var registry = services.Registry;
@@ -109,7 +117,7 @@ public static class CliRunner
             if (services.ConnectionSchemas is { } schemas && document.FrontMatter.Connections.Count > 0)
                 await schemas.EnsureAsync(document.FrontMatter.Connections, Path.GetDirectoryName(Path.GetFullPath(filePath)),
                     cli.RefreshConnections ? ConnectionSchemaRefresh.All : ConnectionSchemaRefresh.Failed, cancellationToken);
-            var request = BuildRequest(document.FrontMatter, platform, outputDirectory, filePath, cli.ScriptArguments,
+            var request = BuildRequest(document.FrontMatter, platform, outputDirectory, filePath, arguments.Arguments,
                 services.ConnectionDrivers, services.ConnectionSchemas?.Cache);
 
             RunResult result;
@@ -191,11 +199,13 @@ public static class CliRunner
         console.WriteLine("  -s, --sdk <version>               The .NET SDK to run on, such as 9 or net9.0");
         console.WriteLine("  -compileonly, --compile-only      Compile the script without running it");
         console.WriteLine("  --refresh-connections             Read the connections' descriptions (gRPC services) again");
+        console.WriteLine("  --args-set <name>                 Run with the script's argument set of that name");
         console.WriteLine("  -h, --help                        Show this help");
         console.WriteLine("  --version                         Show the version");
         console.WriteLine();
         console.WriteLine("What follows the script is passed to it as args, but the options above are");
         console.WriteLine("still read there until --; everything after -- goes to the script as it is.");
+        console.WriteLine("Arguments given here replace the script's; a bare -- runs it with none.");
     }
 
     private static string FormatDiagnostic(IDiagnostic d)

@@ -576,6 +576,17 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             if (saved.Status != InPlaceSaveStatus.Saved) return;
         }
 
+        // A selected argument set the script no longer has: say so rather than run with other arguments.
+        if (RpadArguments.Resolve(s.RpadDocument?.FrontMatter).Error is { } argumentsError)
+        {
+            s.Output.Clear();
+            s.HadRunError = true;
+            s.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(argumentsError)}</div>");
+            SetStatus("Error", "RunPad.Status.ErrorBrush");
+            UpdateOutputUi();
+            return;
+        }
+
         _vm.RunState = debug ? RunState.RunDebug : RunState.Run;
         s.Output.Clear();
         s.DumpContainerBlocks.Clear();
@@ -2588,6 +2599,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             fm.References,
             fm.Namespaces,
             fm.Args,
+            fm.ArgumentSets,
+            fm.SelectedArgumentSet,
             fm.AllowUnsafe,
             fm.Connections,
             fm.UnknownEntries,

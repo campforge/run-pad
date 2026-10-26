@@ -90,6 +90,21 @@ public static partial class RpadWriter
                 sb.Append('\n').Append("  - ").Append(YamlEscape(a));
         }
 
+        if (fm.ArgumentSets.Count > 0)
+        {
+            sb.Append('\n').Append("argumentSets:");
+            foreach (var (name, arguments) in fm.ArgumentSets)
+            {
+                sb.Append('\n').Append("  ").Append(YamlEscape(name)).Append(':');
+                if (arguments.Count == 0) sb.Append(" []");
+                foreach (var a in arguments)
+                    sb.Append('\n').Append("    - ").Append(YamlEscape(a));
+            }
+        }
+
+        if (fm.SelectedArgumentSet is { } selected)
+            sb.Append('\n').Append("selectedArgumentSet: ").Append(YamlEscape(selected));
+
         // Written only when on, so existing documents stay byte-for-byte unchanged.
         if (fm.AllowUnsafe) sb.Append('\n').Append("allowUnsafe: true");
 

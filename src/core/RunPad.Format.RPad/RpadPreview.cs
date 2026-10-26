@@ -64,6 +64,9 @@ public static class RpadPreview
             Row(sb, "Namespaces", string.Join(", ", namespaces.Select(Code)));
         if (fm.Args is { Count: > 0 } args)
             Row(sb, "Arguments", string.Join(", ", args.Select(Code)));
+        foreach (var (name, set) in fm.ArgumentSets)
+            Row(sb, $"Arguments: {Text(name)}{(name == fm.SelectedArgumentSet ? " (selected)" : "")}",
+                set.Count == 0 ? "none" : string.Join(", ", set.Select(Code)));
         if (fm.AllowUnsafe)
             Row(sb, "Unsafe code", "allowed");
         if (fm.Connections.Count > 0)
