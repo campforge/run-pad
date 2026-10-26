@@ -2527,6 +2527,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // Reads the schemas of connections that have never been read (a gRPC server's services); the
     // cache's Changed event then lets the editor know their classes. One that fails isn't asked again
     // here: its error is what the editor shows, and a run, Refresh or the Connections window tries again.
+    // A schema or error the read records raises Changed, and OnConnectionSchemaChanged rebuilds the
+    // context and analyses the text once: doing that here too analysed it twice, the first time
+    // possibly before the new classes were in.
     private void EnsureConnectionSchemasInBackground()
     {
         if (_connectionSchemas is not { } schemas || State.RpadDocument?.FrontMatter.Connections is not { Count: > 0 } connections) return;
@@ -2536,19 +2539,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             try
             {
-                var before = list.Select(connection => schemas.Cache.TryGetLoaded(connection, scriptDirectory)).ToArray();
-                var changed = await schemas.EnsureAsync(list, scriptDirectory, ConnectionSchemaRefresh.Missing, CancellationToken.None).ConfigureAwait(false);
-                var loadedOrUpdated = list.Select((connection, index) =>
-                    !ReferenceEquals(before[index], schemas.Cache.TryGetLoaded(connection, scriptDirectory))).Any(x => x);
-                if (changed || loadedOrUpdated)
-                    Dispatcher.Post(() =>
-                    {
-                        if (_disposed) return;
-                        RefreshIntelliSensePackages();
-                        // The new classes (or error) change what the code already in the editor
-                        // means: analyse it again now rather than at the next keystroke.
-                        _intelliSense?.NotifyTextChanged(State.Editor.Text);
-                    });
+                await schemas.EnsureAsync(list, scriptDirectory, ConnectionSchemaRefresh.Missing, CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
