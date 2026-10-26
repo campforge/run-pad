@@ -115,6 +115,15 @@
       <DependentUpon>FileTreeView.axaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Update="UserControls\EditorTabItemControl.Preview.cs">
+      <DependentUpon>EditorTabItemControl.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="UserControls\EditorTabItemControl.PreviewScroll.cs">
+      <DependentUpon>EditorTabItemControl.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="UserControls\ConnectionNavigationView.cs">
+      <DependentUpon>ConnectionNavigationView.axaml</DependentUpon>
+    </Compile>
   </ItemGroup>
 
   <ItemGroup>

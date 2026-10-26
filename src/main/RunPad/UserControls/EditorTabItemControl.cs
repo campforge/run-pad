@@ -46,10 +46,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private readonly IWindowService _windowService;
     internal readonly EditorTabState State;
     private SemanticHighlighter? _semanticHighlighter;
+    private SquiggleRenderer? _squiggleRenderer;
     private CancellationTokenSource? _debugTooltipCloseCts;
+    private CancellationTokenSource? _quickInfoCts;
     private bool _debugTooltipInside;
+    private long _tooltipGeneration;
     private InlayHintRenderer? _inlayHintRenderer;
     private IIntelliSenseService? _intelliSense;
+    private IntelliSenseEventSubscriptions? _intelliSenseEventSubscriptions;
+    private EditorInteractionSubscriptions? _editorInteractionSubscriptions;
     internal IIntelliSenseService? IntelliSenseForTests => _intelliSense;
     private bool _runPadAnalyzers;
     private bool _resultsWordWrap;
@@ -149,7 +154,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // Results wrapping is set in the output's own settings menu, not in Preferences.
         ResultsWrapCheckBox.IsChecked = _resultsWordWrap;
         ResultsWrapCheckBox.IsCheckedChanged += OnResultsWrapCheckBoxChanged;
-        OutputSettingsButton.Flyout!.Opened += (_, _) => ResultsWrapCheckBox.IsChecked = _prefs.Editor.ResultsWordWrap;
+        OutputSettingsButton.Flyout!.Opened += OnOutputSettingsFlyoutOpened;
 
         _viewScale = ViewScale.For(prefs);
         ApplyEditorSettings(editor, prefs.Editor, _viewScale.CodeZoom);
@@ -167,8 +172,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _runPadAnalyzers = prefs.Experimental?.RunPadAnalyzers == true;
         intelliSense?.UpdateRunPadAnalyzers(_runPadAnalyzers);
         SetupEditor(editor, intelliSense);
-        editor.BreakpointAdded += OnGutterBreakpointAdded;
-        editor.BreakpointRemoved += OnGutterBreakpointRemoved;
 
         _selectedKindSub = _vm.WhenAnyValue(x => x.SelectedKind).Subscribe(OnSelectedKindChanged);
         _filePath = _vm.FilePath;
@@ -190,7 +193,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // ordering for the same fact), which would otherwise flag a just-opened, untouched tab as
         // dirty on its very first frame — including a brand-new empty tab, which has nothing
         // unsaved yet until the user actually types something.
-        editor.TextChanged += (_, _) => _vm.IsDirty = true;
+        _editorInteractionSubscriptions = new EditorInteractionSubscriptions(
+            editor, OnEditorTextChanged, OnEditorCaretPositionChanged, OnEditorDocumentChanged,
+            OnRenameSymbolRequested, OnFindReferencesRequested, OnGoToDefinitionRequested,
+            OnFixApplyRequested, OnGutterBreakpointAdded, OnGutterBreakpointRemoved,
+            OnBreakpointRightClicked);
+        _editorInteractionSubscriptions.Attach();
 
         // Snippets and the editor's lexical/syntactic profile are both per-language (see
         // ILanguageHostFactory.Snippets/EditorProfile) — populated here rather than in SetupEditor
@@ -217,12 +225,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.AttachedToVisualTree += onAttached;
 
         // Caret position → StatusLine
-        editor.TextArea.Caret.PositionChanged += (_, _) =>
-            StatusLine.Text = $"Line {editor.TextArea.Caret.Line}  Col {editor.TextArea.Caret.Column}";
+        editor.TextArea.Caret.PositionChanged += OnEditorCaretPositionChanged;
 
         EditorHost.Content = editor;
         // The IL tab's content only joins the visual tree when the tab is first shown.
-        IlOutput.AttachedToVisualTree += (_, _) => EnsureIlHighlighting();
+        IlOutput.AttachedToVisualTree += OnIlOutputAttachedToVisualTree;
         SetupPreview();
         _vm.CaptureRecovery = CaptureRecovery;
         _vm.RecoveryReady.TrySetResult();
@@ -450,9 +457,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         try
         {
             State.CurrentDebugCtx?.Resume(DebugAction.Continue);
-            _debugHover.Cancel();
-            State.Editor.ClearHoverTokenHighlight();
-            ToolTip.SetTip(State.Editor.TextArea.TextView, null);
+            InvalidateHoverTooltip();
             State.CurrentDebugCtx = null;
             _vm.DebugPanel.ClearStop();
             State.RunCts?.Cancel();
@@ -752,9 +757,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             // A debuggee can terminate without going through ResumeDebug/Stop. Invalidate the
             // snapshot and remove any tooltip before the session is torn down.
-            _debugHover.Cancel();
-            s.Editor.ClearHoverTokenHighlight();
-            ToolTip.SetTip(s.Editor.TextArea.TextView, null);
+            InvalidateHoverTooltip();
             try
             {
                 s.RunningHost = null;
@@ -813,6 +816,20 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _viewScale.Changed -= OnViewScaleChanged;
         if (_connectionSchemas is not null) _connectionSchemas.Cache.Changed -= OnConnectionSchemaChanged;
         State.Editor.ZoomRequested -= OnEditorZoomRequested;
+        ResultsWrapCheckBox.IsCheckedChanged -= OnResultsWrapCheckBoxChanged;
+        OutputSettingsButton.Flyout!.Opened -= OnOutputSettingsFlyoutOpened;
+        IlOutput.AttachedToVisualTree -= OnIlOutputAttachedToVisualTree;
+        _editorInteractionSubscriptions?.Dispose();
+        _editorInteractionSubscriptions = null;
+        if (_squiggleRenderer is { } squiggle)
+            State.Editor.TextArea.TextView.BackgroundRenderers.Remove(squiggle);
+        if (_semanticHighlighter is { } semantic)
+            State.Editor.TextArea.TextView.LineTransformers.Remove(semantic);
+        if (_inlayHintRenderer is { } inlay)
+            State.Editor.TextArea.TextView.ElementGenerators.Remove(inlay);
+        _squiggleRenderer = null;
+        _semanticHighlighter = null;
+        _inlayHintRenderer = null;
         _ilHighlighting?.Dispose();
         _ilHighlighting = null;
         _selectedKindSub?.Dispose();
@@ -821,12 +838,16 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _selectedArgumentSetSub?.Dispose();
         _vm.DebugPanel.WatchExpressions.CollectionChanged -= OnWatchExpressionsCollectionChanged;
         _contextRefreshCts?.Cancel();
+        _quickInfoCts?.Cancel();
         _debugTooltipCloseCts?.Cancel();
         DisposePreview();
         Cancel();
+        _debugHover.Dispose();
         // The run owns its CTS until its asynchronous cleanup has finished.
         if (!_runInProgress) State.RunCts?.Dispose();
         _breakpointDialog?.Close();
+        _intelliSenseEventSubscriptions?.Dispose();
+        _intelliSenseEventSubscriptions = null;
         _intelliSense?.Dispose(); // owned by this tab — see EditorTabsControl.OnTabsCollectionChanged
         GC.SuppressFinalize(this);
     }
@@ -889,9 +910,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var ctx = State.CurrentDebugCtx;
             if (ctx is null) return;
             var line = State.Editor.TextArea.Caret.Line;
-            _debugHover.Cancel();
-            State.Editor.ClearHoverTokenHighlight();
-            ToolTip.SetTip(State.Editor.TextArea.TextView, null);
+            InvalidateHoverTooltip();
             State.CurrentDebugCtx = null;
             _vm.RunState = RunState.RunDebug;
             State.Editor.DebugCurrentLine = null;
@@ -1257,6 +1276,30 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // ── Private ───────────────────────────────────────────────────────────────
 
+    private async void OnRenameSymbolRequested(object? sender, EventArgs e)
+    {
+        if (_disposed || _intelliSense is null) return;
+        await ShowRenameSymbolAsync(State.Editor, _intelliSense);
+    }
+
+    private async void OnFindReferencesRequested(object? sender, EventArgs e)
+    {
+        if (_disposed || _intelliSense is null) return;
+        await ShowFindReferencesAsync(State.Editor, _intelliSense);
+    }
+
+    private async void OnGoToDefinitionRequested(object? sender, EventArgs e)
+    {
+        if (_disposed || _intelliSense is null) return;
+        await ShowGoToDefinitionAsync(State.Editor, _intelliSense);
+    }
+
+    private void OnFixApplyRequested(CodeFixEntry fix)
+    {
+        if (_disposed || _intelliSense is null) return;
+        _ = ApplyCodeFixAsync(State.Editor, _intelliSense, fix);
+    }
+
     internal void ResumeDebug(DebugAction action)
     {
         _vm.RunState = RunState.RunDebug;
@@ -1264,9 +1307,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _vm.DebugPanel.ClearStop();
         SetStatus("Process", "RunPad.Status.RunningBrush");
         var ctx = State.CurrentDebugCtx;
-        _debugHover.Cancel();
-        State.Editor.ClearHoverTokenHighlight();
-        ToolTip.SetTip(State.Editor.TextArea.TextView, null);
+        InvalidateHoverTooltip();
         State.CurrentDebugCtx = null;
         ctx?.Resume(action);
         UpdateOutputUi();
@@ -1457,6 +1498,24 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private IlHighlighting? _ilHighlighting;
 
+    private void OnEditorTextChanged(object? sender, EventArgs e) => _vm.IsDirty = true;
+
+    private void OnEditorCaretPositionChanged(object? sender, EventArgs e)
+        => StatusLine.Text = $"Line {State.Editor.TextArea.Caret.Line}  Col {State.Editor.TextArea.Caret.Column}";
+
+    private void OnOutputSettingsFlyoutOpened(object? sender, EventArgs e)
+        => ResultsWrapCheckBox.IsChecked = _prefs.Editor.ResultsWordWrap;
+
+    private void OnIlOutputAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
+        => EnsureIlHighlighting();
+
+    private void OnEditorDocumentChanged(object? sender, EventArgs e)
+    {
+        _squiggleRenderer?.Update(State.Editor.Document, []);
+        _semanticHighlighter?.Update(State.Editor.Document, []);
+        _inlayHintRenderer?.Update(State.Editor.Document, []);
+    }
+
     // The IL tab is highlighted with the IL grammar in the current editor theme. Installed once, when the
     // tab is in the visual tree (TextMate redraws on install), and kept for every later document: the
     // highlighter follows the editor's document, so the finished document is attached just once.
@@ -1563,9 +1622,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     internal void OnBreakpointHit(IBreakpointHitContext context)
     {
         var s = State;
-        _debugHover.Cancel();
-        s.Editor.ClearHoverTokenHighlight();
-        ToolTip.SetTip(s.Editor.TextArea.TextView, null);
+        InvalidateHoverTooltip();
         s.CurrentDebugCtx = context;
         _vm.RunState = RunState.Paused;
         State.Editor.DebugCurrentLine = context.CallStack.Count > 0
@@ -1792,10 +1849,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         // Language-specific triggers/brace pairs/indentation are applied later, via
         // ApplyEditorLanguageProfile — see its call site's comment for why not here.
-        editor.BreakpointRightClicked += OnBreakpointRightClicked;
         editor.SnippetIcon = CompletionIcons.GetIcon(CompletionItemKind.Snippet);
 
         if (intelliSense is null) return;
+
+        Action<string, IReadOnlyList<IDiagnosticInfo>> diagnosticsChanged = (_, _) => { };
+        Action<string, IReadOnlyList<ISemanticToken>> semanticTokensChanged = (_, _) => { };
+        Action<string, IReadOnlyList<ICodeFixInfo>> codeFixesChanged = (_, _) => { };
+        Action<string, IReadOnlyList<IInlayHint>> inlayHintsChanged = (_, _) => { };
 
         editor.MemberTemplatePositionProvider = async (code, offset, ct) =>
         {
@@ -1905,15 +1966,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 e.Spans.Add((h.Start, h.Length));
         };
 
-        editor.RenameSymbolRequested += async (_, _) => await ShowRenameSymbolAsync(editor, intelliSense);
-        editor.FindReferencesRequested += async (_, _) => await ShowFindReferencesAsync(editor, intelliSense);
-        editor.GoToDefinitionRequested += async (_, _) => await ShowGoToDefinitionAsync(editor, intelliSense);
 
         // ── Live diagnostics (squiggles) ──────────────────────────────────────
-        var squiggleRenderer = new SquiggleRenderer();
+        var squiggleRenderer = _squiggleRenderer = new SquiggleRenderer();
         editor.TextArea.TextView.BackgroundRenderers.Add(squiggleRenderer);
 
-        intelliSense.DiagnosticsChanged += (code, diagnostics) =>
+        diagnosticsChanged = (code, diagnostics) =>
             Dispatcher.Post(() =>
             {
                 if (_disposed) return;
@@ -1928,7 +1986,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.TextArea.TextView.LineTransformers.Add(semanticHighlighter);
         _semanticHighlighter = semanticHighlighter;
 
-        intelliSense.SemanticTokensChanged += (code, tokens) =>
+        semanticTokensChanged = (code, tokens) =>
             Dispatcher.Post(() =>
             {
                 if (_disposed) return;
@@ -1941,7 +1999,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.TextArea.TextView.ElementGenerators.Add(inlayHintRenderer);
         _inlayHintRenderer = inlayHintRenderer;
 
-        intelliSense.InlayHintsChanged += (code, hints) =>
+        inlayHintsChanged = (code, hints) =>
             Dispatcher.Post(() =>
             {
                 if (_disposed) return;
@@ -1951,12 +2009,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         // The decorations follow ONE document's edits; a new document (file reloaded) starts bare
         // until its first analysis instead of borrowing the old document's offsets.
-        editor.DocumentChanged += (_, _) =>
-        {
-            squiggleRenderer.Update(editor.Document, []);
-            semanticHighlighter.Update(editor.Document, []);
-            inlayHintRenderer.Update(editor.Document, []);
-        };
 
         // ── Code fixes (lightbulb: real Roslyn CodeFixProviders + CodeRefactoringProviders) ─────
         // Two independent sources feed the same lightbulb margin: diagnostic-driven
@@ -1979,7 +2031,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             fixes.Select(f => new CodeFixEntry(f.Line, f.Title, ToMarginSeverity(f.Severity), f.Key, f.DiagnosticId))
                 .ToList();
 
-        intelliSense.CodeFixesChanged += (code, fixes) =>
+        codeFixesChanged = (code, fixes) =>
             Dispatcher.Post(() =>
             {
                 if (_disposed) return;
@@ -1988,7 +2040,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 UpdateLightbulb();
             });
 
-        editor.FixApplyRequested += fix => _ = ApplyCodeFixAsync(editor, intelliSense, fix);
+
+        _intelliSenseEventSubscriptions = new IntelliSenseEventSubscriptions(
+            intelliSense, diagnosticsChanged, semanticTokensChanged, codeFixesChanged, inlayHintsChanged);
 
         // ── Refactorings (lightbulb: real Roslyn CodeRefactoringProviders) ──────
         var refactoringCts = new CancellationTokenSource();
@@ -2051,7 +2105,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         // ── Quick Info tooltips on hover ──────────────────────────────────────
         ToolTip.SetShowDelay(editor.TextArea.TextView, 0);
-        var quickInfoCts = new CancellationTokenSource();
+        _quickInfoCts = new CancellationTokenSource();
 
         editor.TextArea.TextView.PointerMoved += (_, e) =>
         {
@@ -2060,11 +2114,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             // CancellationTokenSource throws ObjectDisposedException. A
             // CancellationTokenSource whose WaitHandle is never touched holds no unmanaged
             // resources, so leaving the old one for the GC is safe.
-            quickInfoCts.Cancel();
-            quickInfoCts = new CancellationTokenSource();
+            _quickInfoCts?.Cancel();
+            _quickInfoCts = new CancellationTokenSource();
             _debugTooltipCloseCts?.Cancel();
             _debugTooltipInside = false;
-            var ct = quickInfoCts.Token;
+            _tooltipGeneration++;
+            var ct = _quickInfoCts.Token;
             _debugTooltipCloseCts?.Cancel();
             var (debugGeneration, debugToken) = _debugHover.Begin();
             var pos = e.GetPosition(editor);
@@ -2097,7 +2152,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                         if (symbol is null) return;
                         await Dispatcher.InvokeAsync(() =>
                         {
-                            if (_debugHover.IsCurrent(debugGeneration) && !ct.IsCancellationRequested &&
+                            if (!_disposed && _debugHover.IsCurrent(debugGeneration) && !ct.IsCancellationRequested &&
                                 ReferenceEquals(debugContext, State.CurrentDebugCtx))
                             {
                                 var start = offset;
@@ -2123,7 +2178,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
                     await Dispatcher.InvokeAsync(() =>
                     {
-                        if (ct.IsCancellationRequested || !_debugHover.IsCurrent(debugGeneration)) return;
+                        if (_disposed || ct.IsCancellationRequested || !_debugHover.IsCurrent(debugGeneration) ||
+                            !ReferenceEquals(debugContext, State.CurrentDebugCtx)) return;
 
                         // Built here, not above — DisplaySegmentRenderer creates Avalonia controls,
                         // which must happen on the UI thread, unlike the rest of this background task.
@@ -2144,27 +2200,40 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         editor.TextArea.TextView.PointerExited += (_, _) =>
         {
-            quickInfoCts.Cancel();
+            _quickInfoCts?.Cancel();
             ScheduleDebugTooltipClose(editor);
         };
+    }
+
+    private void InvalidateHoverTooltip()
+    {
+        _debugTooltipInside = false;
+        _tooltipGeneration++;
+        _debugHover.Cancel();
+        State.Editor.ClearHoverTokenHighlight();
+        ToolTip.SetTip(State.Editor.TextArea.TextView, null);
     }
 
     private void ScheduleDebugTooltipClose(CodeTextEditor editor)
     {
         _debugTooltipCloseCts?.Cancel();
         var cts = _debugTooltipCloseCts = new CancellationTokenSource();
-        _ = CloseAfterGraceAsync(editor, cts.Token);
+        _ = CloseAfterGraceAsync(editor, cts.Token, _tooltipGeneration, State.CurrentDebugCtx);
     }
 
-    private async Task CloseAfterGraceAsync(CodeTextEditor editor, CancellationToken token)
+    private async Task CloseAfterGraceAsync(CodeTextEditor editor, CancellationToken token,
+        long generation, IBreakpointHitContext? context)
     {
         try
         {
             await Task.Delay(TimeSpan.FromMilliseconds(300), token);
-            if (token.IsCancellationRequested || _debugTooltipInside) return;
-            _debugHover.Cancel();
-            editor.ClearHoverTokenHighlight();
-            ToolTip.SetTip(editor.TextArea.TextView, null);
+            if (_disposed || token.IsCancellationRequested) return;
+            await Dispatcher.InvokeAsync(() =>
+            {
+                if (_disposed || token.IsCancellationRequested || _debugTooltipInside ||
+                    generation != _tooltipGeneration || !ReferenceEquals(context, State.CurrentDebugCtx)) return;
+                InvalidateHoverTooltip();
+            });
         }
         catch (OperationCanceledException) { }
     }
@@ -2180,17 +2249,23 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             Background = ThemeBrush("RunPad.Panel.BackgroundBrush", Brushes.Transparent),
             Child = panel,
         };
-        border.PointerEntered += (_, _) =>
-        {
-            _debugTooltipInside = true;
-            _debugTooltipCloseCts?.Cancel();
-        };
-        border.PointerExited += (_, _) =>
-        {
-            _debugTooltipInside = false;
-            ScheduleDebugTooltipClose(State.Editor);
-        };
+        border.PointerEntered += OnDebugTooltipPointerEntered;
+        border.PointerExited += OnDebugTooltipPointerExited;
         return border;
+    }
+
+    private void OnDebugTooltipPointerEntered(object? sender, PointerEventArgs e)
+    {
+        if (_disposed) return;
+        _debugTooltipInside = true;
+        _debugTooltipCloseCts?.Cancel();
+    }
+
+    private void OnDebugTooltipPointerExited(object? sender, PointerEventArgs e)
+    {
+        if (_disposed) return;
+        _debugTooltipInside = false;
+        ScheduleDebugTooltipClose(State.Editor);
     }
 
     private void AddDebugVariableRow(Panel panel, IVariableInfo variable, int depth,
@@ -2215,13 +2290,17 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 {
                     if (token.IsCancellationRequested || !_debugHover.IsCurrent(generation) || !ReferenceEquals(context, State.CurrentDebugCtx)) return;
                     var children = await _debugHover.LoadChildrenAsync(context, variable, depth, token);
-                    if (!_debugHover.IsCurrent(generation) || !ReferenceEquals(context, State.CurrentDebugCtx)) return;
+                    if (_disposed || !_debugHover.IsCurrent(generation) ||
+                        !ReferenceEquals(context, State.CurrentDebugCtx)) return;
                     foreach (var child in children)
                         AddDebugVariableRow(panel, child, depth + 1, context, generation, token, budget, rootSymbol);
                     expand.Content = "v";
                 }
                 catch (OperationCanceledException) { }
-                finally { expand.IsEnabled = true; }
+                finally
+                {
+                    if (!_disposed) expand.IsEnabled = true;
+                }
             };
             row.Children.Add(expand);
         }

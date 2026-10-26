@@ -120,6 +120,56 @@ public sealed class DebugHoverControllerTests
             controller.LoadChildrenAsync(new BlockingContext(), parent, 0, TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task LoadChildren_ShouldHonorCallerCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var parent = new Variable("root", "T", "{}", true, 1);
+        var load = new DebugHoverController().LoadChildrenAsync(
+            new BlockingContext(), parent, 0, cancellation.Token);
+
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => load);
+    }
+
+    [Fact]
+    public void Cancel_ShouldInvalidateAnInFlightTreeGeneration()
+    {
+        var controller = new DebugHoverController();
+        var hover = controller.Begin();
+
+        controller.Cancel();
+
+        Assert.False(controller.IsCurrent(hover.Generation));
+    }
+
+    [Fact]
+    public void BeginCancelBegin_ShouldKeepOnlyTheNewestGenerationCurrent()
+    {
+        using var controller = new DebugHoverController();
+        var first = controller.Begin();
+        controller.Cancel();
+        var second = controller.Begin();
+
+        Assert.False(controller.IsCurrent(first.Generation));
+        Assert.True(controller.IsCurrent(second.Generation));
+    }
+
+    [Fact]
+    public async Task Dispose_ShouldCancelAnInFlightChildrenRequest()
+    {
+        using var controller = new DebugHoverController();
+        var hover = controller.Begin();
+        var parent = new Variable("root", "T", "{}", true, 1);
+        var load = controller.LoadChildrenAsync(new BlockingContext(), parent, 0, hover.Token);
+
+        controller.Dispose();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => load);
+        Assert.False(controller.IsCurrent(hover.Generation));
+    }
+
     private class ChildContext(IReadOnlyList<IVariableInfo> children) : IBreakpointHitContext
     {
         public int Calls { get; private set; }
