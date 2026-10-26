@@ -480,6 +480,18 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         RefreshConnectionNavigation();
     }
 
+    /// <summary>
+    /// Adds a saved connection to the active script through Dependencies → Connections, which asks
+    /// about the packages its driver needs; the script changes only when that window is saved.
+    /// </summary>
+    public async Task AddConnectionToScriptAsync(string connectionName)
+    {
+        if (ActiveTab is not { } tab) return;
+        await _windowService.AddConnectionToScriptAsync(tab.WhenAnyValue(x => x.FrontMatter), tab.WhenAnyValue(x => x.FilePath), connectionName);
+        DependenciesWindowClosed?.Invoke();
+        RefreshConnectionNavigation();
+    }
+
     // Reading happens off the UI thread; an unexpected failure is logged, the tree keeps what it showed.
     private void RefreshConnectionNavigation()
     {
@@ -1213,7 +1225,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             this.WhenAnyValue(x => x.ActiveTab)
                 .Select(tab => tab?.WhenAnyValue(t => t.FrontMatter) ?? Observable.Return<RpadFrontMatter?>(null))
                 .Switch()
-                .Subscribe(frontMatter => navigation.SetAttached(frontMatter?.Connections));
+                .Subscribe(frontMatter => navigation.SetAttached(frontMatter is null ? null : frontMatter.Connections ?? []));
             RefreshConnectionNavigation();
         }
 

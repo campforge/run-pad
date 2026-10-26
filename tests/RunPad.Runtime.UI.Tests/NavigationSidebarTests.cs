@@ -198,6 +198,8 @@ public sealed class NavigationSidebarTests : IDisposable
         view.FillContextMenu(menu);
         var headers = menu.Items.OfType<MenuItem>().Select(m => m.Header as string).ToList();
         Assert.Contains("Edit Connection…", headers);
+        // No script is open in this window, so there is nothing to add the connection to yet.
+        Assert.False(menu.Items.OfType<MenuItem>().Single(m => m.Header as string == "Add to Script…").IsEnabled);
         Assert.Contains("Move To", headers);
         Assert.Contains("Manage Connections…", headers);
     }

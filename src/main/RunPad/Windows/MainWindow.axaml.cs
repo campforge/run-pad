@@ -60,7 +60,14 @@ public sealed partial class MainWindow : Window, IDisposable
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
         AddHandler(GotFocusEvent, OnAnyGotFocus, RoutingStrategies.Bubble, handledEventsToo: true);
 
-        this.FindControl<ContentControl>("EditorTabsHost")!.Content = editorTabsCtrl;
+        var editorHost = this.FindControl<ContentControl>("EditorTabsHost")!;
+        editorHost.Content = editorTabsCtrl;
+        // A connection dragged from the sidebar's tree onto the editor is added to the active script.
+        // handledEventsToo: the code editor answers text drags itself and leaves this one at None.
+        DragDrop.SetAllowDrop(editorHost, true);
+        editorHost.AddHandler(DragDrop.DragEnterEvent, EditorHost_DragOver, RoutingStrategies.Bubble, handledEventsToo: true);
+        editorHost.AddHandler(DragDrop.DragOverEvent, EditorHost_DragOver, RoutingStrategies.Bubble, handledEventsToo: true);
+        editorHost.AddHandler(DragDrop.DropEvent, EditorHost_Drop, RoutingStrategies.Bubble, handledEventsToo: true);
         _restoreStateSubscription = viewModel.WhenAnyValue(vm => vm.IsRestoringWorkspace).Subscribe(restoring =>
         {
             if (!_closeConfirmationInProgress) IsEnabled = !restoring;
@@ -501,6 +508,30 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private void ConnectionNavigation_OpenConnections(object? sender, ConnectionNavigationEventArgs e)
         => _ = GetViewModel().OpenConnectionsAsync(e.ConnectionName);
+
+    private void ConnectionNavigation_AddToScript(object? sender, ConnectionNavigationEventArgs e)
+    {
+        if (e.ConnectionName is { } name) _ = GetViewModel().AddConnectionToScriptAsync(name);
+    }
+
+    private string? DroppableConnection(DragEventArgs e)
+        => GetViewModel() is { ActiveTab: not null, ConnectionNavigation.HasActiveScript: true }
+            ? ConnectionNavigationView.DraggedConnectionName(e.DataTransfer) : null;
+
+    private void EditorHost_DragOver(object? sender, DragEventArgs e)
+    {
+        if (DroppableConnection(e) is null) return;
+        e.DragEffects = DragDropEffects.Copy;
+        e.Handled = true;
+    }
+
+    private void EditorHost_Drop(object? sender, DragEventArgs e)
+    {
+        if (DroppableConnection(e) is not { } name) return;
+        e.DragEffects = DragDropEffects.Copy;
+        e.Handled = true;
+        _ = GetViewModel().AddConnectionToScriptAsync(name);
+    }
 
     // ── File tree ─────────────────────────────────────────────────────────────
 

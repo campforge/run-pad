@@ -58,6 +58,15 @@ public sealed class WindowService : IWindowService
         await ShowDialogAsync(window);
     }
 
+    public async Task AddConnectionToScriptAsync(IObservable<RpadFrontMatter?>? frontMatter, IObservable<string?>? scriptPath, string connectionName)
+    {
+        var window = _dependenciesWindowFactory();
+        using var pathSubscription = scriptPath?.Subscribe(window.SetScriptPath);
+        using var subscription = frontMatter?.Subscribe(window.SetFrontMatter);
+        window.StartAddingConnection(connectionName);
+        await ShowDialogAsync(window);
+    }
+
     public Task ShowPreferencesAsync()
         => ShowDialogAsync(_preferencesWindowFactory());
 

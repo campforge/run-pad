@@ -18,8 +18,9 @@ public sealed class ConnectionNavigationEventArgs(RoutedEvent routedEvent, strin
 /// <summary>
 /// The sidebar's Connections tree. Keyboard: F2 renames a group, Delete removes one (its contents
 /// move up), Enter opens a connection, Alt+Up/Down reorders a group, and the context menu
-/// (Shift+F10 or the menu key) holds every action, including Move to for keyboard moves. Rows can
-/// also be dragged onto a group, or onto a top-level connection or empty space for the top level.
+/// (Shift+F10 or the menu key) holds every action, including Add to Script and Move To. Rows can
+/// also be dragged onto a group, or onto a top-level connection or empty space for the top level; a
+/// connection dragged onto the editor is added to the active script (MainWindow).
 /// </summary>
 public partial class ConnectionNavigationView : UserControl
 {
@@ -39,6 +40,20 @@ public partial class ConnectionNavigationView : UserControl
         add => AddHandler(OpenConnectionsEvent, value);
         remove => RemoveHandler(OpenConnectionsEvent, value);
     }
+
+    /// <summary>Asks the window to add a saved connection to the active script.</summary>
+    public static readonly RoutedEvent<ConnectionNavigationEventArgs> AddToScriptEvent =
+        RoutedEvent.Register<ConnectionNavigationView, ConnectionNavigationEventArgs>(nameof(AddToScript), RoutingStrategies.Bubble);
+
+    public event EventHandler<ConnectionNavigationEventArgs>? AddToScript
+    {
+        add => AddHandler(AddToScriptEvent, value);
+        remove => RemoveHandler(AddToScriptEvent, value);
+    }
+
+    /// <summary>The connection a drag from this tree carries, for a drop target outside it (the editor).</summary>
+    public static string? DraggedConnectionName(IDataTransfer data)
+        => data.TryGetValue(NodeFormat) is { } text && Decode(text) is { IsConnection: true } source ? source.Id : null;
 
     public ConnectionNavigationView()
     {
@@ -125,7 +140,8 @@ public partial class ConnectionNavigationView : UserControl
         var item = new DataTransferItem();
         item.Set(NodeFormat, Encode(node));
         data.Add(item);
-        await DragDrop.DoDragDropAsync(args, data, DragDropEffects.Move);
+        // Move within the tree; Copy when dropped on the editor, which adds it to the script.
+        await DragDrop.DoDragDropAsync(args, data, DragDropEffects.Move | DragDropEffects.Copy);
     }
 
     private void Tree_DragOver(object? sender, DragEventArgs e)
@@ -210,7 +226,12 @@ public partial class ConnectionNavigationView : UserControl
         var editable = vm.CanEditGroups;
 
         if (node is { IsConnection: true })
+        {
+            menu.Items.Add(Item(node.IsAttached ? "In This Script" : "Add to Script…", "Icon.ConnectionAttached", vm.CanAddToScript(node),
+                () => RaiseEvent(new ConnectionNavigationEventArgs(AddToScriptEvent, node.Id))));
             menu.Items.Add(Item("Edit Connection…", "Icon.Settings", true, () => RaiseOpen(node.Id)));
+            menu.Items.Add(new Separator());
+        }
         menu.Items.Add(Item(node is { IsGroup: true } ? "New Subgroup" : "New Group", "Icon.Plus",
             editable && (node is not { IsGroup: true } || vm.Grouping.DepthOf(node.Id) < Services.Connections.ConnectionGroupingModel.MaxDepth),
             () => CreateGroup(vm, node is { IsGroup: true } ? node : null)));

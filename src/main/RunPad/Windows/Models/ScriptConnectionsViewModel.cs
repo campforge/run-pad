@@ -344,6 +344,28 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
 
     internal void CancelPendingAdd() => CancelAddConfirmation();
 
+    // Adding a saved connection named from outside the window (the sidebar's Connections tree): the
+    // same Add as choosing it here, with its package confirmation; nothing is applied until Save.
+    internal void RequestAdd(string connectionName)
+    {
+        CreateMessage = null;
+        if (Items.FirstOrDefault(i => SameCodeName(i.Name, connectionName)) is { } existing)
+        {
+            SelectedItem = existing;
+            CreateMessage = string.Equals(existing.Name, connectionName, StringComparison.OrdinalIgnoreCase)
+                ? $"'{connectionName}' is already in this script."
+                : $"'{connectionName}' can't be added: this script already has a connection called {RpadConnection.CodeName(connectionName)} in code.";
+            return;
+        }
+        if (Available.FirstOrDefault(c => string.Equals(c.Name, connectionName, StringComparison.Ordinal)) is not { } offered)
+        {
+            CreateMessage = HasReadError ? null : $"'{connectionName}' is no longer in your connections.";
+            return;
+        }
+        SelectedAvailable = offered;
+        RequestAdd();
+    }
+
     private async Task ConfirmAddFromDialogAsync(Func<string, Task<bool>> show, string message, int version)
     {
         try
