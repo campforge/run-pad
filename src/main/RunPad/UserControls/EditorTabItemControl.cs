@@ -2121,9 +2121,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         DebugHoverController.TreeBudget budget, string rootSymbol)
     {
         if (!budget.TryReserve()) return;
-        var row = new StackPanel { Orientation = global::Avalonia.Layout.Orientation.Horizontal, Spacing = 4,
+        var row = new StackPanel
+        {
+            Orientation = global::Avalonia.Layout.Orientation.Horizontal,
+            Spacing = 4,
             Margin = new Thickness(depth * 14, 0, 0, 0),
-            Background = depth == 0 ? ThemeBrush("RunPad.Editor.HoverHighlightBrush", new SolidColorBrush(Color.FromArgb(35, 90, 140, 210))) : null };
+            Background = depth == 0 ? ThemeBrush("RunPad.Editor.HoverHighlightBrush", new SolidColorBrush(Color.FromArgb(35, 90, 140, 210))) : null
+        };
         if (variable.HasChildren && context is not null && depth < DebugHoverController.MaxDepth)
         {
             var expand = new Button { Content = ">", Padding = new Thickness(2, 0), MinWidth = 18 };

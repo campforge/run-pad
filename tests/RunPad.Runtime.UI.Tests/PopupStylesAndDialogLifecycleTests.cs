@@ -64,7 +64,9 @@ public class PopupStylesAndDialogLifecycleTests
         var target = new Border { Width = 100, Height = 20, ContextMenu = context };
         var host = new Window
         {
-            Width = 600, Height = 300, RequestedThemeVariant = RunPadThemeVariants.RiderDark,
+            Width = 600,
+            Height = 300,
+            RequestedThemeVariant = RunPadThemeVariants.RiderDark,
             Content = new StackPanel { Children = { menu, inline, target } },
         };
         host.Resources["RunPad.Text.PrimaryBrush"] = marker;
