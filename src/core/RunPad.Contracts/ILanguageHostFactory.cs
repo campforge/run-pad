@@ -42,7 +42,9 @@ public interface ILanguageHostFactory
     // The code a script gets when it switches to <kind> — for Program, a Main skeleton for empty code
     // or the existing statements wrapped in Main — with a `${0}` caret marker, as in Snippets. Null
     // when the code should stay as it is (it already fits the kind, or the language has no template).
-    string? CodeForKind(string code, RpadKind kind) => null;
+    // <indent> is one level of the editor's indentation (a tab, or its width in spaces): the template's
+    // own lines use it; the script's lines keep theirs.
+    string? CodeForKind(string code, RpadKind kind, string indent = "    ") => null;
 
     // Editor intelligence (completion, diagnostics, quick fixes...) for one open document, or null when
     // the language has none. Every call creates a new, stateful service that the caller owns and
@@ -84,7 +86,7 @@ public interface ILanguageHostRegistry
     IReadOnlyDictionary<string, string> GetSnippets(string language);
     EditorLanguageProfile GetEditorProfile(string language);
     string GetDisplayName(string language);
-    string? GetCodeForKind(string language, string code, RpadKind kind);
+    string? GetCodeForKind(string language, string code, RpadKind kind, string indent = "    ");
 
     // See ILanguageHostFactory.CreateIntelliSense; null for a language that isn't registered.
     IIntelliSenseService? CreateIntelliSense(string language, CancellationToken cancellationToken);

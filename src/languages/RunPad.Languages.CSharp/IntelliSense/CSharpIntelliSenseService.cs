@@ -342,7 +342,15 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             "Script.cs",
             loader: TextLoader.From(TextAndVersion.Create(
                 SourceText.From(_preamble, Encoding.UTF8),
-                VersionStamp.Create()))));
+                VersionStamp.Create())),
+            filePath: Path.Combine(ScriptFolder, "Script.cs")));
+        // Code actions format what they write with the options an .editorconfig beside the document
+        // gives, not with the formatting options passed to Formatter: this one carries the editor's
+        // indentation (UpdateIndentation). It is never written to disk.
+        _editorConfigId = DocumentId.CreateNewId(projectId, ".editorconfig");
+        _workspace.TryApplyChanges(_workspace.CurrentSolution.AddAnalyzerConfigDocument(
+            _editorConfigId, ".editorconfig", SourceText.From(EditorConfig(_useTabs, _indentationSize)),
+            filePath: Path.Combine(ScriptFolder, ".editorconfig")));
     }
 
     private void RebuildPreamble()
@@ -1749,6 +1757,13 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
 
     private bool _useTabs;
     private int _indentationSize = 4;
+    private readonly DocumentId _editorConfigId;
+
+    // Where the script document and its .editorconfig appear to be; nothing is stored there.
+    private static readonly string ScriptFolder = Path.Combine(Path.GetTempPath(), "RunPadScript");
+
+    private static string EditorConfig(bool useTabs, int indentationSize) =>
+        $"root = true\n[*.cs]\nindent_style = {(useTabs ? "tab" : "space")}\nindent_size = {indentationSize}\ntab_width = {indentationSize}\n";
 
     private OptionSet FormattingOptionsSnapshot() => _workspace.CurrentSolution.Options
         .WithChangedOption(FormattingOptions.UseTabs, LanguageNames.CSharp, _useTabs)
@@ -1762,6 +1777,8 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             // Applying solution options writes shared Roslyn services; keep each editor's policy local.
             _useTabs = useTabs;
             _indentationSize = Math.Clamp(indentationSize, 1, 16);
+            _workspace.TryApplyChanges(_workspace.CurrentSolution.WithAnalyzerConfigDocumentText(
+                _editorConfigId, SourceText.From(EditorConfig(_useTabs, _indentationSize))));
         }
     }
 

@@ -47,7 +47,7 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
         ["lock"] = "lock (${0})\n{\n\t\n}",
     };
 
-    public string? CodeForKind(string code, RpadKind kind) => ProgramTemplate.CodeForKind(code, kind);
+    public string? CodeForKind(string code, RpadKind kind, string indent = "    ") => ProgramTemplate.CodeForKind(code, kind, indent);
 
     public EditorLanguageProfile EditorProfile { get; } = new()
     {
