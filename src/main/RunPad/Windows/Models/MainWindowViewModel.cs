@@ -1157,7 +1157,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     public async Task<string> CreateFileAsync(string? contextPath, RpadLanguage language, RpadKind kind)
     {
         var parentDir = ResolveParentDir(contextPath);
-        var code = CodeTemplate.TakeCaret(_languageRegistry.NewScriptCode(language, kind)).Text;
+        var code = CodeTemplate.TakeCaret(_languageRegistry.NewScriptCode(language, kind, _prefs.Editor.IndentationUnit)).Text;
         var path = _fileSystemService.CreateNewFile(parentDir, language, kind, code);
         await RefreshNodesAsync();
         OpenTab(path);

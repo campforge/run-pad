@@ -14,22 +14,25 @@ namespace RunPad.Languages.CSharp;
 internal static class ProgramTemplate
 {
     public const string Comment = "// Other methods, fields and types used by Main go here.";
-    private const string Indent = "    ";
+    private const string DefaultIndent = "    ";
 
     // No target framework is known when the kind changes: the symbols of the runtime RunPad runs on,
     // the same ones the editor uses until it knows the script's target.
     private static readonly CSharpParseOptions ParseOptions =
         Compiler.CSharpScriptCompiler.ParseOptions(Environment.Version.Major, Environment.Version.Minor);
 
-    public static string Skeleton { get; } = $"void Main()\n{{\n{Indent}${{0}}\n}}\n\n{Comment}\n";
+    public static string Skeleton { get; } = SkeletonWith(DefaultIndent);
 
-    public static string? CodeForKind(string code, RpadKind kind)
+    private static string SkeletonWith(string indent) => $"void Main()\n{{\n{indent}${{0}}\n}}\n\n{Comment}\n";
+
+    // <indent> is one level of the editor's indentation, used for the lines the template moves into Main.
+    public static string? CodeForKind(string code, RpadKind kind, string indent = DefaultIndent)
     {
         if (kind != RpadKind.Program || ProgramEntryPointDetector.DetectMain(code, ParseOptions).Found) return null;
         // A classic program (a class with a static Main, no top-level statements) runs as it is.
         if (!string.IsNullOrWhiteSpace(code) && ProgramEntryPointDetector.IsCompiledAsWritten(code, ParseOptions)
             && HasStaticMain(code)) return null;
-        if (string.IsNullOrWhiteSpace(code)) return Skeleton;
+        if (string.IsNullOrWhiteSpace(code)) return SkeletonWith(indent);
 
         var root = (CompilationUnitSyntax)CSharpSyntaxTree.ParseText(code, ParseOptions).GetRoot();
         var usings = string.Concat(root.Externs.Select(e => e.ToFullString()))
@@ -44,8 +47,8 @@ internal static class ProgramTemplate
         var body = string.Concat(statements.Select(s => s.ToFullString())).Replace("\r\n", "\n").Trim('\n');
         var header = statements.Any(AwaitsDirectly) ? "async Task Main()" : "void Main()";
         var bodyLines = body.Length == 0
-            ? [Indent + "${0}"]
-            : body.Split('\n').Select((line, i) => (i == 0 ? Indent + "${0}" : line.Length == 0 ? "" : Indent) + line.TrimEnd());
+            ? [indent + "${0}"]
+            : body.Split('\n').Select((line, i) => (i == 0 ? indent + "${0}" : line.Length == 0 ? "" : indent) + line.TrimEnd());
 
         var result = Lf(usings).TrimEnd('\n');
         if (result.Length > 0) result += "\n\n";

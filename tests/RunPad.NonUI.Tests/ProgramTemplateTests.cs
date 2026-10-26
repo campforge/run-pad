@@ -144,4 +144,25 @@ public class ProgramTemplateTests
     {
         Assert.Null(CSharp.CodeForKind("#if DEBUG\nvoid Main() { }\n#endif\n", RpadKind.Program));
     }
+
+    // The template's own lines follow the editor's indentation; the script's lines keep theirs.
+    [Theory]
+    [InlineData("\t")]
+    [InlineData("  ")]
+    public void CSharp_Template_Should_UseTheEditorsIndentation(string indent)
+    {
+        Assert.Equal($"void Main()\n{{\n{indent}${{0}}\n}}\n\n// Other methods, fields and types used by Main go here.\n",
+            CSharp.CodeForKind("", RpadKind.Program, indent));
+        Assert.StartsWith($"void Main()\n{{\n{indent}${{0}}if (true)\n{indent}{{\n{indent}    Console.WriteLine(1);\n{indent}}}\n}}\n",
+            CSharp.CodeForKind("if (true)\n{\n    Console.WriteLine(1);\n}\n", RpadKind.Program, indent));
+    }
+
+    [Fact]
+    public void Vb_Template_Should_UseTheEditorsIndentation()
+    {
+        Assert.Equal("Module Program\n\tSub Main()\n\t\t${0}\n\tEnd Sub\n\n\t' Other methods and fields used by Main go here.\nEnd Module\n",
+            Vb.CodeForKind("", RpadKind.Program, "\t"));
+        Assert.StartsWith("Module Program\n  Sub Main()\n    ${0}Dim x = 1\n    Console.WriteLine(x)\n  End Sub\n",
+            Vb.CodeForKind("Dim x = 1\nConsole.WriteLine(x)\n", RpadKind.Program, "  "));
+    }
 }

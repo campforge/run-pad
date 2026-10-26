@@ -2280,7 +2280,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             // Run/Debug all already behave correctly for the chosen language/kind before the first
             // save, the same as they do for a file freshly loaded from disk.
             // Empty, except that a Program starts with its Main skeleton.
-            content = _registry.NewScriptCode(_vm.NewFileLanguage, _vm.NewFileKind);
+            content = _registry.NewScriptCode(_vm.NewFileLanguage, _vm.NewFileKind, _prefs.Editor.IndentationUnit);
             rpad = RpadParser.TryParse(RpadWriter.NewFile(
                 "", title: "Untitled", language: _vm.NewFileLanguage, kind: _vm.NewFileKind));
         }
@@ -2663,7 +2663,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // every switch away from Program.
     private void ApplyKindTemplate(RpadKind kind)
     {
-        if (_registry.GetCodeForKind(ResolveLanguageId(), State.Editor.Text, kind) is not { } code) return;
+        if (_registry.GetCodeForKind(ResolveLanguageId(), State.Editor.Text, kind, State.Editor.Options.IndentationString) is not { } code) return;
         var (text, caret) = CodeTemplate.TakeCaret(code);
         var document = State.Editor.Document;
         document.Replace(0, document.TextLength, text);
