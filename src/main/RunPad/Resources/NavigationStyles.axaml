@@ -1,0 +1,138 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:conv="clr-namespace:RunPad.Converters">
+
+    <!-- The sidebar's sections (MainWindow): flat headers in the sidebar's own colours, as tall as a
+         panel tab, full width, a hairline between sections. The chevron turns down when open. -->
+    <Style Selector="Expander.bundle">
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Top"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0,1,0,0"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="CornerRadius" Value="0"/>
+        <Setter Property="Template">
+            <ControlTemplate TargetType="Expander">
+                <Border Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}">
+                    <DockPanel>
+                        <ToggleButton x:Name="ExpanderHeader" DockPanel.Dock="Top" Classes="bundle-header"
+                                      IsChecked="{TemplateBinding IsExpanded, Mode=TwoWay}"
+                                      Content="{TemplateBinding Header}"
+                                      ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                      AutomationProperties.Name="{TemplateBinding (AutomationProperties.Name)}"/>
+                        <ContentPresenter x:Name="PART_ContentPresenter"
+                                          IsVisible="{TemplateBinding IsExpanded}"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalContentAlignment="Stretch"
+                                          Padding="0,0,0,6"/>
+                    </DockPanel>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="Expander.bundle:nth-child(1)">
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+
+    <Style Selector="ToggleButton.bundle-header">
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="Height" Value="{DynamicResource RunPad.Size.PanelTab}"/>
+        <Setter Property="Padding" Value="8,0,8,0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Setter Property="FontSize" Value="{DynamicResource RunPad.Type.Caption}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <ControlTemplate TargetType="ToggleButton">
+                <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                    <DockPanel>
+                        <Path x:Name="Chevron" DockPanel.Dock="Left" Width="8" Height="8" Margin="2,0,8,0"
+                              Stretch="Uniform" VerticalAlignment="Center"
+                              Data="{StaticResource Icon.ChevronRight}"
+                              Fill="{DynamicResource RunPad.Text.SecondaryBrush}"
+                              RenderTransformOrigin="50%,50%"/>
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          VerticalAlignment="Center"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          Foreground="{TemplateBinding Foreground}"/>
+                    </DockPanel>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="ToggleButton.bundle-header:pointerover">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <Style Selector="ToggleButton.bundle-header:checked /template/ Path#Chevron">
+        <Setter Property="RenderTransform" Value="rotate(90deg)"/>
+    </Style>
+    <Style Selector="ToggleButton.bundle-header PathIcon">
+        <Setter Property="Width" Value="14"/>
+        <Setter Property="Height" Value="14"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+    </Style>
+
+    <!-- Rows of the sidebar's trees (files and connections): a 16 px column for the disclosure
+         chevron and a 12 px step per level, so a tree starts close to the section's edge. Parts keep
+         Fluent's names, so the trees' own hover and selection styles still apply. -->
+    <Style Selector="TreeView.navigation TreeViewItem">
+        <Setter Property="Template">
+            <ControlTemplate TargetType="TreeViewItem">
+                <StackPanel>
+                    <Border x:Name="PART_LayoutRoot"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{DynamicResource RunPad.Radius.Selection}"
+                            MinHeight="{TemplateBinding MinHeight}"
+                            Focusable="False">
+                        <Grid x:Name="PART_Header" ColumnDefinitions="16,*"
+                              Margin="{TemplateBinding Level, Converter={x:Static conv:TreeRowConverters.Indent}}">
+                            <ToggleButton x:Name="PART_ExpandCollapseChevron" Classes="tree-chevron"
+                                          IsVisible="{TemplateBinding ItemCount, Converter={x:Static conv:TreeRowConverters.HasItems}}"
+                                          IsChecked="{TemplateBinding IsExpanded, Mode=TwoWay}"
+                                          Focusable="False"/>
+                            <ContentPresenter x:Name="PART_HeaderPresenter" Grid.Column="1"
+                                              Content="{TemplateBinding Header}"
+                                              ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                              Padding="{TemplateBinding Padding}"
+                                              VerticalAlignment="Center"
+                                              HorizontalContentAlignment="Stretch"/>
+                        </Grid>
+                    </Border>
+                    <ItemsPresenter x:Name="PART_ItemsPresenter"
+                                    IsVisible="{TemplateBinding IsExpanded}"
+                                    ItemsPanel="{TemplateBinding ItemsPanel}"/>
+                </StackPanel>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="ToggleButton.tree-chevron">
+        <Setter Property="Width" Value="16"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <ControlTemplate TargetType="ToggleButton">
+                <Border Background="{TemplateBinding Background}">
+                    <Path x:Name="Chevron" Width="8" Height="8" Stretch="Uniform"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                          Data="{StaticResource Icon.ChevronRight}"
+                          Fill="{DynamicResource RunPad.Text.SecondaryBrush}"
+                          RenderTransformOrigin="50%,50%"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="ToggleButton.tree-chevron:checked /template/ Path#Chevron">
+        <Setter Property="RenderTransform" Value="rotate(90deg)"/>
+    </Style>
+</Styles>

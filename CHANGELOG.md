@@ -12,15 +12,15 @@ Notable changes in each RunPad release. Downloads are on the
   key can be changed in Preferences → Keyboard.
 - The sidebar's **Connections** section shows the saved connections as a tree, in groups you make:
   new, renamed, nested (up to three levels), reordered and deleted groups, with connections moved by
-  drag and drop or **Move To** in the context menu. Deleting a group keeps what was in it, moving it
-  up a level or to **Ungrouped**. Groups are stored beside the connection list and never change a
-  script; a link badge marks the connections the active script uses. Enter or a double click opens a
+  drag and drop or **Move To** in the context menu; connections outside any group stay at the top.
+  Deleting a group keeps what was in it, moving it up a level. Groups are stored beside the
+  connection list and never change a script; a link badge marks the connections the active script uses. Enter or a double click opens a
   connection in Tools → Connections.
 
 ### Changed
 
-- The sidebar's Queries and Examples tabs became three sections that open and close on their own:
-  Connections, Scripts and Samples.
+- The sidebar's Queries and Examples tabs became three full-width sections that open and close on
+  their own: Connections, Scripts and Samples. Trees in the sidebar start closer to the edge.
 - Typing `{` in C# no longer inserts `}`. Instead, pressing Enter in a new, still empty class,
   struct, record or interface body offers a property template: Tab inserts it, any other key leaves
   the code as it is.

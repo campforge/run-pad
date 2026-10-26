@@ -6,9 +6,9 @@ using RunPad.Services.Connections;
 
 namespace RunPad.UserControls.Models;
 
-public enum ConnectionNavigationNodeKind { Group, Ungrouped, Connection }
+public enum ConnectionNavigationNodeKind { Group, Connection }
 
-/// <summary>A row of the sidebar's Connections tree: a user group, the fixed Ungrouped node or a connection.</summary>
+/// <summary>A row of the sidebar's Connections tree: a user group or a connection.</summary>
 public sealed class ConnectionNavigationNode : ReactiveObject
 {
     private ConnectionNavigationNode(ConnectionNavigationNodeKind kind, string id, string name, int depth)
@@ -22,9 +22,6 @@ public sealed class ConnectionNavigationNode : ReactiveObject
 
     internal static ConnectionNavigationNode Group(ConnectionGroup group, int depth) =>
         new(ConnectionNavigationNodeKind.Group, group.Id, group.Name, depth) { IconKey = "Icon.ConnectionGroup" };
-
-    internal static ConnectionNavigationNode Ungrouped() =>
-        new(ConnectionNavigationNodeKind.Ungrouped, ConnectionGroupingModel.UngroupedId, "Ungrouped", 0) { IconKey = "Icon.ConnectionGroup" };
 
     internal static ConnectionNavigationNode Connection(RpadConnection connection, IConnectionDriver? driver, int depth) =>
         new(ConnectionNavigationNodeKind.Connection, connection.Name, connection.Name, depth)
@@ -57,7 +54,6 @@ public sealed class ConnectionNavigationNode : ReactiveObject
 
     public bool IsConnection => Kind == ConnectionNavigationNodeKind.Connection;
     public bool IsGroup => Kind == ConnectionNavigationNodeKind.Group;
-    public bool IsUngrouped => Kind == ConnectionNavigationNodeKind.Ungrouped;
 
     /// <summary>Connection row: the active script uses this connection.</summary>
     public bool IsAttached
@@ -144,8 +140,9 @@ public sealed record ConnectionMoveTarget(string? GroupId, string Path, int Dept
 
 /// <summary>
 /// The Connections bundle of the sidebar: the reusable connections organized into the user's groups.
-/// Groups live next to the connection list and never in a script; which connections a script runs
-/// with stays in its own front matter, shown here only as the attached badge.
+/// Connections outside any group sit at the top level, after the groups. Groups live next to the
+/// connection list and never in a script; which connections a script runs with stays in its own front
+/// matter, shown here only as the attached badge.
 /// </summary>
 public sealed class ConnectionNavigationViewModel : ReactiveObject
 {
@@ -200,8 +197,8 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
         private set { this.RaiseAndSetIfChanged(ref field, value); this.RaisePropertyChanged(nameof(IsEmpty)); }
     }
 
-    /// <summary>Loaded, readable and without a single connection.</summary>
-    public bool IsEmpty => IsLoaded && !HasError && _connections.Count == 0;
+    /// <summary>Loaded, readable, and with neither a connection nor a group to show.</summary>
+    public bool IsEmpty => IsLoaded && !HasError && _connections.Count == 0 && _grouping.Groups.Count == 0;
 
     public ConnectionGroupingModel Grouping => _grouping;
 
@@ -243,7 +240,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
         try { return (connections, new ConnectionGroupingModel(_groupStore.Load()), null, false); }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
         {
-            // The connections are still shown, all under Ungrouped; the unreadable file is left as it is.
+            // The connections are still shown, all at the top level; the unreadable file is left as it is.
             return (connections, new ConnectionGroupingModel(), $"The connection groups could not be read, so they are not shown and cannot be changed. {ex.Message}", true);
         }
     }
@@ -280,7 +277,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
         return PersistAndRebuild();
     }
 
-    /// <summary>Removes the group only: what was in it moves up a level, or to Ungrouped.</summary>
+    /// <summary>Removes the group only: what was in it moves up a level.</summary>
     public bool DeleteGroup(ConnectionNavigationNode node)
     {
         if (!CanEditGroups || !node.IsGroup) return false;
@@ -316,16 +313,14 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
     }
 
     /// <summary>
-    /// Where a row may go, in tree order: Ungrouped (for a connection) or the top level (for a
-    /// group), then every group; for a group, not itself, its own groups or a place too deep.
+    /// Where a row may go, in tree order: the top level, then every group; for a group, not itself,
+    /// its own groups or a place too deep.
     /// </summary>
     public IReadOnlyList<ConnectionMoveTarget> MoveTargets(ConnectionNavigationNode node)
     {
         var targets = new List<ConnectionMoveTarget>();
         if (!CanEditGroups) return targets;
-        if (node.IsConnection) targets.Add(new(null, "Ungrouped", 0));
-        else if (node.IsGroup) targets.Add(new(null, "Top Level", 0));
-        else return targets;
+        targets.Add(new(null, "Top Level", 0));
         void Walk(string? parentId, string prefix, int depth)
         {
             foreach (var group in _grouping.ChildrenOf(parentId))
@@ -387,7 +382,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
     }
 
     // Rebuilds the rows from the list and the groups. Expansion is kept by group ID across rebuilds
-    // and refreshes; a connection whose group no longer exists lands in Ungrouped.
+    // and refreshes; a connection whose group no longer exists lands at the top level.
     private void Rebuild()
     {
         var byGroup = _connections
@@ -403,9 +398,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
         }
 
         var roots = _grouping.ChildrenOf(null).Select(g => Build(g, 0)).ToList();
-        var ungrouped = ConnectionNavigationNode.Ungrouped();
-        foreach (var connection in byGroup.GetValueOrDefault(ConnectionGroupingModel.UngroupedId) ?? []) ungrouped.Children!.Add(ConnectionRow(connection, 1));
-        roots.Add(ungrouped);
+        roots.AddRange((byGroup.GetValueOrDefault(ConnectionGroupingModel.UngroupedId) ?? []).Select(c => ConnectionRow(c, 0)));
 
         Nodes.Clear();
         foreach (var root in roots)
@@ -419,6 +412,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
             node.ExpandedChanged += OnExpandedChanged;
         }
         this.RaisePropertyChanged(nameof(CanEditGroups));
+        this.RaisePropertyChanged(nameof(IsEmpty));
     }
 
     private ConnectionNavigationNode ConnectionRow(RpadConnection connection, int depth)
