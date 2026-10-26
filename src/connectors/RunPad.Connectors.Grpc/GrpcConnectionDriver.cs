@@ -32,6 +32,7 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
     private const string SkipCertificateCheck = "skipCertificateCheck";
 
     private static readonly TimeSpan MaxWait = TimeSpan.FromSeconds(30);
+    private static readonly GrpcConnectionSchemaCache _schemaCache = new();
 
     private readonly Func<HttpMessageHandler>? _handler;
 
@@ -108,11 +109,36 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
     public async Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
         CancellationToken cancellationToken)
     {
-        var (services, files) = await WithServerAsync(resolvedParams, async (reflection, ct) =>
+        // Compute cache key from address + metadata
+        var address = resolvedParams.TryGetValue("address", out var addrValue) ? addrValue.Text : "";
+        var metadata = new Dictionary<string, string>();
+        if (resolvedParams.TryGetValue("metadata", out var metaValue) && metaValue.Fields is { } fields)
         {
-            var names = await reflection.ListServicesAsync(ct).ConfigureAwait(false);
-            return (names, await reflection.FilesForAsync(names, ct).ConfigureAwait(false));
-        }, cancellationToken).ConfigureAwait(false);
+            foreach (var (k, v) in fields)
+                if (v.Text is not null) metadata[k] = v.Text;
+        }
+        var cacheKey = GrpcConnectionSchemaCache.ComputeCacheKey(address, metadata);
+        
+        // Try cache first
+        IReadOnlyList<FileDescriptorProto> files;
+        IReadOnlyList<string> services;
+        if (_schemaCache.TryGetCachedDescriptors(cacheKey, out var cachedFiles))
+        {
+            files = cachedFiles;
+            // Still need to get services from server
+            services = await WithServerAsync(resolvedParams, (reflection, ct) => reflection.ListServicesAsync(ct), cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            // Fetch from server
+            (services, files) = await WithServerAsync(resolvedParams, async (reflection, ct) =>
+            {
+                var names = await reflection.ListServicesAsync(ct).ConfigureAwait(false);
+                return (names, await reflection.FilesForAsync(names, ct).ConfigureAwait(false));
+            }, cancellationToken).ConfigureAwait(false);
+            _schemaCache.CacheDescriptors(cacheKey, files);
+        }
+        
         if (services.Count == 0) throw new GrpcConnectionException("The server offers no services besides reflection.");
 
         var toolsFolder = await tools.GetPackageFolderAsync("Grpc.Tools", GrpcVersion, cancellationToken).ConfigureAwait(false);
