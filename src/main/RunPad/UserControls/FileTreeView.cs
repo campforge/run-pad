@@ -180,6 +180,23 @@ public partial class FileTreeView : UserControl
             return;
         }
 
+        // Treat the folder row as a disclosure target, not just the tiny chevron. This keeps
+        // the tree usable with a trackpad and matches the one-click behaviour of the other
+        // navigation trees. Do not toggle again when the actual chevron was pressed.
+        if (point.Properties.IsLeftButtonPressed && NodeAt(e.Source) is { IsFolder: true } folder)
+        {
+            var visual = e.Source as Visual;
+            var clickedChevron = false;
+            while (visual is not null && visual is not TreeViewItem)
+            {
+                clickedChevron |= visual is Control { Name: "PART_ExpandCollapseChevron" };
+                visual = visual.GetVisualParent();
+            }
+
+            if (!clickedChevron && visual is TreeViewItem item)
+                item.IsExpanded = !item.IsExpanded;
+        }
+
         // A left-press on a node is only a POSSIBLE drag start, recorded here but not
         // acted on yet: calling DoDragDropAsync immediately (right on press, before any real
         // movement) hijacked every plain click — a single click on a folder stopped expanding it, and

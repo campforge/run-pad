@@ -53,7 +53,18 @@ public sealed class ArgumentRowViewModel : ReactiveObject
     public string DefaultText { get => _defaultText; set => Set(ref _defaultText, value ?? ""); }
 
     /// <summary>An enum's values, separated by commas.</summary>
-    public string ValuesText { get => _valuesText; set => Set(ref _valuesText, value ?? ""); }
+    public string ValuesText
+    {
+        get => _valuesText;
+        set
+        {
+            Set(ref _valuesText, value ?? "");
+            this.RaisePropertyChanged(nameof(EnumValues));
+        }
+    }
+
+    public IReadOnlyList<string> EnumValues =>
+        [.. _valuesText.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)];
 
     public bool IsEnum => _type.Type == RpadArgumentType.Enum;
     public bool IsList => _type.Type == RpadArgumentType.StringList;
@@ -110,10 +121,28 @@ public sealed class ArgumentSetValueViewModel : ReactiveObject
             if (_set.TextFor(Argument) == (value ?? "")) return;
             _set.SetText(Argument, value ?? "");
             this.RaisePropertyChanged();
+            this.RaisePropertyChanged(nameof(ValueError));
         }
     }
 
     public string Hint => Argument.DefaultText.Length > 0 ? $"default: {Argument.DefaultText.Replace("\n", ", ")}" : "not passed";
+
+    public string? ValueError
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(Text)) return null;
+            var declaration = new RpadArgument
+            {
+                Name = Argument.Name,
+                Type = Argument.Type.Type,
+                Values = [.. Argument.EnumValues],
+            };
+            return declaration.Check(RpadValue.Of(Text));
+        }
+    }
+
+    public bool HasError => ValueError is not null;
 }
 
 // One named set being edited: its name and a value for each declared argument.
