@@ -79,7 +79,7 @@ public partial class ConnectionsWindow : Window
         {
             _askingToSave = false;
         }
-    private void Cancel_Click(object? sender, RoutedEventArgs e) => Close(false);
+    }
 
     private void ResourceTree_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
