@@ -107,8 +107,9 @@ public class KeyboardFocusTests
         throw new Xunit.Sdk.XunitException($"Timed out waiting for {typeof(T).Name}.");
     }
 
-    // A side-panel section header (Expander.bundle in MainWindow), which replaced the side panel's tab strip.
-    private static bool IsSectionHeader(ToggleButton button) => button.Classes.Contains("bundle-header");
+    // A side-panel section header shown in the window (Expander.bundle in MainWindow), which replaced the
+    // side panel's tab strip. Connections is hidden while there are none, as in these tests.
+    private static bool IsSectionHeader(ToggleButton button) => button.Classes.Contains("bundle-header") && button.IsEffectivelyVisible;
 
     private static void Tab(Window w)
     {
@@ -127,7 +128,7 @@ public class KeyboardFocusTests
     private static Color FrameColor(Control c) =>
         ((ISolidColorBrush)FocusFrames.Of(c).SelectMany(a => new[] { (Visual)a }.Concat(a.GetVisualDescendants())).OfType<Border>().First().BorderBrush!).Color;
 
-    // Tab goes from the side panel through the document tab and the toolbar: every stop shows
+    // Tab goes through the side panel's sections and trees, the document tab and the toolbar: every stop shows
     // exactly one frame in the theme's focus colour, and nothing draws a second one.
     [AvaloniaTheory]
     [InlineData("VsCodeDark")]
@@ -144,9 +145,12 @@ public class KeyboardFocusTests
         window.Show();
         vm.OpenExample(vm.Examples[0]);
         await SettleAsync();
-        // From the top of the side panel, so every stop after it is reached by Tab.
+        // From the top of the side panel: its other section headers and its trees come before the document tab.
         var start = await WaitForControlAsync<ToggleButton>(window, IsSectionHeader);
+        // A click folds the section; the second one opens it again, so its tree is still there for Tab.
         Click(window, start);
+        Click(window, start);
+        Assert.True(start.IsChecked);
         Assert.False(FocusFrames.IsShown(start));
 
         var seen = new List<Control>();
@@ -165,8 +169,8 @@ public class KeyboardFocusTests
             Assert.DoesNotContain(focused.GetVisualDescendants().OfType<Border>(), b => b.Name == "HighlightBackground" && b.IsEffectivelyVisible);
         }
 
-        // The side panel's section headers and trees are not Tab stops: Tab leaves the panel for the
-        // document tab and the toolbar.
+        Assert.Contains(seen, c => c is ToggleButton t && IsSectionHeader(t));
+        Assert.Contains(seen, c => c is TreeViewItem);
         Assert.Contains(seen, c => c is TabItem);
         Assert.Contains(seen, c => c is IconButton);
         Assert.Contains(seen, c => c is ToolbarComboBox);
