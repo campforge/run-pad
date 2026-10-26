@@ -403,6 +403,17 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
             var members = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);
             Assert.Contains(members!.Items, i => i.DisplayText == "Stock");
             Assert.Contains(members.Items, i => i.DisplayText == "Audit");
+
+            // F12 on a symbol declared only in the generated connection document -- no build has
+            // happened yet, so there is no cached contract assembly to decompile from. Before this
+            // fix GetDefinitionAsync returned null here (handoffs/g03-navigation-cold-start-gap.md).
+            const string defCode = "Connections.Inventory.Stock";
+            var definition = await service.GetDefinitionAsync(defCode, defCode.Length - 1, TestContext.Current.CancellationToken);
+            Assert.NotNull(definition);
+            Assert.False(definition!.IsInSource);
+            Assert.Null(definition.AssemblyPath);
+            Assert.NotNull(definition.GeneratedDocument);
+            Assert.Contains("StockClient", definition.GeneratedDocument!.Value.Text, StringComparison.Ordinal);
         }
 
         var secretsFile = Path.Combine(_folder, "secrets.json");

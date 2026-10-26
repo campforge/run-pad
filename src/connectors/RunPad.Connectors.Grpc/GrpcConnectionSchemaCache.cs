@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Google.Protobuf;
 using Google.Protobuf.Reflection;
 
 namespace RunPad.Connectors.Grpc;
@@ -59,7 +60,11 @@ internal sealed class GrpcConnectionSchemaCache
     public string ComputeDescriptorHash(IReadOnlyList<FileDescriptorProto> descriptors)
     {
         using var hasher = SHA256.Create();
-        var buffer = descriptors.ToByteArray();
+        // A descriptor list is not itself a protobuf message. Wrap it in the same
+        // FileDescriptorSet envelope used by the reflection protocol before hashing.
+        var set = new FileDescriptorSet();
+        set.File.Add(descriptors);
+        var buffer = set.ToByteArray();
         var hash = hasher.ComputeHash(buffer);
         return Convert.ToHexString(hash);
     }

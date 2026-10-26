@@ -28,4 +28,13 @@ public interface IDefinitionResult
 
     /// <summary>Human-readable label for a decompiled-view tab header, e.g. "List&lt;T&gt;.Add(T)".</summary>
     string DisplayName { get; }
+
+    /// <summary>
+    /// Set when the symbol is declared in a different, already-generated source document of this
+    /// same project -- a connection's generated message/client class, say -- rather than the current
+    /// editor's own document (<see cref="IsInSource"/> is false then too) or external metadata
+    /// (<see cref="AssemblyPath"/> is null here). <c>Line</c> is 1-based, matching the decompiler's
+    /// own convention. Defaults to null so existing implementations need no change.
+    /// </summary>
+    (string Text, int Line)? GeneratedDocument => null;
 }
