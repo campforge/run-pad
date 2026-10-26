@@ -75,10 +75,18 @@
     <Style Selector="ToggleButton.bundle-header:checked /template/ Path#Chevron">
         <Setter Property="RenderTransform" Value="rotate(90deg)"/>
     </Style>
-    <Style Selector="ToggleButton.bundle-header PathIcon">
-        <Setter Property="Width" Value="14"/>
-        <Setter Property="Height" Value="14"/>
-        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+    <!-- Header icons: as tall as the 12 pt label, an outline in the secondary text colour. Stretching
+         scales the geometry, not the pen, so the line stays 1.2 px at any size. -->
+    <Style Selector="ToggleButton.bundle-header Path.bundle-icon">
+        <Setter Property="Width" Value="12"/>
+        <Setter Property="Height" Value="12"/>
+        <Setter Property="Stretch" Value="Uniform"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Fill" Value="{x:Null}"/>
+        <Setter Property="Stroke" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+        <Setter Property="StrokeThickness" Value="1.2"/>
+        <Setter Property="StrokeLineCap" Value="Round"/>
+        <Setter Property="StrokeJoin" Value="Round"/>
     </Style>
 
     <!-- Rows of the sidebar's trees (files and connections): a 16 px column for the disclosure
