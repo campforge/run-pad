@@ -503,8 +503,13 @@ public sealed partial class MainWindow : Window, IDisposable
         if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && OperatingSystem.IsMacOS()) return;
         Visual? visual = e.Source as Visual;
         while (visual is not null and not TreeViewItem) visual = visual.GetVisualParent();
-        if (visual is TreeViewItem { DataContext: SampleTreeNode { Example: { } example } })
-            GetViewModel().OpenExample(example);
+        if (visual is TreeViewItem item && item.DataContext is SampleTreeNode sample)
+        {
+            if (sample.Example is { } example)
+                GetViewModel().OpenExample(example);
+            else if (sample.Children is { Count: > 0 })
+                item.IsExpanded = !item.IsExpanded;
+        }
     }
 
     private void SampleTree_KeyDown(object? sender, KeyEventArgs e)

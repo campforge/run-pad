@@ -126,6 +126,21 @@ public partial class ConnectionNavigationView : UserControl
             e.Handled = true;
             return;
         }
+
+        if (point.Properties.IsLeftButtonPressed && node is { IsGroup: true })
+        {
+            var visual = e.Source as Visual;
+            var clickedChevron = false;
+            while (visual is not null && visual is not TreeViewItem)
+            {
+                clickedChevron |= visual is Control { Name: "PART_ExpandCollapseChevron" };
+                visual = visual.GetVisualParent();
+            }
+
+            if (!clickedChevron && visual is TreeViewItem item)
+                item.IsExpanded = !item.IsExpanded;
+        }
+
         _possibleDragStart = point.Properties.IsLeftButtonPressed && node is { IsRenaming: false }
             ? (e.GetPosition(_tree), e, node) : null;
     }

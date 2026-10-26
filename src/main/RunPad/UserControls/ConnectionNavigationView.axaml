@@ -31,7 +31,7 @@
         </StackPanel>
 
         <TreeView x:Name="ConnectionTree"
-                  Classes="navigation"
+                  Classes="navigation transient-selection"
                   ItemsSource="{Binding Nodes}"
                   IsVisible="{Binding !IsEmpty}"
                   Background="Transparent"
@@ -80,7 +80,8 @@
                                 <TextBlock Classes="count" Text="{Binding ConnectionCount}" IsVisible="{Binding HasChildrenCount}"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
-                                <Path Width="14" Height="14" Stretch="Uniform" Opacity="0.55" VerticalAlignment="Center"
+                                <Path Width="14" Height="14" Stretch="Uniform" Opacity="0.55"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"
                                       Data="{Binding IconKey, Converter={x:Static conv:ResourceKeyToGeometryConverter.Instance}}"
                                       Fill="{DynamicResource RunPad.Text.PrimaryBrush}"/>
                                 <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>

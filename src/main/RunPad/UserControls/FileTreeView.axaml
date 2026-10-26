@@ -78,12 +78,14 @@
                                           Foreground="{DynamicResource RunPad.Text.PrimaryBrush}" />
                                 <Path IsVisible="{Binding LanguageIconKey, Converter={x:Static ObjectConverters.IsNotNull}}"
                                       Data="{Binding LanguageIconKey, Converter={x:Static conv:ResourceKeyToGeometryConverter.Instance}}"
+                                      Width="14" Height="14"
                                       Stretch="Uniform"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"
                                       Opacity="0.55"
                                       Fill="{DynamicResource RunPad.Text.PrimaryBrush}" />
                                 <Path IsVisible="{Binding ShowGenericFileIcon}"
                                       Width="12" Height="14"
-                                      HorizontalAlignment="Left"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"
                                       Stretch="Fill"
                                       Opacity="0.55"
                                       Fill="{DynamicResource RunPad.Text.PrimaryBrush}"

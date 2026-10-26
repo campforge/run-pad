@@ -12,6 +12,14 @@ public static class TreeRowConverters
     public static readonly IValueConverter Indent =
         new FuncValueConverter<int, Thickness>(level => new Thickness(Math.Max(0, level) * IndentStep, 0, 0, 0));
 
+    /// <summary>Positions the expanded-branch guide under the centre of its disclosure chevron.</summary>
+    public static readonly IValueConverter GuideIndent =
+        new FuncValueConverter<int, Thickness>(level => new Thickness(Math.Max(0, level) * IndentStep, 0, 0, 0));
+
+    /// <summary>Leaves the dotted guide outside the rounded selection surface of nested rows.</summary>
+    public static readonly IValueConverter SelectionIndent =
+        new FuncValueConverter<int, Thickness>(level => new Thickness(Math.Max(0, level) * IndentStep + (level > 0 ? 4 : 0), 0, 0, 0));
+
     /// <summary>Whether a row has children (ItemCount), and so a disclosure chevron.</summary>
     public static readonly IValueConverter HasItems = new FuncValueConverter<int, bool>(count => count > 0);
 }

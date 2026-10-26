@@ -5,6 +5,7 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Input.Raw;
+using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -28,6 +29,7 @@ using RunPad.UserControls.Models;
 using RunPad.Windows;
 using RunPad.Windows.Models;
 using Xunit;
+using ShapePath = Avalonia.Controls.Shapes.Path;
 
 namespace RunPad.Runtime.UI.Tests;
 
@@ -49,7 +51,7 @@ public sealed class NavigationSidebarTests : IDisposable
 
     private readonly LayoutSettings _layout = new();
 
-    private (MainWindow Window, MainWindowViewModel Vm, Mock<IWindowService> WindowService) CreateMainWindow()
+    private (MainWindow Window, MainWindowViewModel Vm, Mock<IWindowService> WindowService) CreateMainWindow(bool installTheme = false)
     {
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Layout).Returns(_layout);
@@ -95,7 +97,13 @@ public sealed class NavigationSidebarTests : IDisposable
             theme.Object, windowService.Object, new Mock<ILanguageHostRegistry>().WithCSharpIntelliSense(() => new Mock<IIntelliSenseService>().Object), prefs.Object,
             new Mock<IBuildCacheService>().Object);
 
-        var window = new MainWindow(prefs.Object, editorTabs, vm) { Width = 1000, Height = 600 };
+        var window = new MainWindow(prefs.Object, editorTabs, vm)
+        {
+            Width = 1000,
+            Height = 600,
+            RequestedThemeVariant = installTheme ? RunPadThemeVariants.RiderDark : null,
+        };
+        if (installTheme) window.Styles.Insert(0, new RunPadTheme());
         window.Show();
         Settle();
         return (window, vm, windowService);
@@ -133,6 +141,24 @@ public sealed class NavigationSidebarTests : IDisposable
         Settle();
     }
 
+    private static Border RowRoot(TreeViewItem item) => item.GetVisualDescendants().OfType<Border>()
+        .Single(b => b.Name == "PART_LayoutRoot" && OwningItem(b) == item);
+
+    private static TreeViewItem? OwningItem(Visual visual)
+    {
+        for (var parent = visual.GetVisualParent(); parent is not null; parent = parent.GetVisualParent())
+            if (parent is TreeViewItem item) return item;
+        return null;
+    }
+
+    private static Color ColorOf(IBrush? brush) => Assert.IsAssignableFrom<ISolidColorBrush>(brush).Color;
+
+    private static Color Resource(Control control, string key)
+    {
+        Assert.True(control.TryFindResource(key, control.ActualThemeVariant, out var value), key);
+        return ColorOf(Assert.IsAssignableFrom<IBrush>(value));
+    }
+
     [AvaloniaFact]
     public void TheSidebar_Should_HaveConnectionsScriptsAndSamplesBundles_AndNoTabs()
     {
@@ -151,6 +177,50 @@ public sealed class NavigationSidebarTests : IDisposable
         Assert.All(bundles, b => Assert.Equal(sidebar.Bounds.Width, b.Bounds.Width, 1));
         var headerHeights = bundles.Select(b => b.GetVisualDescendants().OfType<ToggleButton>().First().Bounds.Height).Distinct();
         Assert.Single(headerHeights);
+    }
+
+    [AvaloniaFact]
+    public async Task NavigationRows_Should_HaveLocalHover_SubduedScriptSelection_AndTransientActionSelection()
+    {
+        var (window, vm, _) = CreateMainWindow(installTheme: true);
+        for (var i = 0; i < 100 && vm.ConnectionNavigation!.IsLoaded is false; i++) { Settle(); await Task.Delay(10); }
+
+        var connectionTree = Named<ConnectionNavigationView>(window, "ConnectionNavigationView").Tree;
+        Named<Expander>(window, "SamplesBundle").IsExpanded = true;
+        Settle();
+        var sampleTree = Named<TreeView>(window, "SampleTree");
+        Assert.Contains("transient-selection", connectionTree.Classes);
+        Assert.Contains("transient-selection", sampleTree.Classes);
+
+        var connection = connectionTree.GetVisualDescendants().OfType<TreeViewItem>().First();
+        connectionTree.SelectedItem = connection.DataContext;
+        connection.Focus(NavigationMethod.Tab);
+        Settle();
+        Assert.Equal(0, ColorOf(RowRoot(connection).Background).A);
+        Assert.Equal(new Thickness(1), RowRoot(connection).BorderThickness);
+        Assert.Equal(Resource(connection, "RunPad.ToolTab.SelectedBorderBrush"), ColorOf(RowRoot(connection).BorderBrush));
+
+        var scripts = Named<TreeView>(window, "FileTree");
+        var script = scripts.GetVisualDescendants().OfType<TreeViewItem>().First();
+        scripts.SelectedItem = script.DataContext;
+        Settle();
+        Assert.Equal(Resource(script, "RunPad.ToolTab.SelectedBackgroundBrush"), ColorOf(RowRoot(script).Background));
+        Assert.NotEqual(Resource(script, "RunPad.Accent.BackgroundBrush"), ColorOf(RowRoot(script).Background));
+
+        var folder = sampleTree.GetVisualDescendants().OfType<TreeViewItem>().First();
+        folder.IsExpanded = true;
+        Settle();
+        var guide = folder.GetVisualDescendants().OfType<ShapePath>()
+            .Single(p => p.Name == "PART_BranchGuide" && OwningItem(p) == folder);
+        Assert.True(guide.IsVisible);
+        Assert.Equal([1d, 2d], guide.StrokeDashArray);
+        var child = sampleTree.GetVisualDescendants().OfType<TreeViewItem>()
+            .First(i => i.DataContext is SampleTreeNode { Example: not null });
+        var point = child.TranslatePoint(new Point(child.Bounds.Width / 2, child.Bounds.Height / 2), window)!.Value;
+        window.MouseMove(point);
+        Settle();
+        Assert.Equal(Resource(child, "RunPad.Toolbar.Button.HoverBrush"), ColorOf(RowRoot(child).Background));
+        Assert.Equal(0, ColorOf(RowRoot(folder).Background).A);
     }
 
     // Open sections share the sidebar's height instead of one long scrolling page: each tree scrolls

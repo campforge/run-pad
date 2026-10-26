@@ -157,7 +157,7 @@
                                            Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                                            IsVisible="{Binding ShowNoExamplesHint}"/>
                                 <!-- Read-only: a sample opens as an untitled copy (MainWindowViewModel.OpenExample). -->
-                                <TreeView x:Name="SampleTree" Classes="navigation" ItemsSource="{Binding SampleTree}"
+                                <TreeView x:Name="SampleTree" Classes="navigation transient-selection" ItemsSource="{Binding SampleTree}"
                                           Background="Transparent" BorderThickness="0" Padding="4,0,4,0"
                                           SelectionMode="Single" AutomationProperties.Name="Samples"
                                           Tapped="SampleTree_Tapped" KeyDown="SampleTree_KeyDown">

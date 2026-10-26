@@ -34,6 +34,10 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Changed
 
+- Sidebar tree hover now affects only the row under the pointer. Script selection is more subdued,
+  while Connections and Samples use transient hover and keyboard focus instead of a persistent
+  selected-row fill. Expanded branches have subtle dotted indentation guides, and section headers
+  use distinct plus/minus accordion markers.
 - The sidebar's Queries and Examples tabs became three full-width sections that open and close on
   their own: Connections, Scripts and Samples. Open sections share the sidebar's height and each
   scrolls on its own; which sections, connection groups and sample folders are open is kept between

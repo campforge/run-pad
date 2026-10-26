@@ -514,21 +514,28 @@
             <!-- ─── Arguments: declared arguments, sets of their values, the set runs use ── -->
             <TabItem x:Name="ArgumentsTab" Header="Arguments">
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="0,12,0,0" Spacing="10"
+                    <StackPanel Margin="0,12,0,0" Spacing="14"
                                 DataContext="{Binding Arguments}" x:DataType="viewModels:ScriptArgumentsViewModel"
                                 IsEnabled="{Binding $parent[Window].((viewModels:DependenciesWindowViewModel)DataContext).HasFrontMatter}">
                         <TextBlock Classes="hint"
                                    Text="A run passes each argument as --name value (a list as --name once per item), with the values of the set it uses or else the defaults; an argument with neither is left out. On the command line, --args-set NAME picks a set, and arguments after the script replace them all."/>
 
                         <!-- The declared arguments -->
-                        <TextBlock Text="Arguments" FontWeight="SemiBold"/>
-                        <Grid ColumnDefinitions="160,110,*,170,Auto" ColumnSpacing="8">
-                            <TextBlock Grid.Column="0" Classes="hint" Text="Name"/>
-                            <TextBlock Grid.Column="1" Classes="hint" Text="Type"/>
-                            <TextBlock Grid.Column="2" Classes="hint" Text="Default"/>
-                            <TextBlock Grid.Column="3" Classes="hint" Text="Enum values"/>
+                        <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Declared arguments" FontWeight="SemiBold"/>
+                                <TextBlock Classes="hint" Text="Typed values exposed as Arguments.Name at runtime."/>
+                            </StackPanel>
+                            <Button x:Name="AddArgumentButton" Grid.Column="1" Content="+ Add argument" Command="{Binding AddArgumentCommand}"/>
                         </Grid>
-                        <ItemsControl x:Name="ArgumentRows" ItemsSource="{Binding Arguments}">
+                        <Border Classes="pane" Padding="8,6">
+                          <StackPanel Spacing="6">
+                            <Grid ColumnDefinitions="160,110,*,Auto" ColumnSpacing="8">
+                                <TextBlock Grid.Column="0" Classes="hint" Text="Name"/>
+                                <TextBlock Grid.Column="1" Classes="hint" Text="Type"/>
+                                <TextBlock Grid.Column="2" Classes="hint" Text="Value"/>
+                            </Grid>
+                            <ItemsControl x:Name="ArgumentRows" ItemsSource="{Binding Arguments}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <StackPanel Spacing="6"/>
@@ -536,7 +543,7 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="viewModels:ArgumentRowViewModel">
-                                    <Grid ColumnDefinitions="160,110,*,170,Auto" ColumnSpacing="8">
+                                    <Grid ColumnDefinitions="160,110,*,Auto" ColumnSpacing="8">
                                         <TextBox Grid.Column="0" Text="{Binding Name}" AutomationProperties.Name="Argument name"/>
                                         <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
                                                   ItemsSource="{x:Static viewModels:ArgumentRowViewModel.Types}"
@@ -548,24 +555,27 @@
                                                 </DataTemplate>
                                             </ComboBox.ItemTemplate>
                                         </ComboBox>
-                                        <TextBox Grid.Column="2" Text="{Binding DefaultText}"
-                                                 AcceptsReturn="{Binding IsList}" TextWrapping="NoWrap"
-                                                 PlaceholderText="none"
-                                                 AutomationProperties.Name="Default value"/>
-                                        <TextBox Grid.Column="3" Text="{Binding ValuesText}" IsEnabled="{Binding IsEnum}"
-                                                 PlaceholderText="dev, test, prod"
-                                                 AutomationProperties.Name="Enum values"/>
-                                        <Button Grid.Column="4" Content="Remove" Command="{Binding RemoveCommand}"
+                                        <Grid Grid.Column="2" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                            <TextBox Grid.Column="0" Width="170" Text="{Binding ValuesText}" IsVisible="{Binding IsEnum}"
+                                                     PlaceholderText="dev, test, prod"
+                                                     AutomationProperties.Name="Enum values"/>
+                                            <TextBox Grid.Column="1" HorizontalAlignment="Stretch" Text="{Binding DefaultText}"
+                                                     AcceptsReturn="{Binding IsList}" TextWrapping="NoWrap"
+                                                     PlaceholderText="none"
+                                                     AutomationProperties.Name="Default value"/>
+                                        </Grid>
+                                        <Button Grid.Column="3" Content="Remove" Command="{Binding RemoveCommand}"
                                                 AutomationProperties.Name="Remove argument"/>
                                     </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                        <Button x:Name="AddArgumentButton" Content="Add Argument" Command="{Binding AddArgumentCommand}"/>
+                            </ItemsControl>
+                          </StackPanel>
+                        </Border>
 
                         <!-- Sets of values, and the one runs use -->
-                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                            <TextBlock VerticalAlignment="Center" Text="Run with:"/>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" VerticalAlignment="Center">
+                            <TextBlock Classes="hint" VerticalAlignment="Center" Text="Next run uses:"/>
                             <ComboBox x:Name="ArgumentRunChoiceBox" Grid.Column="1" MinWidth="240"
                                       ItemsSource="{Binding RunChoices}" SelectedItem="{Binding RunChoice}"
                                       AutomationProperties.Name="Argument set runs use">
@@ -576,13 +586,19 @@
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
                         </Grid>
-                        <Grid ColumnDefinitions="200,*" ColumnSpacing="12" MinHeight="160">
+                        <Grid ColumnDefinitions="200,*" ColumnSpacing="12" MinHeight="190">
                             <Grid RowDefinitions="Auto,*,Auto" RowSpacing="6">
                                 <TextBlock Text="Argument sets" FontWeight="SemiBold"/>
                                 <Border Grid.Row="1" Classes="pane">
                                     <ListBox x:Name="ArgumentSetList" ItemsSource="{Binding Sets}" SelectedItem="{Binding SelectedSet}"
                                              Background="Transparent" BorderThickness="0"
                                              AutomationProperties.Name="Argument sets">
+                                        <ListBox.Styles>
+                                            <Style Selector="ListBoxItem:selected">
+                                                <Setter Property="Background" Value="{DynamicResource RunPad.ToolTab.SelectedBackgroundBrush}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+                                            </Style>
+                                        </ListBox.Styles>
                                         <ListBox.ItemTemplate>
                                             <DataTemplate x:DataType="viewModels:ArgumentSetItemViewModel">
                                                 <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
@@ -608,14 +624,23 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="viewModels:ArgumentSetValueViewModel">
-                                            <Grid ColumnDefinitions="200,*" ColumnSpacing="8">
-                                                <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+                                            <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="200,*" ColumnSpacing="8" RowSpacing="3">
+                                                <TextBlock Grid.Row="0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
                                                     <Run Text="{Binding Argument.Name}"/>
                                                     <Run Text="{Binding Argument.Type.Label}" Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                                                 </TextBlock>
-                                                <TextBox Grid.Column="1" Text="{Binding Text}" PlaceholderText="{Binding Hint}"
+                                                <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding Argument.EnumValues}"
+                                                          SelectedItem="{Binding Text}"
+                                                          IsVisible="{Binding Argument.IsEnum}"
+                                                          ToolTip.Tip="{Binding ValueError}"
+                                                          AutomationProperties.Name="{Binding Argument.Name}"/>
+                                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Text}" PlaceholderText="{Binding Hint}"
+                                                         IsVisible="{Binding !Argument.IsEnum}"
                                                          AcceptsReturn="{Binding Argument.IsList}" TextWrapping="NoWrap"
+                                                         ToolTip.Tip="{Binding ValueError}"
                                                          AutomationProperties.Name="{Binding Argument.Name}"/>
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Classes="error"
+                                                           Text="{Binding ValueError}" IsVisible="{Binding HasError}"/>
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
