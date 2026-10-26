@@ -38,7 +38,7 @@ public class CSharpMemberPositionTests
     [Fact]
     public void Should_IgnoreAPositionOutsideTheText()
     {
-        Assert.False(CSharpMemberPosition.IsInEmptyTypeBody("class C { }", -1));
-        Assert.False(CSharpMemberPosition.IsInEmptyTypeBody("class C { }", 100));
+        Assert.False(CSharpMemberPosition.IsInEmptyTypeBody("class C { }", -1, TestContext.Current.CancellationToken));
+        Assert.False(CSharpMemberPosition.IsInEmptyTypeBody("class C { }", 100, TestContext.Current.CancellationToken));
     }
 }
