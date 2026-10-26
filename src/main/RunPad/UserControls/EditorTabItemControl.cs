@@ -66,6 +66,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // A Run/Debug waiting for its save (possibly for the user's answer): another one doesn't start.
     private bool _savingBeforeRun;
     private string? _filePath;
+    // The last file WriteFile wrote an .rpad document to, and the document ID written there.
+    private (string Path, Guid Id)? _writtenId;
     private IDisposable? _selectedSdkSub;
     private bool _disposed;
     private bool _runInProgress;
@@ -364,10 +366,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (State.RpadDocument is { } rpad)
         {
             rpad.RunCode = State.Editor.Text;
-            // Stable document GUID (G07): a legacy file without an ID receives one on first save;
-            // Save As / Duplicate (path differs from the tab's own file) creates a new identity.
-            var isSaveAs = !string.Equals(path, _vm.FilePath, StringComparison.Ordinal);
-            if (rpad.FrontMatter.Id is null || isSaveAs)
+            // The document's identity: its own file keeps it, and a file written before IDs gets one
+            // here. Another file (Save As, Duplicate) is a separate document with a new ID, which the
+            // tab takes only once it really moved there (OnFilePathChanged) — Duplicate never moves it,
+            // and a failed Save As leaves it as it was.
+            var id = rpad.FrontMatter.Id;
+            if (string.Equals(path, _vm.FilePath, StringComparison.Ordinal))
+                id = rpad.FrontMatter.Id ??= Guid.NewGuid();
+            else
                 rpad.FrontMatter.Id = Guid.NewGuid();
             // A script written to another folder (Save As) gets its relative references rewritten so
             // they still reach the same files; the tab adopts them only once it really moved there
@@ -383,6 +389,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             finally
             {
                 rpad.FrontMatter.References = references;
+                _writtenId = (path, rpad.FrontMatter.Id!.Value);
+                rpad.FrontMatter.Id = id;
             }
         }
         else
@@ -424,6 +432,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             frontMatter.References = rebased;
             _metadataBaseline = FrontMatterSnapshot();
         }
+        // The ID written to the new file is now this document's own.
+        if (_writtenId is ({ } writtenPath, var writtenId) && writtenPath == newPath && State.RpadDocument is { } moved)
+            moved.FrontMatter.Id = writtenId;
         RefreshIntelliSenseContext(reanalyze: true);
         UpdatePreviewNow();
     }
