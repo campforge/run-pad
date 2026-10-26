@@ -462,31 +462,36 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     {
         await _windowService.ShowDependenciesAsync(ActiveTab?.WhenAnyValue(x => x.FrontMatter), ActiveTab?.WhenAnyValue(x => x.FilePath));
         DependenciesWindowClosed?.Invoke();
+        // Dependencies can edit the reusable connections too.
+        RefreshConnectionNavigation();
     }
 
-    // ── Sidebar tabs: Queries (the file tree) and Examples ──────────────────────
+    // ── Sidebar: Connections bundle ─────────────────────────────────────────────
 
-    public const int QueriesTab = 0;
-    public const int ExamplesTab = 1;
+    /// <summary>The sidebar's Connections tree; null when RunPad was started without a connection store.</summary>
+    public ConnectionNavigationViewModel? ConnectionNavigation { get; }
 
-    /// <summary>Which of the sidebar's tabs is shown; both keep their state while hidden.</summary>
-    public int SidebarTab
+    public bool HasConnectionNavigation => ConnectionNavigation is not null;
+
+    /// <summary>Opens the Connections editor (at the named connection), then shows what it saved in the tree.</summary>
+    public async Task OpenConnectionsAsync(string? connectionName = null)
     {
-        get;
-        set
-        {
-            this.RaiseAndSetIfChanged(ref field, value);
-            this.RaisePropertyChanged(nameof(IsQueriesTabShown));
-            this.RaisePropertyChanged(nameof(IsExamplesTabShown));
-            this.RaisePropertyChanged(nameof(ShowNoExamplesHint));
-        }
+        await _windowService.ShowConnectionsAsync(connectionName);
+        RefreshConnectionNavigation();
     }
 
-    // Both panels stay in the tree and are only hidden, so the file tree keeps its selection,
-    // expanded folders and scroll position while Examples is shown.
-    public bool IsQueriesTabShown => SidebarTab != ExamplesTab;
-    public bool IsExamplesTabShown => SidebarTab == ExamplesTab;
-    public bool ShowNoExamplesHint => IsExamplesTabShown && Examples.Count == 0;
+    // Reading happens off the UI thread; an unexpected failure is logged, the tree keeps what it showed.
+    private void RefreshConnectionNavigation()
+    {
+        if (ConnectionNavigation is not { } navigation) return;
+        _ = navigation.RefreshAsync().ContinueWith(
+            t => _logger.LogError(t.Exception, "Refreshing the connections tree failed"),
+            CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+    }
+
+    // ── Sidebar: Samples bundle ─────────────────────────────────────────────────
+
+    public bool ShowNoExamplesHint => Examples.Count == 0;
 
     /// <summary>The bundled examples (empty if none could be read).</summary>
     public IReadOnlyList<ExampleScript> Examples { get; init; } = ExampleScripts.All;
@@ -1136,7 +1141,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         // logger they don't care about — real app startup (App.axaml.cs's AddTransient) still gets
         // a real one, since DI resolves ILogger<MainWindowViewModel> from the registered logging
         // provider regardless of the parameter having a default.
-        ILogger<MainWindowViewModel>? logger = null, IRecoveryStore? recovery = null)
+        ILogger<MainWindowViewModel>? logger = null, IRecoveryStore? recovery = null,
+        ConnectionNavigationViewModel? connectionNavigation = null)
     {
         _fileSystemService = fileSystemService;
         _windowService = windowService;
@@ -1172,7 +1178,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         OpenPreferencesCommand = ReactiveCommand.CreateFromTask(_windowService.ShowPreferencesAsync);
         OpenAboutCommand = ReactiveCommand.CreateFromTask(_windowService.ShowAboutAsync);
         OpenSecretStoreCommand = ReactiveCommand.CreateFromTask(_windowService.ShowSecretStoreAsync);
-        OpenConnectionsCommand = ReactiveCommand.CreateFromTask(_windowService.ShowConnectionsAsync);
+        OpenConnectionsCommand = ReactiveCommand.CreateFromTask(() => OpenConnectionsAsync());
         ImportLinqFileCommand = ReactiveCommand.CreateFromTask(ImportLinqFileAsync);
         OpenAssemblyExplorerCommand = ReactiveCommand.CreateFromTask(
             () => _windowService.ShowAssemblyExplorerAsync(_fileSystemService.Folder));
@@ -1199,6 +1205,17 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             });
 
         RefreshNodes();
+
+        ConnectionNavigation = connectionNavigation;
+        if (ConnectionNavigation is { } navigation)
+        {
+            // The attached badges follow the active script's own connections list.
+            this.WhenAnyValue(x => x.ActiveTab)
+                .Select(tab => tab?.WhenAnyValue(t => t.FrontMatter) ?? Observable.Return<RpadFrontMatter?>(null))
+                .Switch()
+                .Subscribe(frontMatter => navigation.SetAttached(frontMatter?.Connections));
+            RefreshConnectionNavigation();
+        }
 
         _fileSystemService.WatcherEvent += OnWatcherEvent;
         _fileSystemService.StartWatcher();

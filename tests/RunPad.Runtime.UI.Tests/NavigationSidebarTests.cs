@@ -10,13 +10,16 @@ using Avalonia.VisualTree;
 using AvaloniaEdit;
 using Moq;
 using RunPad.Avalonia.Themes;
+using RunPad.Connectors.Http;
 using RunPad.Contracts;
+using RunPad.Contracts.Connections;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
+using RunPad.Services.Connections;
 using RunPad.Services.Examples;
 using RunPad.Services.Preferences;
 using RunPad.UserControls;
@@ -27,14 +30,21 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// The sidebar's Queries / Examples tabs in a real main window: no "FILES" heading any more, switching
-// keeps the file tree as it was, and an example clicked in the list opens as an untitled, unsaved copy
-// that Save turns into a new file through Save As, leaving the bundled original unchanged.
-public sealed class SidebarTabsTests : IDisposable
+// The sidebar in a real main window: three accordion bundles (Connections, Scripts, Samples) and no
+// tabs; folding one leaves the others as they were; the Connections tree reaches the Connections
+// editor from the keyboard; an example clicked in Samples opens as an untitled, unsaved copy that Save
+// turns into a new file through Save As, leaving the bundled original unchanged.
+public sealed class NavigationSidebarTests : IDisposable
 {
     private readonly string _folder = Directory.CreateTempSubdirectory("runpad-sidebar").FullName;
+    // Apart from the scripts folder, which a test checks stays empty.
+    private readonly string _dataFolder = Directory.CreateTempSubdirectory("runpad-sidebar-data").FullName;
 
-    public void Dispose() => Directory.Delete(_folder, recursive: true);
+    public void Dispose()
+    {
+        Directory.Delete(_folder, recursive: true);
+        Directory.Delete(_dataFolder, recursive: true);
+    }
 
     private (MainWindow Window, MainWindowViewModel Vm, Mock<IWindowService> WindowService) CreateMainWindow()
     {
@@ -59,12 +69,17 @@ public sealed class SidebarTabsTests : IDisposable
             new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
 
         var windowService = new Mock<IWindowService>();
+        var drivers = new ConnectionDriverRegistry();
+        drivers.Register(new HttpConnectionDriver());
+        var store = new FileConnectionStore(Path.Combine(_dataFolder, "connections.json"));
+        store.Save([new RpadConnection { Name = "billing", Driver = "http" }, new RpadConnection { Name = "orders", Driver = "http" }], null);
         var vm = new MainWindowViewModel(
             sdkProviders: [],
             fileSystemService: fileSystem.Object,
             windowService: windowService.Object,
             prefs: prefs.Object,
-            languageRegistry: new LanguageHostRegistry());
+            languageRegistry: new LanguageHostRegistry(),
+            connectionNavigation: new ConnectionNavigationViewModel(store, drivers));
         var editorTabs = new EditorTabsControl(
             theme.Object, windowService.Object, new Mock<ILanguageHostRegistry>().WithCSharpIntelliSense(() => new Mock<IIntelliSenseService>().Object), prefs.Object,
             new Mock<IBuildCacheService>().Object);
@@ -108,38 +123,77 @@ public sealed class SidebarTabsTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void TheSidebar_Should_HaveQueriesAndExamplesTabs_AndNoFilesHeading()
+    public void TheSidebar_Should_HaveConnectionsScriptsAndSamplesBundles_AndNoTabs()
     {
         var (window, _, _) = CreateMainWindow();
 
-        var tabs = Named<TabStrip>(window, "SidebarTabs");
-        Assert.Equal(["Queries", "Examples"], tabs.Items.OfType<TabStripItem>().Select(i => i.Content));
-        Assert.Equal(0, tabs.SelectedIndex);
+        var bundles = window.GetVisualDescendants().OfType<Expander>()
+            .Where(e => e.Name is "ConnectionsBundle" or "ScriptsBundle" or "SamplesBundle").ToList();
+        Assert.Equal(["ConnectionsBundle", "ScriptsBundle", "SamplesBundle"], bundles.Select(b => b.Name));
+        Assert.Equal(["Connections navigation bundle", "Scripts navigation bundle", "Samples navigation bundle"],
+            bundles.Select(global::Avalonia.Automation.AutomationProperties.GetName));
+        Assert.All(bundles, b => Assert.True(b.IsEffectivelyVisible));
+        Assert.DoesNotContain(window.GetVisualDescendants().OfType<TabStrip>(), t => t.Name == "SidebarTabs");
         Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == "FILES");
+        // The three headers share one geometry.
+        var headerHeights = bundles.Select(b => b.GetVisualDescendants().OfType<ToggleButton>().First().Bounds.Height).Distinct();
+        Assert.Single(headerHeights);
     }
 
-    // Clicking the Examples tab shows the list; back on Queries the tree keeps its selection and the
-    // editor tabs are the same.
+    // Opening and folding bundles leaves the file tree's selection and the editor tabs alone.
     [AvaloniaFact]
-    public void SwitchingTabs_Should_KeepTheTreesSelection_AndTheEditorTabs()
+    public void FoldingBundles_Should_KeepTheTreesSelection_AndTheEditorTabs()
     {
         var (window, vm, _) = CreateMainWindow();
         var tree = window.GetVisualDescendants().OfType<TreeView>().Single(t => t.Name == "FileTree");
         tree.SelectedItem = vm.FileTree.Nodes[1];
         Settle();
         var editorTabs = vm.Tabs.ToList();
-        var tabItems = Named<TabStrip>(window, "SidebarTabs").GetVisualDescendants().OfType<TabStripItem>().ToList();
+        var scripts = Named<Expander>(window, "ScriptsBundle");
+        var samples = Named<Expander>(window, "SamplesBundle");
 
-        Click(window, tabItems[1]);
-        Assert.Equal(MainWindowViewModel.ExamplesTab, vm.SidebarTab);
+        samples.IsExpanded = true;
+        Settle();
         Assert.True(Named<ListBox>(window, "ExampleList").IsEffectivelyVisible);
-        Assert.False(tree.IsEffectivelyVisible);
+        Assert.True(tree.IsEffectivelyVisible); // bundles are independent, unlike tabs
 
-        Click(window, tabItems[0]);
-        Assert.Equal(MainWindowViewModel.QueriesTab, vm.SidebarTab);
+        scripts.IsExpanded = false;
+        Settle();
+        Assert.False(tree.IsEffectivelyVisible);
+        scripts.IsExpanded = true;
+        Settle();
         Assert.True(tree.IsEffectivelyVisible);
         Assert.Same(vm.FileTree.Nodes[1], tree.SelectedItem);
         Assert.Equal(editorTabs, vm.Tabs);
+    }
+
+    // Rows carry spoken names; Enter on a connection opens the editor at it, and the context menu
+    // offers Move To for moving without a mouse.
+    [AvaloniaFact]
+    public async Task TheConnectionsTree_Should_BeUsableFromTheKeyboard()
+    {
+        var (window, vm, windowService) = CreateMainWindow();
+        for (var i = 0; i < 100 && vm.ConnectionNavigation!.IsLoaded is false; i++) { Settle(); await Task.Delay(10); }
+        Settle();
+        var view = Named<ConnectionNavigationView>(window, "ConnectionNavigationView");
+        var rows = view.Tree.GetVisualDescendants().OfType<TreeViewItem>().ToList();
+        Assert.Equal(["Ungrouped group, 2 connections", "billing, HTTP", "orders, HTTP"],
+            rows.Select(global::Avalonia.Automation.AutomationProperties.GetName));
+
+        var billing = rows[1];
+        billing.Focus();
+        view.Selected = (ConnectionNavigationNode)billing.DataContext!;
+        Settle();
+        window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+        Settle();
+        windowService.Verify(w => w.ShowConnectionsAsync("billing"), Times.Once);
+
+        var menu = new ContextMenu();
+        view.FillContextMenu(menu);
+        var headers = menu.Items.OfType<MenuItem>().Select(m => m.Header as string).ToList();
+        Assert.Contains("Edit Connection…", headers);
+        Assert.Contains("Move To", headers);
+        Assert.Contains("Manage Connections…", headers);
     }
 
     // A real click on an example: an untitled, unsaved tab with the example's code; clicking it again
@@ -151,7 +205,7 @@ public sealed class SidebarTabsTests : IDisposable
         var (window, vm, windowService) = CreateMainWindow();
         var example = ExampleScripts.All[0];
         var original = example.Text;
-        vm.SidebarTab = MainWindowViewModel.ExamplesTab;
+        Named<Expander>(window, "SamplesBundle").IsExpanded = true;
         Settle();
         var list = Named<ListBox>(window, "ExampleList");
         var item = list.GetVisualDescendants().OfType<ListBoxItem>().First();

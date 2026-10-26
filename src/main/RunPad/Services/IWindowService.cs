@@ -17,7 +17,8 @@ public interface IWindowService
     Task ShowSecretStoreAsync();
 
     /// <summary>Tools → Connections: the user's own database, HTTP and gRPC connections.</summary>
-    Task ShowConnectionsAsync();
+    /// <summary>Opens the Connections editor, with the named connection selected when it is in the list.</summary>
+    Task ShowConnectionsAsync(string? connectionName = null);
 
     /// <summary>
     /// Shows a native Save As dialog defaulting to <paramref name="startFolder"/> (the user can still
