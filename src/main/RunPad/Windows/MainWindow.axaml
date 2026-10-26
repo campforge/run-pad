@@ -140,7 +140,7 @@
                                   AutomationProperties.Name="Connections navigation bundle">
                             <Expander.Header>
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <PathIcon Data="{StaticResource Icon.NavigationConnections}"/>
+                                    <Path Classes="bundle-icon" Data="{StaticResource Icon.NavigationConnections}"/>
                                     <TextBlock Text="Connections"/>
                                 </StackPanel>
                             </Expander.Header>
@@ -152,7 +152,7 @@
                                   AutomationProperties.Name="Scripts navigation bundle">
                             <Expander.Header>
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <PathIcon Data="{StaticResource Icon.NavigationScripts}"/>
+                                    <Path Classes="bundle-icon" Data="{StaticResource Icon.NavigationScripts}"/>
                                     <TextBlock Text="Scripts"/>
                                 </StackPanel>
                             </Expander.Header>
@@ -163,7 +163,7 @@
                                   AutomationProperties.Name="Samples navigation bundle">
                             <Expander.Header>
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <PathIcon Data="{StaticResource Icon.NavigationSamples}"/>
+                                    <Path Classes="bundle-icon" Data="{StaticResource Icon.NavigationSamples}"/>
                                     <TextBlock Text="Samples"/>
                                 </StackPanel>
                             </Expander.Header>

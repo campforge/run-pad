@@ -229,7 +229,7 @@ public partial class ConnectionNavigationView : UserControl
         {
             menu.Items.Add(Item(node.IsAttached ? "In This Script" : "Add to Script…", "Icon.ConnectionAttached", vm.CanAddToScript(node),
                 () => RaiseEvent(new ConnectionNavigationEventArgs(AddToScriptEvent, node.Id))));
-            menu.Items.Add(Item("Edit Connection…", "Icon.Settings", true, () => RaiseOpen(node.Id)));
+            menu.Items.Add(Item("Edit Connection…", "Icon.Rename", true, () => RaiseOpen(node.Id)));
             menu.Items.Add(new Separator());
         }
         menu.Items.Add(Item(node is { IsGroup: true } ? "New Subgroup" : "New Group", "Icon.Plus",
@@ -261,7 +261,7 @@ public partial class ConnectionNavigationView : UserControl
             menu.Items.Add(move);
         }
         menu.Items.Add(new Separator());
-        menu.Items.Add(Item("Manage Connections…", "Icon.NavigationConnections", true, () => RaiseOpen(null)));
+        menu.Items.Add(Item("Manage Connections…", "Icon.Settings", true, () => RaiseOpen(null)));
     }
 
     private MenuItem Item(string header, string? iconKey, bool enabled, Action action, string? accessibleName = null)

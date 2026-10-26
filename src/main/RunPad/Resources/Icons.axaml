@@ -90,9 +90,12 @@
          microsoft-visual-studio) — VB.NET only exists inside Visual Studio, so it's a real, if
          not per-language, association rather than an invented glyph. -->
     <StreamGeometry x:Key="Icon.LanguageVb">M17,8.5L12.25,12.32L17,16V8.5M4.7,18.4L2,16.7V7.7L5,6.7L9.3,10.03L18,2L22,4.5V20L17,22L9.34,14.66L4.7,18.4M5,14L6.86,12.28L5,10.5V14Z</StreamGeometry>
-    <StreamGeometry x:Key="Icon.NavigationConnections">M12,2A4,4 0 0,0 8,6C8,7.48 8.8,8.77 10,9.46V12H8A4,4 0 0,0 4,16V18H6V16A2,2 0 0,1 8,14H10V18H14V14H16A2,2 0 0,1 18,16V18H20V16A4,4 0 0,0 16,12H14V9.46A4,4 0 0,0 16,6A4,4 0 0,0 12,2M12,4A2,2 0 1,1 12,8A2,2 0 0,1 12,4Z</StreamGeometry>
-    <StreamGeometry x:Key="Icon.NavigationScripts">M4,3H14L20,9V21H4V3M13,5H6V19H18V10H13V5M8,12H16V14H8V12M8,16H14V18H8V16Z</StreamGeometry>
-    <StreamGeometry x:Key="Icon.NavigationSamples">M3,4H10L12,6H21V20H3V4M5,8V18H19V8H5Z</StreamGeometry>
+    <!-- Sidebar section headers (Resources/NavigationStyles.axaml, Path.bundle-icon): open outlines on a
+         16 px grid, drawn with a thin stroke rather than filled, so they read as light as the label.
+         A plug, a page with a folded corner, a folder. -->
+    <StreamGeometry x:Key="Icon.NavigationConnections">M6,1.5V4.5M10,1.5V4.5M4,4.5H12V8A4,4 0 0 1 4,8ZM8,12V14.5</StreamGeometry>
+    <StreamGeometry x:Key="Icon.NavigationScripts">M3.5,1.5H9.5L12.5,4.5V14.5H3.5ZM9.5,1.5V4.5H12.5</StreamGeometry>
+    <StreamGeometry x:Key="Icon.NavigationSamples">M1.5,3H6L7.5,4.5H14.5V13.5H1.5Z</StreamGeometry>
 
     <!-- Connections tree (ConnectionNavigationView), Material Design Icons: folder-outline, link,
          alert-outline, web, swap-horizontal (gRPC), database. -->

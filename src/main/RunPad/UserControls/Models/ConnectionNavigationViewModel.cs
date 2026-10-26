@@ -47,7 +47,7 @@ public sealed class ConnectionNavigationNode : ReactiveObject
     public bool IsDriverMissing { get; private init; }
 
     /// <summary>Resource key of the row's icon in Resources/Icons.axaml.</summary>
-    public string IconKey { get; private init; } = "Icon.NavigationConnections";
+    public string IconKey { get; private init; } = "Icon.DriverDatabase";
 
     /// <summary>Null for a connection row.</summary>
     public ObservableCollection<ConnectionNavigationNode>? Children { get; }
@@ -128,7 +128,6 @@ public sealed class ConnectionNavigationNode : ReactiveObject
     {
         "http" or "https" or "rest" => "Icon.DriverHttp",
         "grpc" => "Icon.DriverGrpc",
-        "" => "Icon.NavigationConnections",
         _ => "Icon.DriverDatabase",
     };
 
