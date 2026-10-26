@@ -4,6 +4,7 @@ using RunPad.Contracts;
 using RunPad.Contracts.Connections;
 using RunPad.Format.RPad;
 using RunPad.Services.Connections;
+using RunPad.Services.Examples;
 using RunPad.Services.Secrets;
 using RunPad.UserControls.Models;
 using RunPad.Windows.Models;
@@ -397,5 +398,169 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
         Assert.Equal("invoices", Assert.Single(apis.Children!).Name);
         var stored = new FileConnectionGroupingStore(ConnectionsPath).Load();
         Assert.Equal(["invoices"], stored.Assignments.Keys);
+    }
+}
+
+// What a connection row says without connecting: missing secrets and variables, and the contract's
+// state (being read, unreadable, out of date after a failed refresh), followed live as reads happen.
+public sealed class ConnectionStatusTests : IDisposable
+{
+    private readonly string _folder = Directory.CreateTempSubdirectory("runpad-connection-status").FullName;
+
+    public void Dispose() => Directory.Delete(_folder, recursive: true);
+
+    // Reads its contract only when the test lets it, failing or succeeding as told.
+    private sealed class ContractDriver : IConnectionSchemaDriver
+    {
+        public TaskCompletionSource<ConnectionSchema> Next { get; set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public string Id => "contract";
+        public string DisplayName => "Contract";
+        public ConnectionCategory Category => ConnectionCategory.Database;
+        public IReadOnlyList<ConnectionParam> Params => [];
+        public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string>();
+        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+            Task.FromResult(new ConnectionTestResult(true, ""));
+        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) => new("");
+        public Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
+            CancellationToken cancellationToken) => Next.Task;
+    }
+
+    private (ConnectionNavigationViewModel Vm, ContractDriver Driver) Create(params RpadConnection[] connections)
+    {
+        var store = new FileConnectionStore(Path.Combine(_folder, "connections.json"));
+        store.Save(connections, null);
+        var drivers = new ConnectionDriverRegistry();
+        drivers.Register(new HttpConnectionDriver());
+        var driver = new ContractDriver();
+        drivers.Register(driver);
+        var schemas = new ConnectionSchemas(drivers, Path.Combine(_folder, "schemas"),
+            new ConnectionTools { GetPackageFolderAsync = (_, _, _) => Task.FromResult("") }, _ => null);
+        var secrets = Mock.Of<ISecretStore>(s => s.LoadSnapshot() == new SecretStoreSnapshot(new[] { new Secret("token", "t0k") }, null));
+        return (new ConnectionNavigationViewModel(store, drivers, secrets: secrets, schemas: schemas), driver);
+    }
+
+    private static RpadConnection Http(string name, string authorization) => new()
+    {
+        Name = name,
+        Driver = "http",
+        Params = new(StringComparer.Ordinal)
+        {
+            ["baseAddress"] = RpadValue.Of("https://example.test/"),
+            ["headers"] = RpadValue.Map([new("Authorization", RpadValue.Of(authorization))]),
+        },
+    };
+
+    private static async Task WaitUntil(Func<bool> condition)
+    {
+        for (var i = 0; i < 200 && !condition(); i++) await Task.Delay(10);
+        Assert.True(condition());
+    }
+
+    [Fact]
+    public async Task MissingSecretsAndVariables_Should_BeProblems_WithoutReadingAnyValue()
+    {
+        var (vm, _) = Create(
+            Http("known", "Bearer ${secret:token}"),
+            Http("unknown", "Bearer ${secret:nope}"),
+            Http("variable", "Bearer ${env:RUNPAD_TEST_SURELY_UNSET_VARIABLE}"));
+        await vm.RefreshAsync();
+
+        Assert.Equal(ConnectionRowState.Ready, vm.Find("known", isConnection: true)!.Status.State);
+        Assert.Equal("The Secret Store has no secret named 'nope'. Add it in Tools → Secret Store.", vm.Find("unknown", isConnection: true)!.Problem);
+        Assert.Equal("The environment variable 'RUNPAD_TEST_SURELY_UNSET_VARIABLE' is not set.", vm.Find("variable", isConnection: true)!.Problem);
+    }
+
+    [Fact]
+    public async Task TheContractsState_Should_FollowItsReads_LoadingProblemReadyAndOutOfDate()
+    {
+        var (vm, driver) = Create(new RpadConnection { Name = "orders", Driver = "contract" });
+        await vm.RefreshAsync();
+        var row = () => vm.Find("orders", isConnection: true)!;
+        Assert.Equal(ConnectionRowState.Ready, row().Status.State);
+        Assert.True(row().HasContract);
+
+        var refresh = vm.RefreshConnectionAsync(row());
+        await WaitUntil(() => row().IsLoading);
+        Assert.Contains("reading its contract", row().AccessibleName);
+        driver.Next.SetException(new InvalidOperationException("The server is down."));
+        await refresh;
+        await WaitUntil(() => row().HasProblem);
+        Assert.Equal("Its contract couldn't be read: The server is down.", row().Problem);
+
+        driver.Next = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        driver.Next.SetResult(new ConnectionSchema("2 services", [], ""));
+        await vm.RefreshConnectionAsync(row());
+        await WaitUntil(() => row().Status.State == ConnectionRowState.Ready);
+
+        driver.Next = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        driver.Next.SetException(new InvalidOperationException("Timed out."));
+        await vm.RefreshConnectionAsync(row());
+        await WaitUntil(() => row().IsStale);
+        Assert.Equal("Using the contract read earlier; the last refresh failed: Timed out.", row().StatusText);
+        Assert.False(row().HasProblem); // the earlier contract still builds the script
+    }
+
+    [Fact]
+    public async Task RefreshAll_Should_ReadTheListAndEveryContractAgain()
+    {
+        var (vm, driver) = Create(new RpadConnection { Name = "orders", Driver = "contract" }, Http("known", "Bearer ${secret:token}"));
+        await vm.RefreshAsync();
+        driver.Next.SetException(new InvalidOperationException("Unreachable."));
+        await vm.RefreshAllAsync();
+        await WaitUntil(() => vm.Find("orders", isConnection: true)!.HasProblem);
+        Assert.Equal("Its contract couldn't be read: Unreachable.", vm.Find("orders", isConnection: true)!.Problem);
+        Assert.Equal(ConnectionRowState.Ready, vm.Find("known", isConnection: true)!.Status.State);
+    }
+}
+
+public sealed class SidebarStateTests
+{
+    private static ExampleScript Sample(string id, string folder) => new(id, id, "", RpadLanguage.CSharp, RpadKind.Statements, folder);
+
+    [Fact]
+    public void TheSamplesTree_Should_KeepTheBundledOrder_AndStartWithKeptFoldersFolded()
+    {
+        var changes = new List<(string, bool)>();
+        var tree = SampleTreeNode.Build(
+            [Sample("a.rpad", "getting-started"), Sample("b.rpad", "output"), Sample("c.rpad", "getting-started"), Sample("top.rpad", "")],
+            ["output"], folder => changes.Add((folder.Id, folder.IsExpanded)));
+
+        Assert.Equal(["Getting started", "Output", "top.rpad"], tree.Select(n => n.Title));
+        Assert.Equal(["a.rpad", "c.rpad"], tree[0].Children!.Select(n => n.Id));
+        Assert.True(tree[0].IsExpanded);
+        Assert.False(tree[1].IsExpanded);
+        Assert.False(tree[2].IsFolder);
+        Assert.Equal("Icon.LanguageCSharp", tree[2].IconKey);
+
+        tree[1].IsExpanded = true;
+        Assert.Equal([("output", true)], changes);
+    }
+
+    [Fact]
+    public async Task FoldedGroups_Should_BeRestored_AndReportedForTheNextStart()
+    {
+        var folder = Directory.CreateTempSubdirectory("runpad-folded-groups").FullName;
+        try
+        {
+            var store = new FileConnectionStore(Path.Combine(folder, "connections.json"));
+            store.Save([new RpadConnection { Name = "billing", Driver = "http" }], null);
+            var first = new ConnectionNavigationViewModel(store);
+            await first.RefreshAsync();
+            var group = first.CreateGroup(null, "APIs")!;
+            IReadOnlyCollection<string>? reported = null;
+            first.CollapsedGroupsChanged += ids => reported = ids;
+            first.Find(group.Id, isConnection: false)!.IsExpanded = false;
+            Assert.Equal([group.Id], reported);
+
+            var second = new ConnectionNavigationViewModel(store);
+            second.RestoreCollapsedGroups(reported);
+            await second.RefreshAsync();
+            Assert.False(second.Find(group.Id, isConnection: false)!.IsExpanded);
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
     }
 }

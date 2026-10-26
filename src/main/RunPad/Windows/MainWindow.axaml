@@ -6,7 +6,7 @@
     xmlns:chrome="using:Avalonia.Controls.Chrome"
     xmlns:uc="clr-namespace:RunPad.UserControls"
     xmlns:ucm="clr-namespace:RunPad.UserControls.Models"
-    xmlns:ex="clr-namespace:RunPad.Services.Examples" mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450" x:Class="RunPad.Windows.MainWindow" x:DataType="vm:MainWindowViewModel" Icon="/Assets/icon.ico" Title="RunPad" WindowDecorations="BorderOnly" ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="32">
+    xmlns:conv="clr-namespace:RunPad.Converters" mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450" x:Class="RunPad.Windows.MainWindow" x:DataType="vm:MainWindowViewModel" Icon="/Assets/icon.ico" Title="RunPad" WindowDecorations="BorderOnly" ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="32">
 
     <Window.Resources>
         <!-- Referenced via ContentTemplate on the sidebar's ContentControl below. DataTemplate.Build()
@@ -19,29 +19,6 @@
     </Window.Resources>
 
     <Window.Styles>
-
-        <!-- Sample rows line up with the leaf rows of the two trees: same height, type, icon column
-             (4 px list padding + 22 px = the trees' 4 px padding, 16 px chevron column and 6 px),
-             hover and selection. -->
-        <Style Selector="ListBox.examples > ListBoxItem">
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Padding" Value="22,0,6,0"/>
-            <Setter Property="MinHeight" Value="27"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
-        </Style>
-        <Style Selector="ListBox.examples > ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Selection}"/>
-        </Style>
-        <Style Selector="ListBox.examples > ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
-        </Style>
-        <Style Selector="ListBox.examples > ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{DynamicResource RunPad.Accent.BackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource RunPad.Accent.ForegroundBrush}"/>
-        </Style>
 
         <!-- Window control buttons -->
         <Style Selector="Button.wc-btn">
@@ -132,10 +109,12 @@
             <DockPanel Grid.Column="0" ClipToBounds="True" Background="{DynamicResource RunPad.Sidebar.BackgroundBrush}">
 
                 <!-- Three sections that open and close independently (Resources/NavigationStyles.axaml):
-                     Connections first, then the scripts folder, then the bundled samples. -->
-                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                    <StackPanel>
-                        <Expander x:Name="ConnectionsBundle" Classes="bundle" IsExpanded="True"
+                     Connections first, then the scripts folder, then the bundled samples. Open sections
+                     share the height and each scrolls its own tree; folded ones take only their header
+                     (rows set by MainWindow.UpdateSidebarRows). Which are open is kept between runs. -->
+                <Grid x:Name="SidebarSections" RowDefinitions="Auto,Auto,Auto,*">
+                        <Expander x:Name="ConnectionsBundle" Grid.Row="0" Classes="bundle"
+                                  IsExpanded="{Binding IsConnectionsSectionExpanded, Mode=TwoWay}"
                                   IsVisible="{Binding HasConnectionNavigation}"
                                   AutomationProperties.Name="Connections navigation bundle">
                             <Expander.Header>
@@ -148,7 +127,8 @@
                                                          OpenConnections="ConnectionNavigation_OpenConnections"
                                                          AddToScript="ConnectionNavigation_AddToScript"/>
                         </Expander>
-                        <Expander x:Name="ScriptsBundle" Classes="bundle" IsExpanded="True"
+                        <Expander x:Name="ScriptsBundle" Grid.Row="1" Classes="bundle"
+                                  IsExpanded="{Binding IsScriptsSectionExpanded, Mode=TwoWay}"
                                   AutomationProperties.Name="Scripts navigation bundle">
                             <Expander.Header>
                                 <StackPanel Orientation="Horizontal" Spacing="6">
@@ -157,9 +137,10 @@
                                 </StackPanel>
                             </Expander.Header>
                             <ContentControl Content="{Binding FileTree}" ContentTemplate="{StaticResource FileTreeTemplate}"
-                                            HorizontalContentAlignment="Stretch"/>
+                                            HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
                         </Expander>
-                        <Expander x:Name="SamplesBundle" Classes="bundle" IsExpanded="False"
+                        <Expander x:Name="SamplesBundle" Grid.Row="2" Classes="bundle"
+                                  IsExpanded="{Binding IsSamplesSectionExpanded, Mode=TwoWay}"
                                   AutomationProperties.Name="Samples navigation bundle">
                             <Expander.Header>
                                 <StackPanel Orientation="Horizontal" Spacing="6">
@@ -167,27 +148,40 @@
                                     <TextBlock Text="Samples"/>
                                 </StackPanel>
                             </Expander.Header>
-                            <StackPanel>
-                                <ListBox x:Name="ExampleList" Classes="examples" ItemsSource="{Binding Examples}"
-                                         Background="Transparent" BorderThickness="0" Padding="4,0,4,0"
-                                         SelectionMode="Single"
-                                         Tapped="ExampleList_Tapped" KeyDown="ExampleList_KeyDown">
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate x:DataType="ex:ExampleScript">
-                                            <StackPanel Orientation="Horizontal" Spacing="7">
-                                                <PathIcon Data="{StaticResource Icon.LanguageCSharp}" Width="14" Height="14" Opacity="0.55"/>
-                                                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
-                                </ListBox>
-                                <TextBlock Text="No samples available." Margin="26,4,8,4" FontSize="{DynamicResource RunPad.Type.Caption}"
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="No samples available." Margin="26,4,8,4"
+                                           FontSize="{DynamicResource RunPad.Type.Caption}"
                                            Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                                            IsVisible="{Binding ShowNoExamplesHint}"/>
-                            </StackPanel>
+                                <!-- Read-only: a sample opens as an untitled copy (MainWindowViewModel.OpenExample). -->
+                                <TreeView x:Name="SampleTree" Classes="navigation" ItemsSource="{Binding SampleTree}"
+                                          Background="Transparent" BorderThickness="0" Padding="4,0,4,0"
+                                          SelectionMode="Single" AutomationProperties.Name="Samples"
+                                          Tapped="SampleTree_Tapped" KeyDown="SampleTree_KeyDown">
+                                    <TreeView.Styles>
+                                        <Style Selector="TreeViewItem" x:DataType="ucm:SampleTreeNode">
+                                            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                                            <Setter Property="(AutomationProperties.Name)" Value="{Binding AccessibleName}"/>
+                                        </Style>
+                                    </TreeView.Styles>
+                                    <TreeView.ItemTemplate>
+                                        <TreeDataTemplate DataType="ucm:SampleTreeNode" ItemsSource="{Binding Children}">
+                                            <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center" Margin="0,1">
+                                                <Panel Width="14" Height="14" VerticalAlignment="Center">
+                                                    <PathIcon IsVisible="{Binding IsFolder}" Data="{StaticResource Icon.FolderOpen}"
+                                                              Width="14" Height="14" Opacity="0.55"/>
+                                                    <Path IsVisible="{Binding !IsFolder}" Stretch="Uniform" Opacity="0.55"
+                                                          Data="{Binding IconKey, Converter={x:Static conv:ResourceKeyToGeometryConverter.Instance}}"
+                                                          Fill="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+                                                </Panel>
+                                                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </TreeDataTemplate>
+                                    </TreeView.ItemTemplate>
+                                </TreeView>
+                            </DockPanel>
                         </Expander>
-                    </StackPanel>
-                </ScrollViewer>
+                </Grid>
             </DockPanel>
 
             <GridSplitter Grid.Column="1" Classes="seam" ResizeDirection="Columns"/>

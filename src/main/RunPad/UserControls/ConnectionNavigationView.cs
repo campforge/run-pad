@@ -229,6 +229,8 @@ public partial class ConnectionNavigationView : UserControl
         {
             menu.Items.Add(Item(node.IsAttached ? "In This Script" : "Add to Script", "Icon.ConnectionAttached", vm.CanAddToScript(node),
                 () => RaiseEvent(new ConnectionNavigationEventArgs(AddToScriptEvent, node.Id))));
+            menu.Items.Add(Item(node.HasContract ? "Refresh Contract" : "Refresh", "Icon.Sync", !node.IsLoading,
+                () => _ = vm.RefreshConnectionAsync(node)));
             menu.Items.Add(Item("Edit Connection…", "Icon.Rename", true, () => RaiseOpen(node.Id)));
             menu.Items.Add(new Separator());
         }
@@ -261,6 +263,7 @@ public partial class ConnectionNavigationView : UserControl
             menu.Items.Add(move);
         }
         menu.Items.Add(new Separator());
+        menu.Items.Add(Item("Refresh All", "Icon.Sync", vm.IsLoaded && !vm.IsLoading, () => _ = vm.RefreshAllAsync()));
         menu.Items.Add(Item("Manage Connections…", "Icon.Settings", true, () => RaiseOpen(null)));
     }
 

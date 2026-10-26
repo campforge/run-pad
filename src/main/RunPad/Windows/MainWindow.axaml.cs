@@ -12,6 +12,7 @@ using RunPad.Format.RPad;
 using RunPad.Services.Examples;
 using RunPad.Services.Preferences;
 using RunPad.UserControls;
+using RunPad.UserControls.Models;
 using RunPad.Windows.Models;
 
 namespace RunPad.Windows;
@@ -59,6 +60,12 @@ public sealed partial class MainWindow : Window, IDisposable
         // handledEventsToo: true — fires even when AvaloniaEdit marks the event Handled
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
         AddHandler(GotFocusEvent, OnAnyGotFocus, RoutingStrategies.Bubble, handledEventsToo: true);
+
+        foreach (var section in new[] { ConnectionsBundle, ScriptsBundle, SamplesBundle })
+        {
+            section.GetObservable(Expander.IsExpandedProperty).Subscribe(_ => UpdateSidebarRows());
+            section.GetObservable(IsVisibleProperty).Subscribe(_ => UpdateSidebarRows());
+        }
 
         var editorHost = this.FindControl<ContentControl>("EditorTabsHost")!;
         editorHost.Content = editorTabsCtrl;
@@ -486,22 +493,41 @@ public sealed partial class MainWindow : Window, IDisposable
         GetViewModel().NewRpadFile(language, kind.Value);
     }
 
-    // ── Examples ──────────────────────────────────────────────────────────────
+    // ── Samples ───────────────────────────────────────────────────────────────
 
-    // A click (also on the example already selected, e.g. after closing its tab) or Enter opens it.
-    private void ExampleList_Tapped(object? sender, TappedEventArgs e) => OpenSelectedExample(sender);
-
-    private void ExampleList_KeyDown(object? sender, KeyEventArgs e)
+    // A click on a sample (also the one already selected, e.g. after closing its tab) or Enter opens
+    // it; a folder only opens or folds.
+    private void SampleTree_Tapped(object? sender, TappedEventArgs e)
     {
-        if (e.Key != Key.Return) return;
-        OpenSelectedExample(sender);
+        Visual? visual = e.Source as Visual;
+        while (visual is not null and not TreeViewItem) visual = visual.GetVisualParent();
+        if (visual is TreeViewItem { DataContext: SampleTreeNode { Example: { } example } })
+            GetViewModel().OpenExample(example);
+    }
+
+    private void SampleTree_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Return || sender is not TreeView { SelectedItem: SampleTreeNode { Example: { } example } }) return;
+        GetViewModel().OpenExample(example);
         e.Handled = true;
     }
 
-    private void OpenSelectedExample(object? sender)
+    // ── Sidebar sections ──────────────────────────────────────────────────────
+
+    // Open sections share the sidebar's height and each tree scrolls inside its own section; a folded
+    // or hidden one takes its header only. The last row takes what is left when all are folded.
+    private void UpdateSidebarRows()
     {
-        if (sender is ListBox { SelectedItem: ExampleScript example })
-            GetViewModel().OpenExample(example);
+        var grid = this.FindControl<Grid>("SidebarSections")!;
+        var sections = new[] { ConnectionsBundle, ScriptsBundle, SamplesBundle };
+        var anyOpen = false;
+        for (var i = 0; i < sections.Length; i++)
+        {
+            var open = sections[i].IsVisible && sections[i].IsExpanded;
+            anyOpen |= open;
+            grid.RowDefinitions[i].Height = open ? new GridLength(1, GridUnitType.Star) : GridLength.Auto;
+        }
+        grid.RowDefinitions[3].Height = anyOpen ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
     }
 
     // ── Connections tree ──────────────────────────────────────────────────────

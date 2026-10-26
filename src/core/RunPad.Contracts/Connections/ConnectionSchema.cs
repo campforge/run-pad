@@ -94,6 +94,9 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
     /// </summary>
     public event Action<string>? Changed;
 
+    /// <summary>A read of a schema started or ended (<see cref="IsFetching"/>), with its key; raised on any thread.</summary>
+    public event Action<string>? FetchingChanged;
+
     public string KeyOf(RpadConnection connection, string? scriptDirectory = null)
     {
         var folderPart = drivers?.Find(connection.Driver) is IConnectionSchemaDriver driver && driver.UsesScriptDirectory(connection)
@@ -156,6 +159,13 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
     {
         var key = KeyOf(connection, scriptDirectory);
         lock (_lock) return _descriptions.TryGetValue(key, out var cached) ? cached.Schema : null;
+    }
+
+    /// <summary>Whether this RunPad is reading the connection's schema right now.</summary>
+    public bool IsFetching(RpadConnection connection, string? scriptDirectory = null)
+    {
+        var key = KeyOf(connection, scriptDirectory);
+        lock (_lock) return _fetches.ContainsKey(key);
     }
 
     /// <summary>Why the schema couldn't be read the last time this RunPad tried, or null.</summary>
@@ -298,6 +308,7 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
             });
             _fetches[key] = fetch;
         }
+        FetchingChanged?.Invoke(key);
         // Registered after the task is listed, so a read that is already over still leaves the list.
         _ = fetch.ContinueWith(_ =>
         {
@@ -305,6 +316,7 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
             {
                 if (_fetches.TryGetValue(key, out var listed) && listed == fetch) _fetches.Remove(key);
             }
+            FetchingChanged?.Invoke(key);
         }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         return fetch;
     }

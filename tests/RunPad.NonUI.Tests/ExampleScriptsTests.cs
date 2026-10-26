@@ -27,6 +27,10 @@ public class ExampleScriptsTests
         Assert.Equal(
             ["Quick start", "Expression kind", "Program kind", "Products overview", "Live output", "Debugging loop"],
             examples.Select(e => e.Title));
+        // Each in its Samples folder, whatever separator the build kept in the resource name.
+        Assert.Equal(
+            ["getting-started", "getting-started", "getting-started", "output", "output", "debugging"],
+            examples.Select(e => e.Folder));
         Assert.DoesNotContain(examples, e => e.Id.Contains("analyzer", StringComparison.Ordinal)); // the broken-on-purpose demo
     }
 
