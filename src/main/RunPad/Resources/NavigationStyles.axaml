@@ -22,7 +22,9 @@
                         BorderBrush="{TemplateBinding BorderBrush}"
                         BorderThickness="{TemplateBinding BorderThickness}">
                     <DockPanel>
-                        <ToggleButton x:Name="ExpanderHeader" DockPanel.Dock="Top" Classes="bundle-header"
+                        <!-- Not named ExpanderHeader: Fluent styles that part by name in each state
+                             (borders, corners, padding), and this header looks the same open or folded. -->
+                        <ToggleButton x:Name="PART_BundleHeader" DockPanel.Dock="Top" Classes="bundle-header"
                                       IsChecked="{TemplateBinding IsExpanded, Mode=TwoWay}"
                                       Content="{TemplateBinding Header}"
                                       ContentTemplate="{TemplateBinding HeaderTemplate}"
@@ -32,6 +34,7 @@
                                           Content="{TemplateBinding Content}"
                                           ContentTemplate="{TemplateBinding ContentTemplate}"
                                           HorizontalContentAlignment="Stretch"
+                                          Background="Transparent" BorderThickness="0"
                                           Padding="0,0,0,6"/>
                     </DockPanel>
                 </Border>
@@ -50,6 +53,8 @@
         <Setter Property="Margin" Value="0"/>
         <Setter Property="Padding" Value="8,0,8,0"/>
         <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="0"/>
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
         <Setter Property="FontSize" Value="{DynamicResource RunPad.Type.Caption}"/>
         <Setter Property="FontWeight" Value="Medium"/>
@@ -74,6 +79,14 @@
         </Setter>
     </Style>
     <Style Selector="ToggleButton.bundle-header:pointerover">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <!-- Open or folded, pressed or not: only the chevron turns. -->
+    <Style Selector="ToggleButton.bundle-header:checked, ToggleButton.bundle-header:pressed">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+    </Style>
+    <Style Selector="ToggleButton.bundle-header:checked:pointerover">
         <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
     </Style>
     <Style Selector="ToggleButton.bundle-header:checked /template/ Path#Chevron">
