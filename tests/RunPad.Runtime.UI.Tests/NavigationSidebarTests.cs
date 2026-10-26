@@ -77,7 +77,8 @@ public sealed class NavigationSidebarTests : IDisposable
         var store = new FileConnectionStore(Path.Combine(_dataFolder, "connections.json"));
         RpadConnection Http(string name) => new()
         {
-            Name = name, Driver = "http",
+            Name = name,
+            Driver = "http",
             Params = new(StringComparer.Ordinal) { ["baseAddress"] = RpadValue.Of($"https://{name}.test/") },
         };
         // One list per test: a second window of the same test reads it rather than writing it again,
