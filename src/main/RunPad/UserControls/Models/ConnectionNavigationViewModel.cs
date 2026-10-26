@@ -3,6 +3,8 @@ using ReactiveUI;
 using RunPad.Contracts.Connections;
 using RunPad.Format.RPad;
 using RunPad.Services.Connections;
+using RunPad.Services.Secrets;
+using RunPad.Windows.Models;
 
 namespace RunPad.UserControls.Models;
 
@@ -23,13 +25,14 @@ public sealed class ConnectionNavigationNode : ReactiveObject
     internal static ConnectionNavigationNode Group(ConnectionGroup group, int depth) =>
         new(ConnectionNavigationNodeKind.Group, group.Id, group.Name, depth) { IconKey = "Icon.ConnectionGroup" };
 
-    internal static ConnectionNavigationNode Connection(RpadConnection connection, IConnectionDriver? driver, int depth) =>
+    internal static ConnectionNavigationNode Connection(RpadConnection connection, IConnectionDriver? driver, int depth, string? problem) =>
         new(ConnectionNavigationNodeKind.Connection, connection.Name, connection.Name, depth)
         {
             DriverId = connection.Driver,
             DriverName = driver?.DisplayName ?? $"{connection.Driver} (not available in this RunPad)",
             IsDriverMissing = driver is null,
             IconKey = DriverIconKey(connection.Driver),
+            Problem = problem,
         };
 
     public ConnectionNavigationNodeKind Kind { get; }
@@ -45,6 +48,16 @@ public sealed class ConnectionNavigationNode : ReactiveObject
     public string? DriverId { get; private init; }
     public string? DriverName { get; private init; }
     public bool IsDriverMissing { get; private init; }
+
+    /// <summary>Connection row: why it can't be used as it is (no driver, settings the driver rejects, an unreadable contract); null when none is known.</summary>
+    public string? Problem { get; private init; }
+
+    public bool HasProblem => Problem is not null;
+
+    /// <summary>Group row: a connection somewhere inside has a problem, so a folded group still shows it.</summary>
+    public bool HasProblemInside => Children?.Any(c => c.HasProblem || c.HasProblemInside) == true;
+
+    public bool ShowsProblem => HasProblem || HasProblemInside;
 
     /// <summary>Resource key of the row's icon in Resources/Icons.axaml.</summary>
     public string IconKey { get; private init; } = "Icon.DriverDatabase";
@@ -107,19 +120,22 @@ public sealed class ConnectionNavigationNode : ReactiveObject
     {
         ConnectionNavigationNodeKind.Connection => string.Join(", ", new[]
         {
-            Name, DriverName, IsAttached ? "used by this script" : null, IsDriverMissing ? "driver not available" : null,
+            Name, DriverName, IsAttached ? "used by this script" : null, Problem is { } problem ? "problem: " + problem : null,
         }.Where(s => s is not null)),
-        _ => $"{Name} group, {ConnectionCount} {(ConnectionCount == 1 ? "connection" : "connections")}",
+        _ => $"{Name} group, {ConnectionCount} {(ConnectionCount == 1 ? "connection" : "connections")}"
+             + (HasProblemInside ? ", has connections with problems" : ""),
     };
 
     public string ToolTip => IsConnection
-        ? IsAttached ? $"{DriverName} · used by this script" : DriverName ?? Name
+        ? string.Join("\n", new[] { DriverName, IsAttached ? "Used by this script" : null, Problem }.Where(s => s is not null))
         : AccessibleName;
 
     internal void RefreshCounts()
     {
         foreach (var child in Children ?? []) child.RefreshCounts();
         this.RaisePropertyChanged(nameof(ConnectionCount));
+        this.RaisePropertyChanged(nameof(HasProblemInside));
+        this.RaisePropertyChanged(nameof(ShowsProblem));
         this.RaisePropertyChanged(nameof(AccessibleName));
         this.RaisePropertyChanged(nameof(ToolTip));
     }
@@ -148,18 +164,23 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
     private readonly IConnectionStore _store;
     private readonly ConnectionDriverRegistry? _drivers;
     private readonly FileConnectionGroupingStore _groupStore;
+    private readonly ISecretStore? _secrets;
+    private readonly ConnectionSchemas? _schemas;
     private readonly HashSet<string> _collapsed = new(StringComparer.Ordinal);
     private ConnectionGroupingModel _grouping = new();
     private IReadOnlyList<RpadConnection> _connections = [];
+    private IReadOnlyDictionary<string, string> _problems = new Dictionary<string, string>();
     private HashSet<string> _attached = new(StringComparer.Ordinal);
     private bool _groupingUnreadable;
     private int _refreshGeneration;
 
     public ConnectionNavigationViewModel(IConnectionStore store, ConnectionDriverRegistry? drivers = null,
-        FileConnectionGroupingStore? groupStore = null)
+        FileConnectionGroupingStore? groupStore = null, ISecretStore? secrets = null, ConnectionSchemas? schemas = null)
     {
         _store = store;
         _drivers = drivers;
+        _secrets = secrets;
+        _schemas = schemas;
         _groupStore = groupStore ?? new FileConnectionGroupingStore(store.FilePath);
         Nodes.CollectionChanged += (_, _) => this.RaisePropertyChanged(nameof(IsEmpty));
     }
@@ -212,8 +233,10 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
         try
         {
             var (connections, grouping, error, groupingUnreadable) = await Task.Run(Load).ConfigureAwait(true);
+            var problems = await Task.Run(() => FindProblems(connections)).ConfigureAwait(true);
             if (generation != _refreshGeneration) return;
             _connections = connections;
+            _problems = problems;
             _grouping = grouping;
             _groupingUnreadable = groupingUnreadable;
             Error = error;
@@ -249,6 +272,32 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
     {
         get;
         private set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    // What can be known without connecting: the driver, its own validation of the settings, and the
+    // error of the last attempt to read the contract (gRPC). Each connection is checked on its own, so
+    // one driver throwing doesn't hide the others.
+    private Dictionary<string, string> FindProblems(IReadOnlyList<RpadConnection> connections)
+    {
+        var problems = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var connection in connections)
+        {
+            if (_drivers?.Find(connection.Driver) is not { } driver)
+            {
+                if (_drivers is not null) problems[connection.Name] = $"This RunPad has no '{connection.Driver}' driver.";
+                continue;
+            }
+            try
+            {
+                if (driver.Validate(connection).FirstOrDefault() is { } invalid) problems[connection.Name] = invalid;
+                else if (_schemas?.Cache.ErrorFor(connection) is { } schemaError) problems[connection.Name] = $"Its contract couldn't be read: {schemaError}";
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                problems[connection.Name] = $"Its settings couldn't be checked: {ex.Message}";
+            }
+        }
+        return problems;
     }
 
     /// <summary>Marks the connections the active script uses (null: no script is active).</summary>
@@ -348,6 +397,47 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
 
     public void DismissNotice() => Notice = null;
 
+    /// <summary>
+    /// Adds a saved connection to the script's front matter with the same checks as Dependencies →
+    /// Connections (driver, readable contract, a name that doesn't clash in code). When its driver
+    /// needs NuGet packages the script doesn't have, <paramref name="confirmPackages"/> is asked first
+    /// and the packages are added with it. True when the front matter changed; otherwise
+    /// <see cref="Notice"/> says why, or the user declined.
+    /// </summary>
+    public async Task<bool> AddToScriptAsync(RpadFrontMatter frontMatter, string? scriptPath, string connectionName,
+        Func<string, Task<bool>> confirmPackages)
+    {
+        Notice = null;
+        var packages = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (id, package) in frontMatter.Packages ?? []) packages[id] = package.Version;
+        var script = new ScriptConnectionsViewModel(_store, _secrets, _drivers, _schemas);
+        script.UsePackages(() => packages.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase), (id, version) => packages[id] = version);
+        script.SetScriptPath(scriptPath);
+        script.Load(frontMatter);
+        if (script.ReadError is { } readError) { Notice = readError; return false; }
+
+        script.RequestAdd(connectionName);
+        if (script.IsAddConfirmationPending)
+        {
+            if (!await confirmPackages(script.AddMessage!).ConfigureAwait(true))
+            {
+                script.CancelPendingAdd();
+                return false;
+            }
+            script.ConfirmPendingAdd();
+        }
+        if (script.CreateMessage is { } message) { Notice = message; return false; }
+        if (!script.HasChanges) return false;
+
+        frontMatter.Connections = script.ToList();
+        var scriptPackages = frontMatter.Packages ??= [];
+        foreach (var (id, version) in packages)
+            if (!scriptPackages.Keys.Any(k => string.Equals(k, id, StringComparison.OrdinalIgnoreCase)))
+                scriptPackages[id] = new Package(version);
+        SetAttached(frontMatter.Connections);
+        return true;
+    }
+
     internal IEnumerable<ConnectionNavigationNode> AllNodes()
     {
         var stack = new Stack<ConnectionNavigationNode>(Nodes.Reverse());
@@ -428,7 +518,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
 
     private ConnectionNavigationNode ConnectionRow(RpadConnection connection, int depth)
     {
-        var node = ConnectionNavigationNode.Connection(connection, _drivers?.Find(connection.Driver), depth);
+        var node = ConnectionNavigationNode.Connection(connection, _drivers?.Find(connection.Driver), depth, _problems.GetValueOrDefault(connection.Name));
         node.IsAttached = _attached.Contains(connection.Name);
         return node;
     }

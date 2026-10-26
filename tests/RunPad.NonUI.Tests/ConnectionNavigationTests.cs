@@ -1,5 +1,6 @@
 using Moq;
 using RunPad.Connectors.Http;
+using RunPad.Contracts;
 using RunPad.Contracts.Connections;
 using RunPad.Format.RPad;
 using RunPad.Services.Connections;
@@ -133,7 +134,25 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
 
     public void Dispose() => Directory.Delete(_folder, recursive: true);
 
-    private static RpadConnection Connection(string name, string driver = "http") => new() { Name = name, Driver = driver };
+    private static RpadConnection Connection(string name, string driver = "http") => new()
+    {
+        Name = name,
+        Driver = driver,
+        Params = driver == "http" ? new(StringComparer.Ordinal) { ["baseAddress"] = RpadValue.Of($"https://{name}.test/") } : new(StringComparer.Ordinal),
+    };
+
+    private sealed class PackagedDriver : IConnectionDriver
+    {
+        public string Id => "packaged";
+        public string DisplayName => "Packaged";
+        public ConnectionCategory Category => ConnectionCategory.Database;
+        public IReadOnlyList<ConnectionParam> Params { get; } = [];
+        public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string> { ["Example.Client"] = "1.2.3" };
+        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+            Task.FromResult(new ConnectionTestResult(true, ""));
+        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) => new("");
+    }
 
     private async Task<ConnectionNavigationViewModel> CreateAsync(params RpadConnection[] connections)
     {
@@ -141,9 +160,65 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
         store.Save(connections, null);
         var drivers = new ConnectionDriverRegistry();
         drivers.Register(new HttpConnectionDriver());
+        drivers.Register(new PackagedDriver());
         var vm = new ConnectionNavigationViewModel(store, drivers);
         await vm.RefreshAsync();
         return vm;
+    }
+
+    [Fact]
+    public async Task ConnectionsWithProblems_Should_BeMarked_AlsoOnTheirFoldedGroup()
+    {
+        var model = new ConnectionGroupingModel();
+        var apis = model.Create("APIs");
+        model.MoveConnection("broken", apis.Id);
+        new FileConnectionGroupingStore(ConnectionsPath).Save(model.Snapshot());
+        var broken = new RpadConnection { Name = "broken", Driver = "http" }; // no base address
+
+        var vm = await CreateAsync(broken, Connection("fine"), Connection("warehouse", "snowflake"));
+
+        var group = vm.Nodes[0];
+        var brokenRow = Assert.Single(group.Children!);
+        Assert.Equal("The base address is missing.", brokenRow.Problem);
+        Assert.Contains("problem: The base address is missing.", brokenRow.AccessibleName);
+        Assert.Contains("The base address is missing.", brokenRow.ToolTip);
+        Assert.True(group.HasProblemInside);
+        Assert.True(group.ShowsProblem);
+        Assert.Contains("has connections with problems", group.AccessibleName);
+
+        Assert.False(vm.Find("fine", isConnection: true)!.HasProblem);
+        Assert.Equal("This RunPad has no 'snowflake' driver.", vm.Find("warehouse", isConnection: true)!.Problem);
+    }
+
+    [Fact]
+    public async Task AddingToTheScript_Should_WriteTheConnection_AndAskOnlyAboutPackages()
+    {
+        var vm = await CreateAsync(Connection("billing"), Connection("orders"), new RpadConnection { Name = "warehouse", Driver = "packaged" });
+        var frontMatter = new RpadFrontMatter { Connections = [Connection("orders")] };
+        var asked = new List<string>();
+        var answer = false;
+        Task<bool> Confirm(string message) { asked.Add(message); return Task.FromResult(answer); }
+
+        Assert.True(await vm.AddToScriptAsync(frontMatter, null, "billing", Confirm));
+        Assert.Equal(["orders", "billing"], frontMatter.Connections.Select(c => c.Name));
+        Assert.Empty(asked); // HTTP brings no packages
+        Assert.True(vm.Find("billing", isConnection: true)!.IsAttached);
+
+        Assert.False(await vm.AddToScriptAsync(frontMatter, null, "warehouse", Confirm));
+        Assert.Contains("Example.Client 1.2.3", Assert.Single(asked));
+        Assert.Equal(2, frontMatter.Connections.Count); // declined: nothing changes
+        Assert.Empty(frontMatter.Packages);
+
+        answer = true;
+        Assert.True(await vm.AddToScriptAsync(frontMatter, null, "warehouse", Confirm));
+        Assert.Equal(["orders", "billing", "warehouse"], frontMatter.Connections.Select(c => c.Name));
+        Assert.Equal("1.2.3", frontMatter.Packages["Example.Client"].Version);
+
+        Assert.False(await vm.AddToScriptAsync(frontMatter, null, "orders", Confirm));
+        Assert.Equal("'orders' is already in this script.", vm.Notice);
+        Assert.False(await vm.AddToScriptAsync(frontMatter, null, "gone", Confirm));
+        Assert.Equal("'gone' is no longer in your connections.", vm.Notice);
+        Assert.Equal(3, frontMatter.Connections.Count);
     }
 
     [Fact]
@@ -168,7 +243,7 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
         vm.SetAttached([]);
         Assert.False(vm.CanAddToScript(warehouse)); // no driver to build its client with
         Assert.Equal("Icon.DriverDatabase", warehouse.IconKey);
-        Assert.Contains("driver not available", warehouse.AccessibleName);
+        Assert.Contains("problem: This RunPad has no 'snowflake' driver.", warehouse.AccessibleName);
         Assert.Equal("APIs group, 1 connection", vm.Nodes[0].AccessibleName);
         Assert.False(vm.IsEmpty);
     }

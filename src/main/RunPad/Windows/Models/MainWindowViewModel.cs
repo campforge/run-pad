@@ -481,15 +481,15 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     }
 
     /// <summary>
-    /// Adds a saved connection to the active script through Dependencies → Connections, which asks
-    /// about the packages its driver needs; the script changes only when that window is saved.
+    /// Adds a saved connection to the active script right away, asking first only when its driver
+    /// needs NuGet packages the script doesn't have; the tab then takes the change like an edit made
+    /// in Dependencies (marked changed, IntelliSense refreshed). Why it couldn't be added shows in the tree.
     /// </summary>
     public async Task AddConnectionToScriptAsync(string connectionName)
     {
-        if (ActiveTab is not { } tab) return;
-        await _windowService.AddConnectionToScriptAsync(tab.WhenAnyValue(x => x.FrontMatter), tab.WhenAnyValue(x => x.FilePath), connectionName);
-        DependenciesWindowClosed?.Invoke();
-        RefreshConnectionNavigation();
+        if (ConnectionNavigation is not { } navigation || ActiveTab is not { FrontMatter: { } frontMatter } tab) return;
+        if (await navigation.AddToScriptAsync(frontMatter, tab.FilePath, connectionName, _windowService.ConfirmConnectionPackagesAsync))
+            DependenciesWindowClosed?.Invoke();
     }
 
     // Reading happens off the UI thread; an unexpected failure is logged, the tree keeps what it showed.

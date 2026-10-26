@@ -58,13 +58,10 @@ public sealed class WindowService : IWindowService
         await ShowDialogAsync(window);
     }
 
-    public async Task AddConnectionToScriptAsync(IObservable<RpadFrontMatter?>? frontMatter, IObservable<string?>? scriptPath, string connectionName)
+    public async Task<bool> ConfirmConnectionPackagesAsync(string message)
     {
-        var window = _dependenciesWindowFactory();
-        using var pathSubscription = scriptPath?.Subscribe(window.SetScriptPath);
-        using var subscription = frontMatter?.Subscribe(window.SetFrontMatter);
-        window.StartAddingConnection(connectionName);
-        await ShowDialogAsync(window);
+        if (MainWindow is not { } owner) return false;
+        return await new ConnectionPackageConfirmationDialog(message).ShowDialog<bool?>(owner) == true;
     }
 
     public Task ShowPreferencesAsync()
