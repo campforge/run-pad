@@ -41,7 +41,8 @@ public static partial class RpadWriter
         // lands on the code's line, and RpadParser.FindClosingFence only recognizes a fence that
         // starts a line. Write() applies the same guard to RunCode.
         if (!code.EndsWith('\n')) code += "\n";
-        return $"---\nversion: \"1.0\"\nlanguage: {languageId}\ntargetSdk: {targetSdk}\nkind: {kind}\n---\n\n# {title}\n\n```{languageId} run\n{code}```\n";
+        var id = Guid.NewGuid().ToString("D");
+        return $"---\nversion: \"1.0\"\nid: {id}\nlanguage: {languageId}\ntargetSdk: {targetSdk}\nkind: {kind}\n---\n\n# {title}\n\n```{languageId} run\n{code}```\n";
     }
 
     private static string SerializeFm(RpadFrontMatter fm, bool windowsPaths)
@@ -53,6 +54,7 @@ public static partial class RpadWriter
         var sb = new StringBuilder();
         // Connections came with format 1.1; a reader that knows only 1.0 can tell from the version.
         sb.Append("version: ").Append(fm.Connections.Count > 0 && fm.Version == "1.0" ? "1.1" : fm.Version).Append('\n');
+        if (fm.Id is { } id) sb.Append("id: ").Append(id.ToString("D")).Append('\n');
         sb.Append("language: ").Append(fm.Language.ToString().ToLowerInvariant()).Append('\n');
         sb.Append("targetSdk: ").Append(fm.TargetSdk).Append('\n');
         sb.Append("kind: ").Append(fm.Kind);

@@ -24,6 +24,7 @@ public sealed class RpadDocument
 
     private static RpadFrontMatter CloneMetadata(RpadFrontMatter source) => new()
     {
+        Id = source.Id,
         Version = source.Version,
         Language = source.Language,
         TargetSdk = source.TargetSdk,

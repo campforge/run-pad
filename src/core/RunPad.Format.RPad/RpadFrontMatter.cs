@@ -25,6 +25,14 @@ public record Package(string Version)
 
 public sealed class RpadFrontMatter
 {
+    /// <summary>
+    /// A stable identity for the document, generated once when the file is first created or saved
+    /// and preserved across ordinary saves. Save As creates a new ID (the copy is a separate document).
+    /// Legacy files without an ID receive one on their first save. Null only while parsing an older
+    /// file that has not been saved yet.
+    /// </summary>
+    public Guid? Id { get; set; }
+
     public string Version { get; set; } = "1.0";
     public RpadLanguage Language { get; set; } = RpadLanguage.CSharp;
     public TargetSdk TargetSdk { get; set; } = TargetSdk.Default;
