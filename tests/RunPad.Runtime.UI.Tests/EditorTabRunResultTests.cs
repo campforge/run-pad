@@ -102,7 +102,7 @@ public class EditorTabRunResultTests
                 Assert.NotNull(panel.FindControl<StackPanel>("ContentLayout"));
                 var input = panel.FindControl<TextBox>("ConditionBox")!;
                 Assert.NotEmpty(input.GetVisualDescendants());
-                theme.TryGetResource("RunPad.Editor.BackgroundBrush", variant, out var expectedInput);
+                theme.TryGetResource("RunPad.Toolbar.BackgroundBrush", variant, out var expectedInput);
                 var inputBorder = input.GetVisualDescendants().OfType<Border>().Single(b => b.Name == "PART_BorderElement");
                 Assert.Equal(Assert.IsAssignableFrom<ISolidColorBrush>(expectedInput).Color,
                     Assert.IsAssignableFrom<ISolidColorBrush>(inputBorder.Background).Color);
