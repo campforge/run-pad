@@ -116,7 +116,9 @@ public class ResultsOutputSettingsTests
     {
         var (ctrl, _, _) = Create();
         await ctrl.RunAsync(false, Sdk).WaitAsync(TimeSpan.FromSeconds(10));
-        for (var i = 0; i < 20 && !ctrl.State.Output.Content.Contains("plain line", StringComparison.Ordinal); i++)
+        for (var i = 0; i < 20 &&
+             (!ctrl.State.Output.Content.Contains("plain line", StringComparison.Ordinal) ||
+              !ctrl.State.Output.Content.Contains("error line", StringComparison.Ordinal)); i++)
         {
             Dispatcher.UIThread.RunJobs();
             await Task.Delay(10, TestContext.Current.CancellationToken);
