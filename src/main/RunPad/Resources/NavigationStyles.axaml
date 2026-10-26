@@ -2,6 +2,11 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:conv="clr-namespace:RunPad.Converters">
 
+    <!-- Self-contained: the window includes this file (MainWindow.axaml), so nothing here may rely on
+         the app's resources (Resources/Icons.axaml), which a window shown elsewhere, such as in the
+         UI tests, doesn't have. The chevron's geometry is written out (Material Design chevron-right)
+         rather than taken from there. Brushes stay dynamic, so they follow the theme where there is one. -->
+
     <!-- The sidebar's sections (MainWindow): flat 24 px headers in the sidebar's own colours,
          full width with no minimum height, a hairline between sections. The chevron turns down when open. -->
     <Style Selector="Expander.bundle">
@@ -50,7 +55,7 @@
     <Style Selector="ToggleButton.bundle-header">
         <Setter Property="HorizontalAlignment" Value="Stretch"/>
         <Setter Property="HorizontalContentAlignment" Value="Left"/>
-        <Setter Property="Height" Value="{DynamicResource RunPad.Size.NestedTab}"/>
+        <Setter Property="Height" Value="24"/>
         <Setter Property="MinHeight" Value="0"/>
         <Setter Property="Margin" Value="0"/>
         <Setter Property="Padding" Value="8,0,8,0"/>
@@ -67,7 +72,7 @@
                     <DockPanel>
                         <Path x:Name="Chevron" DockPanel.Dock="Left" Width="8" Height="8" Margin="2,0,8,0"
                               Stretch="Uniform" VerticalAlignment="Center"
-                              Data="{StaticResource Icon.ChevronRight}"
+                              Data="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"
                               Fill="{DynamicResource RunPad.Text.SecondaryBrush}"
                               RenderTransformOrigin="50%,50%"/>
                         <ContentPresenter Content="{TemplateBinding Content}"
@@ -181,7 +186,7 @@
                 <Border Background="{TemplateBinding Background}">
                     <Path x:Name="Chevron" Width="8" Height="8" Stretch="Uniform"
                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                          Data="{StaticResource Icon.ChevronRight}"
+                          Data="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"
                           Fill="{DynamicResource RunPad.Text.SecondaryBrush}"
                           RenderTransformOrigin="50%,50%"/>
                 </Border>
