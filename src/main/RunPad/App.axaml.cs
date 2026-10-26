@@ -239,6 +239,8 @@ public class App : Application
             ConnectionSchemaCache.DefaultFolder, DotnetConnectionTools.Default,
             sp.GetRequiredService<ISecretStore>().Find));
         services.AddSingleton<IConnectionStore>(_ => new FileConnectionStore());
+        services.AddSingleton(sp => new RunPad.UserControls.Models.ConnectionNavigationViewModel(
+            sp.GetRequiredService<IConnectionStore>(), sp.GetRequiredService<ConnectionDriverRegistry>()));
         services.AddTransient<ConnectionsWindowViewModel>();
         services.AddTransient<ConnectionsWindow>();
         services.AddTransient<SetupWizardViewModel>();

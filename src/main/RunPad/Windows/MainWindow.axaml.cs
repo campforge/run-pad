@@ -497,6 +497,11 @@ public sealed partial class MainWindow : Window, IDisposable
             GetViewModel().OpenExample(example);
     }
 
+    // ── Connections tree ──────────────────────────────────────────────────────
+
+    private void ConnectionNavigation_OpenConnections(object? sender, ConnectionNavigationEventArgs e)
+        => _ = GetViewModel().OpenConnectionsAsync(e.ConnectionName);
+
     // ── File tree ─────────────────────────────────────────────────────────────
 
     private void FileTree_Open(object? sender, FileTreeFileEventArgs e)

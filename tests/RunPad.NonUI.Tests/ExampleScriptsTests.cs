@@ -125,23 +125,14 @@ public class ExampleScriptsTests
     }
 
     [Fact]
-    public void SwitchingSidebarTabs_Should_OnlyChangeWhichPanelIsShown()
+    public void TheSamplesBundle_Should_NotShowTheNoExamplesHint_WhenThereAreExamples()
     {
         var (vm, _, folder) = CreateViewModel();
         try
         {
-            var tabs = vm.Tabs.ToList();
-            Assert.True(vm.IsQueriesTabShown);
-            Assert.False(vm.IsExamplesTabShown);
-
-            vm.SidebarTab = MainWindowViewModel.ExamplesTab;
-            Assert.False(vm.IsQueriesTabShown);
-            Assert.True(vm.IsExamplesTabShown);
             Assert.False(vm.ShowNoExamplesHint);
-
-            vm.SidebarTab = MainWindowViewModel.QueriesTab;
-            Assert.True(vm.IsQueriesTabShown);
-            Assert.Equal(tabs, vm.Tabs); // editor tabs untouched
+            Assert.Null(vm.ConnectionNavigation); // no store given: the Connections bundle is hidden
+            Assert.False(vm.HasConnectionNavigation);
         }
         finally { Directory.Delete(folder, recursive: true); }
     }

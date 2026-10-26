@@ -216,6 +216,9 @@ public sealed class ConnectionItemViewModel : ReactiveObject
         set { this.RaiseAndSetIfChanged(ref field, value ?? ""); this.RaisePropertyChanged(nameof(AccessibleName)); Edited?.Invoke(); }
     }
 
+    // The name it has in the saved list (null until first saved), so a rename keeps its group.
+    internal string? SavedName { get; set; }
+
     public string? KeptParamsNote => _otherParams.Count == 0 ? null
         : $"Also kept as written: {string.Join(", ", _otherParams.Keys)}.";
 
@@ -323,6 +326,8 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
     private readonly IReadOnlyList<string> _secretNames;
     private readonly ISecretStore _secrets;
     private readonly FileConnectionGroupingStore _groupStore;
+    // A damaged groups file is left as it is rather than replaced by an empty one on Save.
+    private readonly bool _groupingUnreadable;
     public ConnectionGroupingModel Grouping { get; }
     private string _saved = "";
     private CancellationTokenSource? _browseCancellation;
@@ -430,7 +435,11 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
         _store = store;
         _groupStore = new FileConnectionGroupingStore(store.FilePath);
         try { Grouping = new ConnectionGroupingModel(_groupStore.Load()); }
-        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { Grouping = new ConnectionGroupingModel(); }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
+        {
+            Grouping = new ConnectionGroupingModel();
+            _groupingUnreadable = true;
+        }
         Connections.CollectionChanged += (_, _) => this.RaisePropertyChanged(nameof(IsEmpty));
         _drivers = drivers;
         _secrets = secrets;
@@ -439,7 +448,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
         {
             var snapshot = store.LoadSnapshot();
             _version = snapshot.Version;
-            foreach (var connection in snapshot.Connections) Add(connection);
+            foreach (var connection in snapshot.Connections) Add(connection).SavedName = connection.Name;
             _saved = Snapshot();
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
@@ -466,8 +475,10 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
         try
         {
             var connections = Connections.Select(c => c.ToConnection()).ToList();
+            var groups = Connections.Select(c => c.SavedName is { } saved ? Grouping.GroupFor(saved) : ConnectionGroupingModel.UngroupedId).ToList();
             _version = _store.Save(connections, _version);
-            _groupStore.Save(Grouping.Snapshot(_version));
+            for (var i = 0; i < Connections.Count; i++) Connections[i].SavedName = connections[i].Name;
+            if (!_groupingUnreadable) SaveGrouping(connections, groups);
             _saved = JsonSerializer.Serialize(connections);
             UpdateHasChanges();
             return true;
@@ -479,6 +490,17 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
                 : "Could not save the connections. Check access and available disk space, then try again. Your edits are still here.";
             return false;
         }
+    }
+
+    // Renamed connections keep their group and removed ones are forgotten. Assignments are rebuilt
+    // from the groups read before saving, so swapping two names doesn't swap their groups. The list
+    // itself is already saved, so a failure here only loses the organization change.
+    private void SaveGrouping(IReadOnlyList<RpadConnection> connections, IReadOnlyList<string> groups)
+    {
+        Grouping.Retain([]);
+        for (var i = 0; i < connections.Count; i++) Grouping.MoveConnection(connections[i].Name, groups[i]);
+        try { _groupStore.Save(Grouping.Snapshot()); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
     private static IReadOnlyList<string> SecretNamesOf(ISecretStore secrets)
