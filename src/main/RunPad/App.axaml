@@ -21,5 +21,6 @@
         <StyleInclude Source="avares://MarkView.Avalonia/Themes/MarkdownTheme.axaml"/>
         <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"/>
         <StyleInclude Source="avares://RunPad/Resources/PopupStyles.axaml"/>
+        <StyleInclude Source="avares://RunPad/Resources/NavigationStyles.axaml"/>
     </Application.Styles>
 </Application>

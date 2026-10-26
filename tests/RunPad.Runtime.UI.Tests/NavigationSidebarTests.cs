@@ -135,7 +135,9 @@ public sealed class NavigationSidebarTests : IDisposable
         Assert.All(bundles, b => Assert.True(b.IsEffectivelyVisible));
         Assert.DoesNotContain(window.GetVisualDescendants().OfType<TabStrip>(), t => t.Name == "SidebarTabs");
         Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == "FILES");
-        // The three headers share one geometry.
+        // The three sections fill the sidebar's width and their headers share one geometry.
+        var sidebar = bundles[0].GetVisualAncestors().OfType<ScrollViewer>().First();
+        Assert.All(bundles, b => Assert.Equal(sidebar.Viewport.Width, b.Bounds.Width, 1));
         var headerHeights = bundles.Select(b => b.GetVisualDescendants().OfType<ToggleButton>().First().Bounds.Height).Distinct();
         Assert.Single(headerHeights);
     }
@@ -177,10 +179,14 @@ public sealed class NavigationSidebarTests : IDisposable
         Settle();
         var view = Named<ConnectionNavigationView>(window, "ConnectionNavigationView");
         var rows = view.Tree.GetVisualDescendants().OfType<TreeViewItem>().ToList();
-        Assert.Equal(["Ungrouped group, 2 connections", "billing, HTTP", "orders, HTTP"],
+        Assert.Equal(["billing, HTTP", "orders, HTTP"],
             rows.Select(global::Avalonia.Automation.AutomationProperties.GetName));
 
-        var billing = rows[1];
+        var billing = rows[0];
+        // A top-level row starts near the section's edge: list padding plus the chevron column only.
+        var header = billing.GetVisualDescendants().OfType<global::Avalonia.Controls.Presenters.ContentPresenter>()
+            .First(p => p.Name == "PART_HeaderPresenter");
+        Assert.InRange(header.TranslatePoint(default, view.Tree)!.Value.X, 0, 24);
         billing.Focus();
         view.Selected = (ConnectionNavigationNode)billing.DataContext!;
         Settle();

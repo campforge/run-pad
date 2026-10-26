@@ -147,7 +147,7 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task TheTree_Should_ShowGroupsInOrderAndUngroupedLast()
+    public async Task TheTree_Should_ShowGroupsFirst_ThenConnectionsOutsideAnyGroupAtTheTopLevel()
     {
         var model = new ConnectionGroupingModel();
         var apis = model.Create("APIs");
@@ -157,11 +157,13 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
 
         var vm = await CreateAsync(Connection("billing"), Connection("warehouse", "snowflake"));
 
-        Assert.Equal(["APIs", "Ungrouped"], vm.Nodes.Select(n => n.Name));
+        Assert.Equal(["APIs", "warehouse"], vm.Nodes.Select(n => n.Name));
         var billing = Assert.Single(Assert.Single(vm.Nodes[0].Children!).Children!);
         Assert.Equal("billing", billing.Name);
         Assert.Equal("Icon.DriverHttp", billing.IconKey);
-        var warehouse = Assert.Single(vm.Nodes[1].Children!);
+        var warehouse = vm.Nodes[1];
+        Assert.True(warehouse.IsConnection);
+        Assert.Null(warehouse.Children);
         Assert.True(warehouse.IsDriverMissing);
         Assert.Equal("Icon.DriverDatabase", warehouse.IconKey);
         Assert.Contains("driver not available", warehouse.AccessibleName);
@@ -174,7 +176,10 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
     {
         var vm = await CreateAsync();
         Assert.True(vm.IsEmpty);
-        Assert.Equal(["Ungrouped"], vm.Nodes.Select(n => n.Name));
+        Assert.Empty(vm.Nodes);
+
+        vm.CreateGroup(null, "Later");
+        Assert.False(vm.IsEmpty); // a group alone is something to show
     }
 
     [Fact]
@@ -183,7 +188,7 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
         var vm = await CreateAsync(Connection("billing"), Connection("orders"));
         vm.SetAttached([Connection("orders")]);
 
-        var rows = vm.Nodes.Single().Children!;
+        var rows = vm.Nodes;
         Assert.False(rows[0].IsAttached);
         Assert.True(rows[1].IsAttached);
         Assert.Contains("used by this script", rows[1].AccessibleName);
@@ -214,8 +219,7 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
         Assert.Equal("orders", Assert.Single(payments.Children![0].Children!).Name);
 
         Assert.True(reloaded.DeleteGroup(payments));
-        Assert.Equal(["New Group", "Ungrouped"], reloaded.Nodes.Select(n => n.Name));
-        Assert.Equal(["billing"], reloaded.Nodes[1].Children!.Select(c => c.Name));
+        Assert.Equal(["New Group", "billing"], reloaded.Nodes.Select(n => n.Name));
         Assert.Equal(list, File.ReadAllBytes(ConnectionsPath));
     }
 
@@ -246,8 +250,7 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
         Assert.Equal(["Top Level", "Other"], forA.Select(t => t.Path));
 
         var forConnection = vm.MoveTargets(vm.Find("billing", isConnection: true)!);
-        Assert.Equal(["Ungrouped", "A", "A / B", "Other"], forConnection.Select(t => t.Path));
-        Assert.Empty(vm.MoveTargets(vm.Nodes.Single(n => n.IsUngrouped)));
+        Assert.Equal(["Top Level", "A", "A / B", "Other"], forConnection.Select(t => t.Path));
         Assert.NotNull(b);
     }
 
@@ -261,7 +264,7 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
         Assert.False(vm.Find(group.Id, isConnection: false)!.IsExpanded);
         await vm.RefreshAsync();
         Assert.False(vm.Find(group.Id, isConnection: false)!.IsExpanded);
-        Assert.True(vm.Nodes.Single(n => n.IsUngrouped).IsExpanded);
+        Assert.True(vm.Find(vm.Nodes.Single(n => n.Name == "Another").Id, isConnection: false)!.IsExpanded);
     }
 
     [Fact]
@@ -272,7 +275,7 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
 
         Assert.True(vm.HasError);
         Assert.False(vm.CanEditGroups);
-        Assert.Equal("billing", Assert.Single(vm.Nodes.Single().Children!).Name);
+        Assert.Equal("billing", Assert.Single(vm.Nodes).Name);
         Assert.Null(vm.CreateGroup(null));
         Assert.Empty(vm.MoveTargets(vm.Find("billing", isConnection: true)!));
         Assert.Equal("{ damaged", File.ReadAllText(GroupsPath));

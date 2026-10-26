@@ -20,12 +20,27 @@
 
     <Window.Styles>
 
-        <!-- Sample rows match the tree rows of the other two bundles (27 px, 13 pt). -->
+        <!-- Sample rows line up with the leaf rows of the two trees: same height, type, icon column
+             (4 px list padding + 22 px = the trees' 4 px padding, 16 px chevron column and 6 px),
+             hover and selection. -->
         <Style Selector="ListBox.examples > ListBoxItem">
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="Padding" Value="22,0,6,0"/>
             <Setter Property="MinHeight" Value="27"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        </Style>
+        <Style Selector="ListBox.examples > ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Selection}"/>
+        </Style>
+        <Style Selector="ListBox.examples > ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        </Style>
+        <Style Selector="ListBox.examples > ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource RunPad.Accent.BackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Accent.ForegroundBrush}"/>
         </Style>
 
         <!-- Window control buttons -->
@@ -116,33 +131,58 @@
             <!-- ── Sidebar ───────────────────────────────────────────────── -->
             <DockPanel Grid.Column="0" ClipToBounds="True" Background="{DynamicResource RunPad.Sidebar.BackgroundBrush}">
 
+                <!-- Three sections that open and close independently (Resources/NavigationStyles.axaml):
+                     Connections first, then the scripts folder, then the bundled samples. -->
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <Expander x:Name="ConnectionsBundle" IsExpanded="True" IsVisible="{Binding HasConnectionNavigation}" AutomationProperties.Name="Connections navigation bundle">
-                            <Expander.Header><StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource Icon.NavigationConnections}" Width="14" Height="14"/><TextBlock Text="Connections"/></StackPanel></Expander.Header>
+                        <Expander x:Name="ConnectionsBundle" Classes="bundle" IsExpanded="True"
+                                  IsVisible="{Binding HasConnectionNavigation}"
+                                  AutomationProperties.Name="Connections navigation bundle">
+                            <Expander.Header>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource Icon.NavigationConnections}"/>
+                                    <TextBlock Text="Connections"/>
+                                </StackPanel>
+                            </Expander.Header>
                             <uc:ConnectionNavigationView x:Name="ConnectionNavigationView" DataContext="{Binding ConnectionNavigation}"
                                                          OpenConnections="ConnectionNavigation_OpenConnections"/>
                         </Expander>
-                        <Expander x:Name="ScriptsBundle" IsExpanded="True" AutomationProperties.Name="Scripts navigation bundle">
-                            <Expander.Header><StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource Icon.NavigationScripts}" Width="14" Height="14"/><TextBlock Text="Scripts"/></StackPanel></Expander.Header>
-                            <ContentControl Content="{Binding FileTree}" ContentTemplate="{StaticResource FileTreeTemplate}"/>
+                        <Expander x:Name="ScriptsBundle" Classes="bundle" IsExpanded="True"
+                                  AutomationProperties.Name="Scripts navigation bundle">
+                            <Expander.Header>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource Icon.NavigationScripts}"/>
+                                    <TextBlock Text="Scripts"/>
+                                </StackPanel>
+                            </Expander.Header>
+                            <ContentControl Content="{Binding FileTree}" ContentTemplate="{StaticResource FileTreeTemplate}"
+                                            HorizontalContentAlignment="Stretch"/>
                         </Expander>
-                        <Expander x:Name="SamplesBundle" IsExpanded="False" AutomationProperties.Name="Samples navigation bundle">
-                            <Expander.Header><StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource Icon.NavigationSamples}" Width="14" Height="14"/><TextBlock Text="Samples"/></StackPanel></Expander.Header>
+                        <Expander x:Name="SamplesBundle" Classes="bundle" IsExpanded="False"
+                                  AutomationProperties.Name="Samples navigation bundle">
+                            <Expander.Header>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource Icon.NavigationSamples}"/>
+                                    <TextBlock Text="Samples"/>
+                                </StackPanel>
+                            </Expander.Header>
                             <StackPanel>
-                            <ListBox x:Name="ExampleList" Classes="examples" ItemsSource="{Binding Examples}"
-                             Background="Transparent" BorderThickness="0" Padding="4,4,4,8"
-                             SelectionMode="Single"
-                             Tapped="ExampleList_Tapped" KeyDown="ExampleList_KeyDown">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="ex:ExampleScript">
-                                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                            </ListBox>
-                            <TextBlock Text="No examples available" Margin="12,8" Opacity="0.6"
-                               Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
-                               IsVisible="{Binding ShowNoExamplesHint}"/>
+                                <ListBox x:Name="ExampleList" Classes="examples" ItemsSource="{Binding Examples}"
+                                         Background="Transparent" BorderThickness="0" Padding="4,0,4,0"
+                                         SelectionMode="Single"
+                                         Tapped="ExampleList_Tapped" KeyDown="ExampleList_KeyDown">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="ex:ExampleScript">
+                                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                                <PathIcon Data="{StaticResource Icon.LanguageCSharp}" Width="14" Height="14" Opacity="0.55"/>
+                                                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <TextBlock Text="No samples available." Margin="26,4,8,4" FontSize="{DynamicResource RunPad.Type.Caption}"
+                                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
+                                           IsVisible="{Binding ShowNoExamplesHint}"/>
                             </StackPanel>
                         </Expander>
                     </StackPanel>

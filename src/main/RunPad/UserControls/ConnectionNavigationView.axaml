@@ -31,11 +31,12 @@
         </StackPanel>
 
         <TreeView x:Name="ConnectionTree"
+                  Classes="navigation"
                   ItemsSource="{Binding Nodes}"
                   IsVisible="{Binding !IsEmpty}"
                   Background="Transparent"
                   BorderThickness="0"
-                  Padding="4,0,4,8"
+                  Padding="4,0,4,0"
                   SelectionMode="Single"
                   AutomationProperties.Name="Connections"
                   KeyDown="ConnectionTree_KeyDown"

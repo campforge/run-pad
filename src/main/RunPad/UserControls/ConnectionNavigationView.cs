@@ -19,7 +19,7 @@ public sealed class ConnectionNavigationEventArgs(RoutedEvent routedEvent, strin
 /// The sidebar's Connections tree. Keyboard: F2 renames a group, Delete removes one (its contents
 /// move up), Enter opens a connection, Alt+Up/Down reorders a group, and the context menu
 /// (Shift+F10 or the menu key) holds every action, including Move to for keyboard moves. Rows can
-/// also be dragged onto a group, Ungrouped or the tree's background (the top level).
+/// also be dragged onto a group, or onto a top-level connection or empty space for the top level.
 /// </summary>
 public partial class ConnectionNavigationView : UserControl
 {
@@ -105,7 +105,7 @@ public partial class ConnectionNavigationView : UserControl
             Selected = node;
             return;
         }
-        _possibleDragStart = point.Properties.IsLeftButtonPressed && node is { IsUngrouped: false, IsRenaming: false }
+        _possibleDragStart = point.Properties.IsLeftButtonPressed && node is { IsRenaming: false }
             ? (e.GetPosition(_tree), e, node) : null;
     }
 
@@ -158,7 +158,8 @@ public partial class ConnectionNavigationView : UserControl
         }
     }
 
-    // Groups accept rows; a connection row or empty space stands for the group it is in, or the top level.
+    // Groups accept rows; a connection row stands for the group it is in, and a top-level connection
+    // or empty space for the top level (null).
     private ConnectionNavigationNode? DropGroupAt(object? eventSource)
     {
         Visual? visual = eventSource as Visual;
@@ -170,7 +171,7 @@ public partial class ConnectionNavigationView : UserControl
     private bool CanDrop((string Id, bool IsConnection) source, ConnectionNavigationNode? target)
     {
         if (ViewModel is not { CanEditGroups: true } vm) return false;
-        if (source.IsConnection) return target is not null;
+        if (source.IsConnection) return true;
         if (target is { IsGroup: true } && target.Id == source.Id) return false;
         return vm.Grouping.CanMoveGroup(source.Id, target is { IsGroup: true } ? target.Id : null);
     }
@@ -220,7 +221,7 @@ public partial class ConnectionNavigationView : UserControl
             menu.Items.Add(Item("Move Up", null, editable, () => Reorder(vm, node, -1)));
             menu.Items.Add(Item("Move Down", null, editable, () => Reorder(vm, node, 1)));
         }
-        if (node is { IsUngrouped: false })
+        if (node is not null)
         {
             var move = new MenuItem { Header = "Move To", IsEnabled = editable };
             var current = node.IsConnection ? vm.Grouping.GroupFor(node.Id) : vm.Grouping.Find(node.Id)?.ParentId;

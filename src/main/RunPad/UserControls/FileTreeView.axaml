@@ -5,13 +5,15 @@
              x:Class="RunPad.UserControls.FileTreeView"
              x:DataType="models:FileTreeViewModel">
 
-    <!-- The sidebar's Queries tab names this panel (MainWindow), so it has no heading of its own. -->
+    <!-- The sidebar's Scripts section names this panel (MainWindow), so it has no heading of its own;
+         its rows use the shared sidebar tree template (TreeView.navigation, Resources/NavigationStyles.axaml). -->
     <Grid>
         <TreeView Name="FileTree"
+                  Classes="navigation"
                   ItemsSource="{Binding Nodes}"
                   Background="Transparent"
                   BorderThickness="0"
-                  Padding="4,4,4,8"
+                  Padding="4,0,4,0"
                   SelectionMode="Single"
                   KeyDown="FileTree_KeyDown"
                   SelectionChanged="FileTree_SelectionChanged">
