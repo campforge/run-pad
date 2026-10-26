@@ -14,8 +14,11 @@ Notable changes in each RunPad release. Downloads are on the
   new, renamed, nested (up to three levels), reordered and deleted groups, with connections moved by
   drag and drop or **Move To** in the context menu; connections outside any group stay at the top.
   Deleting a group keeps what was in it, moving it up a level. Groups are stored beside the
-  connection list and never change a script; a link badge marks the connections the active script uses. Enter or a double click opens a
-  connection in Tools → Connections.
+  connection list and never change a script; a link badge marks the connections the active script
+  uses. Enter or a double click opens a connection in Tools → Connections.
+- A connection from that tree can be added to the active script with **Add to Script…** in its
+  context menu or by dragging it onto the editor. Dependencies opens on Connections with the
+  connection being added, asking first about any NuGet packages its driver needs; Save applies it.
 
 ### Changed
 
