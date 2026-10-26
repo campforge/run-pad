@@ -4,6 +4,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Input.Raw;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -46,10 +47,12 @@ public sealed class NavigationSidebarTests : IDisposable
         Directory.Delete(_dataFolder, recursive: true);
     }
 
+    private readonly LayoutSettings _layout = new();
+
     private (MainWindow Window, MainWindowViewModel Vm, Mock<IWindowService> WindowService) CreateMainWindow()
     {
         var prefs = new Mock<IPreferencesService>();
-        prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
+        prefs.Setup(p => p.Layout).Returns(_layout);
         prefs.Setup(p => p.Session).Returns(new SessionSettings());
         prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
         prefs.Setup(p => p.Editor).Returns(new EditorSettings());
@@ -147,6 +150,59 @@ public sealed class NavigationSidebarTests : IDisposable
         Assert.Single(headerHeights);
     }
 
+    // Open sections share the sidebar's height instead of one long scrolling page: each tree scrolls
+    // inside its own section, and a folded section is only its header.
+    [AvaloniaFact]
+    public void OpenSections_Should_ShareTheSidebarsHeight()
+    {
+        var (window, _, _) = CreateMainWindow();
+        var grid = Named<Grid>(window, "SidebarSections");
+        var connections = Named<Expander>(window, "ConnectionsBundle");
+        var scripts = Named<Expander>(window, "ScriptsBundle");
+        var samples = Named<Expander>(window, "SamplesBundle");
+        Assert.False(samples.IsExpanded); // folded by default
+
+        Assert.Equal(grid.Bounds.Height, connections.Bounds.Height + scripts.Bounds.Height + samples.Bounds.Height, 1);
+        Assert.Equal(connections.Bounds.Height, scripts.Bounds.Height, 1);
+        var header = samples.GetVisualDescendants().OfType<ToggleButton>().First();
+        Assert.Equal(header.Bounds.Height, samples.Bounds.Height, 1);
+
+        samples.IsExpanded = true;
+        Settle();
+        Assert.Equal(connections.Bounds.Height, samples.Bounds.Height, 1);
+        Assert.Equal(grid.Bounds.Height, connections.Bounds.Height + scripts.Bounds.Height + samples.Bounds.Height, 1);
+    }
+
+    // Which sections are open is kept in the layout settings for the next start.
+    [AvaloniaFact]
+    public void FoldingASection_Should_BeKeptForTheNextStart()
+    {
+        var (window, vm, _) = CreateMainWindow();
+        Named<Expander>(window, "ScriptsBundle").IsExpanded = false;
+        Named<Expander>(window, "SamplesBundle").IsExpanded = true;
+        Settle();
+        Assert.False(vm.IsScriptsSectionExpanded);
+        Assert.Equal(["Scripts"], _layout.CollapsedSidebarSections);
+
+        var (secondWindow, _, _) = CreateMainWindow();
+        Assert.False(Named<Expander>(secondWindow, "ScriptsBundle").IsExpanded);
+        Assert.True(Named<Expander>(secondWindow, "SamplesBundle").IsExpanded);
+    }
+
+    // Samples are a read-only tree of the bundled folders, in the bundled order.
+    [AvaloniaFact]
+    public void TheSamples_Should_BeATreeOfFolders()
+    {
+        var (window, vm, _) = CreateMainWindow();
+        Named<Expander>(window, "SamplesBundle").IsExpanded = true;
+        Settle();
+        Assert.Equal(["Getting started", "Output", "Debugging"], vm.SampleTree.Select(n => n.Title));
+        Assert.All(vm.SampleTree, folder => Assert.True(folder.IsFolder));
+        Assert.Equal(["quick-start.rpad", "expression-kind.rpad", "program-kind.rpad"], vm.SampleTree[0].Children!.Select(c => c.Id));
+        var rows = Named<TreeView>(window, "SampleTree").GetVisualDescendants().OfType<TreeViewItem>().ToList();
+        Assert.Equal("Getting started folder, 3 items", global::Avalonia.Automation.AutomationProperties.GetName(rows[0]));
+    }
+
     // Opening and folding bundles leaves the file tree's selection and the editor tabs alone.
     [AvaloniaFact]
     public void FoldingBundles_Should_KeepTheTreesSelection_AndTheEditorTabs()
@@ -161,7 +217,7 @@ public sealed class NavigationSidebarTests : IDisposable
 
         samples.IsExpanded = true;
         Settle();
-        Assert.True(Named<ListBox>(window, "ExampleList").IsEffectivelyVisible);
+        Assert.True(Named<TreeView>(window, "SampleTree").IsEffectivelyVisible);
         Assert.True(tree.IsEffectivelyVisible); // bundles are independent, unlike tabs
 
         scripts.IsExpanded = false;
@@ -203,10 +259,60 @@ public sealed class NavigationSidebarTests : IDisposable
         view.FillContextMenu(menu);
         var headers = menu.Items.OfType<MenuItem>().Select(m => m.Header as string).ToList();
         Assert.Contains("Edit Connection…", headers);
+        Assert.Contains("Refresh", headers); // an HTTP connection has no contract: Refresh checks it again
+        Assert.Contains("Refresh All", headers);
         // No script is open in this window, so there is nothing to add the connection to yet.
         Assert.False(menu.Items.OfType<MenuItem>().Single(m => m.Header as string == "Add to Script").IsEnabled);
         Assert.Contains("Move To", headers);
         Assert.Contains("Manage Connections…", headers);
+    }
+
+    // The tree's drag carries the connection; dropped on the editor it is added to the active script
+    // at once (HTTP needs no packages, so nothing is asked) and the tree marks it as used.
+    [AvaloniaFact]
+    public async Task DroppingAConnectionOnTheEditor_Should_AddItToTheActiveScript()
+    {
+        var (window, vm, windowService) = CreateMainWindow();
+        for (var i = 0; i < 100 && vm.ConnectionNavigation!.IsLoaded is false; i++) { Settle(); await Task.Delay(10); }
+        vm.OpenExample(ExampleScripts.All[0]);
+        await WaitForEditorAsync(window, c => c.DataContext is EditorTabItemViewModel { Example: not null });
+        var frontMatter = vm.ActiveTab!.FrontMatter!;
+        Assert.DoesNotContain(frontMatter.Connections, c => c.Name == "billing");
+
+        var host = Named<ContentControl>(window, "EditorTabsHost");
+        var point = host.TranslatePoint(new Point(host.Bounds.Width / 2, host.Bounds.Height / 2), window)!.Value;
+        var data = new DataTransfer();
+        var item = new DataTransferItem();
+        item.Set(ConnectionNavigationView.NodeFormat, "c:billing");
+        data.Add(item);
+        const DragDropEffects allowed = DragDropEffects.Move | DragDropEffects.Copy;
+        window.DragDrop(point, RawDragEventType.DragEnter, data, allowed, RawInputModifiers.None);
+        window.DragDrop(point, RawDragEventType.DragOver, data, allowed, RawInputModifiers.None);
+        window.DragDrop(point, RawDragEventType.Drop, data, allowed, RawInputModifiers.None);
+        for (var i = 0; i < 100 && !frontMatter.Connections.Any(c => c.Name == "billing"); i++) { Settle(); await Task.Delay(10); }
+
+        Assert.Contains(frontMatter.Connections, c => c.Name == "billing");
+        Assert.True(vm.ConnectionNavigation!.Find("billing", isConnection: true)!.IsAttached);
+        windowService.Verify(w => w.ConfirmConnectionPackagesAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    // The same drag dropped on the editor without a connection in it (text, a file) is left to the editor.
+    [AvaloniaFact]
+    public async Task DroppingSomethingElseOnTheEditor_Should_NotTouchTheScriptsConnections()
+    {
+        var (window, vm, _) = CreateMainWindow();
+        vm.OpenExample(ExampleScripts.All[0]);
+        await WaitForEditorAsync(window, c => c.DataContext is EditorTabItemViewModel { Example: not null });
+        var before = vm.ActiveTab!.FrontMatter!.Connections.Count;
+        var host = Named<ContentControl>(window, "EditorTabsHost");
+        var point = host.TranslatePoint(new Point(host.Bounds.Width / 2, host.Bounds.Height / 2), window)!.Value;
+        var data = new DataTransfer();
+        var item = new DataTransferItem();
+        item.Set(ConnectionNavigationView.NodeFormat, "g:some-group");
+        data.Add(item);
+        window.DragDrop(point, RawDragEventType.Drop, data, DragDropEffects.Move | DragDropEffects.Copy, RawInputModifiers.None);
+        Settle();
+        Assert.Equal(before, vm.ActiveTab!.FrontMatter!.Connections.Count);
     }
 
     // A real click on an example: an untitled, unsaved tab with the example's code; clicking it again
@@ -220,8 +326,8 @@ public sealed class NavigationSidebarTests : IDisposable
         var original = example.Text;
         Named<Expander>(window, "SamplesBundle").IsExpanded = true;
         Settle();
-        var list = Named<ListBox>(window, "ExampleList");
-        var item = list.GetVisualDescendants().OfType<ListBoxItem>().First();
+        var tree = Named<TreeView>(window, "SampleTree");
+        var item = tree.GetVisualDescendants().OfType<TreeViewItem>().First(i => i.DataContext is SampleTreeNode { Example: not null });
 
         Click(window, item);
         var editor = await WaitForEditorAsync(window, c => c.DataContext is EditorTabItemViewModel { Example: not null });

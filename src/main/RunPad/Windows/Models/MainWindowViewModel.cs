@@ -501,9 +501,56 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
     }
 
-    // ── Sidebar: Samples bundle ─────────────────────────────────────────────────
+    // ── Sidebar: sections and the Samples tree ──────────────────────────────────
+
+    public const string ConnectionsSection = "Connections";
+    public const string ScriptsSection = "Scripts";
+    public const string SamplesSection = "Samples";
+
+    // Which sections are open is kept in the layout settings, so the sidebar looks the same next time.
+    public bool IsConnectionsSectionExpanded
+    {
+        get => IsSectionExpanded(ConnectionsSection);
+        set => SetSectionExpanded(ConnectionsSection, value);
+    }
+
+    public bool IsScriptsSectionExpanded
+    {
+        get => IsSectionExpanded(ScriptsSection);
+        set => SetSectionExpanded(ScriptsSection, value);
+    }
+
+    public bool IsSamplesSectionExpanded
+    {
+        get => IsSectionExpanded(SamplesSection);
+        set => SetSectionExpanded(SamplesSection, value);
+    }
+
+    private bool IsSectionExpanded(string section) => !(_prefs.Layout.CollapsedSidebarSections ?? []).Contains(section);
+
+    private void SetSectionExpanded(string section, bool expanded, [System.Runtime.CompilerServices.CallerMemberName] string? property = null)
+    {
+        if (IsSectionExpanded(section) == expanded) return;
+        var collapsed = (_prefs.Layout.CollapsedSidebarSections ?? []).Where(s => s != section).ToList();
+        if (!expanded) collapsed.Add(section);
+        _prefs.Layout.CollapsedSidebarSections = collapsed;
+        _prefs.Save();
+        this.RaisePropertyChanged(property);
+    }
 
     public bool ShowNoExamplesHint => Examples.Count == 0;
+
+    /// <summary>The samples in their folders; folded folders are kept in the layout settings.</summary>
+    public IReadOnlyList<SampleTreeNode> SampleTree => field ??= SampleTreeNode.Build(
+        Examples, _prefs.Layout.CollapsedSampleFolders ?? [], OnSampleFolderExpandedChanged);
+
+    private void OnSampleFolderExpandedChanged(SampleTreeNode folder)
+    {
+        var collapsed = (_prefs.Layout.CollapsedSampleFolders ?? []).Where(p => p != folder.Id).ToList();
+        if (!folder.IsExpanded) collapsed.Add(folder.Id);
+        _prefs.Layout.CollapsedSampleFolders = collapsed;
+        _prefs.Save();
+    }
 
     /// <summary>The bundled examples (empty if none could be read).</summary>
     public IReadOnlyList<ExampleScript> Examples { get; init; } = ExampleScripts.All;
@@ -1221,6 +1268,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         ConnectionNavigation = connectionNavigation;
         if (ConnectionNavigation is { } navigation)
         {
+            navigation.RestoreCollapsedGroups(_prefs.Layout.CollapsedConnectionGroups);
+            navigation.CollapsedGroupsChanged += groups =>
+            {
+                _prefs.Layout.CollapsedConnectionGroups = [.. groups];
+                _prefs.Save();
+            };
             // The attached badges follow the active script's own connections list.
             this.WhenAnyValue(x => x.ActiveTab)
                 .Select(tab => tab?.WhenAnyValue(t => t.FrontMatter) ?? Observable.Return<RpadFrontMatter?>(null))

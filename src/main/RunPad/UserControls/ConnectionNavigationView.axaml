@@ -5,14 +5,14 @@
              x:Class="RunPad.UserControls.ConnectionNavigationView"
              x:DataType="models:ConnectionNavigationViewModel">
 
-    <!-- The Connections bundle of the sidebar. Rows share the file tree's geometry (FileTreeView):
-         27 px rows, 14 px icons, the same hover and selection brushes and corner radius. -->
-    <StackPanel>
-        <TextBlock x:Name="ErrorText" Text="{Binding Error}" IsVisible="{Binding HasError}"
+    <!-- The Connections section of the sidebar. Rows use the shared sidebar tree style
+         (TreeView.navigation, Resources/NavigationStyles.axaml), as the Scripts and Samples trees do. -->
+    <DockPanel>
+        <TextBlock x:Name="ErrorText" DockPanel.Dock="Top" Text="{Binding Error}" IsVisible="{Binding HasError}"
                    TextWrapping="Wrap" Margin="12,4,8,4" FontSize="12"
                    Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
 
-        <Border x:Name="NoticeBar" IsVisible="{Binding HasNotice}" Margin="8,2,8,4" Padding="6,4"
+        <Border x:Name="NoticeBar" DockPanel.Dock="Top" IsVisible="{Binding HasNotice}" Margin="8,2,8,4" Padding="6,4"
                 CornerRadius="5" Background="{DynamicResource RunPad.Toolbar.Button.HoverBrush}">
             <DockPanel>
                 <Button DockPanel.Dock="Right" x:Name="DismissNoticeButton" Padding="4,0" MinHeight="0"
@@ -24,7 +24,7 @@
             </DockPanel>
         </Border>
 
-        <StackPanel x:Name="EmptyState" IsVisible="{Binding IsEmpty}" Margin="12,4,8,8" Spacing="4">
+        <StackPanel x:Name="EmptyState" DockPanel.Dock="Top" IsVisible="{Binding IsEmpty}" Margin="12,4,8,8" Spacing="4">
             <TextBlock Text="No connections yet." FontSize="12" Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
             <Button x:Name="AddConnectionButton" Content="Add Connection…" Padding="8,2" FontSize="12"
                     AutomationProperties.Name="Add connection" Click="ManageConnections_Click"/>
@@ -47,40 +47,10 @@
                     <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
                     <Setter Property="(AutomationProperties.Name)" Value="{Binding AccessibleName}"/>
                     <Setter Property="(ToolTip.Tip)" Value="{Binding ToolTip}"/>
-                    <Setter Property="Padding" Value="6,0,6,0"/>
-                    <Setter Property="MinHeight" Value="27"/>
-                    <Setter Property="Margin" Value="0,0"/>
-                    <Setter Property="Background" Value="Transparent"/>
-                    <Setter Property="Cursor" Value="Hand"/>
-                    <Setter Property="(DragDrop.AllowDrop)" Value="True"/>
-                </Style>
-                <Style Selector="TreeViewItem:pointerover /template/ Border#PART_LayoutRoot">
-                    <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
-                    <Setter Property="CornerRadius" Value="5"/>
-                </Style>
-                <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot">
-                    <Setter Property="Background" Value="{DynamicResource RunPad.Accent.BackgroundBrush}"/>
-                    <Setter Property="CornerRadius" Value="5"/>
-                </Style>
-                <Style Selector="TreeViewItem:selected /template/ Border#SelectionIndicator">
-                    <Setter Property="IsVisible" Value="False"/>
-                </Style>
-                <Style Selector="TreeViewItem /template/ ContentPresenter#PART_HeaderPresenter">
-                    <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
-                </Style>
-                <Style Selector="TreeViewItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
-                    <Setter Property="Foreground" Value="{DynamicResource RunPad.Accent.ForegroundBrush}"/>
-                </Style>
-                <Style Selector="TreeViewItem TextBlock">
-                    <Setter Property="FontSize" Value="13"/>
-                    <Setter Property="VerticalAlignment" Value="Center"/>
                 </Style>
                 <Style Selector="TreeViewItem TextBlock.count">
                     <Setter Property="FontSize" Value="11"/>
                     <Setter Property="Opacity" Value="0.6"/>
-                </Style>
-                <Style Selector="TreeViewItem:focus /template/ Border#PART_LayoutRoot">
-                    <Setter Property="BorderThickness" Value="0"/>
                 </Style>
             </TreeView.Styles>
 
@@ -98,6 +68,12 @@
                                           Width="12" Height="12" IsVisible="{Binding IsAttached}"
                                           ToolTip.Tip="Used by this script"
                                           Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+                                <PathIcon x:Name="LoadingBadge" Data="{StaticResource Icon.Sync}" Width="12" Height="12"
+                                          IsVisible="{Binding IsLoading}"
+                                          Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                                <PathIcon x:Name="StaleBadge" Data="{StaticResource Icon.Warning}" Width="12" Height="12"
+                                          IsVisible="{Binding IsStale}"
+                                          Foreground="{DynamicResource RunPad.Margin.CodeFixWarningBrush}"/>
                                 <PathIcon x:Name="ProblemBadge" Data="{StaticResource Icon.Warning}" Width="12" Height="12"
                                           IsVisible="{Binding ShowsProblem}"
                                           Foreground="{DynamicResource RunPad.Status.ErrorBrush}"/>
@@ -122,5 +98,5 @@
                 </TreeDataTemplate>
             </TreeView.ItemTemplate>
         </TreeView>
-    </StackPanel>
+    </DockPanel>
 </UserControl>

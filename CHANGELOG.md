@@ -19,14 +19,19 @@ Notable changes in each RunPad release. Downloads are on the
 - A connection from that tree is added to the active script with **Add to Script** in its context
   menu or by dragging it onto the editor. When its driver needs NuGet packages the script doesn't
   have, RunPad asks first and adds them with it.
-- Connections that can't be used as they are — no driver for them, settings the driver rejects, or
-  a contract that couldn't be read — are marked in the tree with a warning that says why, and so
-  is a group that contains one.
+- Connections that can't be used as they are — no driver for them, settings the driver rejects, a
+  secret or environment variable that isn't there, or a contract that couldn't be read — are marked
+  in the tree with a warning that says why, and so is a group that contains one. A connection whose
+  contract is being read shows it, and one still using a contract read earlier after a failed refresh
+  is marked as out of date. **Refresh** in a connection's context menu reads its contract again
+  (gRPC) or checks it again; **Refresh All** does it for every connection.
 
 ### Changed
 
 - The sidebar's Queries and Examples tabs became three full-width sections that open and close on
-  their own: Connections, Scripts and Samples. Trees in the sidebar start closer to the edge.
+  their own: Connections, Scripts and Samples. Open sections share the sidebar's height and each
+  scrolls on its own; which sections, connection groups and sample folders are open is kept between
+  runs. Samples are a tree of folders. Trees in the sidebar start closer to the edge.
 - Typing `{` in C# no longer inserts `}`. Instead, pressing Enter in a new, still empty class,
   struct, record or interface body offers a property template: Tab inserts it, any other key leaves
   the code as it is.

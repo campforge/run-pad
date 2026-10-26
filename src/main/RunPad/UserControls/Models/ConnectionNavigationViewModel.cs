@@ -10,6 +10,24 @@ namespace RunPad.UserControls.Models;
 
 public enum ConnectionNavigationNodeKind { Group, Connection }
 
+/// <summary>What is known about a connection without connecting to it.</summary>
+public enum ConnectionRowState
+{
+    /// <summary>Nothing against it.</summary>
+    Ready,
+    /// <summary>Its contract is being read.</summary>
+    Loading,
+    /// <summary>The contract read earlier is still used, but the last refresh failed.</summary>
+    Stale,
+    /// <summary>It can't be used as it is: no driver, settings the driver rejects, a missing secret or variable, no readable contract.</summary>
+    Problem,
+}
+
+public readonly record struct ConnectionStatus(ConnectionRowState State, string? Text = null)
+{
+    public static readonly ConnectionStatus Ready = new(ConnectionRowState.Ready);
+}
+
 /// <summary>A row of the sidebar's Connections tree: a user group or a connection.</summary>
 public sealed class ConnectionNavigationNode : ReactiveObject
 {
@@ -25,15 +43,19 @@ public sealed class ConnectionNavigationNode : ReactiveObject
     internal static ConnectionNavigationNode Group(ConnectionGroup group, int depth) =>
         new(ConnectionNavigationNodeKind.Group, group.Id, group.Name, depth) { IconKey = "Icon.ConnectionGroup" };
 
-    internal static ConnectionNavigationNode Connection(RpadConnection connection, IConnectionDriver? driver, int depth, string? problem) =>
-        new(ConnectionNavigationNodeKind.Connection, connection.Name, connection.Name, depth)
+    internal static ConnectionNavigationNode Connection(RpadConnection connection, IConnectionDriver? driver, int depth, ConnectionStatus status)
+    {
+        var node = new ConnectionNavigationNode(ConnectionNavigationNodeKind.Connection, connection.Name, connection.Name, depth)
         {
             DriverId = connection.Driver,
             DriverName = driver?.DisplayName ?? $"{connection.Driver} (not available in this RunPad)",
             IsDriverMissing = driver is null,
+            HasContract = driver is IConnectionSchemaDriver,
             IconKey = DriverIconKey(connection.Driver),
-            Problem = problem,
         };
+        node.Status = status;
+        return node;
+    }
 
     public ConnectionNavigationNodeKind Kind { get; }
 
@@ -49,10 +71,31 @@ public sealed class ConnectionNavigationNode : ReactiveObject
     public string? DriverName { get; private init; }
     public bool IsDriverMissing { get; private init; }
 
-    /// <summary>Connection row: why it can't be used as it is (no driver, settings the driver rejects, an unreadable contract); null when none is known.</summary>
-    public string? Problem { get; private init; }
+    /// <summary>Connection row: its driver reads a contract (gRPC), which Refresh reads again.</summary>
+    public bool HasContract { get; private init; }
 
-    public bool HasProblem => Problem is not null;
+    /// <summary>Connection row: what is known about it; changes as contracts are read.</summary>
+    public ConnectionStatus Status
+    {
+        get;
+        internal set
+        {
+            if (field == value) return;
+            this.RaiseAndSetIfChanged(ref field, value);
+            foreach (var name in new[] { nameof(Problem), nameof(HasProblem), nameof(IsLoading), nameof(IsStale), nameof(StatusText),
+                         nameof(ShowsProblem), nameof(AccessibleName), nameof(ToolTip) })
+                this.RaisePropertyChanged(name);
+        }
+    }
+
+    public string? StatusText => Status.Text;
+
+    /// <summary>Connection row: why it can't be used as it is; null when nothing is known against it.</summary>
+    public string? Problem => Status.State == ConnectionRowState.Problem ? Status.Text : null;
+
+    public bool HasProblem => Status.State == ConnectionRowState.Problem;
+    public bool IsLoading => Status.State == ConnectionRowState.Loading;
+    public bool IsStale => Status.State == ConnectionRowState.Stale;
 
     /// <summary>Group row: a connection somewhere inside has a problem, so a folded group still shows it.</summary>
     public bool HasProblemInside => Children?.Any(c => c.HasProblem || c.HasProblemInside) == true;
@@ -120,14 +163,21 @@ public sealed class ConnectionNavigationNode : ReactiveObject
     {
         ConnectionNavigationNodeKind.Connection => string.Join(", ", new[]
         {
-            Name, DriverName, IsAttached ? "used by this script" : null, Problem is { } problem ? "problem: " + problem : null,
+            Name, DriverName, IsAttached ? "used by this script" : null,
+            Status.State switch
+            {
+                ConnectionRowState.Problem => "problem: " + Status.Text,
+                ConnectionRowState.Stale => "out of date: " + Status.Text,
+                ConnectionRowState.Loading => "reading its contract",
+                _ => null,
+            },
         }.Where(s => s is not null)),
         _ => $"{Name} group, {ConnectionCount} {(ConnectionCount == 1 ? "connection" : "connections")}"
              + (HasProblemInside ? ", has connections with problems" : ""),
     };
 
     public string ToolTip => IsConnection
-        ? string.Join("\n", new[] { DriverName, IsAttached ? "Used by this script" : null, Problem }.Where(s => s is not null))
+        ? string.Join("\n", new[] { DriverName, IsAttached ? "Used by this script" : null, StatusText }.Where(s => s is not null))
         : AccessibleName;
 
     internal void RefreshCounts()
@@ -169,7 +219,10 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
     private readonly HashSet<string> _collapsed = new(StringComparer.Ordinal);
     private ConnectionGroupingModel _grouping = new();
     private IReadOnlyList<RpadConnection> _connections = [];
-    private IReadOnlyDictionary<string, string> _problems = new Dictionary<string, string>();
+    private IReadOnlyDictionary<string, ConnectionStatus> _statuses = new Dictionary<string, ConnectionStatus>();
+    private readonly SynchronizationContext? _context;
+    private int _statusGeneration;
+    private int _statusRefreshQueued;
     private HashSet<string> _attached = new(StringComparer.Ordinal);
     private bool _groupingUnreadable;
     private int _refreshGeneration;
@@ -183,6 +236,13 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
         _schemas = schemas;
         _groupStore = groupStore ?? new FileConnectionGroupingStore(store.FilePath);
         Nodes.CollectionChanged += (_, _) => this.RaisePropertyChanged(nameof(IsEmpty));
+        // Contracts are read by the editor, runs and the Connections window too: the rows follow.
+        _context = SynchronizationContext.Current;
+        if (schemas is not null)
+        {
+            schemas.Cache.Changed += _ => QueueStatusRefresh();
+            schemas.Cache.FetchingChanged += _ => QueueStatusRefresh();
+        }
     }
 
     public ObservableCollection<ConnectionNavigationNode> Nodes { get; } = [];
@@ -233,10 +293,10 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
         try
         {
             var (connections, grouping, error, groupingUnreadable) = await Task.Run(Load).ConfigureAwait(true);
-            var problems = await Task.Run(() => FindProblems(connections)).ConfigureAwait(true);
+            var statuses = await Task.Run(() => FindStatuses(connections)).ConfigureAwait(true);
             if (generation != _refreshGeneration) return;
             _connections = connections;
-            _problems = problems;
+            _statuses = statuses;
             _grouping = grouping;
             _groupingUnreadable = groupingUnreadable;
             Error = error;
@@ -274,30 +334,108 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
         private set => this.RaiseAndSetIfChanged(ref field, value);
     }
 
-    // What can be known without connecting: the driver, its own validation of the settings, and the
-    // error of the last attempt to read the contract (gRPC). Each connection is checked on its own, so
-    // one driver throwing doesn't hide the others.
-    private Dictionary<string, string> FindProblems(IReadOnlyList<RpadConnection> connections)
+    // What can be known without connecting: the driver, its own validation of the settings, secrets
+    // and environment variables the settings name, and the state of the contract (gRPC). Only names
+    // are looked up, never a secret's value. Each connection is checked on its own, so one driver
+    // throwing doesn't hide the others.
+    private Dictionary<string, ConnectionStatus> FindStatuses(IReadOnlyList<RpadConnection> connections)
     {
-        var problems = new Dictionary<string, string>(StringComparer.Ordinal);
+        HashSet<string>? secretNames = null;
+        if (_secrets is not null)
+        {
+            try { secretNames = _secrets.LoadSnapshot().Secrets.Select(s => s.Name).ToHashSet(StringComparer.Ordinal); }
+            catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { }
+        }
+        var statuses = new Dictionary<string, ConnectionStatus>(StringComparer.Ordinal);
         foreach (var connection in connections)
         {
-            if (_drivers?.Find(connection.Driver) is not { } driver)
-            {
-                if (_drivers is not null) problems[connection.Name] = $"This RunPad has no '{connection.Driver}' driver.";
-                continue;
-            }
-            try
-            {
-                if (driver.Validate(connection).FirstOrDefault() is { } invalid) problems[connection.Name] = invalid;
-                else if (_schemas?.Cache.ErrorFor(connection) is { } schemaError) problems[connection.Name] = $"Its contract couldn't be read: {schemaError}";
-            }
+            try { statuses[connection.Name] = StatusOf(connection, secretNames); }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                problems[connection.Name] = $"Its settings couldn't be checked: {ex.Message}";
+                statuses[connection.Name] = new(ConnectionRowState.Problem, $"Its settings couldn't be checked: {ex.Message}");
             }
         }
-        return problems;
+        return statuses;
+    }
+
+    private ConnectionStatus StatusOf(RpadConnection connection, HashSet<string>? secretNames)
+    {
+        if (_drivers is null) return ConnectionStatus.Ready;
+        if (_drivers.Find(connection.Driver) is not { } driver)
+            return new(ConnectionRowState.Problem, $"This RunPad has no '{connection.Driver}' driver.");
+        if (driver.Validate(connection).FirstOrDefault() is { } invalid) return new(ConnectionRowState.Problem, invalid);
+        if (secretNames is not null)
+        {
+            var placeholders = ConnectionPlaceholderResolver.Resolve(connection.Params,
+                name => secretNames.Contains(name) ? "" : null,
+                name => Environment.GetEnvironmentVariable(name) is null ? null : "");
+            if (placeholders.Errors.FirstOrDefault() is { } missing) return new(ConnectionRowState.Problem, missing);
+        }
+        if (driver is IConnectionSchemaDriver && _schemas?.Cache is { } cache)
+        {
+            if (cache.IsFetching(connection)) return new(ConnectionRowState.Loading, "Reading its contract…");
+            if (cache.ErrorFor(connection) is { } error)
+                return cache.Get(connection) is null
+                    ? new(ConnectionRowState.Problem, $"Its contract couldn't be read: {error}")
+                    : new(ConnectionRowState.Stale, $"Using the contract read earlier; the last refresh failed: {error}");
+        }
+        return ConnectionStatus.Ready;
+    }
+
+    // Several schema events often come at once (a read starting, ending, writing): one recheck runs
+    // for them, on the UI thread the tree was made on.
+    private void QueueStatusRefresh()
+    {
+        if (Interlocked.Exchange(ref _statusRefreshQueued, 1) == 1) return;
+        void Run(object? _)
+        {
+            Interlocked.Exchange(ref _statusRefreshQueued, 0);
+            _ = RefreshStatusesAsync();
+        }
+        if (_context is { } context) context.Post(Run, null);
+        else Run(null);
+    }
+
+    /// <summary>Checks every connection's status again without reading the list, and updates the rows.</summary>
+    public async Task RefreshStatusesAsync()
+    {
+        var generation = ++_statusGeneration;
+        var connections = _connections;
+        var statuses = await Task.Run(() => FindStatuses(connections)).ConfigureAwait(true);
+        if (generation != _statusGeneration || !ReferenceEquals(connections, _connections)) return;
+        _statuses = statuses;
+        foreach (var node in AllNodes().Where(n => n.IsConnection))
+            node.Status = statuses.GetValueOrDefault(node.Id, ConnectionStatus.Ready);
+        foreach (var root in Nodes) root.RefreshCounts();
+    }
+
+    /// <summary>
+    /// Refresh on a connection: reads its contract again when its driver has one (gRPC), then checks
+    /// its status; for any other connection, reads the list again and checks every status.
+    /// </summary>
+    public async Task RefreshConnectionAsync(ConnectionNavigationNode node)
+    {
+        if (!node.IsConnection) return;
+        if (node.HasContract && _schemas is { } schemas && _connections.FirstOrDefault(c => c.Name == node.Id) is { } connection)
+        {
+            await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.All, CancellationToken.None).ConfigureAwait(true);
+            await RefreshStatusesAsync().ConfigureAwait(true);
+            return;
+        }
+        await RefreshAsync().ConfigureAwait(true);
+    }
+
+    /// <summary>Reads the list again and every contract (gRPC) too, then checks every status.</summary>
+    public async Task RefreshAllAsync()
+    {
+        await RefreshAsync().ConfigureAwait(true);
+        if (_schemas is { } schemas && _drivers is { } drivers)
+        {
+            var withContracts = _connections.Where(c => drivers.Find(c.Driver) is IConnectionSchemaDriver).ToList();
+            if (withContracts.Count > 0)
+                await schemas.EnsureAsync(withContracts, null, ConnectionSchemaRefresh.All, CancellationToken.None).ConfigureAwait(true);
+        }
+        await RefreshStatusesAsync().ConfigureAwait(true);
     }
 
     /// <summary>Marks the connections the active script uses (null: no script is active).</summary>
@@ -310,6 +448,19 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
 
     public bool CanEditGroups => IsLoaded && !_groupingUnreadable && Error is null;
 
+    /// <summary>The folded groups' IDs changed: what to keep for the next start.</summary>
+    public event Action<IReadOnlyCollection<string>>? CollapsedGroupsChanged;
+
+    /// <summary>Folds the groups with these IDs (kept from the previous run) when the tree is built.</summary>
+    public void RestoreCollapsedGroups(IEnumerable<string>? groupIds)
+    {
+        _collapsed.Clear();
+        foreach (var id in groupIds ?? []) _collapsed.Add(id);
+        foreach (var node in AllNodes().Where(n => n.IsGroup)) node.IsExpanded = !_collapsed.Contains(node.Id);
+    }
+
+    public IReadOnlyCollection<string> CollapsedGroups => [.. _collapsed];
+
     /// <summary>Adds a group at the top level or inside <paramref name="parent"/>; null when it is not allowed.</summary>
     public ConnectionNavigationNode? CreateGroup(ConnectionNavigationNode? parent, string name = "New Group")
     {
@@ -319,7 +470,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
         try { group = _grouping.Create(UniqueName(parentId, name), parentId); }
         catch (InvalidOperationException ex) { Notice = ex.Message; return null; }
         if (!Persist()) return null;
-        if (parentId is not null) _collapsed.Remove(parentId);
+        if (parentId is not null) Unfold(parentId);
         Rebuild();
         return Find(group.Id, isConnection: false);
     }
@@ -338,7 +489,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
     {
         if (!CanEditGroups || !node.IsGroup) return false;
         _grouping.Delete(node.Id);
-        _collapsed.Remove(node.Id);
+        if (_collapsed.Remove(node.Id)) CollapsedGroupsChanged?.Invoke(CollapsedGroups);
         return PersistAndRebuild();
     }
 
@@ -347,7 +498,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
         if (!CanEditGroups || !connection.IsConnection) return false;
         if (_grouping.GroupFor(connection.Id) == (groupId ?? ConnectionGroupingModel.UngroupedId)) return true;
         _grouping.MoveConnection(connection.Id, groupId);
-        if (groupId is not null) _collapsed.Remove(groupId);
+        if (groupId is not null) Unfold(groupId);
         return PersistAndRebuild();
     }
 
@@ -357,7 +508,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
         if (parentId == ConnectionGroupingModel.UngroupedId) parentId = null;
         try { _grouping.MoveGroup(group.Id, parentId); }
         catch (InvalidOperationException ex) { Notice = ex.Message; return false; }
-        if (parentId is not null) _collapsed.Remove(parentId);
+        if (parentId is not null) Unfold(parentId);
         return PersistAndRebuild();
     }
 
@@ -518,14 +669,21 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
 
     private ConnectionNavigationNode ConnectionRow(RpadConnection connection, int depth)
     {
-        var node = ConnectionNavigationNode.Connection(connection, _drivers?.Find(connection.Driver), depth, _problems.GetValueOrDefault(connection.Name));
+        var node = ConnectionNavigationNode.Connection(connection, _drivers?.Find(connection.Driver), depth,
+            _statuses.GetValueOrDefault(connection.Name, ConnectionStatus.Ready));
         node.IsAttached = _attached.Contains(connection.Name);
         return node;
     }
 
+    // A group something was just put into opens, so the moved row stays in sight.
+    private void Unfold(string groupId)
+    {
+        if (_collapsed.Remove(groupId)) CollapsedGroupsChanged?.Invoke(CollapsedGroups);
+    }
+
     private void OnExpandedChanged(ConnectionNavigationNode node)
     {
-        if (node.IsExpanded) _collapsed.Remove(node.Id);
-        else _collapsed.Add(node.Id);
+        if (node.IsExpanded ? _collapsed.Remove(node.Id) : _collapsed.Add(node.Id))
+            CollapsedGroupsChanged?.Invoke(CollapsedGroups);
     }
 }
