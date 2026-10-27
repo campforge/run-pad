@@ -226,6 +226,8 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject, IDisposable
     private HashSet<string> _attached = new(StringComparer.Ordinal);
     private bool _groupingUnreadable;
     private int _refreshGeneration;
+    private CancellationTokenSource? _operationCts;
+    private readonly object _operationGate = new();
     private bool _disposed;
     private readonly Action<string>? _schemaChangedHandler;
     private readonly Action<string>? _schemaFetchingChangedHandler;
@@ -422,6 +424,10 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        CancellationTokenSource? operation;
+        lock (_operationGate)
+            operation = Interlocked.Exchange(ref _operationCts, null);
+        operation?.Cancel();
         Interlocked.Increment(ref _statusGeneration);
         if (_schemas is not null)
         {
@@ -438,27 +444,72 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject, IDisposable
     /// </summary>
     public async Task RefreshConnectionAsync(ConnectionNavigationNode node)
     {
-        if (!node.IsConnection) return;
+        if (_disposed || !node.IsConnection) return;
+        var operation = BeginOperation();
+        var token = operation.Token;
+        try
+        {
         if (node.HasContract && _schemas is { } schemas && _connections.FirstOrDefault(c => c.Name == node.Id) is { } connection)
         {
-            await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.All, CancellationToken.None).ConfigureAwait(true);
+            await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.All, token).ConfigureAwait(true);
+            if (token.IsCancellationRequested || _disposed) return;
             await RefreshStatusesAsync().ConfigureAwait(true);
             return;
         }
         await RefreshAsync().ConfigureAwait(true);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        finally { EndOperation(operation); }
     }
 
     /// <summary>Reads the list again and every contract (gRPC) too, then checks every status.</summary>
     public async Task RefreshAllAsync()
     {
-        await RefreshAsync().ConfigureAwait(true);
-        if (_schemas is { } schemas && _drivers is { } drivers)
+        if (_disposed) return;
+        var operation = BeginOperation();
+        var token = operation.Token;
+        try
         {
-            var withContracts = _connections.Where(c => drivers.Find(c.Driver) is IConnectionSchemaDriver).ToList();
-            if (withContracts.Count > 0)
-                await schemas.EnsureAsync(withContracts, null, ConnectionSchemaRefresh.All, CancellationToken.None).ConfigureAwait(true);
+            await RefreshAsync().ConfigureAwait(true);
+            if (token.IsCancellationRequested || _disposed) return;
+            if (_schemas is { } schemas && _drivers is { } drivers)
+            {
+                var withContracts = _connections.Where(c => drivers.Find(c.Driver) is IConnectionSchemaDriver).ToList();
+                if (withContracts.Count > 0)
+                    await schemas.EnsureAsync(withContracts, null, ConnectionSchemaRefresh.All, token).ConfigureAwait(true);
+            }
+            if (token.IsCancellationRequested || _disposed) return;
+            await RefreshStatusesAsync().ConfigureAwait(true);
         }
-        await RefreshStatusesAsync().ConfigureAwait(true);
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        finally { EndOperation(operation); }
+    }
+
+    private CancellationTokenSource BeginOperation()
+    {
+        var current = new CancellationTokenSource();
+        CancellationTokenSource? previous;
+        lock (_operationGate)
+        {
+            if (_disposed)
+            {
+                current.Cancel();
+                return current;
+            }
+            previous = Interlocked.Exchange(ref _operationCts, current);
+        }
+        previous?.Cancel();
+        return current;
+    }
+
+    private void EndOperation(CancellationTokenSource operation)
+    {
+        lock (_operationGate)
+        {
+            if (ReferenceEquals(_operationCts, operation))
+                Interlocked.CompareExchange(ref _operationCts, null, operation);
+        }
+        operation.Dispose();
     }
 
     /// <summary>Marks the connections the active script uses (null: no script is active).</summary>
@@ -581,6 +632,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject, IDisposable
     public async Task<bool> AddToScriptAsync(RpadFrontMatter frontMatter, string? scriptPath, string connectionName,
         Func<string, Task<bool>> confirmPackages)
     {
+        if (_disposed) return false;
         Notice = null;
         var packages = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (id, package) in frontMatter.Packages ?? []) packages[id] = package.Version;
@@ -598,8 +650,13 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject, IDisposable
                 script.CancelPendingAdd();
                 return false;
             }
+            // The confirmation belongs to the window that owns this view model. If that window
+            // closed while the dialog was open, do not commit the staged change to the caller's
+            // front matter or update the disposed navigation tree.
+            if (_disposed) return false;
             script.ConfirmPendingAdd();
         }
+        if (_disposed) return false;
         if (script.CreateMessage is { } message) { Notice = message; return false; }
         if (!script.HasChanges) return false;
 

@@ -54,6 +54,8 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Stopping a debug session clears its paused/running state, current-line highlight and timer when
+  execution ends, so the toolbar no longer remains stuck in debugging mode.
 - On macOS, Control-click works as a right click: it opens context menus and selects the row under
   the pointer, in the sidebar, the editor and every other window.
 - With result wrapping on, ordinary output and errors wrap at the pane width too, long unbroken text

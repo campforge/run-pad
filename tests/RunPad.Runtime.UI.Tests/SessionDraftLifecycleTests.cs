@@ -838,13 +838,13 @@ public sealed class SessionDraftLifecycleTests : IDisposable
         {
             await session.Ready();
             Assert.Equal([library, macro], await BuildReferencesAsync(session));
-            Assert.Equal([library, macro], EditorReferences(session));
+            await TestWait.EventuallyAsync(() => Assert.Equal([library, macro], EditorReferences(session)));
             await session.Close();
         }
         using var again = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
         await again.Ready();
         Assert.Equal([library, macro], await BuildReferencesAsync(again));
-        Assert.Equal([library, macro], EditorReferences(again));
+        await TestWait.EventuallyAsync(() => Assert.Equal([library, macro], EditorReferences(again)));
         await again.Close();
     }
 

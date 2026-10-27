@@ -222,6 +222,29 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task AddingToTheScript_Should_NotCommit_WhenDisposedWhilePackageConfirmationIsOpen()
+    {
+        var vm = await CreateAsync(new RpadConnection { Name = "warehouse", Driver = "packaged" });
+        var frontMatter = new RpadFrontMatter { Connections = [Connection("existing")] };
+        var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var decision = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var add = vm.AddToScriptAsync(frontMatter, null, "warehouse", async _ =>
+        {
+            entered.SetResult(true);
+            return await decision.Task;
+        });
+
+        await entered.Task;
+        vm.Dispose();
+        decision.SetResult(true);
+
+        Assert.False(await add);
+        Assert.Equal(["existing"], frontMatter.Connections.Select(c => c.Name));
+        Assert.Empty(frontMatter.Packages ?? []);
+    }
+
+    [Fact]
     public async Task TheTree_Should_ShowGroupsFirst_ThenConnectionsOutsideAnyGroupAtTheTopLevel()
     {
         var model = new ConnectionGroupingModel();
@@ -412,6 +435,7 @@ public sealed class ConnectionStatusTests : IDisposable
     private sealed class ContractDriver : IConnectionSchemaDriver
     {
         public TaskCompletionSource<ConnectionSchema> Next { get; set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<bool> FetchStarted { get; set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public string Id => "contract";
         public string DisplayName => "Contract";
         public ConnectionCategory Category => ConnectionCategory.Database;
@@ -422,7 +446,11 @@ public sealed class ConnectionStatusTests : IDisposable
             Task.FromResult(new ConnectionTestResult(true, ""));
         public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) => new("");
         public Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
-            CancellationToken cancellationToken) => Next.Task;
+            CancellationToken cancellationToken)
+        {
+            FetchStarted.TrySetResult(true);
+            return Next.Task.WaitAsync(cancellationToken);
+        }
     }
 
     private (ConnectionNavigationViewModel Vm, ContractDriver Driver) Create(params RpadConnection[] connections)
@@ -510,6 +538,29 @@ public sealed class ConnectionStatusTests : IDisposable
         await WaitUntil(() => vm.Find("orders", isConnection: true)!.HasProblem);
         Assert.Equal("Its contract couldn't be read: Unreachable.", vm.Find("orders", isConnection: true)!.Problem);
         Assert.Equal(ConnectionRowState.Ready, vm.Find("known", isConnection: true)!.Status.State);
+    }
+
+    [Fact]
+    public async Task ANewConnectionRefresh_ShouldCancelThePreviousOne_WithoutLosingTheCurrentOperation()
+    {
+        var (vm, driver) = Create(new RpadConnection { Name = "orders", Driver = "contract" });
+        await vm.RefreshAsync();
+        var row = vm.Find("orders", isConnection: true)!;
+
+        driver.Next = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        driver.FetchStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var first = vm.RefreshConnectionAsync(row);
+        await driver.FetchStarted.Task;
+
+        driver.Next = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        driver.FetchStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var second = vm.RefreshConnectionAsync(row);
+        await driver.FetchStarted.Task;
+        await first;
+
+        driver.Next.SetResult(new ConnectionSchema("current", [], ""));
+        await second;
+        Assert.Equal(ConnectionRowState.Ready, row.Status.State);
     }
 }
 
