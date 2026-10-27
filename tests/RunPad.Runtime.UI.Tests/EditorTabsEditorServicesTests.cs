@@ -154,7 +154,6 @@ public sealed class EditorTabsEditorServicesTests : IDisposable
             Assert.True(csharp.Tokens[0].IsCancellationRequested);
             gate.Set();
             await TestWait.WhileAsync(() => !honourCancellation && csharp.Created.Count == 0);
-            await Task.Delay(100);
             Dispatcher.UIThread.RunJobs();
 
             Assert.Null(tabs.ControlForTests(vm));
@@ -179,7 +178,6 @@ public sealed class EditorTabsEditorServicesTests : IDisposable
             Assert.True(csharp.Tokens[0].IsCancellationRequested);
             gate.Set();
             await TestWait.WhileAsync(() => csharp.Created.Count == 0);
-            await Task.Delay(100);
             Dispatcher.UIThread.RunJobs();
 
             Assert.Null(tabs.ControlForTests(shell.Tabs[0]));

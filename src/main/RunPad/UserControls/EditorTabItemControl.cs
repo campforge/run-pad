@@ -72,6 +72,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private long _inputPromptRevision;
     private int _inputPromptGeneration;
     private readonly Dictionary<WatchExpression, CancellationTokenSource> _watchEvaluationCts = [];
+    // Schema warm-up is owned by this tab; closing or superseding it must stop the read.
+    private CancellationTokenSource? _connectionSchemaWarmupCts;
+    private int _connectionSchemaRefreshPosted;
+    private string? _connectionSchemaRefreshKey;
     private readonly IBuildCacheService _buildCache;
     private IDisposable? _selectedKindSub;
     private IDisposable? _filePathSub;
@@ -497,11 +501,16 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         HideInputPrompt();
         try
         {
+            // Signal cancellation before resuming a paused debugger. Resume can synchronously
+            // unblock the host, but it must never be the operation that makes Stop observable to
+            // HostExecutionAdapter; otherwise a slow/throwing debugger context delays cancellation.
+            State.RunCts?.Cancel();
+            if (State.RunningHost is { } runningHost)
+                _ = TerminateHostAsync(runningHost);
             State.CurrentDebugCtx?.Resume(DebugAction.Continue);
             InvalidateHoverTooltip();
             State.CurrentDebugCtx = null;
             _vm.DebugPanel.ClearStop();
-            State.RunCts?.Cancel();
         }
         catch (Exception ex)
         {
@@ -517,6 +526,22 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 SetStatus("Cancelled", "RunPad.Status.CancelledBrush");
                 UpdateOutputUi();
             }
+        }
+    }
+
+    private async Task TerminateHostAsync(ILanguageHost host)
+    {
+        try
+        {
+            await host.TerminateAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Stop is already a cancellation path; an interrupted termination is expected.
+        }
+        catch (Exception ex)
+        {
+            _runLogger.LogDebug(ex, "Stopping the language host failed");
         }
     }
 
@@ -845,7 +870,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 try { await runCts.CancelAsync(); }
                 finally
                 {
-                    if (!_disposed && generation == _runGeneration)
+                    // Stop invalidates queued callbacks, but this run still owns its final UI cleanup.
+                    if (!_disposed && ReferenceEquals(s.RunCts, runCts))
                     {
                         HideInputPrompt();
 
@@ -936,6 +962,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _vm.DebugPanel.WatchExpressions.CollectionChanged -= OnWatchExpressionsCollectionChanged;
         var contextRefreshCts = Interlocked.Exchange(ref _contextRefreshCts, null);
         contextRefreshCts?.Cancel();
+        var schemaWarmupCts = Interlocked.Exchange(ref _connectionSchemaWarmupCts, null);
+        schemaWarmupCts?.Cancel();
         _quickInfoCts?.Cancel();
         _debugTooltipCloseCts?.Cancel();
         DisposePreview();
@@ -1035,12 +1063,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private async void OnBreakpointRightClicked(int line, RunPad.Avalonia.CodeTextEditor.IBreakpoint? bp)
     {
-        try { await EditBreakpointOptionsAsync(line, bp); }
-        catch (Exception ex)
-        {
-            _runLogger.LogError(ex, "Editing breakpoint options failed");
-            if (!_disposed) AppendError(ex);
-        }
+        await RunUiActionAsync(() => EditBreakpointOptionsAsync(line, bp), "Editing breakpoint options");
     }
 
     private async Task EditBreakpointOptionsAsync(int line, RunPad.Avalonia.CodeTextEditor.IBreakpoint? bp)
@@ -1153,19 +1176,22 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     internal async void ShowGoToLine()
     {
-        var owner = TopLevel.GetTopLevel(this) as Window;
-        if (owner is null) return;
+        await RunUiActionAsync(async () =>
+        {
+            var owner = TopLevel.GetTopLevel(this) as Window;
+            if (owner is null) return;
 
-        var editor = State.Editor;
-        var maxLine = editor.Document.LineCount;
-        var dialog = new Windows.GoToLineDialog(editor.TextArea.Caret.Line, maxLine);
-        var result = await dialog.ShowDialog<int?>(owner);
-        if (result is not { } line) return;
+            var editor = State.Editor;
+            var maxLine = editor.Document.LineCount;
+            var dialog = new Windows.GoToLineDialog(editor.TextArea.Caret.Line, maxLine);
+            var result = await dialog.ShowDialog<int?>(owner);
+            if (_disposed || result is not { } line) return;
 
-        editor.TextArea.Caret.Line = Math.Clamp(line, 1, maxLine);
-        editor.TextArea.Caret.Column = 1;
-        editor.ScrollToLine(editor.TextArea.Caret.Line);
-        editor.Focus();
+            editor.TextArea.Caret.Line = Math.Clamp(line, 1, maxLine);
+            editor.TextArea.Caret.Column = 1;
+            editor.ScrollToLine(editor.TextArea.Caret.Line);
+            editor.Focus();
+        }, "Go to line");
     }
 
     // F2 (CodeTextEditor.RenameSymbolRequested).
@@ -1378,19 +1404,36 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private async void OnRenameSymbolRequested(object? sender, EventArgs e)
     {
         if (_disposed || _intelliSense is null) return;
-        await ShowRenameSymbolAsync(State.Editor, _intelliSense);
+        await RunUiActionAsync(() => ShowRenameSymbolAsync(State.Editor, _intelliSense), "Rename symbol");
     }
 
     private async void OnFindReferencesRequested(object? sender, EventArgs e)
     {
         if (_disposed || _intelliSense is null) return;
-        await ShowFindReferencesAsync(State.Editor, _intelliSense);
+        await RunUiActionAsync(() => ShowFindReferencesAsync(State.Editor, _intelliSense), "Find references");
     }
 
     private async void OnGoToDefinitionRequested(object? sender, EventArgs e)
     {
         if (_disposed || _intelliSense is null) return;
-        await ShowGoToDefinitionAsync(State.Editor, _intelliSense);
+        await RunUiActionAsync(() => ShowGoToDefinitionAsync(State.Editor, _intelliSense), "Go to definition");
+    }
+
+    private async Task RunUiActionAsync(Func<Task> action, string operation)
+    {
+        if (_disposed) return;
+        try
+        {
+            await action();
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            _runLogger.LogError(ex, "{Operation} failed", operation);
+            if (!_disposed) AppendError(ex);
+        }
     }
 
     private void OnFixApplyRequested(CodeFixEntry fix)
@@ -2733,6 +2776,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // The latest refresh of the IntelliSense context; an older one still running is cancelled.
     private CancellationTokenSource? _contextRefreshCts;
+    private int _contextRefreshReanalyzePending;
 
     // Only the request is put together on the UI thread, from copies of the state it reads: the
     // connections' code (the schemas come from disk), the contract assembly lookup and the reference
@@ -2742,6 +2786,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void RefreshIntelliSenseContext(bool reanalyze)
     {
         if (_disposed || _intelliSense is not { } intelliSense) return;
+        if (reanalyze) Interlocked.Exchange(ref _contextRefreshReanalyzePending, 1);
         var previousContextRefreshCts = Interlocked.Exchange(ref _contextRefreshCts, null);
         previousContextRefreshCts?.Cancel();
         var refresh = _contextRefreshCts = new CancellationTokenSource();
@@ -2761,15 +2806,20 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var language = frontMatter?.Language ?? RpadLanguage.CSharp;
         List<string> packageIds = frontMatter is null ? [] : [.. frontMatter.Packages.Keys];
         var scriptDirectory = ScriptDirectory;
-        _ = Task.Run(() =>
+        _ = Task.Run(async () =>
         {
             try
             {
+                // Coalesce metadata/SDK/schema bursts before doing the expensive projection and
+                // Roslyn context update. Cancellation remains owned by this captured refresh.
+                await Task.Delay(50, token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                var shouldReanalyze = Interlocked.Exchange(ref _contextRefreshReanalyzePending, 0) == 1;
                 var generated = frontMatter is null ? null
                     : GeneratedConnections.For(connections, language, packageIds, _connectionDrivers, _connectionSchemas?.Cache, scriptDirectory);
                 token.ThrowIfCancellationRequested();
                 intelliSense.ApplyExecutionContext(baseRequest with { Connections = generated }, token);
-                if (reanalyze)
+                if (shouldReanalyze)
                     Dispatcher.Post(() =>
                     {
                         // The classes the script's code refers to are new: analyse it again now rather than at the next keystroke.
@@ -2786,20 +2836,35 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 Interlocked.CompareExchange(ref _contextRefreshCts, null, refresh);
                 refresh.Dispose();
             }
-        }, token);
+        });
         EnsureConnectionSchemasInBackground();
     }
 
     // A schema read elsewhere (Dependencies' Refresh, the Connections window, a run in another tab)
     // changes the classes of this script's connection with the same key: catch up, as after an edit.
-    private void OnConnectionSchemaChanged(string key) => Dispatcher.Post(() =>
+    private void OnConnectionSchemaChanged(string key)
     {
-        if (_disposed || _connectionSchemas is not { } schemas
-            || State.RpadDocument?.FrontMatter.Connections is not { Count: > 0 } connections) return;
-        var scriptDirectory = ScriptDirectory;
-        if (!connections.Any(c => schemas.Cache.KeyOf(c, scriptDirectory) == key)) return;
-        RefreshIntelliSenseContext(reanalyze: true);
-    });
+        // Cache updates can arrive in a burst (one event per generated source). One queued UI
+        // callback is enough: it reads the cache after the burst and refreshes the newest context.
+        Volatile.Write(ref _connectionSchemaRefreshKey, key);
+        if (Interlocked.Exchange(ref _connectionSchemaRefreshPosted, 1) != 0) return;
+        Dispatcher.Post(() =>
+        {
+            try
+            {
+                if (_disposed || _connectionSchemas is not { } schemas
+                    || State.RpadDocument?.FrontMatter.Connections is not { Count: > 0 } connections) return;
+                var scriptDirectory = ScriptDirectory;
+                var pendingKey = Volatile.Read(ref _connectionSchemaRefreshKey);
+                if (pendingKey is null || !connections.Any(c => schemas.Cache.KeyOf(c, scriptDirectory) == pendingKey)) return;
+                RefreshIntelliSenseContext(reanalyze: true);
+            }
+            finally
+            {
+                Volatile.Write(ref _connectionSchemaRefreshPosted, 0);
+            }
+        });
+    }
 
     // Reads the schemas of connections that have never been read (a gRPC server's services); the
     // cache's Changed event then lets the editor know their classes. One that fails isn't asked again
@@ -2810,17 +2875,28 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void EnsureConnectionSchemasInBackground()
     {
         if (_connectionSchemas is not { } schemas || State.RpadDocument?.FrontMatter.Connections is not { Count: > 0 } connections) return;
+        var previous = Interlocked.Exchange(ref _connectionSchemaWarmupCts, null);
+        previous?.Cancel();
+        var warmup = new CancellationTokenSource();
+        Interlocked.Exchange(ref _connectionSchemaWarmupCts, warmup);
+        var token = warmup.Token;
         List<RpadConnection> list = [.. connections];
         var scriptDirectory = ScriptDirectory;
         _ = Task.Run(async () =>
         {
             try
             {
-                await schemas.EnsureAsync(list, scriptDirectory, ConnectionSchemaRefresh.Missing, CancellationToken.None).ConfigureAwait(false);
+                await schemas.EnsureAsync(list, scriptDirectory, ConnectionSchemaRefresh.Missing, token).ConfigureAwait(false);
             }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
             catch (Exception ex)
             {
                 _runLogger.LogWarning(ex, "Reading connection schemas failed");
+            }
+            finally
+            {
+                Interlocked.CompareExchange(ref _connectionSchemaWarmupCts, null, warmup);
+                warmup.Dispose();
             }
         });
     }
