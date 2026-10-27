@@ -1,9 +1,12 @@
 using System.Reactive;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Shapes;
+using AvaloniaPath = Avalonia.Controls.Shapes.Path;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
 using ReactiveUI;
@@ -30,6 +33,7 @@ public sealed partial class MainWindow : Window, IDisposable
     // still awaiting a dialog must not start a second, overlapping walk over the dirty tabs.
     private bool _closeConfirmationInProgress;
     private bool _disposed;
+    private bool _macWindowActive;
 
     public MainWindow(
         IPreferencesService prefs,
@@ -86,6 +90,8 @@ public sealed partial class MainWindow : Window, IDisposable
         // Coming back to RunPad from another program is when its files were most likely changed
         // there; scripts outside the watched scripts folder are only noticed this way.
         Activated += (_, _) => _ = editorTabsCtrl.CheckFilesChangedOnDiskAsync();
+        Activated += (_, _) => SetMacWindowButtonsActive(true);
+        Deactivated += (_, _) => SetMacWindowButtonsActive(false);
 
         Closing += OnClosing;
         // The window owns the per-window view model and controls. Dispose them on every
@@ -215,11 +221,7 @@ public sealed partial class MainWindow : Window, IDisposable
     // icon/menu but becomes a plain menu bar sitting under the native titlebar, and the redundant
     // wc-btn cluster is hidden.
     //
-    // On macOS the window gets the stock titlebar — traffic
-    // lights, "RunPad" title, system drag/resize/fullscreen — and the menu moves to the system menu
-    // bar via NativeMenu, projected from the same MainMenuEntries as the in-window Menu
-    //. The whole custom title row would then only duplicate
-    // the icon/menu/window buttons, so it's hidden and its 32px row collapsed.
+    // macOS keeps AppKit's titlebar as a separate row above the app toolbar, like Rider.
     private void ApplyPlatformChrome()
     {
         var windowControlButtons = this.FindControl<StackPanel>("WindowControlButtons");
@@ -244,11 +246,18 @@ public sealed partial class MainWindow : Window, IDisposable
         }
         else if (OperatingSystem.IsMacOS())
         {
-            WindowDecorations = WindowDecorations.Full;
-            ExtendClientAreaToDecorationsHint = false;
-
-            this.FindControl<Border>("TitleBar")!.IsVisible = false;
-            this.FindControl<Grid>("RootLayout")!.RowDefinitions[0].Height = new GridLength(0);
+            WindowDecorations = WindowDecorations.BorderOnly;
+            ExtendClientAreaToDecorationsHint = true;
+            ExtendClientAreaTitleBarHeightHint = 32;
+            this.FindControl<Menu>("MainMenu")!.IsVisible = false;
+            this.FindControl<Image>("AppIconImage")!.IsVisible = false;
+            windowControlButtons!.IsVisible = false;
+            this.FindControl<StackPanel>("MacWindowButtons")!.IsVisible = true;
+            var sidebarToggle = this.FindControl<Button>("SidebarToggleButton");
+            sidebarToggle!.Width = 30;
+            this.FindControl<PathIcon>("SidebarToggleIcon")!.Width = 14;
+            this.FindControl<PathIcon>("SidebarToggleIcon")!.Height = 14;
+            this.FindControl<Border>("TitleBar")!.AddHandler(PointerPressedEvent, OnMacTitleBarPointerPressed);
 
             NativeMenu.SetMenu(this, MainMenuDefinition.ToNativeMenu(MainMenuEntries));
         }
@@ -469,6 +478,54 @@ public sealed partial class MainWindow : Window, IDisposable
         });
 
     // ── Title bar window controls ─────────────────────────────────────────────
+
+    private void OnMacTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed || e.Source is not Visual source)
+            return;
+        if (source.GetSelfAndVisualAncestors().TakeWhile(v => v != sender)
+            .OfType<Control>().Any(control => control.Focusable)) return;
+        if (e.ClickCount == 2) Maximize_Click(sender, e);
+        else BeginMoveDrag(e);
+        e.Handled = true;
+    }
+
+    private void SetMacWindowButtonsActive(bool active)
+    {
+        if (this.FindControl<StackPanel>("MacWindowButtons")?.IsVisible != true) return;
+        _macWindowActive = active;
+        if (!active) SetMacWindowGlyphsVisible(false);
+        SetMacWindowDotColors(active);
+    }
+
+    private void SetMacWindowDotColors(bool highlighted)
+    {
+        var color = highlighted ? new[] { "#FF5F57", "#FEBC2E", "#28C840" } : new[] { "#8E8E93", "#8E8E93", "#8E8E93" };
+        foreach (var item in new[] { ("MacCloseDot", color[0]), ("MacMinimizeDot", color[1]), ("MacMaximizeDot", color[2]) })
+            this.FindControl<Ellipse>(item.Item1)!.Fill = new SolidColorBrush(Color.Parse(item.Item2));
+    }
+
+    private void MacWindowButton_PointerEntered(object? sender, PointerEventArgs e)
+    {
+        SetMacWindowDotColors(true);
+        SetMacWindowGlyphsVisible(true);
+    }
+
+    private void MacWindowButtons_PointerExited(object? sender, PointerEventArgs e)
+    {
+        SetMacWindowDotColors(_macWindowActive);
+        if (this.FindControl<StackPanel>("MacWindowButtons")?.IsPointerOver != true)
+            SetMacWindowGlyphsVisible(false);
+    }
+
+    private void SetMacWindowGlyphsVisible(bool visible)
+    {
+        var buttons = this.FindControl<StackPanel>("MacWindowButtons");
+        if (buttons is null) return;
+        foreach (var button in buttons.Children.OfType<Button>())
+            if (button.Content is Grid grid && grid.Children.Count > 1)
+                ((AvaloniaPath)grid.Children[1]).IsVisible = visible;
+    }
 
     private void Minimize_Click(object? sender, RoutedEventArgs e)
     {

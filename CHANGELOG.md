@@ -34,6 +34,11 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Changed
 
+- On macOS, the native titlebar is kept separate from the compact application toolbar, with a
+  larger aligned sidebar toggle.
+
+- The main window on macOS draws its header into the title bar while retaining the native
+  traffic-light controls, resizing and the system menu bar.
 - Sidebar tree hover now affects only the row under the pointer. Script selection is more subdued,
   while Connections and Samples use transient hover and keyboard focus instead of a persistent
   selected-row fill. Expanded branches have subtle dotted indentation guides, and section headers
