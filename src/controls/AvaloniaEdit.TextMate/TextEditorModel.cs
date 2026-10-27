@@ -1,5 +1,3 @@
-using System;
-using System.Threading;
 using Avalonia.Threading;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;

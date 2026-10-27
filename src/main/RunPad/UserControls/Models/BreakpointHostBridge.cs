@@ -5,6 +5,12 @@ namespace RunPad.UserControls.Models;
 /// <summary>Translates editor breakpoint changes to the language host's breakpoint contract.</summary>
 internal static class BreakpointHostBridge
 {
+    public static IReadOnlyList<(int Line, string? Condition, string? HitCondition)> Enabled(
+        IEnumerable<RunPad.Avalonia.CodeTextEditor.IBreakpoint> breakpoints) =>
+        breakpoints.Where(static breakpoint => breakpoint.IsEnabled)
+            .Select(static breakpoint => (breakpoint.Line, breakpoint.Condition, breakpoint.HitCondition))
+            .ToArray();
+
     public static void Add(ILanguageHost host, string fileName, int line, string? condition, string? hitCondition)
         => host.AddBreakpoint(new HostBreakpoint(fileName, line, condition, hitCondition));
 

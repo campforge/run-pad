@@ -1,4 +1,3 @@
-using RunPad.Cli;
 using RunPad.Format.RPad;
 using Xunit;
 

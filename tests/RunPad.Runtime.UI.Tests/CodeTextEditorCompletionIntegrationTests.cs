@@ -3,7 +3,6 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Threading;
-using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using Microsoft.Extensions.Logging.Abstractions;
 using RunPad.Avalonia.CodeTextEditor;
@@ -720,6 +719,8 @@ public class CodeTextEditorCompletionIntegrationTests
     // reported keystrokes through a live completion window to prove the fix holds up under the real
     // 24/7-auto-invoke + commit-character pipeline, not just at the raw GetCompletionsAsync level.
     [AvaloniaFact]
+    [Trait("Category", "Integration")]
+    [Trait("Category", "Roslyn")]
     public async Task TypingDot_Should_CommitTheLocalVariable_NotTheImplicitArgsParameter()
     {
         var referenceService = new CSharpReferenceService();

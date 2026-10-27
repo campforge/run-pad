@@ -1,4 +1,3 @@
-using System.Reactive.Linq;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
@@ -8,8 +7,6 @@ using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
-using RunPad.Languages.CSharp;
-using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;

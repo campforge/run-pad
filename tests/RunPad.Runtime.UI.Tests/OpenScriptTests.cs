@@ -76,13 +76,13 @@ public sealed class OpenScriptTests : IDisposable
     public async Task RecentFiles_Should_BeUniqueNewestFirstCappedAndPersisted()
     {
         var vm = Create();
-        for (var i = 0; i < 53; i++) await vm.OpenScriptAsync(Script(i.ToString()));
-        Assert.Equal(50, vm.RecentFiles.Count);
+        for (var i = 0; i < RecentFilesService.MaximumCount + 3; i++) await vm.OpenScriptAsync(Script(i.ToString()));
+        Assert.Equal(RecentFilesService.MaximumCount, vm.RecentFiles.Count);
         var path = Path.Combine(_root, "20.rpad");
         await vm.OpenRecentFileCommand.Execute(path);
         Assert.Equal(path, vm.RecentFiles[0]);
-        Assert.Equal(50, vm.RecentFiles.Count);
-        Assert.Equal(53, vm.Tabs.Count);
+        Assert.Equal(RecentFilesService.MaximumCount, vm.RecentFiles.Count);
+        Assert.Equal(RecentFilesService.MaximumCount + 3, vm.Tabs.Count);
         _session = JsonSerializer.Deserialize<SessionSettings>(JsonSerializer.Serialize(_session))!;
         Assert.Equal(path, Create().RecentFiles[0]);
         _prefs.Verify(p => p.Save(), Times.AtLeastOnce());

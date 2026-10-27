@@ -31,24 +31,39 @@ public static class HostExecutionAdapter
         Action<HostExecutionEvent> publish,
         CancellationToken cancellationToken)
     {
-        CompiledHandler compiled = path => publish(new HostExecutionEvent.Compiled(path));
-        StageChangedHandler stage = (value, detail) => publish(new HostExecutionEvent.Stage(value, detail));
-        InputRequestedHandler input = (prompt, password) => publish(new HostExecutionEvent.InputRequested(prompt, password));
+        // Hosts can raise an event concurrently with the invocation completing. Once the
+        // invocation has returned, no event belongs to this execution anymore; otherwise a late
+        // stage/input callback can reach a newer UI generation after the adapter has detached.
+        var acceptingEvents = 1;
+        void Publish(HostExecutionEvent @event)
+        {
+            if (Volatile.Read(ref acceptingEvents) != 0) publish(@event);
+        }
+        CompiledHandler compiled = path => Publish(new HostExecutionEvent.Compiled(path));
+        StageChangedHandler stage = (value, detail) => Publish(new HostExecutionEvent.Stage(value, detail));
+        InputRequestedHandler input = (prompt, password) => Publish(new HostExecutionEvent.InputRequested(prompt, password));
         host.Compiled += compiled;
         host.StageChanged += stage;
         host.InputRequested += input;
         try
         {
             var result = await invoke(
-                (data, kind) => publish(new HostExecutionEvent.Output(data, kind)), cancellationToken).ConfigureAwait(false);
-            return HostExecutionResult.Completed(result);
+                (data, kind) => Publish(new HostExecutionEvent.Output(data, kind)), cancellationToken).ConfigureAwait(false);
+            Interlocked.Exchange(ref acceptingEvents, 0);
+            // A host may return successfully after cancellation was requested. Treat that as
+            // cancellation rather than reporting a false successful run.
+            return cancellationToken.IsCancellationRequested
+                ? HostExecutionResult.Canceled()
+                : HostExecutionResult.Completed(result);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            Interlocked.Exchange(ref acceptingEvents, 0);
             return HostExecutionResult.Canceled();
         }
         catch (Exception ex)
         {
+            Interlocked.Exchange(ref acceptingEvents, 0);
             return HostExecutionResult.Failed(ex);
         }
         finally

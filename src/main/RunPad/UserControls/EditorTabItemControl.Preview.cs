@@ -2,7 +2,6 @@ using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Styling;
 using MarkView.Avalonia;
-using MarkView.Avalonia.SyntaxHighlighting;
 using ReactiveUI;
 using RunPad.Avalonia.Themes;
 using RunPad.Format.RPad;

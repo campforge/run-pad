@@ -18,6 +18,8 @@ namespace RunPad.Runtime.UI.Tests;
 // by the test); skipped otherwise. Category=RealBuild like every other real-build test.
 [Trait("Category", "RealBuild")]
 [Collection(RealBuildTestCollection.Name)]
+[Trait("Category", "Integration")]
+[Trait("Category", "Debugger")]
 public class RealNetcoredbgDebugTests : IDisposable
 {
     private const string NetcoredbgEnvVar = "RUNPAD_TEST_NETCOREDBG";

@@ -10,6 +10,7 @@ internal sealed class IntelliSenseEventSubscriptions : IDisposable
     private readonly Action<string, IReadOnlyList<ISemanticToken>> _semanticTokens;
     private readonly Action<string, IReadOnlyList<ICodeFixInfo>> _codeFixes;
     private readonly Action<string, IReadOnlyList<IInlayHint>> _inlayHints;
+    private bool _attached;
     private bool _disposed;
 
     public IntelliSenseEventSubscriptions(
@@ -29,6 +30,12 @@ internal sealed class IntelliSenseEventSubscriptions : IDisposable
         _semanticTokens = semanticTokens;
         _codeFixes = codeFixes;
         _inlayHints = inlayHints;
+    }
+
+    public void Attach()
+    {
+        if (_disposed || _attached) return;
+        _attached = true;
         _service.DiagnosticsChanged += _diagnostics;
         _service.SemanticTokensChanged += _semanticTokens;
         _service.CodeFixesChanged += _codeFixes;
@@ -39,6 +46,8 @@ internal sealed class IntelliSenseEventSubscriptions : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        if (!_attached) return;
+        _attached = false;
         _service.DiagnosticsChanged -= _diagnostics;
         _service.SemanticTokensChanged -= _semanticTokens;
         _service.CodeFixesChanged -= _codeFixes;

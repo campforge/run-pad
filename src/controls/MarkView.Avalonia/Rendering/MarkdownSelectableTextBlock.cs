@@ -7,8 +7,6 @@ using System.Text;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
-using Avalonia.Input;
-
 using MarkView.Avalonia.Rendering.Inlines;
 
 namespace MarkView.Avalonia.Rendering;

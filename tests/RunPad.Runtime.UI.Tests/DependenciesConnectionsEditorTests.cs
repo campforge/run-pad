@@ -1,4 +1,3 @@
-using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
@@ -9,7 +8,6 @@ using RunPad.Connectors.Http;
 using RunPad.Contracts;
 using RunPad.Contracts.Connections;
 using RunPad.Format.RPad;
-using RunPad.Services;
 using RunPad.Services.Connections;
 using RunPad.Services.Secrets;
 using RunPad.Windows;

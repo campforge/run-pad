@@ -49,6 +49,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private SquiggleRenderer? _squiggleRenderer;
     private CancellationTokenSource? _debugTooltipCloseCts;
     private CancellationTokenSource? _quickInfoCts;
+    private CancellationTokenSource? _refactoringCts;
+    private EventHandler? _refactoringCaretHandler;
+    private EventHandler? _intelliSenseTextChangedHandler;
+    private EventHandler<VisualTreeAttachmentEventArgs>? _editorAttachedHandler;
+    private EventHandler<PointerEventArgs>? _quickInfoPointerMovedHandler;
+    private EventHandler<PointerEventArgs>? _quickInfoPointerExitedHandler;
     private bool _debugTooltipInside;
     private long _tooltipGeneration;
     private InlayHintRenderer? _inlayHintRenderer;
@@ -64,6 +70,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private List<CodeFixEntry> _diagnosticFixEntries = [];
     private List<CodeFixEntry> _refactoringFixEntries = [];
     private long _inputPromptRevision;
+    private int _inputPromptGeneration;
+    private readonly Dictionary<WatchExpression, CancellationTokenSource> _watchEvaluationCts = [];
     private readonly IBuildCacheService _buildCache;
     private IDisposable? _selectedKindSub;
     private IDisposable? _filePathSub;
@@ -210,10 +218,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         ApplyEditorLanguageProfile(editor,
             _registry.GetEditorProfile(ResolveLanguageId()) ?? new EditorLanguageProfile());
 
-        EventHandler<VisualTreeAttachmentEventArgs>? onAttached = null;
-        onAttached = (s, _) =>
+        _editorAttachedHandler = (s, _) =>
         {
-            editor.AttachedToVisualTree -= onAttached;
+            editor.AttachedToVisualTree -= _editorAttachedHandler;
+            _editorAttachedHandler = null;
             // The grammar of the tab's language (untitled tabs default to C#, see ResolveLanguageId);
             // plain text when its profile names no source extension the editor has a grammar for.
             // The palette current when the tab is first shown — not the one when it was created: a
@@ -222,10 +230,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 _registry.GetEditorProfile(ResolveLanguageId())?.SourceFileExtension ?? "");
             ApplySelectionColor(editor);
         };
-        editor.AttachedToVisualTree += onAttached;
-
-        // Caret position → StatusLine
-        editor.TextArea.Caret.PositionChanged += OnEditorCaretPositionChanged;
+        editor.AttachedToVisualTree += _editorAttachedHandler;
 
         EditorHost.Content = editor;
         // The IL tab's content only joins the visual tree when the tab is first shown.
@@ -256,7 +261,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         if (e.OldItems is not null)
             foreach (WatchExpression w in e.OldItems)
+            {
                 w.PropertyChanged -= OnWatchExpressionPropertyChanged;
+                CancelWatchEvaluation(w);
+            }
     }
 
     private void OnWatchExpressionPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -267,6 +275,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private async Task EvaluateWatchAsync(WatchExpression w)
     {
+        CancelWatchEvaluation(w);
         if (string.IsNullOrWhiteSpace(w.Expression))
         {
             w.Value = "?";
@@ -281,17 +290,47 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             return;
         }
 
+        var evaluationCts = new CancellationTokenSource();
+        _watchEvaluationCts[w] = evaluationCts;
+        var token = evaluationCts.Token;
+        var expression = w.Expression;
         try
         {
-            var result = await ctx.EvaluateAsync(w.Expression);
+            var result = await ctx.EvaluateAsync(expression, token);
+            if (_disposed || token.IsCancellationRequested ||
+                !ReferenceEquals(ctx, State.CurrentDebugCtx) ||
+                !_vm.DebugPanel.WatchExpressions.Contains(w)) return;
             w.Value = result?.Value ?? "<error>";
             w.TypeName = result?.TypeName ?? "";
         }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+        }
         catch (Exception ex)
         {
+            if (_disposed || token.IsCancellationRequested || !ReferenceEquals(ctx, State.CurrentDebugCtx) ||
+                !_vm.DebugPanel.WatchExpressions.Contains(w)) return;
             w.Value = $"<error: {ex.Message}>";
             w.TypeName = "";
         }
+        finally
+        {
+            if (_watchEvaluationCts.Remove(w, out var current) && ReferenceEquals(current, evaluationCts))
+                evaluationCts.Dispose();
+            else
+                evaluationCts.Dispose();
+        }
+    }
+
+    private void CancelWatchEvaluation(WatchExpression w)
+    {
+        if (_watchEvaluationCts.Remove(w, out var cts)) cts.Cancel();
+    }
+
+    private void CancelAllWatchEvaluations()
+    {
+        foreach (var cts in _watchEvaluationCts.Values) cts.Cancel();
+        _watchEvaluationCts.Clear();
     }
 
     // A tab that isn't shown (another tab is selected, so it is out of the visual tree) only keeps
@@ -453,6 +492,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         _restartRequested = false;
         _stopGeneration++;
+        _runGeneration++;
+        CancelAllWatchEvaluations();
         HideInputPrompt();
         try
         {
@@ -465,7 +506,17 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         catch (Exception ex)
         {
             _runLogger.LogError(ex, "Stopping the script failed");
-            if (!_disposed) AppendError(ex);
+        }
+        finally
+        {
+            // Cancellation must not depend on debugger Resume succeeding. A host can already be
+            // tearing down and throw ObjectDisposedException here; that is expected stop cleanup.
+            State.RunCts?.Cancel();
+            if (!_disposed && !_restarting)
+            {
+                SetStatus("Cancelled", "RunPad.Status.CancelledBrush");
+                UpdateOutputUi();
+            }
         }
     }
 
@@ -595,6 +646,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             return;
         }
 
+        // Stop can be requested while the pre-run checks are completing. Do not create or expose
+        // a fresh CTS after that stop generation has already been invalidated.
+        if (_disposed || stopGeneration != _stopGeneration) return;
+
         _vm.RunState = debug ? RunState.RunDebug : RunState.Run;
         s.Output.Clear();
         s.DumpContainerBlocks.Clear();
@@ -613,16 +668,35 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         s.RunCts?.Dispose();
         var runCts = new CancellationTokenSource();
+        if (_disposed || stopGeneration != _stopGeneration)
+        {
+            runCts.Dispose();
+            if (!_disposed && !_restarting)
+            {
+                _vm.RunState = RunState.Idle;
+                SetStatus("Cancelled", "RunPad.Status.CancelledBrush");
+                UpdateOutputUi();
+            }
+            return;
+        }
         s.RunCts = runCts;
         _runInProgress = true;
         var generation = ++_runGeneration;
-        void PostRun(Action action) => Dispatcher.Post(() =>
+        void PostRun(Action action, ILanguageHost? expectedHost = null)
         {
-            if (!_disposed && generation == _runGeneration) action();
-        });
+            // Capture events while their host is still the active host. The dispatcher callback may
+            // run after normal completion has cleared RunningHost; generation still protects the
+            // queued action from Stop/Restart and a replacement host.
+            if (expectedHost is not null && !ReferenceEquals(expectedHost, s.RunningHost)) return;
+            Dispatcher.Post(() =>
+            {
+                if (!_disposed && generation == _runGeneration) action();
+            });
+        }
 
         var cancelled = false;
         RunResult? runResult = null; // stays null for a debug run — DAP doesn't report an exit code here yet
+        ILanguageHost? runHost = null;
         try
         {
             var workDir = EnsureWorkDirectory();
@@ -643,11 +717,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             if (selection is not null) request = request with { Kind = RpadKind.Statements };
             var script = selection ?? s.Editor.Text;
             // Read on the UI thread; they name the host's source file once it exists (see below).
-            var enabledBreakpoints = s.Editor.Breakpoints
-                .Where(bp =>
-                    bp.IsEnabled) // Disabled breakpoints stay in the gutter but never reach the debugger
-                .Select(bp => (bp.Line, bp.Condition, bp.HitCondition))
-                .ToList();
+            // Disabled breakpoints stay in the gutter but never reach the debugger.
+            var enabledBreakpoints = BreakpointHostBridge.Enabled(s.Editor.Breakpoints);
             // Reset to Pending — stale Verified/Unverified color from a previous run shouldn't linger
             // in the margin until the new session's setBreakpoints response arrives.
             foreach (var bp in s.Editor.Breakpoints)
@@ -660,6 +731,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             await Task.Run(async () =>
             {
                 await using var host = _registry.Create(ResolveLanguageId(), request);
+                runHost = host;
                 s.RunningHost = host;
                 // The file the host compiles and its debugger reports (see ScriptBreakpoint).
                 var sourceFilePath = host.SourceFilePath ?? "";
@@ -669,15 +741,22 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     foreach (var (line, condition, hitCondition) in enabledBreakpoints)
                         host.AddBreakpoint(new ScriptBreakpoint(sourceFilePath, line, condition, hitCondition));
                     host.BreakpointHit += ctx =>
-                        PostRun(() => OnBreakpointHit(ctx));
+                        PostRun(() => OnBreakpointHit(ctx), host);
                     host.BreakpointVerified += (bp, verified, message) =>
-                        PostRun(() => OnBreakpointVerified(bp, verified, message));
+                        PostRun(() => OnBreakpointVerified(bp, verified, message), host);
                     var hostResult = await HostExecutionAdapter.DebugAsync(host, script, @event =>
                     {
                         if (@event is HostExecutionEvent.Stage stage)
                         {
-                            Volatile.Write(ref _runStageValue, (int)stage.Value);
-                            PostRun(() => ShowRunStage(stage.Value, stage.Detail));
+                            // Keep failure-stage selection synchronous, but only while this host
+                            // still owns the active generation; a late callback must not mutate the
+                            // next run's diagnostic context.
+                            if (generation == _runGeneration && ReferenceEquals(s.RunningHost, host))
+                                Volatile.Write(ref _runStageValue, (int)stage.Value);
+                            PostRun(() =>
+                            {
+                                ShowRunStage(stage.Value, stage.Detail);
+                            }, host);
                             return;
                         }
 
@@ -696,7 +775,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                                     ShowInputPrompt(input.Prompt, input.IsPassword);
                                     break;
                             }
-                        });
+                        }, host);
                     }, runCts.Token);
                     if (hostResult.Error is not null) throw hostResult.Error;
                     cancelled = hostResult.Cancelled;
@@ -708,10 +787,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     {
                         if (@event is HostExecutionEvent.Stage stage)
                         {
-                            // Keep the failure/status decision synchronous with the host event;
-                            // the visual update remains marshalled to the UI thread below.
-                            Volatile.Write(ref _runStageValue, (int)stage.Value);
-                            PostRun(() => ShowRunStage(stage.Value, stage.Detail));
+                            if (generation == _runGeneration && ReferenceEquals(s.RunningHost, host))
+                                Volatile.Write(ref _runStageValue, (int)stage.Value);
+                            PostRun(() =>
+                            {
+                                ShowRunStage(stage.Value, stage.Detail);
+                            }, host);
                             return;
                         }
 
@@ -730,7 +811,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                                     ShowInputPrompt(input.Prompt, input.IsPassword);
                                     break;
                             }
-                        });
+                        }, host);
                     }, runCts.Token);
                     if (hostResult.Error is not null) throw hostResult.Error;
                     cancelled = hostResult.Cancelled;
@@ -760,11 +841,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             InvalidateHoverTooltip();
             try
             {
-                s.RunningHost = null;
+                if (ReferenceEquals(s.RunningHost, runHost)) s.RunningHost = null;
                 try { await runCts.CancelAsync(); }
                 finally
                 {
-                    if (!_disposed)
+                    if (!_disposed && generation == _runGeneration)
                     {
                         HideInputPrompt();
 
@@ -785,7 +866,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                         }
                         else if (runResult is { Succeeded: false } failed)
                         {
-                            ReportRunFailure(failed, selection is not null);
+                            ReportRunFailure(failed, selection is not null, generation);
                         }
                         else if (!s.HadRunError)
                         {
@@ -816,11 +897,27 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _viewScale.Changed -= OnViewScaleChanged;
         if (_connectionSchemas is not null) _connectionSchemas.Cache.Changed -= OnConnectionSchemaChanged;
         State.Editor.ZoomRequested -= OnEditorZoomRequested;
+        if (_editorAttachedHandler is { } editorAttached)
+        {
+            State.Editor.AttachedToVisualTree -= editorAttached;
+            _editorAttachedHandler = null;
+        }
         ResultsWrapCheckBox.IsCheckedChanged -= OnResultsWrapCheckBoxChanged;
         OutputSettingsButton.Flyout!.Opened -= OnOutputSettingsFlyoutOpened;
         IlOutput.AttachedToVisualTree -= OnIlOutputAttachedToVisualTree;
         _editorInteractionSubscriptions?.Dispose();
         _editorInteractionSubscriptions = null;
+        if (_refactoringCaretHandler is { } refactoringCaret)
+            State.Editor.TextArea.Caret.PositionChanged -= refactoringCaret;
+        if (_intelliSenseTextChangedHandler is { } intelliSenseTextChanged)
+            State.Editor.TextChanged -= intelliSenseTextChanged;
+        if (_quickInfoPointerMovedHandler is { } quickInfoMoved)
+            State.Editor.TextArea.TextView.PointerMoved -= quickInfoMoved;
+        if (_quickInfoPointerExitedHandler is { } quickInfoExited)
+            State.Editor.TextArea.TextView.PointerExited -= quickInfoExited;
+        var refactoringCts = Interlocked.Exchange(ref _refactoringCts, null);
+        refactoringCts?.Cancel();
+        refactoringCts?.Dispose();
         if (_squiggleRenderer is { } squiggle)
             State.Editor.TextArea.TextView.BackgroundRenderers.Remove(squiggle);
         if (_semanticHighlighter is { } semantic)
@@ -837,11 +934,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _selectedSdkSub?.Dispose();
         _selectedArgumentSetSub?.Dispose();
         _vm.DebugPanel.WatchExpressions.CollectionChanged -= OnWatchExpressionsCollectionChanged;
-        _contextRefreshCts?.Cancel();
+        var contextRefreshCts = Interlocked.Exchange(ref _contextRefreshCts, null);
+        contextRefreshCts?.Cancel();
         _quickInfoCts?.Cancel();
         _debugTooltipCloseCts?.Cancel();
         DisposePreview();
         Cancel();
+        CancelAllWatchEvaluations();
         _debugHover.Dispose();
         // The run owns its CTS until its asynchronous cleanup has finished.
         if (!_runInProgress) State.RunCts?.Dispose();
@@ -1302,6 +1401,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     internal void ResumeDebug(DebugAction action)
     {
+        CancelAllWatchEvaluations();
         _vm.RunState = RunState.RunDebug;
         State.Editor.DebugCurrentLine = null;
         _vm.DebugPanel.ClearStop();
@@ -1391,8 +1491,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // The run's status follows the script's real exit code (and a failed compile/start),
     // not "Success" whenever no exception reached the UI. The message is posted like the script's own
     // output, so it lands after the last lines the script wrote.
-    private void ReportRunFailure(RunResult result, bool selection = false)
+    private void ReportRunFailure(RunResult result, bool selection, int generation)
     {
+        if (_disposed || generation != _runGeneration) return;
         State.HadRunError = true;
         var (message, status) = result.Outcome switch
         {
@@ -1413,6 +1514,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         SetStatus(status, "RunPad.Status.ErrorBrush");
         Dispatcher.Post(() =>
         {
+            if (_disposed || generation != _runGeneration) return;
             if (message is not null)
                 State.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(message)}</div>");
             UpdateOutputUi();
@@ -1539,6 +1641,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         if (_disposed) return;
         ++_inputPromptRevision;
+        _inputPromptGeneration = _runGeneration;
         InputPromptLabel.Text = string.IsNullOrEmpty(prompt) ? "Input:" : prompt;
         InputPromptBox.PasswordChar = isPassword ? '●' : default;
         InputPromptBox.Text = "";
@@ -1576,12 +1679,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         var text = InputPromptBox.Text ?? "";
         var isPassword = InputPromptBox.PasswordChar != default;
-        var generation = _runGeneration;
+        var generation = _inputPromptGeneration;
         var cancellation = State.RunCts?.Token ?? CancellationToken.None;
         HideInputPrompt(); // Consumes this prompt before the first await and clears its text.
         var revision = _inputPromptRevision;
         try
         {
+            // Cancel/Dispose can win the race between consuming the prompt and starting the host
+            // write. Do not send a stale value even if the host happens to ignore cancellation.
+            if (!IsCurrentSubmission()) return;
             await host.SendInputAsync(text, cancellation);
             if (IsCurrentSubmission() && !isPassword)
                 AppendOutput(text, OutputKind.StandardOutput);
@@ -1622,6 +1728,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     internal void OnBreakpointHit(IBreakpointHitContext context)
     {
         var s = State;
+        CancelAllWatchEvaluations();
         InvalidateHoverTooltip();
         s.CurrentDebugCtx = context;
         _vm.RunState = RunState.Paused;
@@ -2043,16 +2150,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         _intelliSenseEventSubscriptions = new IntelliSenseEventSubscriptions(
             intelliSense, diagnosticsChanged, semanticTokensChanged, codeFixesChanged, inlayHintsChanged);
+        _intelliSenseEventSubscriptions.Attach();
 
         // ── Refactorings (lightbulb: real Roslyn CodeRefactoringProviders) ──────
-        var refactoringCts = new CancellationTokenSource();
+        _refactoringCts = new CancellationTokenSource();
 
-        editor.TextArea.Caret.PositionChanged += (_, _) =>
+        _refactoringCaretHandler = (_, _) =>
         {
             // Same not-disposed-here rationale as quickInfoCts below — a superseded fetch's
             // background Task.Run can still be mid-flight past this point.
-            refactoringCts.Cancel();
-            refactoringCts = new CancellationTokenSource();
+            var previousRefactoringCts = Interlocked.Exchange(ref _refactoringCts, null);
+            previousRefactoringCts?.Cancel();
+            previousRefactoringCts?.Dispose();
+            var refactoringCts = _refactoringCts = new CancellationTokenSource();
 
             // User request 2026-07-21 — the master "show code fixes" switch skips even
             // asking for refactorings, not just hiding them once listed: a caret move fires on every
@@ -2063,6 +2173,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 _refactoringFixEntries = [];
                 UpdateLightbulb();
+                refactoringCts.Dispose();
+                Interlocked.CompareExchange(ref _refactoringCts, null, refactoringCts);
                 return;
             }
 
@@ -2092,22 +2204,29 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 catch (OperationCanceledException)
                 {
                 }
+                finally
+                {
+                    refactoringCts.Dispose();
+                    Interlocked.CompareExchange(ref _refactoringCts, null, refactoringCts);
+                }
             });
         };
+        editor.TextArea.Caret.PositionChanged += _refactoringCaretHandler;
 
         // An immutable snapshot (cheap: the rope is shared) instead of editor.Text — the string is built
         // off the UI thread, and only for the keystroke that's still the latest once analysis starts.
-        editor.TextChanged += (_, _) =>
+        _intelliSenseTextChangedHandler = (_, _) =>
         {
             var snapshot = editor.Document.CreateSnapshot();
             intelliSense.NotifyTextChanged(() => snapshot.Text);
         };
+        editor.TextChanged += _intelliSenseTextChangedHandler;
 
         // ── Quick Info tooltips on hover ──────────────────────────────────────
         ToolTip.SetShowDelay(editor.TextArea.TextView, 0);
         _quickInfoCts = new CancellationTokenSource();
 
-        editor.TextArea.TextView.PointerMoved += (_, e) =>
+        _quickInfoPointerMovedHandler = (_, e) =>
         {
             // Not disposed here — a superseded hover's background Task.Run may still be mid-flight
             // past this point, and registering/reading against an already-disposed
@@ -2197,12 +2316,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 }
             });
         };
+        editor.TextArea.TextView.PointerMoved += _quickInfoPointerMovedHandler;
 
-        editor.TextArea.TextView.PointerExited += (_, _) =>
+        _quickInfoPointerExitedHandler = (_, _) =>
         {
             _quickInfoCts?.Cancel();
             ScheduleDebugTooltipClose(editor);
         };
+        editor.TextArea.TextView.PointerExited += _quickInfoPointerExitedHandler;
     }
 
     private void InvalidateHoverTooltip()
@@ -2621,7 +2742,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void RefreshIntelliSenseContext(bool reanalyze)
     {
         if (_disposed || _intelliSense is not { } intelliSense) return;
-        _contextRefreshCts?.Cancel();
+        var previousContextRefreshCts = Interlocked.Exchange(ref _contextRefreshCts, null);
+        previousContextRefreshCts?.Cancel();
         var refresh = _contextRefreshCts = new CancellationTokenSource();
         var token = refresh.Token;
         var frontMatter = State.RpadDocument?.FrontMatter;
@@ -2658,6 +2780,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             catch (Exception ex)
             {
                 _runLogger.LogWarning(ex, "Updating the editor's references failed");
+            }
+            finally
+            {
+                Interlocked.CompareExchange(ref _contextRefreshCts, null, refresh);
+                refresh.Dispose();
             }
         }, token);
         EnsureConnectionSchemasInBackground();

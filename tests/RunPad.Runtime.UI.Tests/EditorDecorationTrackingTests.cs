@@ -11,7 +11,6 @@ using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.CSharp.IntelliSense;
-using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -147,6 +146,8 @@ public class EditorDecorationTrackingTests
     // ── end to end: a real editor with real Roslyn analysis ──
 
     [AvaloniaFact]
+    [Trait("Category", "Integration")]
+    [Trait("Category", "Roslyn")]
     public async Task InARealEditor_SemanticColors_Should_FollowTyping_AndAResultShould_RedrawOnlyWhatChanged()
     {
         var prefs = new Mock<IPreferencesService>();

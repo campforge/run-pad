@@ -1,4 +1,3 @@
-using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Debug.Protocol;
 using Xunit;
 

@@ -1,4 +1,3 @@
-using RunPad.Contracts;
 using RunPad.Contracts.Models;
 
 namespace RunPad.Services;
@@ -25,7 +24,3 @@ public sealed record HostExecutionResult(
     public static HostExecutionResult Failed(Exception error) => new(null, false, error);
 }
 
-public interface IHostExecutionEventSink
-{
-    void Publish(HostExecutionEvent @event);
-}

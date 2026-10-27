@@ -1,6 +1,5 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -13,8 +12,6 @@ using Moq;
 using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
 using RunPad.Format.RPad;
-using RunPad.Languages.CSharp;
-using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
