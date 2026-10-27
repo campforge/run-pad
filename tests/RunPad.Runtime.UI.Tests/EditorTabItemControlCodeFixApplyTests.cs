@@ -10,7 +10,6 @@ using RunPad.Contracts;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.CSharp.IntelliSense;
-using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -30,6 +29,8 @@ namespace RunPad.Runtime.UI.Tests;
 // lands in FrontMatter.Namespaces, not the visible editor text — every RunPad tab (even a brand-new
 // untitled one, see NewRpadFile) is a real .rpad document, and usings are project-level metadata
 // there (docs/ImplementationPlanRPad.md), not text inserted into the script itself.
+[Trait("Category", "Integration")]
+[Trait("Category", "Roslyn")]
 public class EditorTabItemControlCodeFixApplyTests
 {
     private static Mock<IPreferencesService> MakePrefs()

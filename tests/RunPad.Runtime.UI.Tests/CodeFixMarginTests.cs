@@ -1,6 +1,5 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -8,7 +7,6 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media;
 using Avalonia.Threading;
-using Avalonia.VisualTree;
 using AvaloniaEdit.Document;
 using RunPad.Avalonia.CodeTextEditor;
 using Xunit;

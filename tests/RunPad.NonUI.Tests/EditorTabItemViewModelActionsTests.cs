@@ -1,4 +1,3 @@
-using System.Reactive.Linq;
 using Moq;
 using RunPad.Services.Preferences;
 using RunPad.UserControls.Models;

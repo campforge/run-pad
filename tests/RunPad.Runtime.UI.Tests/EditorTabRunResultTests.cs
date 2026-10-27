@@ -1,4 +1,3 @@
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
@@ -7,7 +6,6 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Microsoft.Extensions.Logging;
 using Moq;
-using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
 using RunPad.Contracts.Connections;
@@ -295,6 +293,38 @@ public class EditorTabRunResultTests
         }
         finally { finish.TrySetResult(RunResult.Exited(0)); }
         await second.WaitAsync(TimeSpan.FromSeconds(10));
+    }
+
+    [AvaloniaFact]
+    public async Task LateStageAndInputAfterRunCompletion_Should_NotReachTheTab()
+    {
+        StageChangedHandler? staleStage = null;
+        InputRequestedHandler? staleInput = null;
+        var ctrl = CreateControl(RunResult.Exited(0), configureHost: host =>
+        {
+            host.SetupAdd(h => h.StageChanged += It.IsAny<StageChangedHandler>())
+                .Callback<StageChangedHandler>(handler => staleStage = handler);
+            host.SetupAdd(h => h.InputRequested += It.IsAny<InputRequestedHandler>())
+                .Callback<InputRequestedHandler>(handler => staleInput = handler);
+        });
+
+        try
+        {
+            await RunAsync(ctrl);
+            Assert.Equal("Success", ctrl.State.ExecStatusText);
+            staleStage!(RunStage.Compiling, "late stage");
+            staleInput!("late prompt", false);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal("Success", ctrl.State.ExecStatusText);
+            Assert.DoesNotContain("late stage", ctrl.State.Output.Content);
+            Assert.False(ctrl.IsInputPromptVisible);
+        }
+        finally
+        {
+            ctrl.Dispose();
+            ((Window)TopLevel.GetTopLevel(ctrl)!).Close();
+        }
     }
 
     private static async Task RunAsync(EditorsTabItemControl ctrl)

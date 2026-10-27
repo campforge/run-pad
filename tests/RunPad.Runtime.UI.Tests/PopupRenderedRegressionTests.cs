@@ -1,19 +1,13 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
-using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
-using Avalonia.Input;
-using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
-using AvaloniaEdit.Search;
-using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Avalonia.Themes;
-using RunPad.Services.Preferences;
 using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;

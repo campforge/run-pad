@@ -6,8 +6,6 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
 using Avalonia.Threading;
-
-using MarkView.Avalonia;
 using MarkView.Avalonia.Extensions;
 using MarkView.Avalonia.Rendering;
 

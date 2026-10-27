@@ -13,7 +13,6 @@ using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Languages.CSharp;
-using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.VB;
 using RunPad.Services;
 using RunPad.Services.BuildCache;

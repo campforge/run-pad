@@ -1,6 +1,4 @@
 using System.Reactive;
-using System.Reactive.Linq;
-using Avalonia.Controls;
 using ReactiveUI;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;

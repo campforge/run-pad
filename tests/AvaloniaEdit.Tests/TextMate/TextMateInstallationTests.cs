@@ -1,4 +1,3 @@
-using System;
 using AvaloniaEdit.AvaloniaMocks;
 using NUnit.Framework;
 using TextMateSharp.Grammars;

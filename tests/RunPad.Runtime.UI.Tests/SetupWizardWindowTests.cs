@@ -3,7 +3,6 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using Moq;
-using RunPad.Contracts;
 using RunPad.Services.Preferences;
 using RunPad.Services.Setup;
 using RunPad.Windows;

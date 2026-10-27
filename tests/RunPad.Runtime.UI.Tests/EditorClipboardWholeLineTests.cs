@@ -2,7 +2,6 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
-using Avalonia.Input.Platform;
 using RunPad.Avalonia.CodeTextEditor;
 using Xunit;
 

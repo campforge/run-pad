@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Disposables;
-using System.Reactive.Linq;
 using ReactiveUI;
 using RunPad.Contracts;
 using RunPad.Contracts.Connections;

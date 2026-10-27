@@ -2,7 +2,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
-using Avalonia.VisualTree;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using ReactiveUI;
@@ -10,7 +9,6 @@ using RunPad.Contracts;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
-using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -26,6 +24,7 @@ namespace RunPad.Runtime.UI.Tests;
 // path CreateControlAsync uses), real ILocalPackageCacheService, real DependenciesWindow —
 // IPackageSearchService itself is mocked (no real network dependency in CI), only the DI-only
 // services with no bearing on this flow are mocked otherwise.
+[Trait("Category", "Integration")]
 public class DependenciesRealTabIntegrationTests
 {
     [AvaloniaFact]

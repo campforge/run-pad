@@ -8,6 +8,8 @@ namespace RunPad.Runtime.UI.Tests;
 // override; these tests exercise the override with a REAL child process (a tiny fake "dotnet"
 // script/batch file), not a mock, since the actual bug this guards against — Process.Start behavior
 // for a path containing spaces — can only be proven by really spawning one.
+[Trait("Category", "Integration")]
+[Trait("Category", "RealBuild")]
 public class DotnetSdkProviderTests
 {
     [Fact]

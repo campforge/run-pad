@@ -15,6 +15,8 @@ namespace RunPad.Runtime.UI.Tests;
 // turns a bare ".dll" program into a PATH lookup of "dotnet", which a macOS GUI app's launchd PATH
 // doesn't contain — after which the session silently waited forever. Same fake-netcoredbg-conversation
 // technique as DapSessionCurrentQueryPathTests.cs (PipeStream/Frame duplicated, files stay self-contained).
+[Trait("Category", "Integration")]
+[Trait("Category", "Debugger")]
 public class DapSessionLaunchTests
 {
     private sealed class PipeStream : Stream

@@ -16,10 +16,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-using System;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Linq;
 using Avalonia;
 using Avalonia.Input;
 using Avalonia.Threading;

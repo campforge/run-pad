@@ -1,6 +1,5 @@
 using Moq;
 using RunPad.Connectors.Http;
-using RunPad.Contracts;
 using RunPad.Contracts.Connections;
 using RunPad.Format.RPad;
 using RunPad.Services.Connections;

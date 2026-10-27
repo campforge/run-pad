@@ -1,4 +1,3 @@
-using System;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.TextMate;
 

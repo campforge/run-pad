@@ -45,6 +45,43 @@ public sealed class HostExecutionAdapterTests
     }
 
     [Fact]
+    public async Task Run_ReturningAfterCancellation_IsReportedAsCancelled()
+    {
+        using var cts = new CancellationTokenSource();
+        var host = new Mock<ILanguageHost>();
+        host.Setup(h => h.RunAsync(It.IsAny<string>(), It.IsAny<OutputReceivedHandler>(), It.IsAny<CancellationToken>()))
+            .Callback(() => cts.Cancel())
+            .ReturnsAsync(RunResult.Exited(0));
+
+        var result = await HostExecutionAdapter.RunAsync(host.Object, "script", _ => { }, cts.Token);
+
+        Assert.True(result.Cancelled);
+        Assert.False(result.Succeeded);
+    }
+
+    [Fact]
+    public async Task EventsRaisedAfterInvocationCompletes_AreIgnored()
+    {
+        StageChangedHandler? stage = null;
+        InputRequestedHandler? input = null;
+        var host = new Mock<ILanguageHost>();
+        host.SetupAdd(h => h.StageChanged += It.IsAny<StageChangedHandler>())
+            .Callback<StageChangedHandler>(handler => stage = handler);
+        host.SetupAdd(h => h.InputRequested += It.IsAny<InputRequestedHandler>())
+            .Callback<InputRequestedHandler>(handler => input = handler);
+        host.Setup(h => h.RunAsync(It.IsAny<string>(), It.IsAny<OutputReceivedHandler>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(RunResult.Exited(0));
+
+        var events = new List<HostExecutionEvent>();
+        var result = await HostExecutionAdapter.RunAsync(host.Object, "script", events.Add, CancellationToken.None);
+        stage!(RunStage.Running, "late");
+        input!("late prompt", false);
+
+        Assert.True(result.Succeeded);
+        Assert.Empty(events);
+    }
+
+    [Fact]
     public async Task Run_MapsExpectedCancellationAndUnsubscribesHandlers()
     {
         using var cts = new CancellationTokenSource();

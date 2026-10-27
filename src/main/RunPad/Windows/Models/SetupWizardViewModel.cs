@@ -1,5 +1,4 @@
 using System.Reactive;
-using System.Reactive.Linq;
 using ReactiveUI;
 using RunPad.Services.Preferences;
 using RunPad.Services.Setup;

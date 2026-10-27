@@ -1,5 +1,3 @@
-using System;
-
 using AvaloniaEdit.Document;
 
 namespace AvaloniaEdit.TextMate;

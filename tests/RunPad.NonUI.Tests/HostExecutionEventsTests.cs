@@ -1,4 +1,3 @@
-using RunPad.Contracts;
 using RunPad.Contracts.Models;
 using RunPad.Services;
 using Xunit;

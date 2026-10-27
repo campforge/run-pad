@@ -7,7 +7,6 @@ using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.DotnetCommon.Compiler;
-using RunPad.Languages.DotnetCommon.Sdk;
 using Xunit;
 
 namespace RunPad.NonUI.Tests;

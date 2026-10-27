@@ -5,7 +5,6 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using ReactiveUI;
 using RunPad.Connectors.Grpc;
 using RunPad.Connectors.Http;
 using RunPad.Connectors.Sqlite;

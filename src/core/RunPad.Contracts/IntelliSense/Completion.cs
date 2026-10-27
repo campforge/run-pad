@@ -10,7 +10,7 @@ public enum CompletionTriggerKind { Invoked, Insertion, Deletion }
 
 public enum CompletionItemKind
 {
-    Text, Method, Function, Constructor, Field, Variable,
+    Text, Method, ExtensionMethod, Function, Constructor, Field, Variable,
     Class, Interface, Module, Property, Enum, Keyword,
     Snippet, EnumMember, Constant, Struct, Event, Operator, TypeParameter, Reference, Delegate
 }

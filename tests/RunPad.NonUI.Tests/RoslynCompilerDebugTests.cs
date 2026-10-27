@@ -16,6 +16,8 @@ namespace RunPad.Runtime.UI.Tests;
 // netcoredbg; opt-in via RUNPAD_TEST_NETCOREDBG like RealNetcoredbgDebugTests.
 [Trait("Category", "RealBuild")]
 [Collection(RealBuildTestCollection.Name)]
+[Trait("Category", "Integration")]
+[Trait("Category", "RealBuild")]
 public class RoslynCompilerDebugTests : IDisposable
 {
     private const string NetcoredbgEnvVar = "RUNPAD_TEST_NETCOREDBG";

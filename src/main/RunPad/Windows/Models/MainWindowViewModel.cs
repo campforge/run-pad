@@ -1,8 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Linq;
-using System.Text;
-using Avalonia.Controls;
 using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;

@@ -1,5 +1,4 @@
 using System.Reactive;
-using System.Reactive.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -9,7 +8,6 @@ using Avalonia.VisualTree;
 using AvaloniaEdit;
 using ReactiveUI;
 using RunPad.Format.RPad;
-using RunPad.Services.Examples;
 using RunPad.Services.Preferences;
 using RunPad.UserControls;
 using RunPad.UserControls.Models;

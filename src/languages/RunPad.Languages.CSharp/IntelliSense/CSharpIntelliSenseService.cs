@@ -712,6 +712,10 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
 
                     if (type != null)
                     {
+                        var generatedApiRoot = IsGeneratedApiRoot(qualifier);
+                        var memberPrefix = generatedApiRoot
+                            ? beforeCaret[(beforeCaret.LastIndexOf('.') + 1)..]
+                            : "";
                         // LookupSymbols(container: type) returns every member visible in that type's
                         // scope regardless of static-ness — "DateTime." used to also offer AddDays
                         // (instance) and "d." used to also offer Parse (static).
@@ -724,6 +728,11 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
                                 .Select(s => ToItem(s, currentType: type))
                                 .Where(i => i != null)
                                 .Cast<ICompletionItem>())
+                                .Where(i => !generatedApiRoot
+                                    || i.DisplayText.StartsWith(memberPrefix, StringComparison.OrdinalIgnoreCase))
+                                .Select(i => generatedApiRoot
+                                ? PromoteGeneratedApiItem(i)
+                                : i)
                             .OrderBy(i => i.SortText, StringComparer.Ordinal)
                             .ToList();
 
@@ -827,7 +836,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
                 var chosen = g.OrderBy(i => (int)i.Kind).First();
                 if (chosen is not SimpleCompletionItem simple) return chosen;
 
-                var overloadCount = g.Count(i => i.Kind == CompletionItemKind.Method);
+                var overloadCount = g.Count(i => i.Kind is CompletionItemKind.Method or CompletionItemKind.ExtensionMethod);
                 var isOwnMember = g.Any(i => i.IsOwnMember);
                 return simple with
                 {
@@ -1028,7 +1037,9 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         // main script shape) use local functions as their primary way to structure code, so leaving
         // them out meant the single most common non-trivial identifier in a script never completed
         //.
-        IMethodSymbol m when m.MethodKind is MethodKind.Ordinary or MethodKind.ReducedExtension or MethodKind.LocalFunction
+        IMethodSymbol m when m.MethodKind is MethodKind.ReducedExtension
+            => BuildExtensionMethodItem(m, currentType),
+        IMethodSymbol m when m.MethodKind is MethodKind.Ordinary or MethodKind.LocalFunction
             => BuildItem(m, m.Name, CompletionItemKind.Method, IsOwnMember(m, currentType)),
         IPropertySymbol p
             => BuildItem(p, p.Name, CompletionItemKind.Property, IsOwnMember(p, currentType)),
@@ -1074,6 +1085,13 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             symbol.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetSummary(symbol),
             SortText: $"{rank}{displayText}", Priority: ScopeRankPriority(rank), UsingsToAdd: [],
             IsOwnMember: isOwnMember);
+    }
+
+    private static ICompletionItem BuildExtensionMethodItem(IMethodSymbol method, ITypeSymbol? currentType)
+    {
+        var item = (SimpleCompletionItem)BuildItem(method, method.Name, CompletionItemKind.ExtensionMethod,
+            IsOwnMember(method, currentType));
+        return item with { Priority = Math.Max(0.85, item.Priority) };
     }
 
     // A type from an added NuGet package that isn't in
@@ -1227,6 +1245,23 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     {
         INamedTypeSymbol => isStaticQualifier,
         _ => symbol.IsStatic == isStaticQualifier,
+    };
+
+    // Generated script APIs are intentionally treated as first-class completion surfaces.  Their
+    // members come from the current execution context (Arguments/Connections) or the compatibility
+    // runtime (Util), so they should win ties against similarly named ordinary symbols while still
+    // retaining the normal alphabetical order inside this member list.
+    private static bool IsGeneratedApiRoot(ExpressionSyntax qualifier) =>
+        qualifier is IdentifierNameSyntax { Identifier.ValueText: "Arguments" or "Connections" or "Util" };
+
+    private static ICompletionItem PromoteGeneratedApiItem(ICompletionItem item) => item switch
+    {
+        SimpleCompletionItem simple => simple with
+        {
+            SortText = $"0{simple.SortText}",
+            Priority = Math.Max(1.1, simple.Priority),
+        },
+        _ => item,
     };
 
     // ICompletionItem.Priority — the editor's tie-break among items of otherwise-equal match quality

@@ -1,6 +1,5 @@
 using System.Reactive.Linq;
 using Moq;
-using RunPad.Contracts;
 using RunPad.Services.Preferences;
 using RunPad.Services.Setup;
 using RunPad.Windows.Models;
