@@ -85,8 +85,8 @@ public class MainWindowChromeTests
 
         using var window = CreateMainWindow();
 
-        Assert.Equal(WindowDecorations.Full, window.WindowDecorations);
-        Assert.False(window.ExtendClientAreaToDecorationsHint);
+        Assert.Equal(WindowDecorations.BorderOnly, window.WindowDecorations);
+        Assert.True(window.ExtendClientAreaToDecorationsHint);
 
         var windowControlButtons = window.FindControl<StackPanel>("WindowControlButtons");
         Assert.NotNull(windowControlButtons);
@@ -97,19 +97,27 @@ public class MainWindowChromeTests
         Assert.False(appIcon!.IsVisible);
     }
 
-    // Stock macOS titlebar, menu moved to the system menu bar.
+    // Native titlebar stays separate from the Rider-style application toolbar.
     [AvaloniaFact]
-    public void ApplyPlatformChrome_Should_UseNativeTitlebarWithoutCustomHeaderRow_OnMacOS()
+    public void ApplyPlatformChrome_Should_KeepNativeTitlebarAndToolbar_OnMacOS()
     {
         if (!OperatingSystem.IsMacOS()) return;
 
         using var window = CreateMainWindow();
 
-        Assert.Equal(WindowDecorations.Full, window.WindowDecorations);
-        Assert.False(window.ExtendClientAreaToDecorationsHint);
-
-        Assert.False(window.FindControl<Border>("TitleBar")!.IsVisible);
-        Assert.Equal(0, window.FindControl<Grid>("RootLayout")!.RowDefinitions[0].Height.Value);
+        Assert.Equal(WindowDecorations.BorderOnly, window.WindowDecorations);
+        Assert.True(window.ExtendClientAreaToDecorationsHint);
+        Assert.True(window.CanResize);
+        Assert.True(window.FindControl<Border>("TitleBar")!.IsVisible);
+        Assert.False(window.FindControl<StackPanel>("WindowControlButtons")!.IsVisible);
+        Assert.True(window.FindControl<StackPanel>("MacWindowButtons")!.IsVisible);
+        Assert.False(window.FindControl<Image>("AppIconImage")!.IsVisible);
+        Assert.Equal(0, window.FindControl<StackPanel>("TitleBarActions")!.Margin.Left);
+        Assert.False(window.FindControl<Menu>("MainMenu")!.IsVisible);
+        Assert.NotNull(NativeMenu.GetMenu(window));
+        Assert.Equal(32, window.FindControl<Grid>("RootLayout")!.RowDefinitions[0].Height.Value);
+        Assert.Equal(30, window.FindControl<Button>("SidebarToggleButton")!.Width);
+        Assert.Equal(14, window.FindControl<PathIcon>("SidebarToggleIcon")!.Width);
     }
 
     // The same application menu paths on every OS, File → Exit included (macOS has no Quit of its
