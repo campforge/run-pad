@@ -85,8 +85,8 @@ public class MainWindowChromeTests
 
         using var window = CreateMainWindow();
 
-        Assert.Equal(WindowDecorations.BorderOnly, window.WindowDecorations);
-        Assert.True(window.ExtendClientAreaToDecorationsHint);
+        Assert.Equal(WindowDecorations.Full, window.WindowDecorations);
+        Assert.False(window.ExtendClientAreaToDecorationsHint);
 
         var windowControlButtons = window.FindControl<StackPanel>("WindowControlButtons");
         Assert.NotNull(windowControlButtons);
