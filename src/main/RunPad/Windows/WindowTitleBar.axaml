@@ -1,16 +1,19 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:windows="using:RunPad.Windows"
              x:Class="RunPad.Windows.WindowTitleBar"
              x:CompileBindings="False">
     <!-- The title bar every window but MainWindow gets (Resources/WindowChrome.axaml), drawn like
          MainWindow's own title row: same height, background and window buttons. -->
     <Border x:Name="Bar" Height="32" Background="{DynamicResource RunPad.Sidebar.BackgroundBrush}"
             WindowDecorationProperties.ElementRole="TitleBar">
-        <Grid ColumnDefinitions="*,Auto">
-            <TextBlock x:Name="TitleText" VerticalAlignment="Center" Margin="12,0" TextTrimming="CharacterEllipsis"
+        <Grid ColumnDefinitions="Auto,*,Auto">
+            <!-- macOS: RunPad's own traffic lights at the left, as in MainWindow's title row. -->
+            <windows:MacWindowButtons x:Name="MacButtons" IsVisible="False"/>
+            <TextBlock x:Name="TitleText" Grid.Column="1" VerticalAlignment="Center" Margin="12,0" TextTrimming="CharacterEllipsis"
                        Text="{Binding $parent[Window].Title}" IsHitTestVisible="False"
                        Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
-            <StackPanel x:Name="Buttons" Grid.Column="1" Orientation="Horizontal"
+            <StackPanel x:Name="Buttons" Grid.Column="2" Orientation="Horizontal"
                         WindowDecorationProperties.ElementRole="User">
                 <Button x:Name="MinimizeButton" Theme="{StaticResource RunPadCaptionButton}" Click="Minimize_Click"
                         IsVisible="{Binding $parent[Window].CanResize}">

@@ -70,8 +70,9 @@ Notable changes in each RunPad release. Downloads are on the
 - **Restore open tabs and unsaved changes** moved from Preferences → Interface to Preferences →
   Editor.
 - Every window has the same title bar as the main window — its colors, title and window buttons —
-  on Windows, macOS (beside the system's traffic lights) and Linux on Wayland, instead of the
-  system's. A dialog that can't be resized has only a close button.
+  on Windows, macOS (with the main window's own traffic-light buttons) and Linux on Wayland,
+  instead of the system's. A dialog that can't be resized has only a close button on Windows and
+  Linux; on macOS its minimize and zoom buttons are dimmed.
 
 ### Fixed
 

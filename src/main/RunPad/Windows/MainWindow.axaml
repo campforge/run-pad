@@ -6,7 +6,7 @@
     xmlns:chrome="using:Avalonia.Controls.Chrome"
     xmlns:uc="clr-namespace:RunPad.UserControls"
     xmlns:ucm="clr-namespace:RunPad.UserControls.Models"
-    xmlns:conv="clr-namespace:RunPad.Converters" mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450" x:Class="RunPad.Windows.MainWindow" x:DataType="vm:MainWindowViewModel" Icon="/Assets/icon.ico" Title="RunPad" WindowDecorations="BorderOnly" ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="32">
+    xmlns:conv="clr-namespace:RunPad.Converters" mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450" xmlns:windows="using:RunPad.Windows" x:Class="RunPad.Windows.MainWindow" x:DataType="vm:MainWindowViewModel" Icon="/Assets/icon.ico" Title="RunPad" WindowDecorations="BorderOnly" ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="32">
 
     <Window.Resources>
         <!-- Referenced via ContentTemplate on the sidebar's ContentControl below. DataTemplate.Build()
@@ -47,39 +47,6 @@
             <Setter Property="Background" Value="#C42B1C"/>
             <Setter Property="Foreground" Value="White"/>
         </Style>
-        <Style Selector="Button.mac-window-btn">
-            <Setter Property="Width" Value="20"/>
-            <Setter Property="Height" Value="20"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Template">
-                <ControlTemplate TargetType="Button">
-                    <ContentPresenter Content="{TemplateBinding Content}"
-                                      ContentTemplate="{TemplateBinding ContentTemplate}"
-                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                </ControlTemplate>
-            </Setter>
-        </Style>
-        <Style Selector="Button.mac-window-btn:pointerover">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.mac-window-btn:pressed">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.mac-window-btn:focus">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.mac-window-btn Path">
-            <Setter Property="HorizontalAlignment" Value="Center"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
 
     </Window.Styles>
 
@@ -105,31 +72,7 @@
                         </Menu.Styles>
                     </Menu>
 
-                    <StackPanel x:Name="MacWindowButtons" Orientation="Horizontal" Spacing="2" Margin="4,0,4,0" VerticalAlignment="Center" IsVisible="False" PointerExited="MacWindowButtons_PointerExited">
-                        <Button Classes="mac-window-btn" Click="Close_Click" PointerEntered="MacWindowButton_PointerEntered" AutomationProperties.Name="Close">
-                            <Grid>
-                                <Ellipse x:Name="MacCloseDot" Width="14" Height="14" Fill="#FF5F57"/>
-                                <Path Classes="mac-close-glyph" x:Name="MacCloseGlyph"
-                                      IsVisible="False" Width="13" Height="13" Stretch="None" Data="M 3.5,3.5 L 9.5,9.5 M 9.5,3.5 L 3.5,9.5"
-                                      Stroke="#7A0000" StrokeThickness="2" StrokeLineCap="Round"/>
-                            </Grid>
-                        </Button>
-                        <Button Classes="mac-window-btn" Click="Minimize_Click" PointerEntered="MacWindowButton_PointerEntered" AutomationProperties.Name="Minimize">
-                            <Grid>
-                                <Ellipse x:Name="MacMinimizeDot" Width="14" Height="14" Fill="#FEBC2E"/>
-                                <Path x:Name="MacMinimizeGlyph" IsVisible="False" Width="13" Height="13"
-                                      Stretch="None" Data="M 3.5,6.5 H 9.5" Stroke="#7A5700" StrokeThickness="2" StrokeLineCap="Round"/>
-                            </Grid>
-                        </Button>
-                        <Button Classes="mac-window-btn" Click="Maximize_Click" PointerEntered="MacWindowButton_PointerEntered" AutomationProperties.Name="Zoom">
-                            <Grid>
-                                <Ellipse x:Name="MacMaximizeDot" Width="14" Height="14" Fill="#28C840"/>
-                                <Path x:Name="MacMaximizeGlyph"
-                                      IsVisible="False" Width="13" Height="13" Stretch="None" Data="M 3.5,6 V 3.5 H 6 M 9.5,7 V 9.5 H 7"
-                                      Stroke="#006A1B" StrokeThickness="2" StrokeLineCap="Round"/>
-                            </Grid>
-                        </Button>
-                    </StackPanel>
+                    <windows:MacWindowButtons x:Name="MacWindowButtons" IsVisible="False"/>
 
                     <Button x:Name="SidebarToggleButton" Classes="wc-btn" Width="30" Command="{Binding Sidebar.ToggleCommand}" ToolTip.Tip="Toggle file tree">
                         <PathIcon x:Name="SidebarToggleIcon" Data="{StaticResource Icon.SidebarLeft}" Width="14" Height="14"/>

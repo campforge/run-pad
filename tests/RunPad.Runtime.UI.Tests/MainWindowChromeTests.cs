@@ -110,7 +110,7 @@ public class MainWindowChromeTests
         Assert.True(window.CanResize);
         Assert.True(window.FindControl<Border>("TitleBar")!.IsVisible);
         Assert.False(window.FindControl<StackPanel>("WindowControlButtons")!.IsVisible);
-        Assert.True(window.FindControl<StackPanel>("MacWindowButtons")!.IsVisible);
+        Assert.True(window.FindControl<MacWindowButtons>("MacWindowButtons")!.IsVisible);
         Assert.False(window.FindControl<Image>("AppIconImage")!.IsVisible);
         Assert.Equal(0, window.FindControl<StackPanel>("TitleBarActions")!.Margin.Left);
         Assert.False(window.FindControl<Menu>("MainMenu")!.IsVisible);
