@@ -257,6 +257,46 @@ public sealed partial class CSharpIntelliSenseService
                 Source: CompletionSourceKind.ExpectedType);
     }
 
+    // `name:` for the parameters an argument can still name: of the overloads the typed arguments
+    // fit, those not given by position or by name already. Only where a new argument starts — a
+    // bare name or nothing typed yet, not after `name:` or inside a longer expression.
+    private static IEnumerable<ICompletionItem> NamedArgumentSuggestions(SemanticModel model, SyntaxNode root, int pos)
+    {
+        if (pos <= 0) return [];
+        var token = root.FindToken(pos - 1);
+        var list = token.Parent?.AncestorsAndSelf().OfType<ArgumentListSyntax>().FirstOrDefault(l => IsInsideArgumentList(l, pos));
+        if (list?.Parent is not (InvocationExpressionSyntax or BaseObjectCreationExpressionSyntax)) return [];
+
+        var argument = token.Parent?.AncestorsAndSelf().OfType<ArgumentSyntax>().FirstOrDefault(a => a.Parent == list);
+        if (argument is not null && (argument.NameColon is not null || !argument.RefKindKeyword.IsKind(SyntaxKind.None)
+            || argument.Expression is not IdentifierNameSyntax)) return [];
+        // The caret has to be in the argument's name, not past it (`(x |`).
+        if (argument is { Expression: IdentifierNameSyntax name } && !name.IsMissing && pos > name.Span.End) return [];
+
+        var index = CountArgumentsBefore(list, pos);
+        var positional = list.Arguments.Take(index).TakeWhile(a => a.NameColon is null).Count();
+        var named = new HashSet<string>(
+            list.Arguments.Where(a => a != argument).Select(a => a.NameColon?.Name.Identifier.ValueText).OfType<string>(),
+            StringComparer.Ordinal);
+
+        var items = new Dictionary<string, ICompletionItem>(StringComparer.Ordinal);
+        foreach (var method in GetCandidateMethods(model, list.Parent))
+        {
+            if (!AcceptsTypedArguments(method, list, index, model)) continue;
+            for (var i = positional; i < method.Parameters.Length; i++)
+            {
+                var parameter = method.Parameters[i];
+                if (named.Contains(parameter.Name) || items.ContainsKey(parameter.Name)) continue;
+                var text = parameter.Name + ":";
+                items[parameter.Name] = new SimpleCompletionItem(text, CompletionItemKind.Variable,
+                    parameter.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetParameterSummary(method, parameter.Name),
+                    SortText: "0" + text, Priority: ScopeRankPriority(0), UsingsToAdd: [],
+                    Source: CompletionSourceKind.NamedArgument);
+            }
+        }
+        return items.Values;
+    }
+
     // true/false are keywords already, and a character has no natural first value.
     private static (string Text, string? Template)? Literal(ITypeSymbol type) => type.SpecialType switch
     {

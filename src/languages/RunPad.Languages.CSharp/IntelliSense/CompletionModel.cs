@@ -42,6 +42,8 @@ internal enum CompletionSourceKind
     Keyword,
     /// <summary>Suggested by the type the code wants: `new Type`, an enum member, a literal.</summary>
     ExpectedType,
+    /// <summary>`name:` for a parameter of the call the caret is in.</summary>
+    NamedArgument,
     /// <summary>A type from a package that is not imported yet.</summary>
     ImportableType,
     /// <summary>Inserted as a template, such as an override stub.</summary>

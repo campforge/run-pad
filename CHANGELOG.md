@@ -11,6 +11,9 @@ Notable changes in each RunPad release. Downloads are on the
   sets and command-line overrides supply the same values during execution and debugging.
   Argument metadata uses typed declarations, defaults and presets; the raw YAML `args:` field and
   the extra-arguments editor have been removed. The script's `args` array remains available.
+- C# completion offers `name:` where an argument starts, for the parameters of the call that are
+  still open: those of the overloads the arguments typed so far fit, not given by position or
+  by name yet. It works for methods and constructors.
 - Enum arguments generate real enum types: an `env` declaration exposes `Arguments.Env` as
   `ArgumentsEnv`, with values such as `ArgumentsEnv.Dev` and `ArgumentsEnv.Prod` in C# and Visual Basic.
 - **Toggle Line Comment** (Ctrl+/, Cmd+/ on macOS) comments or uncomments every line the selection
