@@ -57,6 +57,25 @@ public class ScriptArgumentsViewModelTests
         Assert.False(vm.HasProblems);
     }
 
+    // An enum's default is picked from its values; retyping the values, which empties the picker's
+    // selection for a moment, keeps it.
+    [Fact]
+    public void EnumDefault_Should_PickFromTheValues_AndSurviveRetypingThem()
+    {
+        var environment = Load(Script()).Arguments[0];
+        Assert.Equal("dev", environment.EnumDefault);
+
+        environment.EnumDefault = "test";
+        Assert.Equal("test", environment.DefaultText);
+        environment.EnumDefault = null;
+        Assert.Equal("test", environment.DefaultText);
+
+        environment.ValuesText = "dev";
+        Assert.Null(environment.EnumDefault);
+        environment.ValuesText = "dev, test, prod";
+        Assert.Equal("test", environment.EnumDefault);
+    }
+
     // Untouched, a value saves as it was loaded, even a list item with a line break.
     [Fact]
     public void Apply_Should_GiveBackWhatWasLoaded()

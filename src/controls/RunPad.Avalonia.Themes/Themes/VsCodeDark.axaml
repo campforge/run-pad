@@ -32,6 +32,19 @@
                     <!-- Fluent's ComboBox dropdown: the same surface as the menus. -->
                     <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="#252526" />
                     <SolidColorBrush x:Key="ComboBoxDropDownBorderBrush" Color="#3C3C3C" />
+                    <!-- Fluent's plain buttons (and DropDownButton): the secondary button's surface. -->
+                    <SolidColorBrush x:Key="ButtonBackground" Color="#121414" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#505050" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3C3C3C" />
+                    <SolidColorBrush x:Key="ButtonBorderBrush" Color="#3C3C3C" />
+                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#3C3C3C" />
+                    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#3C3C3C" />
+                    <SolidColorBrush x:Key="ButtonForeground" Color="#CCCCCC" />
+                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#CCCCCC" />
+                    <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#CCCCCC" />
+                    <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="#121414" />
+                    <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="#3C3C3C" />
+                    <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#9E9E9E" />
                     <SolidColorBrush x:Key="MenuFlyoutItemForeground" Color="#CCCCCC" />
                     <SolidColorBrush x:Key="MenuFlyoutItemForegroundPointerOver" Color="#CCCCCC" />
                     <SolidColorBrush x:Key="MenuFlyoutItemForegroundPressed" Color="#CCCCCC" />
