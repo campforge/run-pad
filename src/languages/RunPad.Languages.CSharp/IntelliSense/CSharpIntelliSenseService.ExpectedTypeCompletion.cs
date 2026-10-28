@@ -246,13 +246,15 @@ public sealed partial class CSharpIntelliSenseService
             {
                 yield return new SimpleCompletionItem(literal.Text, CompletionItemKind.Keyword,
                     [new DisplayTextSegment(literal.Text, SemanticTokenKind.Keyword)], Summary: null,
-                    SortText: "8" + literal.Text, Priority: 0.2, UsingsToAdd: [], InsertTemplate: literal.Template);
+                    SortText: "8" + literal.Text, Priority: 0.2, UsingsToAdd: [], InsertTemplate: literal.Template,
+                    Source: CompletionSourceKind.ExpectedType);
             }
         }
 
         static ICompletionItem Suggestion(string text, CompletionItemKind kind, ISymbol symbol, string? template) =>
             new SimpleCompletionItem(text, kind, symbol.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetSummary(symbol),
-                SortText: "0" + text, Priority: ScopeRankPriority(0), UsingsToAdd: [], InsertTemplate: template);
+                SortText: "0" + text, Priority: ScopeRankPriority(0), UsingsToAdd: [], InsertTemplate: template,
+                Source: CompletionSourceKind.ExpectedType);
     }
 
     // true/false are keywords already, and a character has no natural first value.
