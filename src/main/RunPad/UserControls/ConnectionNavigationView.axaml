@@ -13,7 +13,7 @@
                    Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
 
         <Border x:Name="NoticeBar" DockPanel.Dock="Top" IsVisible="{Binding HasNotice}" Margin="8,2,8,4" Padding="6,4"
-                CornerRadius="5" Background="{DynamicResource RunPad.Toolbar.Button.HoverBrush}">
+                CornerRadius="{DynamicResource RunPad.Radius.Selection}" Background="{DynamicResource RunPad.Toolbar.Button.HoverBrush}">
             <DockPanel>
                 <Button DockPanel.Dock="Right" x:Name="DismissNoticeButton" Padding="4,0" MinHeight="0"
                         Background="Transparent" BorderThickness="0" VerticalAlignment="Top"
@@ -59,7 +59,7 @@
                     <Panel VerticalAlignment="Center" Margin="0,1">
                         <Border IsVisible="{Binding IsDropTarget}"
                                 Background="{DynamicResource RunPad.Accent.BackgroundBrush}"
-                                CornerRadius="5" Margin="-6,-3"/>
+                                CornerRadius="{DynamicResource RunPad.Radius.Selection}" Margin="-6,-3"/>
 
                         <DockPanel IsVisible="{Binding !IsRenaming}" VerticalAlignment="Center">
                             <!-- Badges: an icon plus the tooltip and the row's accessible name, never color alone. -->

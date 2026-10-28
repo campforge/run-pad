@@ -4,7 +4,6 @@
 // Source taken from: https://github.com/dotnet/runtime/blob/v10.0.105/src/libraries/Common/tests/Tests/System/Text/ValueStringBuilderTests.cs
 // and converted from XUnit to NUnit tests.
 
-using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using AvaloniaEdit.Utils;

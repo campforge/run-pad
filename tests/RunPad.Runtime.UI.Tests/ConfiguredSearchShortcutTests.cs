@@ -3,7 +3,6 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.VisualTree;
-using AvaloniaEdit;
 using AvaloniaEdit.Search;
 using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Services.Preferences;

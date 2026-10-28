@@ -209,7 +209,7 @@ public sealed record ConnectionMoveTarget(string? GroupId, string Path, int Dept
 /// connection list and never in a script; which connections a script runs with stays in its own front
 /// matter, shown here only as the attached badge.
 /// </summary>
-public sealed class ConnectionNavigationViewModel : ReactiveObject
+public sealed class ConnectionNavigationViewModel : ReactiveObject, IDisposable
 {
     private readonly IConnectionStore _store;
     private readonly ConnectionDriverRegistry? _drivers;
@@ -226,6 +226,11 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
     private HashSet<string> _attached = new(StringComparer.Ordinal);
     private bool _groupingUnreadable;
     private int _refreshGeneration;
+    private CancellationTokenSource? _operationCts;
+    private readonly object _operationGate = new();
+    private bool _disposed;
+    private readonly Action<string>? _schemaChangedHandler;
+    private readonly Action<string>? _schemaFetchingChangedHandler;
 
     public ConnectionNavigationViewModel(IConnectionStore store, ConnectionDriverRegistry? drivers = null,
         FileConnectionGroupingStore? groupStore = null, ISecretStore? secrets = null, ConnectionSchemas? schemas = null)
@@ -240,8 +245,10 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
         _context = SynchronizationContext.Current;
         if (schemas is not null)
         {
-            schemas.Cache.Changed += _ => QueueStatusRefresh();
-            schemas.Cache.FetchingChanged += _ => QueueStatusRefresh();
+            _schemaChangedHandler = _ => QueueStatusRefresh();
+            _schemaFetchingChangedHandler = _ => QueueStatusRefresh();
+            schemas.Cache.Changed += _schemaChangedHandler;
+            schemas.Cache.FetchingChanged += _schemaFetchingChangedHandler;
         }
     }
 
@@ -386,10 +393,12 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
     // for them, on the UI thread the tree was made on.
     private void QueueStatusRefresh()
     {
+        if (_disposed) return;
         if (Interlocked.Exchange(ref _statusRefreshQueued, 1) == 1) return;
         void Run(object? _)
         {
             Interlocked.Exchange(ref _statusRefreshQueued, 0);
+            if (_disposed) return;
             _ = RefreshStatusesAsync();
         }
         if (_context is { } context) context.Post(Run, null);
@@ -399,14 +408,34 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
     /// <summary>Checks every connection's status again without reading the list, and updates the rows.</summary>
     public async Task RefreshStatusesAsync()
     {
+        if (_disposed) return;
         var generation = ++_statusGeneration;
         var connections = _connections;
         var statuses = await Task.Run(() => FindStatuses(connections)).ConfigureAwait(true);
         if (generation != _statusGeneration || !ReferenceEquals(connections, _connections)) return;
+        if (_disposed) return;
         _statuses = statuses;
         foreach (var node in AllNodes().Where(n => n.IsConnection))
             node.Status = statuses.GetValueOrDefault(node.Id, ConnectionStatus.Ready);
         foreach (var root in Nodes) root.RefreshCounts();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        CancellationTokenSource? operation;
+        lock (_operationGate)
+            operation = Interlocked.Exchange(ref _operationCts, null);
+        operation?.Cancel();
+        Interlocked.Increment(ref _statusGeneration);
+        if (_schemas is not null)
+        {
+            if (_schemaChangedHandler is not null) _schemas.Cache.Changed -= _schemaChangedHandler;
+            if (_schemaFetchingChangedHandler is not null) _schemas.Cache.FetchingChanged -= _schemaFetchingChangedHandler;
+        }
+        Interlocked.Exchange(ref _statusRefreshQueued, 0);
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -415,27 +444,72 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
     /// </summary>
     public async Task RefreshConnectionAsync(ConnectionNavigationNode node)
     {
-        if (!node.IsConnection) return;
-        if (node.HasContract && _schemas is { } schemas && _connections.FirstOrDefault(c => c.Name == node.Id) is { } connection)
+        if (_disposed || !node.IsConnection) return;
+        var operation = BeginOperation();
+        var token = operation.Token;
+        try
         {
-            await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.All, CancellationToken.None).ConfigureAwait(true);
-            await RefreshStatusesAsync().ConfigureAwait(true);
-            return;
+            if (node.HasContract && _schemas is { } schemas && _connections.FirstOrDefault(c => c.Name == node.Id) is { } connection)
+            {
+                await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.All, token).ConfigureAwait(true);
+                if (token.IsCancellationRequested || _disposed) return;
+                await RefreshStatusesAsync().ConfigureAwait(true);
+                return;
+            }
+            await RefreshAsync().ConfigureAwait(true);
         }
-        await RefreshAsync().ConfigureAwait(true);
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        finally { EndOperation(operation); }
     }
 
     /// <summary>Reads the list again and every contract (gRPC) too, then checks every status.</summary>
     public async Task RefreshAllAsync()
     {
-        await RefreshAsync().ConfigureAwait(true);
-        if (_schemas is { } schemas && _drivers is { } drivers)
+        if (_disposed) return;
+        var operation = BeginOperation();
+        var token = operation.Token;
+        try
         {
-            var withContracts = _connections.Where(c => drivers.Find(c.Driver) is IConnectionSchemaDriver).ToList();
-            if (withContracts.Count > 0)
-                await schemas.EnsureAsync(withContracts, null, ConnectionSchemaRefresh.All, CancellationToken.None).ConfigureAwait(true);
+            await RefreshAsync().ConfigureAwait(true);
+            if (token.IsCancellationRequested || _disposed) return;
+            if (_schemas is { } schemas && _drivers is { } drivers)
+            {
+                var withContracts = _connections.Where(c => drivers.Find(c.Driver) is IConnectionSchemaDriver).ToList();
+                if (withContracts.Count > 0)
+                    await schemas.EnsureAsync(withContracts, null, ConnectionSchemaRefresh.All, token).ConfigureAwait(true);
+            }
+            if (token.IsCancellationRequested || _disposed) return;
+            await RefreshStatusesAsync().ConfigureAwait(true);
         }
-        await RefreshStatusesAsync().ConfigureAwait(true);
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        finally { EndOperation(operation); }
+    }
+
+    private CancellationTokenSource BeginOperation()
+    {
+        var current = new CancellationTokenSource();
+        CancellationTokenSource? previous;
+        lock (_operationGate)
+        {
+            if (_disposed)
+            {
+                current.Cancel();
+                return current;
+            }
+            previous = Interlocked.Exchange(ref _operationCts, current);
+        }
+        previous?.Cancel();
+        return current;
+    }
+
+    private void EndOperation(CancellationTokenSource operation)
+    {
+        lock (_operationGate)
+        {
+            if (ReferenceEquals(_operationCts, operation))
+                Interlocked.CompareExchange(ref _operationCts, null, operation);
+        }
+        operation.Dispose();
     }
 
     /// <summary>Marks the connections the active script uses (null: no script is active).</summary>
@@ -558,6 +632,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
     public async Task<bool> AddToScriptAsync(RpadFrontMatter frontMatter, string? scriptPath, string connectionName,
         Func<string, Task<bool>> confirmPackages)
     {
+        if (_disposed) return false;
         Notice = null;
         var packages = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (id, package) in frontMatter.Packages ?? []) packages[id] = package.Version;
@@ -575,8 +650,13 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject
                 script.CancelPendingAdd();
                 return false;
             }
+            // The confirmation belongs to the window that owns this view model. If that window
+            // closed while the dialog was open, do not commit the staged change to the caller's
+            // front matter or update the disposed navigation tree.
+            if (_disposed) return false;
             script.ConfirmPendingAdd();
         }
+        if (_disposed) return false;
         if (script.CreateMessage is { } message) { Notice = message; return false; }
         if (!script.HasChanges) return false;
 

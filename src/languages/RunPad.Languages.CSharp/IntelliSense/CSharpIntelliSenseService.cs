@@ -48,6 +48,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // args`, `string? label = null`) instead of just bare "type name" pairs.
     private static readonly SymbolDisplayFormat _briefFormat =
         new(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly,
+            genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
             parameterOptions: SymbolDisplayParameterOptions.IncludeType | SymbolDisplayParameterOptions.IncludeName |
                 SymbolDisplayParameterOptions.IncludeParamsRefOut | SymbolDisplayParameterOptions.IncludeDefaultValue,
             memberOptions: SymbolDisplayMemberOptions.IncludeParameters | SymbolDisplayMemberOptions.IncludeType,
@@ -94,7 +95,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         // lowest of all kinds, see ScopeRankPriority.
         .Select(kw => (ICompletionItem)new SimpleCompletionItem(
             kw, CompletionItemKind.Keyword, [new DisplayTextSegment(kw, SemanticTokenKind.Keyword)],
-            Summary: null, SortText: $"9{kw}", Priority: 0.1, UsingsToAdd: []))
+            Summary: null, SortText: $"9{kw}", Priority: 0.1, UsingsToAdd: [], Source: CompletionSourceKind.Keyword))
         .ToArray();
 
     // Contextual keywords with no legal meaning outside a specific syntax
@@ -158,7 +159,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // that fast typing doesn't re-run the full Roslyn analysis on every keystroke, short enough to
     // still feel live. Settable only by tests (InternalsVisibleTo): a test that calls
     // NotifyTextChanged exactly once has nothing to debounce, and 500ms x ~500 such tests was most of
-    // CSharpIntelliSenseAnalyzersTests' run time.
+    // Keep the shared reference set stable across analysis requests.
     internal TimeSpan BackgroundAnalysisDebounce { get; set; } = TimeSpan.FromMilliseconds(500);
 
     // How long Dispose waits for an in-flight background analysis pass to actually observe
@@ -519,7 +520,8 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             }
             if (_lastCode != code)
             {
-                var newFullText = _preamble + KindPrefix(code) + ProjectionFor(code).Text + KindSuffix(code) + TrailingPad;
+                var newFullText = ScriptDocumentProjection.Create(
+                    _preamble, KindPrefix(code), ProjectionFor(code).Text, KindSuffix(code), TrailingPad).FullText;
 
                 // Hand Roslyn a
                 // minimal TextChange against the previous SourceText instead of always building a fresh
@@ -529,7 +531,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
                 // full SourceText.From — there's no prior lineage to diff against at that point.
                 var text = _lastSourceText is null
                     ? SourceText.From(newFullText, Encoding.UTF8)
-                    : _lastSourceText.WithChanges(ComputeMinimalChange(_lastFullText, newFullText));
+                    : _lastSourceText.WithChanges(ScriptDocumentProjection.ComputeMinimalChange(_lastFullText, newFullText));
 
                 var newSolution = _workspace.CurrentSolution.WithDocumentText(_documentId, text);
                 // Only remember the new code once the workspace actually reflects it — TryApplyChanges
@@ -560,23 +562,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // directly against edge cases (identical text, pure insert/delete, full replace, empty strings)
     // without needing to drive a real SyncDocument call through the whole AdhocWorkspace.
     internal static TextChange ComputeMinimalChange(string oldText, string newText)
-    {
-        var maxCommon = Math.Min(oldText.Length, newText.Length);
-
-        var prefixLength = 0;
-        while (prefixLength < maxCommon && oldText[prefixLength] == newText[prefixLength])
-            prefixLength++;
-
-        var maxSuffix = maxCommon - prefixLength;
-        var suffixLength = 0;
-        while (suffixLength < maxSuffix
-            && oldText[oldText.Length - 1 - suffixLength] == newText[newText.Length - 1 - suffixLength])
-            suffixLength++;
-
-        var span = new TextSpan(prefixLength, oldText.Length - prefixLength - suffixLength);
-        var replacement = newText.Substring(prefixLength, newText.Length - prefixLength - suffixLength);
-        return new TextChange(span, replacement);
-    }
+        => ScriptDocumentProjection.ComputeMinimalChange(oldText, newText);
 
     // ── Completion ─────────────────────────────────────────────────────────────
 
@@ -621,202 +607,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             if (root == null) return null;
 
             var pos = ToDocumentOffset(code, position);
-
-            // Arguments is generated from metadata, but completion is still supplied directly so it
-            // remains available before a compile has produced the generated source tree.
-            var beforeCaret = code[..Math.Min(position, code.Length)];
-            var argsPrefix = beforeCaret.LastIndexOf("Arguments.", StringComparison.Ordinal);
-            if (argsPrefix >= 0 && (argsPrefix == 0 || !char.IsLetterOrDigit(beforeCaret[argsPrefix - 1]))
-                && beforeCaret[(argsPrefix + "Arguments.".Length)..].All(char.IsLetterOrDigit))
-            {
-                var typed = beforeCaret[(argsPrefix + "Arguments.".Length)..];
-                var contractItems = _argumentContract
-                    .Where(m => m.PropertyName.StartsWith(typed, StringComparison.OrdinalIgnoreCase))
-                    .Select(m => (ICompletionItem)new SimpleCompletionItem(
-                        m.PropertyName, CompletionItemKind.Property,
-                        [new DisplayTextSegment(m.PropertyName, SemanticTokenKind.PropertyName)],
-                        $"{m.PropertyName} : {(m.Type == "enum" ? m.EnumTypeName : m.Type)}", m.PropertyName, 1, []))
-                    .ToList();
-                if (contractItems.Count > 0) return new SimpleCompletionList(contractItems);
-            }
-
-            // Checked before the position guards below: "override" is a
-            // reserved keyword that can only ever be a modifier, so if it's literally the word right
-            // before the caret, this is unambiguously an override-stub request regardless of what the
-            // (necessarily incomplete, not-yet-typed-past-it) surrounding syntax looks like to
-            // Roslyn's error recovery — e.g. IsDeclarationNamePosition has no reason to fire here, but
-            // there's no need to depend on that holding.
-            if (IsAfterOverrideModifier(code, position))
-            {
-                var overrideType = GetEnclosingType(model, pos);
-                if (overrideType?.BaseType is null) return null;
-
-                var overrideItems = GetOverridableMethods(overrideType)
-                    .Select(m => BuildOverrideStubItem(m, model, pos))
-                    .OrderBy(i => i.SortText, StringComparer.Ordinal)
-                    .ToList();
-                return overrideItems.Count > 0 ? new SimpleCompletionList(overrideItems) : null;
-            }
-
-            if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)
-                || IsDeclarationNamePosition(root, pos))
-                return null;
-
-            var isDotInsertion = trigger.Kind == CompletionTriggerKind.Insertion && trigger.Character == '.';
-
-            // An explicit Ctrl+Space invoke right after a '.' should behave like typing the dot
-            // itself — member completion for the expression before it — not fall through to the
-            // generic in-scope-symbols+keywords list below (which is where keywords like `for`/`if`
-            // would otherwise show up sitting right next to `.Length`/`.Count`).
-            if ((isDotInsertion || trigger.Kind == CompletionTriggerKind.Invoked) && pos > 0)
-            {
-                var token = root.FindToken(pos - 1);
-
-                // x.Foo — ordinary member access. x?.Foo — same idea, but the '.' belongs to a
-                // MemberBindingExpression hanging off a ConditionalAccessExpression instead (the
-                // qualifier lives one level up, off the ConditionalAccessExpression itself, not the
-                // MemberBindingExpression — which has no Expression of its own). Without this second
-                // case, "s?." resolved to nothing at all.
-                var memberAccess = token.Parent?.AncestorsAndSelf()
-                    .OfType<MemberAccessExpressionSyntax>()
-                    .FirstOrDefault();
-                var memberBinding = token.Parent?.AncestorsAndSelf()
-                    .OfType<MemberBindingExpressionSyntax>()
-                    .FirstOrDefault();
-                var qualifier = memberAccess?.Expression
-                    ?? (memberBinding?.Parent as ConditionalAccessExpressionSyntax)?.Expression;
-
-                if (qualifier != null)
-                {
-                    var qualifierSymbol = model.GetSymbolInfo(qualifier).Symbol;
-
-                    // "System." — the qualifier itself names a namespace, not an expression with a
-                    // value/type. GetTypeInfo has nothing for this (a namespace isn't a type), so
-                    // without this branch it fell through to "nothing sensible to complete" and
-                    // returned null — LookupNamespacesAndTypes is the correct API
-                    // for offering the namespace's nested namespaces/types instead.
-                    if (qualifierSymbol is INamespaceSymbol containingNamespace)
-                    {
-                        var nsItems = GroupByDisplayText(model.LookupNamespacesAndTypes(pos, container: containingNamespace)
-                                .Select(s => ToItem(s, currentType: null))
-                                .Where(i => i != null)
-                                .Cast<ICompletionItem>())
-                            .OrderBy(i => i.SortText, StringComparer.Ordinal)
-                            .ToList();
-
-                        return nsItems.Count > 0 ? new SimpleCompletionList(nsItems) : null;
-                    }
-
-                    // "DateTime." (the qualifier names the type itself — a static-member access) vs.
-                    // "d." (the qualifier is a value of that type — an instance access): GetSymbolInfo
-                    // tells them apart (only the former resolves the qualifier to the INamedTypeSymbol
-                    // itself), GetTypeInfo does not (a type used as a qualifier has no "type of its
-                    // own" from GetTypeInfo's point of view, which is why the static case used to fall
-                    // through to "nothing to complete" — static/instance mixing).
-                    var isStaticQualifier = qualifierSymbol is INamedTypeSymbol;
-                    ITypeSymbol? type;
-                    if (isStaticQualifier)
-                    {
-                        type = (ITypeSymbol)qualifierSymbol!;
-                    }
-                    else
-                    {
-                        var typeInfo = model.GetTypeInfo(qualifier);
-                        type = typeInfo.Type ?? typeInfo.ConvertedType;
-                    }
-
-                    if (type != null)
-                    {
-                        // LookupSymbols(container: type) returns every member visible in that type's
-                        // scope regardless of static-ness — "DateTime." used to also offer AddDays
-                        // (instance) and "d." used to also offer Parse (static).
-                        // Extension methods only make sense in the instance case (the static-qualifier
-                        // "DateTime.SomeExtension()" call form isn't what LookupSymbols' reduced form
-                        // represents), so they're only requested there too.
-                        var memberItems = GroupByDisplayText(model
-                                .LookupSymbols(pos, container: type, includeReducedExtensionMethods: !isStaticQualifier)
-                                .Where(s => MatchesQualifierStaticness(s, isStaticQualifier))
-                                .Select(s => ToItem(s, currentType: type))
-                                .Where(i => i != null)
-                                .Cast<ICompletionItem>())
-                            .OrderBy(i => i.SortText, StringComparer.Ordinal)
-                            .ToList();
-
-                        return memberItems.Count > 0 ? new SimpleCompletionList(memberItems) : null;
-                    }
-                }
-
-                // A typed '.' with nothing sensible to complete has nothing worth falling back to;
-                // an explicit invoke elsewhere (not after a dot, or Invoked with no resolvable
-                // member type) should still fall through to the general list below.
-                if (isDotInsertion) return null;
-            }
-
-            // Live user request: `new Tests() { P1 = "1", | }` offered whatever's
-            // visible in the enclosing scope (locals, fields of the CONTAINING type, ...) instead of
-            // Tests' own remaining settable members, because nothing here ever checked for an
-            // object-initializer position at all — it just fell through to the general LookupSymbols
-            // fallback below like any other identifier position. Only the direct
-            // "new Foo { X = 1, | }" shape (ObjectInitializerExpression whose own parent is the
-            // object-creation expression) is handled — a nested initializer with no `new` of its own
-            // ("new Outer { Inner = { | } }") and `with { }` expressions are a different, rarer shape
-            // not covered here.
-            // A property's value (`new Foo { P = |`) is not a member position: it takes the expected-type
-            // completion below.
-            var expected = GetExpectedTypeContext(model, root, pos);
-            if (expected is null && TryFindObjectInitializer(root, pos) is { } initializer &&
-                initializer.Parent is BaseObjectCreationExpressionSyntax objectCreation)
-            {
-                var initializerItems = BuildObjectInitializerCompletions(model, pos, objectCreation, initializer);
-                return initializerItems.Count > 0 ? new SimpleCompletionList(initializerItems) : null;
-            }
-
-            var isTypeArgumentPosition = IsInsideTypeArgumentList(root, pos);
-
-            // Repro: `var a = new List<` unconditionally called LookupSymbols and offered
-            // every visible symbol (locals, parameters, methods, ...) mixed in with actual types — this
-            // narrows that to only what can legally appear as a generic type argument. Namespaces stay
-            // in (not just named types/type parameters) so `List<Sys` can still offer "System" and let
-            // the user descend into it with '.' to reach the type they actually want.
-            IEnumerable<ISymbol> symbols = model.LookupSymbols(pos);
-            if (isTypeArgumentPosition)
-            {
-                symbols = symbols.Where(s => s is INamedTypeSymbol or ITypeParameterSymbol or INamespaceSymbol);
-                expected = null;
-            }
-            else if (expected is not null)
-                symbols = symbols.Where(s => FitsExpectedType(s, expected, model, pos));
-
-            var currentType = GetEnclosingType(model, pos);
-            var visible = GroupByDisplayText(symbols
-                .Select(s => ToItem(s, currentType))
-                .Where(i => i != null)
-                .Cast<ICompletionItem>()
-                .Concat(_keywords.Where(k => IsKeywordApplicable(k, root, pos, isTypeArgumentPosition)
-                    && (expected is null || FitsExpectedType(k.DisplayText, expected, model.Compilation))))
-                .Concat(expected is null ? [] : ExpectedTypeSuggestions(expected, model, pos)));
-
-            // Auto-import: types from an added NuGet package that aren't in
-            // scope yet don't just fail silently — they're offered too, prefixed-matched against
-            // whatever's typed so far, and accepting one adds its "using" automatically (see
-            // EditorCompletionData.UsingsToAdd / EditorTabItemControl.AddGlobalUsings). Scoped to NuGet
-            // references specifically, not the full BCL reference-assembly pack (~167 facades) —
-            // walking every namespace of every default reference on every fresh identifier would
-            // reintroduce the exact latency problem this avoids, and BCL types the user actually
-            // reaches for are already reachable through the default implicit usings anyway.
-            var prefix = GetIdentifierPrefix(code, position);
-            var alreadyVisible = new HashSet<string>(visible.Select(i => i.DisplayText), StringComparer.Ordinal);
-            var importable = FindImportableTypes(model.Compilation, prefix, alreadyVisible)
-                .Where(t => expected is not { AfterNew: true } || (IsCreatable(t, model, pos)
-                    && expected.Types.Any(w => CouldBeAssignedTo(model.Compilation, t, w))))
-                .Select(BuildImportableTypeItem)
-                .ToList();
-
-            var items = visible.Concat(importable)
-                .OrderBy(i => i.SortText, StringComparer.Ordinal)
-                .ToList();
-
-            return items.Count > 0 ? new SimpleCompletionList(items) : null;
+            return ProvideCompletions(new CompletionRequest(code, position, trigger, model, root, pos));
         }
         // A superseded request (see CodeTextEditor.ShowCompletion) cancels its token —
         // that's an expected outcome, not a failure, so it must propagate instead of being swallowed by
@@ -842,7 +633,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
                 var chosen = g.OrderBy(i => (int)i.Kind).First();
                 if (chosen is not SimpleCompletionItem simple) return chosen;
 
-                var overloadCount = g.Count(i => i.Kind == CompletionItemKind.Method);
+                var overloadCount = g.Count(i => i.Kind is CompletionItemKind.Method or CompletionItemKind.ExtensionMethod);
                 var isOwnMember = g.Any(i => i.IsOwnMember);
                 return simple with
                 {
@@ -979,7 +770,8 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         return new SimpleCompletionItem(
             method.Name, CompletionItemKind.Method,
             method.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetSummary(method),
-            SortText: method.Name, Priority: 1.0, UsingsToAdd: [], InsertTemplate: template);
+            SortText: method.Name, Priority: 1.0, UsingsToAdd: [], InsertTemplate: template,
+            Source: CompletionSourceKind.Template);
     }
 
     // The nearest ObjectInitializerExpression ancestor of the token right before the
@@ -1043,7 +835,9 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         // main script shape) use local functions as their primary way to structure code, so leaving
         // them out meant the single most common non-trivial identifier in a script never completed
         //.
-        IMethodSymbol m when m.MethodKind is MethodKind.Ordinary or MethodKind.ReducedExtension or MethodKind.LocalFunction
+        IMethodSymbol m when m.MethodKind is MethodKind.ReducedExtension
+            => BuildExtensionMethodItem(m, currentType),
+        IMethodSymbol m when m.MethodKind is MethodKind.Ordinary or MethodKind.LocalFunction
             => BuildItem(m, m.Name, CompletionItemKind.Method, IsOwnMember(m, currentType)),
         IPropertySymbol p
             => BuildItem(p, p.Name, CompletionItemKind.Property, IsOwnMember(p, currentType)),
@@ -1091,7 +885,21 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             IsOwnMember: isOwnMember);
     }
 
-    // A type from an added NuGet package that isn't in
+    private static ICompletionItem BuildExtensionMethodItem(IMethodSymbol method, ITypeSymbol? currentType)
+    {
+        var item = (SimpleCompletionItem)BuildItem(method, method.Name, CompletionItemKind.ExtensionMethod,
+            IsOwnMember(method, currentType));
+        // RunPad's own extensions (Dump and the like) win a tie with an equally matching member: typing
+        // `.D` on any value most often means Dump. The list order itself stays alphabetical.
+        return IsRunPadRuntimeMember(method)
+            ? item with { Priority = Math.Max(1.1, item.Priority), Source = CompletionSourceKind.RunPad }
+            : item with { Priority = Math.Max(0.85, item.Priority) };
+    }
+
+    private static bool IsRunPadRuntimeMember(ISymbol symbol) =>
+        symbol.ContainingAssembly?.Name == "RunPad.Runtime";
+
+    // A type from a reference that isn't in
     // scope yet. Own tier (ScopeRank 3, between ordinary types and namespaces) rather than sharing
     // rank 2 with already-visible types, and carries Detail (the containing namespace) so the
     // completion list itself shows the ReSharper-style "(in Namespace)" annotation — see
@@ -1118,47 +926,52 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         return new SimpleCompletionItem(
             type.Name, kind, type.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetSummary(type),
             SortText: $"{rank}{type.Name}", Priority: ScopeRankPriority(rank),
-            UsingsToAdd: ns is null ? [] : [ns], Detail: ns);
+            UsingsToAdd: ns is null ? [] : [ns], Detail: ns, Source: CompletionSourceKind.ImportableType);
     }
 
-    // Types from added NuGet references (not the full BCL reference pack — see the call site) whose
-    // simple name starts with what's typed so far and isn't already visible. Candidates that collide
-    // on name — either with something already in scope, or with each other (two different packages
-    // exporting the same type name) — are dropped entirely rather than guessing which one the user
-    // meant; offering the wrong one and silently adding the wrong `using` would be worse than not
-    // offering it at all.
+    // Types from the script's references whose simple name starts with what's typed so far and
+    // isn't already visible: packages and the script's own assemblies from the first letter, the
+    // framework from MinFrameworkImportPrefix letters, so a letter or two doesn't list half the
+    // framework. Types that share a name are all offered, each with its own namespace: the user
+    // picks which `using` to add, none is chosen for them.
     private IEnumerable<INamedTypeSymbol> FindImportableTypes(
         Compilation compilation, string prefix, HashSet<string> alreadyVisible)
     {
         if (prefix.Length == 0) yield break;
 
-        var byName = new Dictionary<string, INamedTypeSymbol?>(StringComparer.Ordinal);
-        foreach (var reference in _nugetRefs)
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var reference in compilation.References)
         {
+            if (prefix.Length < MinFrameworkImportPrefix && !IsAddedReference(reference)) continue;
             if (compilation.GetAssemblyOrModuleSymbol(reference) is not IAssemblySymbol assembly) continue;
 
             foreach (var entry in GetImportableTypeIndex(assembly, reference))
             {
                 if (alreadyVisible.Contains(entry.Name)) continue;
                 if (!entry.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
+                // The same type can come from two references (a package that also ships in the framework).
+                if (!seen.Add(entry.MetadataName)) continue;
 
                 var type = assembly.GetTypeByMetadataName(entry.MetadataName);
-                if (type == null) continue;
-
-                // First sighting of this name -> tentatively importable; a second, different type
-                // with the same name makes it ambiguous -> null marks it as excluded.
-                byName[entry.Name] = byName.TryGetValue(entry.Name, out var existing) && existing != null
-                    ? null
-                    : type;
+                if (type == null || IsHiddenFromEditor(type)) continue;
+                yield return type;
             }
         }
-
-        foreach (var type in byName.Values)
-            if (type != null)
-                yield return type;
     }
 
-    // Flattened index of every public importable type in a NuGet-reference assembly, built once per
+    private const int MinFrameworkImportPrefix = 3;
+
+    private bool IsAddedReference(MetadataReference reference) =>
+        _nugetRefs.Contains(reference)
+        || (reference is PortableExecutableReference { FilePath: { } path }
+            && _userReferencePaths.Contains(path, StringComparer.OrdinalIgnoreCase));
+
+    // [EditorBrowsable(Never)]: public for technical reasons, not meant to be written by hand.
+    private static bool IsHiddenFromEditor(ISymbol symbol) =>
+        symbol.GetAttributes().Any(a => a.AttributeClass?.Name == nameof(System.ComponentModel.EditorBrowsableAttribute)
+            && a.ConstructorArguments is [{ Value: int state }] && state == (int)System.ComponentModel.EditorBrowsableState.Never);
+
+    // Flattened index of every public importable type in a referenced assembly, built once per
     // reference and cached for the process lifetime (shared across every tab/service instance, same
     // sharing rationale as ReferenceCache — a MetadataReference is immutable, so its type index is
     // too). Walking the whole namespace tree (EnumerateNamespaceTypes) on every completion keystroke
@@ -1244,6 +1057,24 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         _ => symbol.IsStatic == isStaticQualifier,
     };
 
+    // Generated script APIs are intentionally treated as first-class completion surfaces.  Their
+    // members come from the current execution context (Arguments/Connections) or the compatibility
+    // runtime (Util), so they should win ties against similarly named ordinary symbols while still
+    // retaining the normal alphabetical order inside this member list.
+    private static bool IsGeneratedApiRoot(ExpressionSyntax qualifier) =>
+        qualifier is IdentifierNameSyntax { Identifier.ValueText: "Arguments" or "Connections" or "Util" };
+
+    private static ICompletionItem PromoteGeneratedApiItem(ICompletionItem item) => item switch
+    {
+        SimpleCompletionItem simple => simple with
+        {
+            SortText = $"0{simple.SortText}",
+            Priority = Math.Max(1.1, simple.Priority),
+            Source = CompletionSourceKind.RunPad,
+        },
+        _ => item,
+    };
+
     // ICompletionItem.Priority — the editor's tie-break among items of otherwise-equal match quality
     // (see AvaloniaEdit.CodeCompletion.CompletionList.SelectItem: quality decides first, Priority only
     // breaks ties). Derived from the same ScopeRank used for SortText, rather than the UI layer's
@@ -1280,30 +1111,32 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
 
             var node = root.FindNode(new TextSpan(Math.Max(0, pos - 1), 1), getInnermostNodeForTie: true);
 
-            // "new Foo(" behaves the same as a method call for signature-help purposes — it just
-            // wasn't recognized at all before, so opening a constructor's argument
-            // list never showed its parameters. BaseObjectCreationExpressionSyntax is the shared base
-            // of both `new Foo(...)` and the target-typed `new(...)`.
-            var callLike = node.AncestorsAndSelf()
-                .FirstOrDefault(n => n is InvocationExpressionSyntax or BaseObjectCreationExpressionSyntax);
-            var argumentList = callLike switch
-            {
-                InvocationExpressionSyntax inv => inv.ArgumentList,
-                BaseObjectCreationExpressionSyntax oce => oce.ArgumentList,
-                _ => null,
-            };
+            // The innermost call whose parentheses the caret is between: in `Outer(new Inner(|` that
+            // is Inner, and once Inner's `)` is typed, Outer again. "new Foo(" (and the target-typed
+            // `new(`) behaves like a method call.
+            var (callLike, argumentList) = node.AncestorsAndSelf()
+                .Select(n => (Call: n, List: n switch
+                {
+                    InvocationExpressionSyntax inv => inv.ArgumentList,
+                    BaseObjectCreationExpressionSyntax oce => oce.ArgumentList,
+                    _ => null,
+                }))
+                .FirstOrDefault(c => c.List is not null && IsInsideArgumentList(c.List, pos));
             if (callLike == null || argumentList == null) return null;
 
             var argIndex = CountArgumentsBefore(argumentList, pos);
             var argCount = argumentList.Arguments.Count;
             var isArgumentSlotEmpty = IsArgumentSlotEmpty(argumentList, argIndex, pos);
+            var argumentName = argIndex < argCount ? argumentList.Arguments[argIndex].NameColon?.Name.Identifier.ValueText : null;
 
             var methods = GetCandidateMethods(model, callLike);
 
             if (methods.Count == 0) return null;
 
-            var items = methods.Select(m => (ISignatureHelpItem)new SimpleSignatureHelpItem(m, argIndex)).ToList();
-            var selectedIndex = SelectBestOverloadIndex(methods, argumentList, argCount, model);
+            var items = methods
+                .Select(m => (ISignatureHelpItem)new SimpleSignatureHelpItem(m, ActiveParameter(m, argIndex, argumentName)))
+                .ToList();
+            var selectedIndex = SelectBestOverloadIndex(methods, argumentList, argCount, argumentName, model);
 
             return new SimpleSignatureHelpResult(items, selectedIndex, argIndex, isArgumentSlotEmpty);
         }
@@ -1319,25 +1152,45 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // to the corresponding parameter, and falls back to the pre-existing count-only match — unchanged
     // — for anything that approximation can't confidently call (params/named/optional arguments,
     // nothing typed yet, or no candidate type-checks perfectly).
+    // A named argument is checked against the parameter of its name, and an overload without that
+    // name doesn't fit.
     private static int SelectBestOverloadIndex(
-        List<IMethodSymbol> methods, ArgumentListSyntax argumentList, int argCount, SemanticModel model)
+        List<IMethodSymbol> methods, ArgumentListSyntax argumentList, int argCount, string? argumentName, SemanticModel model)
     {
         var typeAware = methods.FindIndex(m =>
         {
             if (m.Parameters.Length < argCount) return false;
+            if (argumentName is not null && m.Parameters.All(p => p.Name != argumentName)) return false;
             for (var i = 0; i < argCount; i++)
             {
-                var argType = model.GetTypeInfo(argumentList.Arguments[i].Expression).ConvertedType;
+                var argument = argumentList.Arguments[i];
+                var parameter = argument.NameColon is { } nameColon
+                    ? m.Parameters.FirstOrDefault(p => p.Name == nameColon.Name.Identifier.ValueText)
+                    : m.Parameters[i];
+                if (parameter == null) return false;
+                var argType = model.GetTypeInfo(argument.Expression).ConvertedType;
                 if (argType == null) continue; // couldn't infer (e.g. still typing) — don't penalize
-                if (!model.Compilation.ClassifyConversion(argType, m.Parameters[i].Type).IsImplicit)
+                if (!model.Compilation.ClassifyConversion(argType, parameter.Type).IsImplicit)
                     return false;
             }
             return true;
         });
         if (typeAware >= 0) return typeAware;
 
-        var arityOnly = methods.FindIndex(m => m.Parameters.Length >= argCount);
+        var arityOnly = methods.FindIndex(m => m.Parameters.Length >= argCount
+            && (argumentName is null || m.Parameters.Any(p => p.Name == argumentName)));
         return arityOnly >= 0 ? arityOnly : methods.Count - 1;
+    }
+
+    // The parameter the argument at the caret goes to: the one it names, the one at its position,
+    // or a `params` tail past the last.
+    private static IParameterSymbol? ActiveParameter(IMethodSymbol method, int argumentIndex, string? argumentName)
+    {
+        if (argumentName is not null) return method.Parameters.FirstOrDefault(p => p.Name == argumentName);
+        if (method.Parameters.Length == 0) return null;
+        if (argumentIndex < method.Parameters.Length) return method.Parameters[argumentIndex];
+        var last = method.Parameters[^1];
+        return last.IsParams ? last : null;
     }
 
     // A position inside a // or /* */ comment (including /// doc comments) has nothing to complete —
@@ -2660,17 +2513,6 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
 
     // ── Private model types ────────────────────────────────────────────────────
 
-    private sealed record SimpleCompletionItem(
-        string DisplayText, CompletionItemKind Kind, IReadOnlyList<DisplayTextSegment> Signature,
-        string? Summary, string SortText, double Priority, IReadOnlyList<string> UsingsToAdd,
-        string? Detail = null, int OverloadCount = 1, bool IsOwnMember = false,
-        string? InsertTemplate = null) : ICompletionItem;
-
-    private sealed class SimpleCompletionList(IReadOnlyList<ICompletionItem> items) : ICompletionList
-    {
-        public IReadOnlyList<ICompletionItem> Items => items;
-    }
-
     private sealed class SimpleSignatureHelpResult(
         IReadOnlyList<ISignatureHelpItem> items, int selectedIndex, int argumentIndex, bool isArgumentSlotEmpty)
         : ISignatureHelpResult
@@ -2683,28 +2525,21 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
 
     private sealed class SimpleSignatureHelpItem : ISignatureHelpItem
     {
-        public SimpleSignatureHelpItem(IMethodSymbol method, int argumentIndex)
+        // activeParameter is bolded in the header, the way LINQPad/VS Code do.
+        public SimpleSignatureHelpItem(IMethodSymbol method, IParameterSymbol? activeParameter)
         {
-            Signature = method.ToDisplayParts(_briefFormat).ToSegments(EmphasizedParameter(method, argumentIndex));
+            Signature = method.ToDisplayParts(_briefFormat).ToSegments(activeParameter);
             Summary = XmlDocSummary.GetSummary(method);
             Parameters = method.Parameters
                 .Select(p => (ISignatureHelpParameter)new SimpleSignatureHelpParameter(method, p))
                 .ToList();
+            ActiveParameterIndex = activeParameter is null ? -1 : method.Parameters.IndexOf(activeParameter);
         }
 
         public IReadOnlyList<DisplayTextSegment> Signature { get; }
         public string? Summary { get; }
         public IReadOnlyList<ISignatureHelpParameter> Parameters { get; }
-
-        // The parameter the caret is currently sitting in, so the UI can bold it in the header the
-        // way LINQPad/VS Code do — a `params` tail parameter stays emphasized past its own index.
-        private static IParameterSymbol? EmphasizedParameter(IMethodSymbol method, int argumentIndex)
-        {
-            if (method.Parameters.Length == 0) return null;
-            if (argumentIndex < method.Parameters.Length) return method.Parameters[argumentIndex];
-            var last = method.Parameters[^1];
-            return last.IsParams ? last : null;
-        }
+        public int ActiveParameterIndex { get; }
     }
 
     private sealed class SimpleSignatureHelpParameter : ISignatureHelpParameter

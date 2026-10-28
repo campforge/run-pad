@@ -24,6 +24,8 @@ namespace RunPad.Runtime.UI.Tests;
 // regression tests, ported here).
 [Trait("Category", "RealBuild")]
 [Collection(RealBuildTestCollection.Name)]
+[Trait("Category", "Integration")]
+[Trait("Category", "RealBuild")]
 public sealed class ScriptCompilerTests : IAsyncDisposable
 {
     private readonly string _root = Directory.CreateTempSubdirectory("runpad-script-compiler").FullName;

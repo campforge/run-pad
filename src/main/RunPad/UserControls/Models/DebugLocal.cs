@@ -9,6 +9,9 @@ public sealed class DebugLocal : ReactiveObject
     public string Value { get; }
     public string TypeName { get; }
     public bool HasChildren { get; }
+    // The debugger formats a string value with quotes; the value tip colours strings and numbers.
+    public bool IsStringValue => Value.Length > 1 && Value[0] == '"';
+    public bool IsNumberValue => Value.Length > 0 && (char.IsDigit(Value[0]) || Value[0] == '-' && Value.Length > 1 && char.IsDigit(Value[1]));
 
     private bool _isExpanded;
     public bool IsExpanded

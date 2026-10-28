@@ -8,8 +8,6 @@ using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
-using RunPad.Languages.CSharp;
-using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -37,7 +35,12 @@ public class EditorTabItemControlExceptionStopTests
         public DebugStopReason StopReason { get; init; }
         public DebugExceptionInfo? Exception { get; init; }
         public string? ResumeError { get; init; }
-        public void Resume(DebugAction action = DebugAction.Continue) => _resumed.TrySetResult(action);
+        public Func<DebugAction, bool>? ResumeObserved { get; init; }
+        public void Resume(DebugAction action = DebugAction.Continue)
+        {
+            ResumeObserved?.Invoke(action);
+            _resumed.TrySetResult(action);
+        }
         public Task<IReadOnlyList<IVariableInfo>> GetChildrenAsync(int variablesReference, CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyList<IVariableInfo>>([]);
         public Task RunToCursorAsync(int line, CancellationToken ct = default) => Task.CompletedTask;
@@ -109,6 +112,133 @@ public class EditorTabItemControlExceptionStopTests
         Assert.Null(VisibleText(host, "StoppedExceptionText"));
         Assert.Null(VisibleText(host, "StopNoticeText"));
         host.Close();
+    }
+
+    [AvaloniaFact]
+    public void Stop_ShouldCancelRunBeforeResumingPausedDebugger()
+    {
+        var (control, _, host) = CreateTab();
+        using var runCts = new CancellationTokenSource();
+        var cancellationWasVisible = false;
+        var context = new StopContext { ResumeObserved = _ => cancellationWasVisible = runCts.IsCancellationRequested };
+        control.State.RunCts = runCts;
+        control.State.CurrentDebugCtx = context;
+
+        control.Cancel();
+
+        Assert.True(cancellationWasVisible);
+        Assert.True(runCts.IsCancellationRequested);
+        host.Close();
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Stop_Should_ClearDebugStateAfterHostExits_AndAllowAnotherRun(bool paused)
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var languageHost = new Mock<ILanguageHost>();
+        languageHost.Setup(h => h.Supports(It.IsAny<LanguageHostCapabilities>())).Returns(true);
+        languageHost.Setup(h => h.DisposeAsync()).Returns(ValueTask.CompletedTask);
+        languageHost.Setup(h => h.TerminateAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        languageHost.Setup(h => h.RunDebugAsync(It.IsAny<string>(), It.IsAny<OutputReceivedHandler>(), It.IsAny<CancellationToken>()))
+            .Returns(async (string _, OutputReceivedHandler _, CancellationToken token) =>
+            {
+                started.TrySetResult();
+                await finish.Task.WaitAsync(token);
+            });
+        var (control, vm, window) = CreateTab(languageHost.Object);
+        var sdk = new DotnetSdk("10.0.100", "net10.0", "10.0.0", ".NET 10.0");
+        try
+        {
+            var run = control.RunAsync(true, sdk);
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            if (paused) control.OnBreakpointHit(new StopContext());
+            control.Cancel();
+            await run.WaitAsync(TimeSpan.FromSeconds(10));
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal(RunState.Idle, vm.RunState);
+            Assert.Equal("Cancelled", control.State.ExecStatusText);
+            Assert.Null(control.State.CurrentDebugCtx);
+            Assert.Null(control.State.Editor.DebugCurrentLine);
+            Assert.Null(control.State.RunCts);
+            Assert.Null(control.State.RunningHost);
+            Assert.False(control.State.RunStopwatch.IsRunning);
+
+            finish.TrySetResult();
+            await control.RunAsync(true, sdk).WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal(RunState.Idle, vm.RunState);
+            Assert.Equal("Success", control.State.ExecStatusText);
+        }
+        finally
+        {
+            finish.TrySetResult();
+            control.Dispose();
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Stop_Should_WaitForDebugHostCleanup_AndRejectItsLateEvents()
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        OutputReceivedHandler? output = null;
+        var languageHost = new Mock<ILanguageHost>();
+        languageHost.Setup(h => h.Supports(It.IsAny<LanguageHostCapabilities>())).Returns(true);
+        languageHost.Setup(h => h.DisposeAsync()).Returns(ValueTask.CompletedTask);
+        languageHost.Setup(h => h.TerminateAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        languageHost.Setup(h => h.RunDebugAsync(It.IsAny<string>(), It.IsAny<OutputReceivedHandler>(), It.IsAny<CancellationToken>()))
+            .Returns(async (string _, OutputReceivedHandler handler, CancellationToken _) =>
+            {
+                output = handler;
+                started.TrySetResult();
+                // Model a debugger that acknowledges Stop before its asynchronous cleanup finishes.
+                await finish.Task;
+            });
+        var (control, vm, window) = CreateTab(languageHost.Object);
+        var sdk = new DotnetSdk("10.0.100", "net10.0", "10.0.0", ".NET 10.0");
+        try
+        {
+            var run = control.RunAsync(true, sdk);
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            var cts = control.State.RunCts!;
+            control.OnBreakpointHit(new StopContext());
+            control.Cancel();
+
+            Assert.True(cts.IsCancellationRequested);
+            Assert.False(run.IsCompleted);
+            await control.RunAsync(true, sdk);
+            languageHost.Verify(h => h.RunDebugAsync(It.IsAny<string>(), It.IsAny<OutputReceivedHandler>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+            Assert.Same(cts, control.State.RunCts);
+
+            output!("late debug output", OutputKind.StandardOutput);
+            languageHost.Raise(h => h.BreakpointHit += null, new StopContext());
+            languageHost.Raise(h => h.StageChanged += null, RunStage.Compiling, "late debug stage");
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("Cancelled", control.State.ExecStatusText);
+            Assert.Null(control.State.CurrentDebugCtx);
+            Assert.DoesNotContain("late debug output", control.State.Output.Content);
+
+            finish.TrySetResult();
+            await run.WaitAsync(TimeSpan.FromSeconds(10));
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(RunState.Idle, vm.RunState);
+            Assert.Equal("Cancelled", control.State.ExecStatusText);
+            Assert.Null(control.State.RunCts);
+            Assert.Null(control.State.RunningHost);
+            Assert.Null(control.State.Editor.DebugCurrentLine);
+            Assert.False(control.State.RunStopwatch.IsRunning);
+        }
+        finally
+        {
+            finish.TrySetResult();
+            control.Dispose();
+            window.Close();
+        }
     }
 
     [AvaloniaFact]

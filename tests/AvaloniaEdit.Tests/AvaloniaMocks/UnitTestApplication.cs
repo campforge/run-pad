@@ -1,4 +1,3 @@
-using System;
 using Avalonia;
 using Avalonia.Headless;
 using Avalonia.Markup.Xaml.Styling;

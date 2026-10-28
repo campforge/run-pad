@@ -4,7 +4,6 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Styling;
 using Avalonia.Threading;
-using Avalonia.VisualTree;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using RunPad.Avalonia.Themes;
@@ -28,6 +27,8 @@ namespace RunPad.Runtime.UI.Tests;
 
 // Execute Selection in a Program script runs only the selected statements, as Statements: through
 // the configured key in the real window, and with the real language hosts and a real process.
+[Trait("Category", "Integration")]
+[Trait("Category", "RealBuild")]
 public sealed class ProgramSelectionExecutionTests : IDisposable
 {
     private readonly string _root = Directory.CreateTempSubdirectory("runpad-program-selection").FullName;

@@ -6,7 +6,6 @@ using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
-using Avalonia.Input.Raw;
 using Avalonia.VisualTree;
 using MarkView.Avalonia.Extensions;
 using MarkView.Avalonia.Rendering;

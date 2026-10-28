@@ -1,4 +1,3 @@
-using System;
 using Avalonia.Headless.NUnit;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;

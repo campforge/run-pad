@@ -6,7 +6,7 @@
     xmlns:chrome="using:Avalonia.Controls.Chrome"
     xmlns:uc="clr-namespace:RunPad.UserControls"
     xmlns:ucm="clr-namespace:RunPad.UserControls.Models"
-    xmlns:conv="clr-namespace:RunPad.Converters" mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450" x:Class="RunPad.Windows.MainWindow" x:DataType="vm:MainWindowViewModel" Icon="/Assets/icon.ico" Title="RunPad" WindowDecorations="BorderOnly" ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="32">
+    xmlns:conv="clr-namespace:RunPad.Converters" mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450" xmlns:windows="using:RunPad.Windows" x:Class="RunPad.Windows.MainWindow" x:DataType="vm:MainWindowViewModel" Icon="/Assets/icon.ico" Title="RunPad" WindowDecorations="BorderOnly" ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="32">
 
     <Window.Resources>
         <!-- Referenced via ContentTemplate on the sidebar's ContentControl below. DataTemplate.Build()
@@ -53,27 +53,34 @@
     <Grid x:Name="RootLayout" RowDefinitions="32,*">
 
         <!-- ── Title bar ─────────────────────────────────────────────────── -->
-        <Border x:Name="TitleBar" Grid.Row="0" Background="{DynamicResource RunPad.Sidebar.BackgroundBrush}" chrome:WindowDecorationProperties.ElementRole="TitleBar">
+        <Border x:Name="TitleBar" Grid.Row="0"
+                Background="{DynamicResource RunPad.TitleBar.BackgroundBrush}"
+                BorderBrush="{DynamicResource RunPad.Toolbar.BorderBrush}"
+                BorderThickness="0,0,0,1"
+                chrome:WindowDecorationProperties.ElementRole="TitleBar">
 
             <Grid ColumnDefinitions="Auto,*,Auto">
 
                 <!-- Left: app icon + menu -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="0" chrome:WindowDecorationProperties.ElementRole="User">
+                <StackPanel x:Name="TitleBarActions" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="0" chrome:WindowDecorationProperties.ElementRole="User">
 
                     <Image x:Name="AppIconImage" Source="/Assets/icon.ico" Width="16" Height="16" Margin="10,0,4,0" IsHitTestVisible="False" VerticalAlignment="Center"/>
 
                     <!-- Items come from MainWindow.CreateMainMenu (shared with the macOS NativeMenu). -->
                     <Menu x:Name="MainMenu" Background="Transparent" VerticalAlignment="Center">
                         <Menu.Styles>
-                            <Style Selector="MenuItem">
-                                <Setter Property="Padding" Value="7,4"/>
-                                <Setter Property="FontSize" Value="13"/>
+                            <!-- The bar's own items only: its dropdowns look like every other popup menu (PopupStyles). -->
+                            <Style Selector="Menu > MenuItem">
+                                <Setter Property="Padding" Value="4,4"/>
+                                <Setter Property="FontSize" Value="14"/>
                             </Style>
                         </Menu.Styles>
                     </Menu>
 
-                    <Button Classes="wc-btn" Width="30" Command="{Binding Sidebar.ToggleCommand}" ToolTip.Tip="Toggle file tree">
-                        <PathIcon Data="{StaticResource Icon.SidebarLeft}" Width="14" Height="14"/>
+                    <windows:MacWindowButtons x:Name="MacWindowButtons" IsVisible="False"/>
+
+                    <Button x:Name="SidebarToggleButton" Classes="wc-btn" Width="30" Command="{Binding Sidebar.ToggleCommand}" ToolTip.Tip="Toggle file tree">
+                        <PathIcon x:Name="SidebarToggleIcon" Data="{StaticResource Icon.SidebarLeft}" Width="14" Height="14"/>
                     </Button>
 
                 </StackPanel>
@@ -199,7 +206,7 @@
                         BorderBrush="{DynamicResource RunPad.Accent.BackgroundBrush}" BorderThickness="0,0,0,1"
                         Padding="10,6">
                     <DockPanel>
-                        <Button x:Name="DismissRecoveryNoticeButton" DockPanel.Dock="Right" Margin="8,0,0,0"
+                        <Button Classes="secondary" x:Name="DismissRecoveryNoticeButton" DockPanel.Dock="Right" Margin="8,0,0,0"
                                 VerticalAlignment="Center" Content="Dismiss" Command="{Binding DismissRecoveryNotice}"
                                 AutomationProperties.Name="Dismiss draft recovery notice"/>
                         <SelectableTextBlock x:Name="RecoveryNoticeText" Text="{Binding RecoveryNotice}"

@@ -1,0 +1,42 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:windows="using:RunPad.Windows">
+    <!-- The window every window but MainWindow becomes (Windows/WindowChrome.cs): RunPad's own title bar
+         above the content, the frame around it left to the platform. WindowDecorationMargin is the
+         room the platform's frame takes inside the window (Avalonia's drawn frame and shadow on
+         Wayland); the window paints only inside it. -->
+    <ControlTheme x:Key="RunPadChromeWindow" TargetType="Window">
+        <!-- Fluent's own Window setters, kept: this theme replaces Fluent's for the window. -->
+        <Setter Property="Background" Value="{DynamicResource SystemRegionBrush}"/>
+        <Setter Property="TransparencyBackgroundFallback" Value="{DynamicResource SystemControlBackgroundAltHighBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+        <Setter Property="FontSize" Value="{DynamicResource ControlContentThemeFontSize}"/>
+        <Setter Property="FontFamily" Value="{DynamicResource ContentControlThemeFontFamily}"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Panel>
+                    <Border Name="PART_TransparencyFallback" IsHitTestVisible="False"/>
+                    <Border Name="PART_Body" Margin="{TemplateBinding WindowDecorationMargin}"
+                            Background="{TemplateBinding Background}" ClipToBounds="True">
+                        <DockPanel>
+                            <windows:WindowTitleBar DockPanel.Dock="Top"/>
+                            <VisualLayerManager Name="PART_VisualLayerManager">
+                                <ContentPresenter Name="PART_ContentPresenter"
+                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                  Content="{TemplateBinding Content}"
+                                                  Margin="{TemplateBinding Padding}"
+                                                  HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                            </VisualLayerManager>
+                        </DockPanel>
+                    </Border>
+                </Panel>
+            </ControlTemplate>
+        </Setter>
+
+        <!-- Inside the rounded window frame (RunPad.Radius.Overlay, 1px stroke) while the window is not maximized. -->
+        <Style Selector="^.rounded /template/ Border#PART_Body">
+            <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.OverlayInner}"/>
+        </Style>
+    </ControlTheme>
+</ResourceDictionary>

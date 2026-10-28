@@ -11,6 +11,9 @@ public interface IPreferencesService
     SessionSettings Session { get; }
     ExperimentalSettings Experimental { get; }
 
+    /// <summary>Values of the OS integration's settings (Interface → System), by setting id.</summary>
+    Dictionary<string, bool> System { get; }
+
     void Save();
 
     event Action? Changed;

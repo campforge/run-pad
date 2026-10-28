@@ -1,4 +1,3 @@
-using RunPad.Cli;
 using Spectre.Console.Testing;
 using Xunit;
 

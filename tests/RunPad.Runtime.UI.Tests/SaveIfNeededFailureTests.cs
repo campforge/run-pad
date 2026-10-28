@@ -5,8 +5,6 @@ using Moq;
 using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
 using RunPad.Format.RPad;
-using RunPad.Languages.CSharp;
-using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;

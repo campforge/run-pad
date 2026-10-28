@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.Reactive;
-using System.Reactive.Linq;
 using System.Text.Json;
 using ReactiveUI;
 using RunPad.Contracts.Connections;
@@ -317,7 +316,7 @@ public sealed record ConnectionResourceDetail(string Name, string Value);
 // Tools → Connections: the user's own database, HTTP and gRPC connections, edited in one window.
 // Edits stay in the window until OK writes the whole list; Cancel drops them. A list that can't be
 // read is reported and never overwritten from here.
-public sealed class ConnectionsWindowViewModel : ViewModelBase
+public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
 {
     private readonly IConnectionStore _store;
     private string? _version;
@@ -331,6 +330,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
     public ConnectionGroupingModel Grouping { get; }
     private string _saved = "";
     private CancellationTokenSource? _browseCancellation;
+    private CancellationTokenSource? _testCancellation;
 
     public ObservableCollection<ConnectionItemViewModel> Connections { get; } = [];
 
@@ -539,6 +539,11 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
     private async Task TestSelectedAsync()
     {
         if (SelectedConnection is not { Driver: { } driver, HasProblems: false } item) return;
+        var previousTest = Interlocked.Exchange(ref _testCancellation, null);
+        previousTest?.Cancel();
+        var testCancellation = new CancellationTokenSource();
+        Interlocked.Exchange(ref _testCancellation, testCancellation);
+        var token = testCancellation.Token;
         IsTesting = true;
         item.TestResult = "Testing…";
         // What is tested, and later read again, is the connection as it was when Test was pressed; an
@@ -556,15 +561,15 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
                 item.TestResult = string.Join("\n", resolved.Errors);
                 return;
             }
-            var result = await driver.TestAsync(resolved.Params, CancellationToken.None);
-            if (Edited()) return;
+            var result = await driver.TestAsync(resolved.Params, token);
+            if (token.IsCancellationRequested || Edited()) return;
             item.TestResult = (result.Succeeded ? "Success: " : "Failed: ") + result.Message;
             // A server that answers is read again, so scripts get its current classes.
             if (result.Succeeded && driver is IConnectionSchemaDriver && _schemas is not null)
             {
                 item.TestResult += "\nReading its description…";
-                await _schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.All, CancellationToken.None);
-                if (Edited()) return;
+                await _schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.All, token);
+                if (token.IsCancellationRequested || Edited()) return;
                 item.TestResult = "Success: " + result.Message + "\n" + (_schemas.Cache.ErrorFor(connection) is { } error
                     ? "Failed: its description couldn't be read: " + error
                     : "Scripts get its classes on their next build.");
@@ -572,11 +577,24 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
         }
         // A driver is free to throw for an unreachable or misconfigured server; that is the test's
         // answer, not a reason to take the window down.
+        catch (OperationCanceledException ex)
+        {
+            if (!token.IsCancellationRequested && !Edited())
+                item.TestResult = "Failed: " + (string.IsNullOrWhiteSpace(ex.Message) ? "The connection test was cancelled." : ex.Message);
+        }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             if (!Edited()) item.TestResult = "Failed: " + ex.Message;
         }
-        finally { IsTesting = false; }
+        finally
+        {
+            if (ReferenceEquals(_testCancellation, testCancellation))
+            {
+                Interlocked.CompareExchange(ref _testCancellation, null, testCancellation);
+                IsTesting = false;
+            }
+            testCancellation.Dispose();
+        }
     }
 
     private void RefreshResources()
@@ -686,6 +704,12 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
             }
             cts.Dispose();
         }
+    }
+
+    public void Dispose()
+    {
+        Interlocked.Exchange(ref _testCancellation, null)?.Cancel();
+        Interlocked.Exchange(ref _browseCancellation, null)?.Cancel();
     }
 
     private void PopulateResources(string driverId, ConnectionSchema schema)

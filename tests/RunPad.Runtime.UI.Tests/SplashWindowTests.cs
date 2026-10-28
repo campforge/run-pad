@@ -34,6 +34,36 @@ public class SplashWindowTests
         destination.Close();
     }
 
+    // The workspace opens its restored tabs one by one: the splash stays, saying so, and the window
+    // stays hidden until every header is there, so tabs never visibly appear one after another.
+    [AvaloniaFact]
+    public async Task Startup_Should_KeepTheSplash_UntilTheWorkspaceIsReady()
+    {
+        var splash = new SplashWindow();
+        var destination = new SlowStartupWindow();
+        var desktop = new Mock<IClassicDesktopStyleApplicationLifetime>();
+        desktop.SetupProperty(d => d.MainWindow, splash);
+        splash.Show();
+        await App.StartDesktopAsync(desktop.Object, splash, () => Task.FromResult(true), _ => destination, Mock.Of<ILogger>());
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.False(splash.HasClosed);
+        Assert.Equal("Opening scripts…", splash.FindControl<TextBlock>("StatusText")!.Text);
+        Assert.Equal(0, destination.Opacity);
+
+        destination.Workspace.SetResult();
+        for (var i = 0; i < 20 && !splash.HasClosed; i++) { await Task.Yield(); Dispatcher.UIThread.RunJobs(); }
+        Assert.True(splash.HasClosed);
+        Assert.Equal(1, destination.Opacity);
+        destination.Close();
+    }
+
+    private sealed class SlowStartupWindow : Window, IStartupWindow
+    {
+        public TaskCompletionSource Workspace { get; } = new();
+        public Task Ready => Workspace.Task;
+    }
+
     [AvaloniaTheory]
     [InlineData(true)]
     [InlineData(false)]

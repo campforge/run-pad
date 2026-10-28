@@ -60,7 +60,7 @@
                              drawn first (behind the icon/text) so it reads as a row highlight. -->
                         <Border IsVisible="{Binding IsDropTarget}"
                                 Background="{DynamicResource RunPad.Accent.BackgroundBrush}"
-                                CornerRadius="5"
+                                CornerRadius="{DynamicResource RunPad.Radius.Selection}"
                                 Margin="-6,-3" />
 
                         <StackPanel Orientation="Horizontal" Spacing="7"

@@ -1,5 +1,3 @@
-using System;
-
 namespace AvaloniaEdit.Document;
 
 public class DocumentChangedEventArgs : EventArgs

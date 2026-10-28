@@ -3,7 +3,7 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
-## [Unreleased]
+## [0.10.0] — 2026-10-28
 
 ### Added
 
@@ -11,6 +11,15 @@ Notable changes in each RunPad release. Downloads are on the
   sets and command-line overrides supply the same values during execution and debugging.
   Argument metadata uses typed declarations, defaults and presets; the raw YAML `args:` field and
   the extra-arguments editor have been removed. The script's `args` array remains available.
+- C# completion offers `name:` where an argument starts, for the parameters of the call that are
+  still open: those of the overloads the arguments typed so far fit, not given by position or
+  by name yet. It works for methods and constructors.
+- C# completion offers types from every reference of the script that aren't imported yet, not just
+  from packages: framework types such as `StringBuilder` once three letters are typed, and the
+  script's own assemblies. Accepting one adds its `using`. Types that share a name, such as
+  `JsonSerializer` in two libraries, are each offered with their namespace instead of not at all.
+- The completion list matches the starts of the words in a name: `ArgEnv` or `ae` finds
+  `ArgumentsEnvironment`, `SBu` finds `StringBuilder` and `HC` finds `HTTPClient`.
 - Enum arguments generate real enum types: an `env` declaration exposes `Arguments.Env` as
   `ArgumentsEnv`, with values such as `ArgumentsEnv.Dev` and `ArgumentsEnv.Prod` in C# and Visual Basic.
 - **Toggle Line Comment** (Ctrl+/, Cmd+/ on macOS) comments or uncomments every line the selection
@@ -31,9 +40,23 @@ Notable changes in each RunPad release. Downloads are on the
   contract is being read shows it, and one still using a contract read earlier after a failed refresh
   is marked as out of date. **Refresh** in a connection's context menu reads its contract again
   (gRPC) or checks it again; **Refresh All** does it for every connection.
+- On Linux in a Wayland session, RunPad runs natively on Wayland and draws its own window frames:
+  rounded corners, a shadow, a border in the theme's colors and, in every window, a title bar that
+  matches the main window. The mouse pointer follows the desktop's cursor theme. If a window
+  misbehaves, **Native Wayland window** in Preferences → Interface → System turns this off after a
+  restart (or start RunPad with `RUNPAD_WAYLAND=0`) to use XWayland and the system frame.
+- On KDE, **Remember window position and center dialogs** in Preferences → Interface → System adds
+  two window rules to KDE's settings: KDE puts the main window back where it was and opens dialogs
+  in the middle of the screen. Turning it off removes them.
+- The main window's size, and whether it was maximized, are kept between runs.
 
 ### Changed
 
+- On macOS, the native titlebar is kept separate from the compact application toolbar, with a
+  larger aligned sidebar toggle.
+
+- The main window on macOS draws its header into the title bar while retaining the native
+  traffic-light controls, resizing and the system menu bar.
 - Sidebar tree hover now affects only the row under the pointer. Script selection is more subdued,
   while Connections and Samples use transient hover and keyboard focus instead of a persistent
   selected-row fill. Expanded branches have subtle dotted indentation guides, and section headers
@@ -51,9 +74,54 @@ Notable changes in each RunPad release. Downloads are on the
   now called **Output settings**, next to the exception break options.
 - In Tools → Connections, the test status under a connection shows the whole test result as a
   tooltip, so a status cut short in a narrow list can still be read.
+- On Linux, the interface uses the desktop's own font (as VS Code does) instead of the bundled
+  Inter.
+- **Restore open tabs and unsaved changes** moved from Preferences → Interface to Preferences →
+  Editor.
+- Every window has the same title bar as the main window — its colors, title and window buttons —
+  on Windows, macOS (with the main window's own traffic-light buttons) and Linux on Wayland,
+  instead of the system's. A dialog that can't be resized has only a close button on Windows and
+  Linux; on macOS its minimize and zoom buttons are dimmed.
+- In C# completion after a value's dot, RunPad's own `Dump` is chosen first when it matches what
+  you typed as well as another member does: `.D` selects `Dump`. The list stays alphabetical.
 
 ### Fixed
 
+- C# parameter info no longer runs off the editor with a long signature: it takes at most 80% of the
+  editor's width, a signature that doesn't fit puts each parameter on a line of its own, and long
+  documentation wraps. Signatures in parameter info, completion and tooltips show type arguments,
+  such as `Dictionary<string, List<int>>` instead of `Dictionary`.
+- In C#, parameter info follows nested calls: inside `Send(new Message(` it shows `Message`, and
+  once its `)` is typed it shows `Send` again, at the right parameter. A named argument such as
+  `timeout:` selects the overload that has it and marks that parameter, wherever it is in the list.
+- At startup the splash screen stays up, saying "Opening scripts…", until every reopened tab has
+  its header and the active one shows its script, so tabs no longer appear one after another in the
+  window.
+- The menu bar's dropdowns and submenus take the theme's colours and look like the context menus,
+  with the same text size and spacing, and a submenu opens beside its menu instead of over its edge.
+  Menu items are highlighted with rounded corners everywhere, inset from the menu's rounded border.
+- Dropdown lists take the theme's colours too and look like the menus: the same background,
+  border, corners and spacing, with rounded rows.
+- Buttons take the theme's colours instead of Fluent's grey, and a form's buttons are as tall as
+  the fields beside them, so a row of them lines up.
+- In the Arguments tab every row's value starts in the Value column, also for an enum, and an
+  enum's default is picked from its values.
+- The Dependencies window's add, update and remove actions in lists, its paging arrows and the
+  argument and set buttons are icon buttons with tooltips, as tall as the fields beside them.
+- A script with an optional text or list argument no longer gets two CS8669 warnings about
+  nullable annotations in its results.
+- Windows, dialogs, menus, dropdowns, tooltips and the editor's completion list, parameter info
+  and value tips all have the same rounded corners, set by the theme; the splash screen and the
+  editor toolbar no longer use a radius of their own.
+- While debugging, hovering a variable shows its value again in more places: over `c` in
+  `c.Dump()` the tip shows `c`, not the whole call. The value tip opens as soon as the pointer
+  rests on the variable and stays open while the pointer moves into it. Its members are a tree
+  like the one in Rider: each opens under its own parent, at any depth, folds back, and scrolls
+  when long, with the name, type and value of every member on one row.
+- Stopping a debug session clears its paused/running state, current-line highlight and timer when
+  execution ends, so the toolbar no longer remains stuck in debugging mode.
+- New untitled tabs get their next available numbered name, and untouched blank tabs are not
+  treated as unsaved work during recovery or application close.
 - On macOS, Control-click works as a right click: it opens context menus and selects the row under
   the pointer, in the sidebar, the editor and every other window.
 - With result wrapping on, ordinary output and errors wrap at the pane width too, long unbroken text
@@ -761,4 +829,5 @@ better choice. RunPad began as DotPad two days after the last commit to the fork
 [0.9.3]: https://github.com/campforge/run-pad/releases/tag/v0.9.3
 [0.9.4]: https://github.com/campforge/run-pad/releases/tag/v0.9.4
 
+[0.10.0]: https://github.com/campforge/run-pad/releases/tag/v0.10.0
 [0.9.5]: https://github.com/campforge/run-pad/releases/tag/v0.9.5

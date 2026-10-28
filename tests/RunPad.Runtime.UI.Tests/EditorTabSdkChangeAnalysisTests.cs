@@ -1,6 +1,8 @@
+using System.Collections.Concurrent;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using RunPad.Avalonia.Themes;
@@ -10,7 +12,6 @@ using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.CSharp.IntelliSense;
-using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -26,6 +27,29 @@ namespace RunPad.Runtime.UI.Tests;
 // next keystroke, also when the text itself never changes.
 public class EditorTabSdkChangeAnalysisTests
 {
+    private sealed class TransitionCapture
+    {
+        private readonly string _expectedContext;
+        public ConcurrentQueue<string> Calls { get; } = new();
+        public TaskCompletionSource Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TransitionCapture(string expectedContext) => _expectedContext = expectedContext;
+
+        public void Add(string call)
+        {
+            Calls.Enqueue(call);
+            if (Calls.Count == 2 && Calls.FirstOrDefault() == "context " + _expectedContext
+                && Calls.LastOrDefault() == "analyse " + Code)
+                Completion.TrySetResult();
+        }
+
+        public async Task DrainDispatcherAsync()
+        {
+            Dispatcher.UIThread.RunJobs();
+            await Task.Yield();
+            Dispatcher.UIThread.RunJobs();
+        }
+    }
     private static readonly DotnetSdk Current = new("10.0.100", "net10.0", "10.0.0", ".NET 10.0");
 
     // .NET 5 compiles with C# 9 by default; no .NET 5 targeting pack is needed for that, so the
@@ -73,26 +97,32 @@ public class EditorTabSdkChangeAnalysisTests
     [AvaloniaFact]
     public async Task SelectingAnotherSdk_Should_ReanalyseTheUnchangedText_AfterApplyingItsContext()
     {
-        var calls = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        TransitionCapture? capture = new("net10.0");
         var intelliSense = new Mock<IIntelliSenseService>().ForwardingExecutionContext();
         intelliSense.Setup(s => s.UpdatePackageReferences(It.IsAny<IReadOnlyDictionary<string, Package>>(), It.IsAny<PackageReferenceContext>()))
-            .Callback<IReadOnlyDictionary<string, Package>, PackageReferenceContext>((_, c) => calls.Enqueue("context " + c.TargetFramework));
-        intelliSense.Setup(s => s.NotifyTextChanged(It.IsAny<string>())).Callback<string>(t => calls.Enqueue("analyse " + t));
+            .Callback<IReadOnlyDictionary<string, Package>, PackageReferenceContext>((_, c) => capture?.Add("context " + c.TargetFramework));
+        intelliSense.Setup(s => s.NotifyTextChanged(It.IsAny<string>())).Callback<string>(t => capture?.Add("analyse " + t));
         var (ctrl, vm) = CreateControl(intelliSense.Object);
         try
         {
             ctrl.State.Editor.Text = Code;
-            await TestWait.WhileAsync(() => false, TimeSpan.FromMilliseconds(300)); // the opening refresh settles
+            await capture.Completion.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await capture.DrainDispatcherAsync();
+            Assert.Equal(["context net10.0", "analyse " + Code], capture.Calls);
 
-            calls.Clear();
+            capture = new TransitionCapture("net5.0");
             vm.SelectedSdk = Older;
-            await TestWait.WhileAsync(() => calls.Count < 2);
-            Assert.Equal(["context net5.0", "analyse " + Code], calls);
+            await capture.Completion.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal(["context net5.0", "analyse " + Code], capture.Calls);
+            await capture.DrainDispatcherAsync();
+            Assert.Equal(2, capture.Calls.Count);
 
-            calls.Clear();
+            capture = new TransitionCapture("net10.0");
             vm.SelectedSdk = Current;
-            await TestWait.WhileAsync(() => calls.Count < 2);
-            Assert.Equal(["context net10.0", "analyse " + Code], calls);
+            await capture.Completion.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal(["context net10.0", "analyse " + Code], capture.Calls);
+            await capture.DrainDispatcherAsync();
+            Assert.Equal(2, capture.Calls.Count);
             Assert.Equal(Code, ctrl.State.Editor.Text);
         }
         finally
@@ -104,6 +134,8 @@ public class EditorTabSdkChangeAnalysisTests
     // What the user sees, with the real C# IntelliSense: the C# 10 construct becomes an error for
     // .NET 5 (C# 9) and stops being one for .NET 10, without typing.
     [AvaloniaFact]
+    [Trait("Category", "Integration")]
+    [Trait("Category", "Roslyn")]
     public async Task SelectingAnotherSdk_Should_UpdateTheDiagnostics_WithoutAnEdit()
     {
         var referenceService = new CSharpReferenceService();

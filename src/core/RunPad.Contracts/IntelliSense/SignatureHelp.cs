@@ -17,10 +17,15 @@ public interface ISignatureHelpResult
 
 public interface ISignatureHelpItem
 {
-    // The full method signature, classified for syntax highlighting. When this item is the
-    // currently-selected overload, the parameter at ISignatureHelpResult.ArgumentIndex is marked
-    // with DisplayTextSegment.Emphasis so the UI can bold it, the way LINQPad/VS Code do.
+    // The full method signature, classified for syntax highlighting. The parameter at
+    // ActiveParameterIndex is marked with DisplayTextSegment.Emphasis so the UI can bold it, the way
+    // LINQPad/VS Code do.
     IReadOnlyList<DisplayTextSegment> Signature { get; }
+
+    // The parameter of this overload the argument at the caret goes to, or -1 when it has none. Not
+    // always ISignatureHelpResult.ArgumentIndex: a named argument goes to the parameter of that name,
+    // wherever it is in each overload, and every argument past the last goes to a `params` one.
+    int ActiveParameterIndex { get; }
 
     // Plain-text XML-doc <summary> for the method, or null if it has none.
     string? Summary { get; }

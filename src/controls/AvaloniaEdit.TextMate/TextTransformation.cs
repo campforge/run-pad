@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 using AvaloniaEdit.Document;
 using TextMateSharp.Themes;
 using AM = Avalonia.Media;

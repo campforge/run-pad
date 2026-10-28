@@ -10,7 +10,6 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using RunPad.Avalonia.Themes;
-using RunPad.Windows;
 using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;

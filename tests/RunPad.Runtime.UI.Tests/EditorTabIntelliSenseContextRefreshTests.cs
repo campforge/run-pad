@@ -3,6 +3,7 @@ using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using Moq;
 using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
@@ -22,6 +23,7 @@ namespace RunPad.Runtime.UI.Tests;
 // A tab with gRPC-like connections rebuilds the editor's context (the connections' classes, the
 // references) when it opens, after a build and when a schema is read elsewhere. That work can be slow
 // for a large contract, so it happens off the UI thread, and only the newest request may be applied.
+[Trait("Category", "Integration")]
 public sealed class EditorTabIntelliSenseContextRefreshTests : IDisposable
 {
     private readonly string _folder = Directory.CreateTempSubdirectory("runpad-tab-context-refresh").FullName;
@@ -62,7 +64,13 @@ public sealed class EditorTabIntelliSenseContextRefreshTests : IDisposable
         public readonly ManualResetEventSlim Gate = new(true);
         public readonly ConcurrentQueue<CancellationToken> Tokens = new();
         public readonly ConcurrentQueue<ExecutionRequest> Applied = new();
+        public TaskCompletionSource<ExecutionRequest> AppliedSignal { get; private set; } = NewSignal<ExecutionRequest>();
+        public TaskCompletionSource<bool> CallbackFinished { get; private set; } = NewSignal<bool>();
+        public TaskCompletionSource<bool> TextChangedSignal { get; private set; } = NewSignal<bool>();
         private int _entered;
+
+        private static TaskCompletionSource<T> NewSignal<T>() =>
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public int Entered => Volatile.Read(ref _entered);
 
@@ -72,6 +80,9 @@ public sealed class EditorTabIntelliSenseContextRefreshTests : IDisposable
             Tokens.Clear();
             Volatile.Write(ref _entered, 0);
             Mock.Invocations.Clear();
+            AppliedSignal = NewSignal<ExecutionRequest>();
+            CallbackFinished = NewSignal<bool>();
+            TextChangedSignal = NewSignal<bool>();
         }
 
         public SlowService()
@@ -84,10 +95,17 @@ public sealed class EditorTabIntelliSenseContextRefreshTests : IDisposable
                 {
                     Tokens.Enqueue(token);
                     Interlocked.Increment(ref _entered);
-                    Gate.Wait(TimeSpan.FromSeconds(10));
-                    token.ThrowIfCancellationRequested();
-                    Applied.Enqueue(request);
+                    try
+                    {
+                        Gate.Wait(TimeSpan.FromSeconds(10));
+                        token.ThrowIfCancellationRequested();
+                        Applied.Enqueue(request);
+                        AppliedSignal.TrySetResult(request);
+                    }
+                    finally { CallbackFinished.TrySetResult(true); }
                 });
+            Mock.Setup(s => s.NotifyTextChanged(It.IsAny<string>()))
+                .Callback(() => TextChangedSignal.TrySetResult(true));
         }
     }
 
@@ -119,9 +137,13 @@ public sealed class EditorTabIntelliSenseContextRefreshTests : IDisposable
         try
         {
             tab.State.RpadDocument = new RpadDocument { FrontMatter = new RpadFrontMatter { Connections = [Stock] }, RunCode = "" };
-            await TestWait.WhileAsync(() => service.Applied.IsEmpty);
+            _ = await service.AppliedSignal.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
             await TestWait.WhileAsync(() => service.Mock.Invocations.All(i => i.Method.Name != nameof(IIntelliSenseService.NotifyTextChanged)));
-            await TestWait.SettleAsync(() => service.Mock.Invocations.Count); // and any further ones it started
+            await service.CallbackFinished.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            await service.TextChangedSignal.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            // Both positive signals have fired; drain the queued UI callback before resetting the
+            // mock, so a late initial NotifyTextChanged cannot be mistaken for the body operation.
+            Dispatcher.UIThread.RunJobs();
             service.Clear();
             return await body(tab, schemas);
         }
@@ -170,8 +192,8 @@ public sealed class EditorTabIntelliSenseContextRefreshTests : IDisposable
             Assert.True(service.Tokens.First().IsCancellationRequested, "the older update was not cancelled");
 
             service.Gate.Set(); // the slow older one finishes last
-            await TestWait.WhileAsync(() => service.Applied.IsEmpty);
-            await TestWait.WhileAsync(() => false, TimeSpan.FromMilliseconds(200));
+            var appliedRequest = await service.AppliedSignal.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            Assert.EndsWith(".V2.cs", Source(appliedRequest));
             var applied = Assert.Single(service.Applied);
             Assert.EndsWith(".V2.cs", Source(applied));
             return 0;
@@ -216,7 +238,7 @@ public sealed class EditorTabIntelliSenseContextRefreshTests : IDisposable
 
             tab.Dispose();
             service.Gate.Set();
-            await TestWait.WhileAsync(() => false, TimeSpan.FromMilliseconds(300));
+            await service.CallbackFinished.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
             Assert.True(service.Tokens.Single().IsCancellationRequested);
             Assert.Empty(service.Applied);

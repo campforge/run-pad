@@ -42,6 +42,7 @@ public partial class DependenciesWindow : Window
         Closed += (_, _) =>
         {
             viewModel.Connections.CancelPendingAdd();
+            viewModel.Connections.Dispose();
             viewModel.Dispose();
         };
     }

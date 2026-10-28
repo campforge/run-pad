@@ -2,7 +2,6 @@ using System.IO.Compression;
 using Microsoft.Extensions.Logging.Abstractions;
 using RunPad.Build.Core.Models;
 using RunPad.Contracts.IntelliSense;
-using RunPad.Debug;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.CSharp.Compiler;

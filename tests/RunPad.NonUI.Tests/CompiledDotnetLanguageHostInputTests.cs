@@ -7,7 +7,6 @@ using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.DotnetCommon.Compiler;
-using RunPad.Languages.DotnetCommon.Sdk;
 using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
@@ -28,6 +27,8 @@ namespace RunPad.Runtime.UI.Tests;
 // proves Util.ReadLine's writer produces the exact same wire format these fakes assume. The only
 // thing the real version additionally touched — whether a live OS pipe actually delivers what's
 // written to Process.StandardInput — is .NET's own Process/pipe behavior, not RunPad's.
+[Trait("Category", "Integration")]
+[Trait("Category", "RealBuild")]
 public class CompiledDotnetLanguageHostInputTests
 {
     private sealed class FakeCompiler(ProcessCompilerResult result) : IDotnetProcessCompiler

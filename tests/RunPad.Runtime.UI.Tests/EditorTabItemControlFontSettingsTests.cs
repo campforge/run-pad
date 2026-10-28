@@ -1,5 +1,4 @@
 using Avalonia.Headless.XUnit;
-using Avalonia.Media;
 using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Services.Preferences;
 using RunPad.UserControls;

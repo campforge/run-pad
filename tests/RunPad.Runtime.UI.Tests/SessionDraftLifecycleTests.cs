@@ -127,8 +127,8 @@ public sealed class SessionDraftLifecycleTests : IDisposable
         }
         using var next = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
         await next.Ready();
-        Assert.Equal(3, next.Vm.Tabs.Count);
-        Assert.Equal(new string?[] { null, path, null }, next.Vm.Tabs.Select(t => t.FilePath));
+        Assert.Equal(2, next.Vm.Tabs.Count);
+        Assert.Equal(new string?[] { null, path }, next.Vm.Tabs.Select(t => t.FilePath));
         Assert.Equal(active, next.Vm.ActiveTab!.RecoveryId);
         var restored = next.Control(next.Vm.Tabs[0]);
         Assert.Equal("untitled\r\n${0}", restored.State.Editor.Text);
@@ -838,13 +838,13 @@ public sealed class SessionDraftLifecycleTests : IDisposable
         {
             await session.Ready();
             Assert.Equal([library, macro], await BuildReferencesAsync(session));
-            Assert.Equal([library, macro], EditorReferences(session));
+            await TestWait.EventuallyAsync(() => Assert.Equal([library, macro], EditorReferences(session)));
             await session.Close();
         }
         using var again = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
         await again.Ready();
         Assert.Equal([library, macro], await BuildReferencesAsync(again));
-        Assert.Equal([library, macro], EditorReferences(again));
+        await TestWait.EventuallyAsync(() => Assert.Equal([library, macro], EditorReferences(again)));
         await again.Close();
     }
 

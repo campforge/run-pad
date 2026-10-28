@@ -16,10 +16,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -520,25 +517,50 @@ public class CompletionList : TemplatedControl
         return -1;
     }
 
-    private static bool CamelCaseMatch(string text, string query)
+    // RunPad: CamelHumps. The query is split over the words of the name, in order and without
+    // skipping one: each part matches the start of the next word, any case ("ArgEnv" and "ae" match
+    // "ArgumentsEnvironment", "SBu" matches "StringBuilder"), and the query may stop before the last
+    // word ("CQ" matches "CodeQualityAnalysis"). A word starts at the first character, at an
+    // upper-case letter (the last one of an acronym: "HTTPClient" is HTTP, Client) and at a letter
+    // after an underscore or a digit.
+    public static bool CamelCaseMatch(string text, string query)
     {
-        // We take the first letter of the text regardless of whether or not it's upper case so we match
-        // against camelCase text as well as PascalCase text ("cct" matches "camelCaseText")
-        var theFirstLetterOfEachWord = text.AsEnumerable()
-            .Take(1)
-            .Concat(text.AsEnumerable().Skip(1).Where(char.IsUpper));
-
-        var i = 0;
-        foreach (var letter in theFirstLetterOfEachWord)
+        if (query.Length == 0 || text.Length == 0)
+            return false;
+        var wordStarts = new List<int>();
+        for (var i = 0; i < text.Length; i++)
         {
-            if (i > query.Length - 1)
-                return true;    // return true here for CamelCase partial match ("CQ" matches "CodeQualityAnalysis")
-            if (char.ToUpperInvariant(query[i]) != char.ToUpperInvariant(letter))
-                return false;
-            i++;
+            if (i == 0 || char.IsUpper(text[i]) && !char.IsUpper(text[i - 1])
+                || char.IsUpper(text[i]) && i + 1 < text.Length && char.IsLower(text[i + 1])
+                || !char.IsLetter(text[i - 1]) && char.IsLetter(text[i]))
+                wordStarts.Add(i);
         }
-        if (i >= query.Length)
+        // Splits that already failed, by (word, queryIndex): without them a failing query retries
+        // the same splits exponentially many times.
+        var size = (wordStarts.Count + 1) * (query.Length + 1);
+        Span<bool> failed = size <= 512 ? stackalloc bool[size] : new bool[size];
+        return MatchWords(text, query, wordStarts, failed, 0, 0);
+    }
+
+    private static bool MatchWords(string text, string query, List<int> wordStarts, Span<bool> failed, int word, int queryIndex)
+    {
+        if (queryIndex == query.Length)
             return true;
+        var state = word * (query.Length + 1) + queryIndex;
+        if (word == wordStarts.Count || failed[state])
+            return false;
+        var wordEnd = word + 1 < wordStarts.Count ? wordStarts[word + 1] : text.Length;
+        // The longest part of the query this word starts with first, then shorter ones.
+        var length = 0;
+        while (queryIndex + length < query.Length && wordStarts[word] + length < wordEnd
+               && char.ToUpperInvariant(query[queryIndex + length]) == char.ToUpperInvariant(text[wordStarts[word] + length]))
+            length++;
+        for (; length > 0; length--)
+        {
+            if (MatchWords(text, query, wordStarts, failed, word + 1, queryIndex + length))
+                return true;
+        }
+        failed[state] = true;
         return false;
     }
 }

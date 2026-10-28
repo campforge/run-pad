@@ -50,7 +50,7 @@ public sealed class ScriptConnectionItemViewModel : ReactiveObject
 // copies it into the script (its secrets stay placeholders) together with the NuGet packages its
 // driver needs, which become ordinary packages of the script; the editor knows its client class right
 // away once the change is saved. Import keeps a script's connection in the user's own list.
-public sealed class ScriptConnectionsViewModel : ReactiveObject
+public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
 {
     private readonly IConnectionStore? _store;
     private readonly ISecretStore? _secrets;
@@ -65,6 +65,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private List<RpadConnection>? _pendingImport;
     private string? _pendingVersion;
     private RpadConnection? _pendingAdd;
+    private CancellationTokenSource? _refreshCancellation;
     private int _addConfirmationVersion;
     // The script's packages as drafted in the window, and how to add or remove one there.
     private Func<IReadOnlySet<string>> _scriptPackages = () => new HashSet<string>();
@@ -489,22 +490,36 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private async Task RefreshSelectedAsync()
     {
         if (SelectedItem is not { } item || _connectionSchemas is not { } schemas) return;
+        var previous = Interlocked.Exchange(ref _refreshCancellation, null);
+        previous?.Cancel();
+        var refreshCancellation = new CancellationTokenSource();
+        Interlocked.Exchange(ref _refreshCancellation, refreshCancellation);
+        var token = refreshCancellation.Token;
         var connection = item.Connection;
         IsRefreshing = true;
         RefreshMessage = $"Reading the description of '{item.Name}'…";
         try
         {
-            await schemas.EnsureAsync([connection], _scriptDirectory, ConnectionSchemaRefresh.All, CancellationToken.None);
+            await schemas.EnsureAsync([connection], _scriptDirectory, ConnectionSchemaRefresh.All, token);
+            if (token.IsCancellationRequested || !ReferenceEquals(SelectedItem, item)) return;
             RefreshMessage = schemas.Cache.ErrorFor(connection, _scriptDirectory) is { } error
                 ? $"The description of '{item.Name}' couldn't be read: {error}"
                 : $"'{item.Name}' read again: {schemas.Cache.Get(connection, _scriptDirectory)?.Summary}";
         }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
         finally
         {
-            IsRefreshing = false;
-            Refresh();
+            if (ReferenceEquals(_refreshCancellation, refreshCancellation))
+            {
+                Interlocked.CompareExchange(ref _refreshCancellation, null, refreshCancellation);
+                IsRefreshing = false;
+                if (ReferenceEquals(SelectedItem, item)) Refresh();
+            }
+            refreshCancellation.Dispose();
         }
     }
+
+    public void Dispose() => Interlocked.Exchange(ref _refreshCancellation, null)?.Cancel();
 
     // Writes the script's connection into the user's list at once (replacing one of the same name);
     // the script itself doesn't change.
