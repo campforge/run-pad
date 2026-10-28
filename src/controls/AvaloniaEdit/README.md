@@ -10,7 +10,8 @@ control for Avalonia, itself a port of AvalonEdit from the SharpDevelop project.
   applies to the fork's original code.
 - **Why a fork:** RunPad's editor needs changes to the control itself that could not wait for
   upstream releases. RunPad references both projects directly instead of the NuGet packages.
-- **What RunPad changed:** completion-list behavior (soft selection, commit on Tab and Enter), font
+- **What RunPad changed:** completion-list behavior (soft selection, commit on Tab and Enter,
+  CamelHumps matching of word starts), font
   rendering, clipboard handling on macOS, keeping TextMate highlighting on the UI dispatcher, and
   completion/insight popups that take the transform of the editor they open from, and
   `TextEditor.ScrollToVerticalOffset`/`ScrollToHorizontalOffset`, which upstream leaves empty,

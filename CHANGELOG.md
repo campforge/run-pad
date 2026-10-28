@@ -18,6 +18,8 @@ Notable changes in each RunPad release. Downloads are on the
   from packages: framework types such as `StringBuilder` once three letters are typed, and the
   script's own assemblies. Accepting one adds its `using`. Types that share a name, such as
   `JsonSerializer` in two libraries, are each offered with their namespace instead of not at all.
+- The completion list matches the starts of the words in a name: `ArgEnv` or `ae` finds
+  `ArgumentsEnvironment`, `SBu` finds `StringBuilder` and `HC` finds `HTTPClient`.
 - Enum arguments generate real enum types: an `env` declaration exposes `Arguments.Env` as
   `ArgumentsEnv`, with values such as `ArgumentsEnv.Dev` and `ArgumentsEnv.Prod` in C# and Visual Basic.
 - **Toggle Line Comment** (Ctrl+/, Cmd+/ on macOS) comments or uncomments every line the selection
