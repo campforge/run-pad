@@ -83,6 +83,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             _restoringSession = true;
             try
             {
+                if (frames.Count == 0)
+                {
+                    // A checkpoint containing only pristine in-memory tabs is intentionally empty;
+                    // restore the normal file-backed session instead of starting with no tab.
+                    RestoreSession();
+                }
                 foreach (var frame in frames)
                 {
                     var vm = new EditorTabItemViewModel(frame.FilePath, AvailableSdks, _prefs, this,
@@ -257,6 +263,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             var tabs = await WaitForPendingWorkAsync(exclude);
             var frames = tabs.Select(t => t.CaptureRecovery?.Invoke()
                 ?? throw new InvalidOperationException("Editor capture is unavailable.")).ToList();
+            // A pristine in-memory tab is disposable: keeping it in the stash makes the next
+            // startup restore a tab that can later look dirty even though the user never edited it.
+            frames = frames.Where(ShouldKeepRecoveryTab).ToList();
             var active = frames.FirstOrDefault(t => t.Id == ActiveTab?.RecoveryId)?.Id ?? frames.LastOrDefault()?.Id;
             await _recoveryCoordinator!.CommitAsync(new RecoverySnapshot { Revision = ++_recoveryRevision, Tabs = frames, ActiveTab = active });
             return true;
@@ -269,6 +278,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             return false;
         }
     }
+
+    internal static bool ShouldKeepRecoveryTab(RecoveryTab tab) =>
+        tab.FilePath is not null || tab.IsDirty || tab.OriginalPath is not null;
 
 
     // The tabs once every editor exists and no save, Save As or workspace operation is running.
@@ -313,6 +325,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             : StringComparison.Ordinal;
 
     private readonly Dictionary<string, EditorTabItemViewModel> _openTabs = new(FilePathComparer);
+    private int _untitledTabNumber;
+
+    private string NextUntitledTitle() => $"Untitled{++_untitledTabNumber}";
 
     // Debounce state for watcher-triggered refreshes
     private volatile int _debounceVersion;
@@ -640,7 +655,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // from.
     public void NewRpadFile(RpadLanguage language = RpadLanguage.CSharp, RpadKind kind = RpadKind.Statements)
     {
-        var vm = new EditorTabItemViewModel(null, AvailableSdks, _prefs, this, language, kind);
+        var vm = new EditorTabItemViewModel(null, AvailableSdks, _prefs, this, language, kind, NextUntitledTitle());
         AddTab(vm);
     }
 
@@ -670,7 +685,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         if (filePath is not null && Tabs.Count == 1 && Tabs[0].FilePath is null && !Tabs[0].IsDirty)
             blankToClose = Tabs[0];
 
-        var vm = new EditorTabItemViewModel(filePath, AvailableSdks, _prefs, this);
+        var vm = new EditorTabItemViewModel(filePath, AvailableSdks, _prefs, this,
+            RpadLanguage.CSharp, RpadKind.Statements, filePath is null ? NextUntitledTitle() : "Untitled");
         if (filePath is not null)
         {
             _openTabs[filePath] = vm;
@@ -727,7 +743,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
         try
         {
-            writeToPath(newPath);
+            writeToPath(fullPath);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -737,11 +753,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         }
 
         if (vm.FilePath is { } oldPath) _openTabs.Remove(oldPath);
-        vm.FilePath = newPath;
-        vm.AcceptWrittenState(newPath);
+        vm.FilePath = fullPath;
+        vm.AcceptWrittenState(fullPath);
         vm.IsDirty = false;
-        _openTabs[newPath] = vm;
-        RememberRecentFile(newPath);
+        _openTabs[fullPath] = vm;
+        RememberRecentFile(fullPath);
         RefreshNodes();
         // Neither Tabs nor ActiveTab changed (same vm, same position) but the path list did —
         // PersistSession's usual triggers (the ActiveTab setter, CloseTab) won't fire here.
