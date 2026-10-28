@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:cte="using:RunPad.Avalonia.CodeTextEditor"
+        xmlns:tc="clr-namespace:RunPad.TemplatedControls"
         xmlns:viewModels="clr-namespace:RunPad.Windows.Models"
         xmlns:rpad="clr-namespace:RunPad.Format.RPad;assembly=RunPad.Format.RPad"
         x:Class="RunPad.Windows.DependenciesWindow"
@@ -66,20 +67,20 @@
             <Setter Property="TextDecorations" Value="Underline"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
-        <Style Selector="Button.row">
-            <Setter Property="Padding" Value="8,1"/>
-            <Setter Property="MinHeight" Value="0"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Margin" Value="6,0,0,0"/>
+        <!-- A list row's actions: small icon buttons. -->
+        <Style Selector="tc|IconButton.row">
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="Margin" Value="4,0,0,0"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
-        <!-- Icon-only paging buttons next to the online search box. -->
-        <Style Selector="Button.page">
-            <Setter Property="Width" Value="30"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="VerticalAlignment" Value="Stretch"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <!-- Icon buttons beside a field (paging, add, remove): as tall as the field. -->
+        <Style Selector="tc|IconButton.field">
+            <Setter Property="Width" Value="{DynamicResource RunPad.Size.Control}"/>
+            <Setter Property="Height" Value="{DynamicResource RunPad.Size.Control}"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
         <Style Selector="TextBlock.in-script-mark">
             <Setter Property="Text" Value="✓"/>
@@ -112,16 +113,18 @@
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"/>
                 <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal">
-                    <Button Classes="row" Content="Add"
+                    <tc:IconButton Classes="row" IconData="{StaticResource Icon.Plus}"
                             Command="{Binding $parent[ListBox].((viewModels:DependenciesWindowViewModel)DataContext).AddRowCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding CanAdd}"
-                            ToolTip.Tip="{Binding Version, StringFormat='Add version {0} to the script'}"/>
-                    <Button Classes="row" Content="Update"
+                            ToolTip.Tip="{Binding Version, StringFormat='Add version {0} to the script'}"
+                            AutomationProperties.Name="{Binding Version, StringFormat='Add version {0} to the script'}"/>
+                    <tc:IconButton Classes="row" IconData="{StaticResource Icon.Sync}"
                             Command="{Binding $parent[ListBox].((viewModels:DependenciesWindowViewModel)DataContext).UpdateRowCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding CanUpdate}"
-                            ToolTip.Tip="{Binding UpdateLabel}"/>
+                            ToolTip.Tip="{Binding UpdateLabel}"
+                            AutomationProperties.Name="{Binding UpdateLabel}"/>
                 </StackPanel>
                 <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
                            Classes="package-description"
@@ -144,16 +147,18 @@
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"/>
                 <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal">
-                    <Button Classes="row" Content="Add"
+                    <tc:IconButton Classes="row" IconData="{StaticResource Icon.Plus}"
                             Command="{Binding $parent[ListBox].((viewModels:DependenciesWindowViewModel)DataContext).AddRowCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding CanAdd}"
-                            ToolTip.Tip="{Binding Version, StringFormat='Add version {0} to the script'}"/>
-                    <Button Classes="row" Content="Remove"
+                            ToolTip.Tip="{Binding Version, StringFormat='Add version {0} to the script'}"
+                            AutomationProperties.Name="{Binding Version, StringFormat='Add version {0} to the script'}"/>
+                    <tc:IconButton Classes="row" IconData="{StaticResource Icon.Delete}"
                             Command="{Binding $parent[ListBox].((viewModels:DependenciesWindowViewModel)DataContext).RemoveRowCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding CanRemove}"
-                            ToolTip.Tip="Remove this package from the script"/>
+                            ToolTip.Tip="Remove this package from the script"
+                            AutomationProperties.Name="Remove this package from the script"/>
                 </StackPanel>
                 <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
                            Text="{Binding Version}"
@@ -207,24 +212,22 @@
                             </TextBox.InnerRightContent>
                         </TextBox>
                         <!-- Always shown; disabled when there is no page in that direction. -->
-                        <Button x:Name="PreviousPageButton"
+                        <tc:IconButton x:Name="PreviousPageButton"
                                 Grid.Column="1"
-                                Classes="page"
+                                Classes="field"
+                                IconData="{StaticResource Icon.ChevronLeft}"
                                 Margin="6,0,0,0"
                                 Command="{Binding PreviousPageCommand}"
                                 ToolTip.Tip="Previous page"
-                                AutomationProperties.Name="Previous page">
-                            <PathIcon Data="{StaticResource Icon.ChevronLeft}" Width="14" Height="14"/>
-                        </Button>
-                        <Button x:Name="NextPageButton"
+                                AutomationProperties.Name="Previous page"/>
+                        <tc:IconButton x:Name="NextPageButton"
                                 Grid.Column="2"
-                                Classes="page"
+                                Classes="field"
+                                IconData="{StaticResource Icon.ChevronRight}"
                                 Margin="2,0,0,0"
                                 Command="{Binding NextPageCommand}"
                                 ToolTip.Tip="Next page"
-                                AutomationProperties.Name="Next page">
-                            <PathIcon Data="{StaticResource Icon.ChevronRight}" Width="14" Height="14"/>
-                        </Button>
+                                AutomationProperties.Name="Next page"/>
                         <ComboBox x:Name="SourceBox"
                                   Grid.Column="3"
                                   Margin="6,0,0,0"
@@ -440,10 +443,12 @@
                                 Margin="8,0,0,0"
                                 Click="BrowseReference_Click"
                                 ToolTip.Tip="Choose an assembly"/>
-                        <Button Classes="secondary" Grid.Column="2"
-                                Content="Add"
+                        <tc:IconButton Classes="field" Grid.Column="2"
+                                IconData="{StaticResource Icon.Plus}"
                                 Margin="8,0,0,0"
-                                Command="{Binding AddReferenceCommand}"/>
+                                Command="{Binding AddReferenceCommand}"
+                                ToolTip.Tip="Add the reference"
+                                AutomationProperties.Name="Add the reference"/>
                     </Grid>
                     <TextBlock Grid.Row="1" Classes="error"
                                Text="{Binding ReferenceError}"
@@ -473,8 +478,8 @@
                                                        FontFamily="{x:Static cte:MonospaceFont.Default}"
                                                        TextTrimming="CharacterEllipsis"
                                                        VerticalAlignment="Center"/>
-                                            <Button Classes="secondary" Grid.Column="1"
-                                                    Content="Remove"
+                                            <tc:IconButton Classes="row" Grid.Column="1"
+                                                    IconData="{StaticResource Icon.Delete}"
                                                     Command="{Binding RemoveCommand}"
                                                     Margin="8,0,0,0"
                                                     ToolTip.Tip="{Binding RemoveLabel}"
@@ -526,7 +531,8 @@
                                 <TextBlock Text="Declared arguments" FontWeight="SemiBold"/>
                                 <TextBlock Classes="hint" Text="Typed values exposed as Arguments.Name at runtime."/>
                             </StackPanel>
-                            <Button Classes="secondary" x:Name="AddArgumentButton" Grid.Column="1" Content="+ Add argument" Command="{Binding AddArgumentCommand}"/>
+                            <tc:IconButton Classes="field" x:Name="AddArgumentButton" Grid.Column="1" IconData="{StaticResource Icon.Plus}" Command="{Binding AddArgumentCommand}"
+                                           ToolTip.Tip="Add an argument" AutomationProperties.Name="Add an argument"/>
                         </Grid>
                         <Border Classes="pane" Padding="8,6">
                           <StackPanel Spacing="6">
@@ -570,8 +576,8 @@
                                                       PlaceholderText="none"
                                                       AutomationProperties.Name="Default value"/>
                                         </Grid>
-                                        <Button Classes="secondary" Grid.Column="3" Content="Remove" Command="{Binding RemoveCommand}"
-                                                AutomationProperties.Name="Remove argument"/>
+                                        <tc:IconButton Classes="field" Grid.Column="3" IconData="{StaticResource Icon.Delete}" Command="{Binding RemoveCommand}"
+                                                       ToolTip.Tip="Remove the argument" AutomationProperties.Name="Remove argument"/>
                                     </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -612,9 +618,11 @@
                                         </ListBox.ItemTemplate>
                                     </ListBox>
                                 </Border>
-                                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
-                                    <Button Classes="secondary" x:Name="AddArgumentSetButton" Content="Add Set" Command="{Binding AddSetCommand}"/>
-                                    <Button Classes="secondary" x:Name="RemoveArgumentSetButton" Content="Remove" Command="{Binding RemoveSetCommand}"/>
+                                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="4">
+                                    <tc:IconButton Classes="field" x:Name="AddArgumentSetButton" IconData="{StaticResource Icon.Plus}" Command="{Binding AddSetCommand}"
+                                                   ToolTip.Tip="Add a set" AutomationProperties.Name="Add a set"/>
+                                    <tc:IconButton Classes="field" x:Name="RemoveArgumentSetButton" IconData="{StaticResource Icon.Minus}" Command="{Binding RemoveSetCommand}"
+                                                   ToolTip.Tip="Remove the set" AutomationProperties.Name="Remove the set"/>
                                 </StackPanel>
                             </Grid>
                             <StackPanel Grid.Column="1" Spacing="6"

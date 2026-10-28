@@ -202,6 +202,12 @@ public class DependenciesWindowViewModelTests
     {
         var rpad = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
         var vm = CreateVm();
+        // The row's action is an IconButton, whose template the app registers (App.axaml).
+        var iconButtons = new global::Avalonia.Markup.Xaml.Styling.StyleInclude(new Uri("avares://RunPad/"))
+        {
+            Source = new Uri("avares://RunPad/TemplatedControls/IconButton.axaml"),
+        };
+        Application.Current!.Styles.Add(iconButtons);
         var window = new DependenciesWindow(vm);
         try
         {
@@ -213,7 +219,8 @@ public class DependenciesWindowViewModelTests
 
             var rowAdd = Find<ListBox>(window, "OnlinePackageList").GetVisualDescendants().OfType<Button>()
                 .Single(b => b.Classes.Contains("row") && b.IsVisible);
-            Assert.Equal("Add", rowAdd.Content);
+            // An icon button: what it does is in its accessible name and tooltip.
+            Assert.Equal("Add version 13.0.3 to the script", global::Avalonia.Automation.AutomationProperties.GetName(rowAdd));
             Click(window, rowAdd);
 
             Assert.True(vm.OnlinePackages[0].IsInScript);
@@ -222,6 +229,7 @@ public class DependenciesWindowViewModelTests
         }
         finally
         {
+            Application.Current.Styles.Remove(iconButtons);
             CloseIfOpen(window);
         }
     }
