@@ -449,14 +449,14 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject, IDisposable
         var token = operation.Token;
         try
         {
-        if (node.HasContract && _schemas is { } schemas && _connections.FirstOrDefault(c => c.Name == node.Id) is { } connection)
-        {
-            await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.All, token).ConfigureAwait(true);
-            if (token.IsCancellationRequested || _disposed) return;
-            await RefreshStatusesAsync().ConfigureAwait(true);
-            return;
-        }
-        await RefreshAsync().ConfigureAwait(true);
+            if (node.HasContract && _schemas is { } schemas && _connections.FirstOrDefault(c => c.Name == node.Id) is { } connection)
+            {
+                await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.All, token).ConfigureAwait(true);
+                if (token.IsCancellationRequested || _disposed) return;
+                await RefreshStatusesAsync().ConfigureAwait(true);
+                return;
+            }
+            await RefreshAsync().ConfigureAwait(true);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
         finally { EndOperation(operation); }
