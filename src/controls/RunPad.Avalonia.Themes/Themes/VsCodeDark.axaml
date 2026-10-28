@@ -8,6 +8,7 @@
                 <ResourceDictionary x:Key="{x:Static themes:RunPadThemeVariants.VsCodeDark}">
                     <SolidColorBrush x:Key="RunPad.Sidebar.BackgroundBrush"           Color="#252526" />
                     <SolidColorBrush x:Key="RunPad.Toolbar.BackgroundBrush"           Color="#3C3C3C" />
+                    <SolidColorBrush x:Key="RunPad.TitleBar.BackgroundBrush"          Color="#252526" />
                     <SolidColorBrush x:Key="RunPad.Toolbar.BorderBrush"               Color="#2D2D2D" />
                     <SolidColorBrush x:Key="RunPad.Editor.BackgroundBrush"            Color="#121414" />
                     <SolidColorBrush x:Key="RunPad.Editor.SelectionBrush"             Color="#264F78" />

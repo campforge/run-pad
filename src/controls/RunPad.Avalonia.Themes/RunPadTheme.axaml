@@ -258,6 +258,17 @@
         <Setter Property="Height" Value="1"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
+    <!-- Keep the seam subtle at rest, with a soft accent only while it is being used. -->
+    <Style Selector="GridSplitter.seam:pointerover /template/ Border#PART_Line,
+                    GridSplitter.seam:focus /template/ Border#PART_Line">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+        <Setter Property="Opacity" Value="1"/>
+        <Setter Property="Effect">
+            <DropShadowEffect BlurRadius="5"
+                              Opacity="0.12"
+                              Color="{DynamicResource RunPad.Tab.AccentColor}"/>
+        </Setter>
+    </Style>
 
     <!-- One focus geometry for shell controls, including the tree's template focus target.
          The contrasting inner edge keeps the ring visible on selected rows and primary buttons.

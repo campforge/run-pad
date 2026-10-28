@@ -53,7 +53,11 @@
     <Grid x:Name="RootLayout" RowDefinitions="32,*">
 
         <!-- ── Title bar ─────────────────────────────────────────────────── -->
-        <Border x:Name="TitleBar" Grid.Row="0" Background="{DynamicResource RunPad.Sidebar.BackgroundBrush}" chrome:WindowDecorationProperties.ElementRole="TitleBar">
+        <Border x:Name="TitleBar" Grid.Row="0"
+                Background="{DynamicResource RunPad.TitleBar.BackgroundBrush}"
+                BorderBrush="{DynamicResource RunPad.Toolbar.BorderBrush}"
+                BorderThickness="0,0,0,1"
+                chrome:WindowDecorationProperties.ElementRole="TitleBar">
 
             <Grid ColumnDefinitions="Auto,*,Auto">
 
