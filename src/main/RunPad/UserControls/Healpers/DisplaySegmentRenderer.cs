@@ -17,14 +17,104 @@ internal static class DisplaySegmentRenderer
     {
         var text = new TextBlock { TextWrapping = TextWrapping.Wrap, Inlines = new InlineCollection() };
         foreach (var segment in signature)
-        {
-            var run = new Run(segment.Text);
-            var brush = SemanticTokenBrushes.GetBrush(segment.Kind, isDark);
-            if (brush is not null) run.Foreground = brush;
-            if (segment.Emphasis) run.FontWeight = FontWeight.Bold;
-            text.Inlines.Add(run);
-        }
+            text.Inlines.Add(BuildRun(segment, isDark));
         return text;
+    }
+
+    // Parameter info's signature, at most maxWidth wide. One that would not fit on a line of that
+    // width (at charWidth per character of the editor's monospace font) puts each parameter on a
+    // line of its own, so it breaks between parameters rather than inside a type name.
+    public static TextBlock BuildParameterInfoSignature(
+        IReadOnlyList<DisplayTextSegment> signature, bool isDark, double maxWidth, double charWidth)
+    {
+        var length = signature.Sum(s => s.Text.Length);
+        if (length * charWidth <= maxWidth || SplitParameters(signature) is not { } split)
+        {
+            var oneLine = BuildSignature(signature, isDark);
+            oneLine.MaxWidth = maxWidth;
+            return oneLine;
+        }
+
+        var text = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = maxWidth, Inlines = new InlineCollection() };
+        foreach (var segment in split.Head)
+            text.Inlines.Add(BuildRun(segment, isDark));
+        for (var i = 0; i < split.Parameters.Count; i++)
+        {
+            text.Inlines.Add(new LineBreak());
+            text.Inlines.Add(new Run(ParameterIndent));
+            foreach (var segment in split.Parameters[i])
+                text.Inlines.Add(BuildRun(segment, isDark));
+            if (i < split.Parameters.Count - 1) text.Inlines.Add(new Run(","));
+        }
+        text.Inlines.Add(new LineBreak());
+        foreach (var segment in split.Tail)
+            text.Inlines.Add(BuildRun(segment, isDark));
+        return text;
+    }
+
+    private const string ParameterIndent = "    ";
+
+    // A signature split around its parameter list: Head ends with the list's `(`, Tail starts with
+    // its `)`, and Parameters holds each parameter without the commas between them. The list is
+    // the last top-level parenthesized one, so a tuple in the return type is left alone; brackets
+    // inside a parameter (generic arguments, tuples, arrays) keep its commas in it. Null when the
+    // signature has no parameters to split.
+    internal static (IReadOnlyList<DisplayTextSegment> Head, IReadOnlyList<IReadOnlyList<DisplayTextSegment>> Parameters,
+        IReadOnlyList<DisplayTextSegment> Tail)? SplitParameters(IReadOnlyList<DisplayTextSegment> signature)
+    {
+        var close = -1;
+        for (var i = signature.Count - 1; i >= 0; i--)
+        {
+            if (signature[i].Text == ")") { close = i; break; }
+        }
+        if (close < 0) return null;
+
+        var open = -1;
+        var depth = 0;
+        for (var i = close; i >= 0; i--)
+        {
+            depth += BracketDepthChange(signature[i].Text);
+            if (depth == 0) { open = i; break; }
+        }
+        if (open < 0 || close == open + 1) return null;
+
+        var parameters = new List<IReadOnlyList<DisplayTextSegment>>();
+        var current = new List<DisplayTextSegment>();
+        depth = 0;
+        for (var i = open + 1; i < close; i++)
+        {
+            var segment = signature[i];
+            if (depth == 0 && segment.Text == ",")
+            {
+                parameters.Add(current);
+                current = [];
+                continue;
+            }
+            depth -= BracketDepthChange(segment.Text);
+            // The space after a comma would start the parameter's own line.
+            if (current.Count == 0 && string.IsNullOrWhiteSpace(segment.Text)) continue;
+            current.Add(segment);
+        }
+        parameters.Add(current);
+
+        return (signature.Take(open + 1).ToList(), parameters, signature.Skip(close).ToList());
+    }
+
+    // Scanning backwards: a closing bracket goes one level in, an opening one comes back out.
+    private static int BracketDepthChange(string text) => text switch
+    {
+        ")" or ">" or "]" or "}" => 1,
+        "(" or "<" or "[" or "{" => -1,
+        _ => 0,
+    };
+
+    private static Run BuildRun(DisplayTextSegment segment, bool isDark)
+    {
+        var run = new Run(segment.Text);
+        var brush = SemanticTokenBrushes.GetBrush(segment.Kind, isDark);
+        if (brush is not null) run.Foreground = brush;
+        if (segment.Emphasis) run.FontWeight = FontWeight.Bold;
+        return run;
     }
 
     public static Control BuildWithSummary(IReadOnlyList<DisplayTextSegment> signature, string? summary, bool isDark)
