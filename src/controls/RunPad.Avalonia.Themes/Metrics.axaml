@@ -25,6 +25,8 @@
     <!-- Fluent's padding inside menus, context menus and submenus: keeps the rounded item highlights
          off the menu's rounded border. -->
     <Thickness x:Key="MenuFlyoutPresenterThemePadding">4</Thickness>
+    <!-- The same inside a ComboBox's dropdown. -->
+    <Thickness x:Key="ComboBoxDropdownBorderPadding">4</Thickness>
     <x:Double x:Key="RunPad.Type.DialogTitle">15</x:Double>
     <Thickness x:Key="RunPad.Dialog.Padding">24</Thickness>
     <Thickness x:Key="RunPad.Dialog.ActionsMargin">0,24,0,0</Thickness>

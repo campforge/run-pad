@@ -173,6 +173,50 @@ public class PopupStylesAndDialogLifecycleTests
         }
     }
 
+    // Every dropdown list is a ComboBox's popup: it is drawn like the menus, in every palette, with
+    // rounded rows.
+    [AvaloniaFact]
+    public void ComboBoxDropDowns_Should_LookLikeTheMenus()
+    {
+        var installed = Install();
+        var combo = new ComboBox { ItemsSource = new[] { "string", "int", "bool" }, SelectedIndex = 2 };
+        var context = new ContextMenu();
+        context.Items.Add(new MenuItem { Header = "Copy" });
+        var target = new Border { Width = 100, Height = 20, ContextMenu = context };
+        var host = new Window { Width = 400, Height = 300, Content = new StackPanel { Children = { combo, target } } };
+        try
+        {
+            host.Show();
+            combo.IsDropDownOpen = true;
+            context.Open(target);
+            Dispatcher.UIThread.RunJobs();
+            var popup = combo.GetVisualDescendants().OfType<Popup>().Single(p => p.Name == "PART_Popup");
+            var chrome = Assert.IsType<Border>(popup.Child);
+            Assert.Equal(context.CornerRadius, chrome.CornerRadius);
+            Assert.Equal(context.Padding, chrome.Padding);
+            installed.Theme.TryGetResource("RunPad.Radius.Control", null, out var radius);
+            var item = chrome.GetVisualDescendants().OfType<ComboBoxItem>().First();
+            Assert.Equal((CornerRadius)radius!, item.CornerRadius);
+            foreach (var variant in Variants)
+            {
+                host.RequestedThemeVariant = variant;
+                Dispatcher.UIThread.RunJobs();
+                installed.Theme.TryGetResource("RunPad.Panel.BackgroundBrush", variant, out var panel);
+                installed.Theme.TryGetResource("RunPad.Border.BackgroundBrush", variant, out var border);
+                Assert.Equal(ColorOf((IBrush)panel!), ColorOf(chrome.Background));
+                Assert.Equal(ColorOf((IBrush)border!), ColorOf(chrome.BorderBrush));
+                Assert.Equal(ColorOf(context.Background), ColorOf(chrome.Background));
+            }
+        }
+        finally
+        {
+            combo.IsDropDownOpen = false;
+            context.Close();
+            host.Close();
+            Uninstall(installed);
+        }
+    }
+
     // ── Dialog badge ─────────────────────────────────────────────────────────
 
     [AvaloniaTheory]
