@@ -1867,6 +1867,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void OnPreferencesChanged()
         => Dispatcher.Post(() =>
         {
+            // Posted before the tab closed: its editor services are gone by now.
+            if (_disposed) return;
             ApplyEditorSettings(State.Editor, _prefs.Editor, _viewScale.CodeZoom);
             ApplyResultsWordWrap(_prefs.Editor.ResultsWordWrap);
 
