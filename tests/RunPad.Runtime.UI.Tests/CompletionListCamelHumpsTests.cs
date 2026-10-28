@@ -33,4 +33,20 @@ public class CompletionListCamelHumpsTests
     {
         Assert.False(CompletionList.CamelCaseMatch(text, query));
     }
+
+    // Every "Aa" word can take one or two letters of the query, so a failing query has
+    // exponentially many ways to split over the words unless tried splits are remembered.
+    [Fact]
+    public void CamelCaseMatch_Should_FailFast_When_ManySplitsAreTried()
+    {
+        var text = string.Concat(Enumerable.Repeat("Aa", 40));
+        var query = new string('a', 60) + "x";
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var matched = CompletionList.CamelCaseMatch(text, query);
+        stopwatch.Stop();
+
+        Assert.False(matched);
+        Assert.True(stopwatch.ElapsedMilliseconds < 100, $"Took {stopwatch.ElapsedMilliseconds} ms");
+    }
 }

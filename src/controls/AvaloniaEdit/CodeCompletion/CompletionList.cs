@@ -535,14 +535,19 @@ public class CompletionList : TemplatedControl
                 || !char.IsLetter(text[i - 1]) && char.IsLetter(text[i]))
                 wordStarts.Add(i);
         }
-        return MatchWords(text, query, wordStarts, 0, 0);
+        // Splits that already failed, by (word, queryIndex): without them a failing query retries
+        // the same splits exponentially many times.
+        var size = (wordStarts.Count + 1) * (query.Length + 1);
+        Span<bool> failed = size <= 512 ? stackalloc bool[size] : new bool[size];
+        return MatchWords(text, query, wordStarts, failed, 0, 0);
     }
 
-    private static bool MatchWords(string text, string query, List<int> wordStarts, int word, int queryIndex)
+    private static bool MatchWords(string text, string query, List<int> wordStarts, Span<bool> failed, int word, int queryIndex)
     {
         if (queryIndex == query.Length)
             return true;
-        if (word == wordStarts.Count)
+        var state = word * (query.Length + 1) + queryIndex;
+        if (word == wordStarts.Count || failed[state])
             return false;
         var wordEnd = word + 1 < wordStarts.Count ? wordStarts[word + 1] : text.Length;
         // The longest part of the query this word starts with first, then shorter ones.
@@ -552,9 +557,10 @@ public class CompletionList : TemplatedControl
             length++;
         for (; length > 0; length--)
         {
-            if (MatchWords(text, query, wordStarts, word + 1, queryIndex + length))
+            if (MatchWords(text, query, wordStarts, failed, word + 1, queryIndex + length))
                 return true;
         }
+        failed[state] = true;
         return false;
     }
 }
