@@ -94,6 +94,9 @@ Notable changes in each RunPad release. Downloads are on the
 - In C#, parameter info follows nested calls: inside `Send(new Message(` it shows `Message`, and
   once its `)` is typed it shows `Send` again, at the right parameter. A named argument such as
   `timeout:` selects the overload that has it and marks that parameter, wherever it is in the list.
+- At startup the splash screen stays up, saying "Opening scripts…", until every reopened tab has
+  its header and the active one shows its script, so tabs no longer appear one after another in the
+  window.
 - The menu bar's dropdowns and submenus take the theme's colours and look like the context menus,
   with the same text size and spacing, and a submenu opens beside its menu instead of over its edge.
   Menu items are highlighted with rounded corners everywhere, inset from the menu's rounded border.

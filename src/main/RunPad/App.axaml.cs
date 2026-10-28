@@ -184,6 +184,20 @@ public class App : Application
             if (window.IsVisible) window.Close();
             throw;
         }
+        _ = RevealStartupWindowAsync(window, desktop, previous, targetOpacity);
+    }
+
+    // At most this long behind the splash, so a stuck tab can't keep RunPad from showing at all.
+    internal static TimeSpan StartupReadyTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    private static async Task RevealStartupWindowAsync(Window window,
+        IClassicDesktopStyleApplicationLifetime desktop, Window? previous, double targetOpacity)
+    {
+        if (window is IStartupWindow { Ready: { IsCompleted: false } ready })
+        {
+            (previous as SplashWindow)?.SetStartupStatus("Opening scripts…");
+            await Task.WhenAny(ready, Task.Delay(StartupReadyTimeout));
+        }
         // Give the destination two frames: one for the initial layout and one for bindings and
         // deferred control initialization. Only then reveal it and close the previous window.
         Dispatcher.UIThread.Post(() =>
