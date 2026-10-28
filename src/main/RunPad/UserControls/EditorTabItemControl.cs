@@ -57,6 +57,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private EventHandler<PointerEventArgs>? _quickInfoPointerExitedHandler;
     private bool _debugTooltipInside;
     private long _tooltipGeneration;
+    // The symbol whose debugger value tip is open; null when no value tip is shown.
+    private (int Start, int Length)? _debugTooltipSpan;
     private InlayHintRenderer? _inlayHintRenderer;
     private IIntelliSenseService? _intelliSense;
     private IntelliSenseEventSubscriptions? _intelliSenseEventSubscriptions;
@@ -941,6 +943,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             State.Editor.TextArea.TextView.PointerMoved -= quickInfoMoved;
         if (_quickInfoPointerExitedHandler is { } quickInfoExited)
             State.Editor.TextArea.TextView.PointerExited -= quickInfoExited;
+        ToolTip.RemoveToolTipClosingHandler(State.Editor.TextArea.TextView, OnHoverToolTipClosing);
         var refactoringCts = Interlocked.Exchange(ref _refactoringCts, null);
         refactoringCts?.Cancel();
         refactoringCts?.Dispose();
@@ -2277,6 +2280,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         _quickInfoPointerMovedHandler = (_, e) =>
         {
+            // An open value tip stays while the pointer is over its symbol, and is not replaced while
+            // the pointer crosses other text on its way into the tip: it closes after the grace period
+            // unless the pointer gets into it or back onto the symbol.
+            if (_debugTooltipSpan is { } span)
+            {
+                var hovered = editor.GetOffsetFromPoint(e.GetPosition(editor));
+                if (hovered >= span.Start && hovered < span.Start + span.Length)
+                    _debugTooltipCloseCts?.Cancel();
+                else if (_debugTooltipCloseCts is null || _debugTooltipCloseCts.IsCancellationRequested)
+                    ScheduleDebugTooltipClose(editor);
+                return;
+            }
+
             // Not disposed here — a superseded hover's background Task.Run may still be mid-flight
             // past this point, and registering/reading against an already-disposed
             // CancellationTokenSource throws ObjectDisposedException. A
@@ -2308,7 +2324,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                         });
                     if (offset < 0 || ct.IsCancellationRequested) return;
 
-                    var symbol = DebugHoverSymbolExtractor.Extract(text, offset, identifierChars);
+                    var symbol = DebugHoverSymbolExtractor.Extract(text, offset, identifierChars, out var symbolStart);
                     var debugValue = DebugHoverController.ResolveSnapshot(debugLocals, symbol);
                     // Snapshot locals are preferred. Only the bounded, identifier/dotted-token policy
                     // may fall back to DAP evaluation; never send arbitrary editor text.
@@ -2323,9 +2339,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                             if (!_disposed && _debugHover.IsCurrent(debugGeneration) && !ct.IsCancellationRequested &&
                                 ReferenceEquals(debugContext, State.CurrentDebugCtx))
                             {
-                                var start = offset;
-                                while (start > 0 && identifierChars.Contains(text[start - 1])) start--;
-                                editor.SetHoverTokenHighlight(start, symbol.Length,
+                                _debugTooltipSpan = (symbolStart, symbol.Length);
+                                editor.SetHoverTokenHighlight(symbolStart, symbol.Length,
                                     ThemeBrush("RunPad.Editor.HoverHighlightBrush", new SolidColorBrush(Color.FromArgb(55, 90, 140, 210))));
                                 ToolTip.SetTip(editor.TextArea.TextView,
                                     BuildDebugHoverContent(debugValue!, debugContext, debugGeneration, debugToken,
@@ -2373,15 +2388,26 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             ScheduleDebugTooltipClose(editor);
         };
         editor.TextArea.TextView.PointerExited += _quickInfoPointerExitedHandler;
+        ToolTip.AddToolTipClosingHandler(editor.TextArea.TextView, OnHoverToolTipClosing);
     }
 
     private void InvalidateHoverTooltip()
     {
         _debugTooltipInside = false;
+        _debugTooltipSpan = null;
         _tooltipGeneration++;
         _debugHover.Cancel();
         State.Editor.ClearHoverTokenHighlight();
         ToolTip.SetTip(State.Editor.TextArea.TextView, null);
+    }
+
+    // Avalonia closes the tip on its own too (a click, the pointer leaving the window), so the value
+    // tip's symbol must not keep blocking new hovers after that.
+    private void OnHoverToolTipClosing(object? sender, RoutedEventArgs e)
+    {
+        if (_debugTooltipSpan is null) return;
+        _debugTooltipSpan = null;
+        State.Editor.ClearHoverTokenHighlight();
     }
 
     private void ScheduleDebugTooltipClose(CodeTextEditor editor)

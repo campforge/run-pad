@@ -94,6 +94,9 @@ Notable changes in each RunPad release. Downloads are on the
 - In C#, parameter info follows nested calls: inside `Send(new Message(` it shows `Message`, and
   once its `)` is typed it shows `Send` again, at the right parameter. A named argument such as
   `timeout:` selects the overload that has it and marks that parameter, wherever it is in the list.
+- While debugging, hovering a variable shows its value again in more places: over `c` in
+  `c.Dump()` the tip shows `c`, not the whole call. The value tip stays open while the pointer moves
+  into it, so its members can be expanded.
 - Stopping a debug session clears its paused/running state, current-line highlight and timer when
   execution ends, so the toolbar no longer remains stuck in debugging mode.
 - On macOS, Control-click works as a right click: it opens context menus and selects the row under

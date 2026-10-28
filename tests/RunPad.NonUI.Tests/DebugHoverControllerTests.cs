@@ -11,6 +11,9 @@ public sealed class DebugHoverControllerTests
     [InlineData("value", 1, "value")]
     [InlineData("value + other", 8, "other")]
     [InlineData("привет", 2, "привет")]
+    [InlineData("c.Dump();", 0, "c")]
+    [InlineData("a.b.c", 2, "a.b")]
+    [InlineData("order.Customer.Name", 16, "order.Customer.Name")]
     public void Extract_Should_ReturnIdentifierAtOffset(string text, int offset, string expected)
         => Assert.Equal(expected, DebugHoverSymbolExtractor.Extract(text, offset));
 
