@@ -56,14 +56,34 @@ public class DependenciesArgumentsLayoutTests
             enumDefault.SelectedItem = "prod";
             Assert.Equal("prod", vm.Arguments.Arguments[1].DefaultText);
 
-            // A plain Fluent button takes the theme's surface, as a secondary button does, enabled
-            // or not; the footer's buttons are as tall as the fields.
-            var add = window.FindControl<Button>("AddArgumentButton")!;
-            var presenter = add.GetVisualDescendants().OfType<ContentPresenter>().First(p => p.Name == "PART_ContentPresenter");
-            theme.TryGetResource("RunPad.Editor.BackgroundBrush", RunPadThemeVariants.RunPadMidnight, out var surface);
-            Assert.Equal(((ISolidColorBrush)surface!).Color, ((ISolidColorBrush)presenter.Background!).Color);
+            // The footer's buttons are as tall as the fields.
             Assert.Equal(plainValue.Bounds.Height, window.FindControl<Button>("CancelButton")!.Bounds.Height);
             Assert.Equal(plainValue.Bounds.Height, window.FindControl<Button>("OkButton")!.Bounds.Height);
+        }
+        finally
+        {
+            window.Close();
+            Application.Current.Styles.Remove(theme);
+        }
+    }
+
+    // A plain Fluent button takes the theme's surface, as a secondary button does, enabled or not.
+    [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void PlainButtons_Should_UseTheThemesSurface(bool enabled)
+    {
+        var theme = new RunPadTheme();
+        Application.Current!.Styles.Add(theme);
+        var button = new Button { Content = "Browse…", IsEnabled = enabled };
+        var window = new Window { Content = button, RequestedThemeVariant = RunPadThemeVariants.RunPadMidnight };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            var presenter = button.GetVisualDescendants().OfType<ContentPresenter>().First(p => p.Name == "PART_ContentPresenter");
+            theme.TryGetResource("RunPad.Editor.BackgroundBrush", RunPadThemeVariants.RunPadMidnight, out var surface);
+            Assert.Equal(((ISolidColorBrush)surface!).Color, ((ISolidColorBrush)presenter.Background!).Color);
         }
         finally
         {

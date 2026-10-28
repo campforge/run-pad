@@ -106,6 +106,8 @@ Notable changes in each RunPad release. Downloads are on the
   the fields beside them, so a row of them lines up.
 - In the Arguments tab every row's value starts in the Value column, also for an enum, and an
   enum's default is picked from its values.
+- The Dependencies window's add, update and remove actions in lists, its paging arrows and the
+  argument and set buttons are icon buttons with tooltips, as tall as the fields beside them.
 - Windows, dialogs, menus, dropdowns, tooltips and the editor's completion list, parameter info
   and value tips all have the same rounded corners, set by the theme; the splash screen and the
   editor toolbar no longer use a radius of their own.
