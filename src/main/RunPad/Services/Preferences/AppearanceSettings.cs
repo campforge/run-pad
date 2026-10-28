@@ -13,6 +13,12 @@ public sealed class AppearanceSettings
     public string LightEditorTheme { get; set; } = "Light+";
 
     /// <summary>
+    /// Linux only: run on the native Wayland back end with the window frame RunPad draws itself.
+    /// Off falls back to XWayland and the system frame. Read once at startup.
+    /// </summary>
+    public bool NativeWayland { get; set; } = true;
+
+    /// <summary>
     /// Size of the whole interface, code included, in percent (100 = as designed). Missing in older
     /// settings files, which therefore load at 100%.
     /// </summary>

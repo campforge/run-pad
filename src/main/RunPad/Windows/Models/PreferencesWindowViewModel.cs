@@ -6,6 +6,7 @@ using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
 using RunPad.Format.RPad;
 using RunPad.Services;
+using RunPad.Services.Desktop;
 using RunPad.Services.Preferences;
 using RunPad.Services.Scaling;
 using RunPad.Shared;
@@ -28,13 +29,14 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     // SDK/debugger fields.
     private const string DotnetNodeId = "dotnet";
 
-    private static readonly SettingsNode InterfaceNode = new("interface", "Interface");
     private static readonly SettingsNode EditorNode = new("editor", "Editor");
     private static readonly SettingsNode KeyboardNode = new("keyboard", "Keyboard");
+    private static readonly SettingsNode AdvancedNode = new("advanced", "Advanced");
     private static readonly SettingsNode ExperimentalNode = new("experimental", "Experimental");
 
     private readonly IThemeService _themeService;
     private readonly IPreferencesService _prefs;
+    private readonly IDesktopSession _desktop;
     private readonly ViewScale _viewScale;
 
     // Built once from the registry in the constructor, not a static — unlike the language-agnostic
@@ -42,6 +44,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     // to be two hardcoded SettingsNodes, "languages.csharp"/"languages.vb", so a third registered
     // language would never show up in this tree without editing this file directly).
     private readonly SettingsNode _languagesNode;
+    private readonly SettingsNode _interfaceNode;
     private readonly IReadOnlyList<SettingsNode> _fullTree;
 
     private InterfaceTheme? _selectedInterfaceTheme;
@@ -55,8 +58,10 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     public ObservableCollection<SettingsNode> Nodes { get; } = [];
 
     public PreferencesWindowViewModel(
-        IThemeService themeService, IPreferencesService prefs, ILanguageHostRegistry languageRegistry)
+        IThemeService themeService, IPreferencesService prefs, ILanguageHostRegistry languageRegistry,
+        IDesktopSession? desktop = null)
     {
+        _desktop = desktop ?? DesktopSession.Current;
         _themeService = themeService;
         _prefs = prefs;
         _viewScale = ViewScale.For(prefs);
@@ -78,7 +83,10 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         var dotnetNode = new SettingsNode(DotnetNodeId, ".NET", languageNodes);
         AvailableNewFileLanguages = [.. NewFileLanguageChoice.From(languageRegistry).Select(l => l.Language)];
         _languagesNode = new SettingsNode("languages", "Languages", [dotnetNode]);
-        _fullTree = [InterfaceNode, EditorNode, KeyboardNode, _languagesNode, ExperimentalNode];
+        // Interface → Advanced holds only system-specific options, so it is left out where none apply.
+        _interfaceNode = new SettingsNode("interface", "Interface",
+            IsWaylandSupported || IsKdeWindowRuleSupported ? [AdvancedNode] : null);
+        _fullTree = [_interfaceNode, EditorNode, KeyboardNode, _languagesNode, ExperimentalNode];
 
         // Initialize directly — no bindings exist yet, so no RaisePropertyChanged needed
         var theme = themeService.CurrentTheme;
@@ -92,7 +100,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         themeService.ThemeChanged += OnThemeChanged;
 
         RebuildNodes();
-        _selectedNode = InterfaceNode;
+        _selectedNode = _interfaceNode;
     }
 
     // ── Settings tree: search/filter + selection ───────────────────────────────
@@ -119,6 +127,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
             this.RaisePropertyChanged(nameof(IsEditorSelected));
             this.RaisePropertyChanged(nameof(IsDotnetSelected));
             this.RaisePropertyChanged(nameof(IsKeyboardSelected));
+            this.RaisePropertyChanged(nameof(IsAdvancedSelected));
             this.RaisePropertyChanged(nameof(IsExperimentalSelected));
             this.RaisePropertyChanged(nameof(IsLanguagesSelected));
             this.RaisePropertyChanged(nameof(IsLanguageNodeSelected));
@@ -132,6 +141,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     public bool IsEditorSelected => _selectedNode?.Id == "editor";
     public bool IsDotnetSelected => _selectedNode?.Id == DotnetNodeId;
     public bool IsKeyboardSelected => _selectedNode?.Id == "keyboard";
+    public bool IsAdvancedSelected => _selectedNode?.Id == "advanced";
     public bool IsExperimentalSelected => _selectedNode?.Id == "experimental";
     public bool IsLanguagesSelected => _selectedNode?.Id == "languages";
 
@@ -359,6 +369,36 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     {
         get => _prefs.Appearance.RestoreUnsavedTabs;
         set => SetPref(_prefs.Appearance.RestoreUnsavedTabs, value, v => _prefs.Appearance.RestoreUnsavedTabs = v);
+    }
+
+    public bool IsWaylandSupported => _desktop.NativeWaylandAvailable;
+
+    public bool NativeWayland
+    {
+        get => _prefs.Appearance.NativeWayland;
+        set => SetPref(_prefs.Appearance.NativeWayland, value, v => _prefs.Appearance.NativeWayland = v);
+    }
+
+    public bool IsKdeWindowRuleSupported => _desktop.CanRememberWindowPosition;
+
+    // Read from kwinrulesrc itself, not from RunPad's settings: the user may also edit or delete the
+    // rule in KDE's own settings.
+    public bool RememberWindowPosition
+    {
+        get => _desktop.RememberWindowPosition;
+        set
+        {
+            if (value == _desktop.RememberWindowPosition) return;
+            try
+            {
+                _desktop.RememberWindowPosition = value;
+            }
+            catch (Exception)
+            {
+                // Left as it was; the checkbox re-reads the file below.
+            }
+            this.RaisePropertyChanged();
+        }
     }
 
     public int InterfaceScalePercent

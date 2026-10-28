@@ -31,6 +31,15 @@ Notable changes in each RunPad release. Downloads are on the
   contract is being read shows it, and one still using a contract read earlier after a failed refresh
   is marked as out of date. **Refresh** in a connection's context menu reads its contract again
   (gRPC) or checks it again; **Refresh All** does it for every connection.
+- On Linux in a Wayland session, RunPad runs natively on Wayland and draws its own window frames:
+  rounded corners, a shadow, a border in the theme's colors and, in every window, a title bar that
+  matches the main window. The mouse pointer follows the desktop's cursor theme. If a window
+  misbehaves, **Native Wayland window** in Preferences → Interface → Advanced turns this off after a
+  restart (or start RunPad with `RUNPAD_WAYLAND=0`) to use XWayland and the system frame.
+- On KDE, **Remember window position and center dialogs** in Preferences → Interface → Advanced adds
+  two window rules to KDE's settings: KDE puts the main window back where it was and opens dialogs
+  in the middle of the screen. Turning it off removes them.
+- The main window's size, and whether it was maximized, are kept between runs.
 
 ### Changed
 
@@ -56,6 +65,10 @@ Notable changes in each RunPad release. Downloads are on the
   now called **Output settings**, next to the exception break options.
 - In Tools → Connections, the test status under a connection shows the whole test result as a
   tooltip, so a status cut short in a narrow list can still be read.
+- On Linux, the interface uses the desktop's own font (as VS Code does) instead of the bundled
+  Inter.
+- **Restore open tabs and unsaved changes** moved from Preferences → Interface to Preferences →
+  Editor.
 
 ### Fixed
 

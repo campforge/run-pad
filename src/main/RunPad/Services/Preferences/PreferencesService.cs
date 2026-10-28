@@ -41,6 +41,24 @@ public sealed class PreferencesService : IPreferencesService
         Changed?.Invoke();
     }
 
+    /// <summary>
+    /// The settings as saved, for choices made before Avalonia (and this service) start;
+    /// defaults when the file is missing or unreadable.
+    /// </summary>
+    internal static AppSettings ReadForStartup()
+    {
+        try
+        {
+            return File.Exists(SettingsPath)
+                ? JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(SettingsPath)) ?? new()
+                : new();
+        }
+        catch (Exception)
+        {
+            return new();
+        }
+    }
+
     private void Load()
     {
         if (!File.Exists(SettingsPath)) return;

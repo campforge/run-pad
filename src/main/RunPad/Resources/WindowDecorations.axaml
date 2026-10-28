@@ -1,0 +1,137 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- The window frame and title bar Avalonia draws itself (native Wayland), made to look like
+         MainWindow's own title row: same background, caption buttons and themed, rounded frame.
+         Every window gets it through App.axaml's Window style; MainWindow draws its own title row
+         and takes only the frame and shadow from here. -->
+
+    <ControlTheme x:Key="RunPadCaptionButton" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+        <Setter Property="Width" Value="46"/>
+        <Setter Property="VerticalAlignment" Value="Stretch"/>
+        <Setter Property="Cursor" Value="Arrow"/>
+        <Setter Property="(WindowDecorationProperties.ElementRole)" Value="DecorationsElement"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="{TemplateBinding Background}">
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+        <Style Selector="^:pointerover">
+            <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+        </Style>
+        <Style Selector="^.close:pointerover">
+            <Setter Property="Background" Value="#C42B1C"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+    </ControlTheme>
+
+    <ControlTheme x:Key="RunPadWindowDecorations" TargetType="WindowDrawnDecorations">
+        <Setter Property="DefaultTitleBarHeight" Value="32"/>
+        <Setter Property="DefaultFrameThickness" Value="1"/>
+        <Setter Property="DefaultShadowThickness" Value="8"/>
+        <Setter Property="Template">
+            <WindowDrawnDecorationsTemplate>
+                <WindowDrawnDecorationsContent>
+
+                    <WindowDrawnDecorationsContent.Underlay>
+                        <Panel x:Name="PART_UnderlayWrapper">
+                            <Border x:Name="PART_WindowBorder"
+                                    BorderThickness="{TemplateBinding FrameThickness}"
+                                    BorderBrush="{DynamicResource RunPad.Border.BackgroundBrush}"
+                                    CornerRadius="8"
+                                    IsHitTestVisible="False"/>
+                            <Border x:Name="PART_TitleBar" VerticalAlignment="Top"
+                                    Height="{TemplateBinding TitleBarHeight}"
+                                    Background="{DynamicResource RunPad.Sidebar.BackgroundBrush}"
+                                    CornerRadius="7,7,0,0"
+                                    IsVisible="{TemplateBinding HasTitleBar}"
+                                    WindowDecorationProperties.ElementRole="TitleBar"/>
+                        </Panel>
+                    </WindowDrawnDecorationsContent.Underlay>
+
+                    <WindowDrawnDecorationsContent.Overlay>
+                        <Panel x:Name="PART_OverlayWrapper">
+                            <Panel x:Name="PART_TitleTextPanel" VerticalAlignment="Top"
+                                   Height="{TemplateBinding TitleBarHeight}"
+                                   IsHitTestVisible="False"
+                                   IsVisible="{TemplateBinding HasTitleBar}">
+                                <TextBlock Text="{TemplateBinding Title}" VerticalAlignment="Center" Margin="12,0,0,0"
+                                           FontFamily="{DynamicResource ContentControlThemeFontFamily}"
+                                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                            </Panel>
+                            <StackPanel x:Name="PART_OverlayPanel" VerticalAlignment="Top" HorizontalAlignment="Right"
+                                        Height="{TemplateBinding TitleBarHeight}"
+                                        IsVisible="{TemplateBinding HasTitleBar}"
+                                        Orientation="Horizontal">
+                                <Button x:Name="PART_MinimizeButton" Theme="{StaticResource RunPadCaptionButton}"
+                                        WindowDecorationProperties.ElementRole="MinimizeButton">
+                                    <Path Data="M 0,0 H 10" Stroke="{Binding $parent[Button].Foreground}"
+                                          StrokeThickness="1" StrokeLineCap="Square"/>
+                                </Button>
+                                <Button x:Name="PART_MaximizeButton" Theme="{StaticResource RunPadCaptionButton}"
+                                        WindowDecorationProperties.ElementRole="MaximizeButton">
+                                    <Path Data="M 0.5,0.5 H 9.5 V 9.5 H 0.5 Z" Stroke="{Binding $parent[Button].Foreground}"
+                                          StrokeThickness="1" Fill="Transparent"/>
+                                </Button>
+                                <Button x:Name="PART_CloseButton" Classes="close" Theme="{StaticResource RunPadCaptionButton}"
+                                        WindowDecorationProperties.ElementRole="CloseButton">
+                                    <Path Data="M 0,0 L 10,10 M 10,0 L 0,10" Stroke="{Binding $parent[Button].Foreground}"
+                                          StrokeThickness="1" StrokeLineCap="Round"/>
+                                </Button>
+                            </StackPanel>
+                        </Panel>
+                    </WindowDrawnDecorationsContent.Overlay>
+
+                </WindowDrawnDecorationsContent>
+            </WindowDrawnDecorationsTemplate>
+        </Setter>
+
+        <!-- Shadow: inset the frame so the shadow has room around it. -->
+        <Style Selector="^:has-shadow /template/ Panel#PART_UnderlayWrapper">
+            <Setter Property="Margin" Value="{TemplateBinding ShadowThickness}"/>
+        </Style>
+        <Style Selector="^:has-shadow /template/ Border#PART_WindowBorder">
+            <Setter Property="BoxShadow" Value="0 2 10 2 #80000000"/>
+        </Style>
+        <Style Selector="^:has-shadow /template/ Panel#PART_OverlayWrapper">
+            <Setter Property="Margin" Value="{TemplateBinding ShadowThickness}"/>
+        </Style>
+
+        <!-- Keep the title bar and its buttons inside the 1px frame. -->
+        <Style Selector="^:has-border /template/ Border#PART_TitleBar">
+            <Setter Property="Margin" Value="1,1,1,0"/>
+        </Style>
+        <Style Selector="^:has-border /template/ Panel#PART_TitleTextPanel">
+            <Setter Property="Margin" Value="1,1,1,0"/>
+        </Style>
+        <Style Selector="^:has-border /template/ StackPanel#PART_OverlayPanel">
+            <Setter Property="Margin" Value="0,1,1,0"/>
+        </Style>
+
+        <!-- Square when maximized or full screen. -->
+        <Style Selector="^:maximized /template/ Border#PART_WindowBorder">
+            <Setter Property="CornerRadius" Value="0"/>
+        </Style>
+        <Style Selector="^:maximized /template/ Border#PART_TitleBar">
+            <Setter Property="CornerRadius" Value="0"/>
+        </Style>
+        <Style Selector="^:fullscreen /template/ Border#PART_TitleBar">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <Style Selector="^:fullscreen /template/ Panel#PART_OverlayWrapper">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+
+        <!-- Hide caption buttons for actions the window does not allow (fixed-size dialogs). -->
+        <Style Selector="^:not(:has-minimize) /template/ Button#PART_MinimizeButton">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <Style Selector="^:not(:has-maximize) /template/ Button#PART_MaximizeButton">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+    </ControlTheme>
+</ResourceDictionary>
