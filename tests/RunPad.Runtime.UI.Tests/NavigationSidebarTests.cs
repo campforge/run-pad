@@ -328,9 +328,9 @@ public sealed class NavigationSidebarTests : IDisposable
         Settle();
         windowService.Verify(w => w.ShowConnectionsAsync("billing"), Times.Once);
 
-        var menu = new ContextMenu();
+        var menu = view.Tree.ContextMenu!;
         view.FillContextMenu(menu);
-        var headers = menu.Items.OfType<MenuItem>().Select(m => m.Header as string).ToList();
+        var headers = menu.Items.OfType<MenuItem>().Where(m => m.IsVisible).Select(m => m.Header as string).ToList();
         Assert.Contains("Edit Connection…", headers);
         Assert.Contains("Refresh", headers); // an HTTP connection has no contract: Refresh checks it again
         Assert.Contains("Refresh All", headers);
@@ -339,6 +339,13 @@ public sealed class NavigationSidebarTests : IDisposable
         Assert.True(menu.Items.OfType<MenuItem>().Single(m => m.Header as string == "Add to Script").IsEnabled);
         Assert.Contains("Move To", headers);
         Assert.Contains("Manage Connections…", headers);
+
+        // Opening again updates the same items, as menus declared in XAML do, instead of new ones.
+        var items = menu.Items.Cast<object>().ToList();
+        view.Selected = null;
+        view.FillContextMenu(menu);
+        Assert.Equal(items, menu.Items.Cast<object>());
+        Assert.False(menu.Items.OfType<MenuItem>().Single(m => m.Header as string == "Edit Connection…").IsVisible);
     }
 
     // macOS: Control-click is the secondary click. On a connection row it selects the row and opens
