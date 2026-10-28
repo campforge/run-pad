@@ -73,6 +73,8 @@ Notable changes in each RunPad release. Downloads are on the
   on Windows, macOS (with the main window's own traffic-light buttons) and Linux on Wayland,
   instead of the system's. A dialog that can't be resized has only a close button on Windows and
   Linux; on macOS its minimize and zoom buttons are dimmed.
+- In C# completion after a value's dot, RunPad's own `Dump` is chosen first when it matches what
+  you typed as well as another member does: `.D` selects `Dump`. The list stays alphabetical.
 
 ### Fixed
 
