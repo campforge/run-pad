@@ -81,6 +81,10 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- C# parameter info no longer runs off the editor with a long signature: it takes at most 80% of the
+  editor's width, a signature that doesn't fit puts each parameter on a line of its own, and long
+  documentation wraps. Signatures in parameter info, completion and tooltips show type arguments,
+  such as `Dictionary<string, List<int>>` instead of `Dictionary`.
 - In C#, parameter info follows nested calls: inside `Send(new Message(` it shows `Message`, and
   once its `)` is typed it shows `Send` again, at the right parameter. A named argument such as
   `timeout:` selects the overload that has it and marks that parameter, wherever it is in the list.

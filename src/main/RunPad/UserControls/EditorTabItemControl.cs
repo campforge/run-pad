@@ -2098,12 +2098,18 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 State.Editor.Text, e.CaretOffset, e.Trigger, e.CancellationToken);
             if (result is null) return;
             var isDark = _themeService.CurrentTheme.Editor.IsDark;
+            // Parameter info stays within the editor: most of its width, never wider than a
+            // comfortable reading line, never so narrow a parameter has no room.
+            var maxWidth = Math.Clamp(editor.TextArea.TextView.Bounds.Width * 0.8, 320, 900);
+            // The editor's font is monospace; a character is about 0.6 of its size wide.
+            var charWidth = editor.FontSize * 0.6;
             foreach (var item in result.Items)
             {
                 var activeParameter = item.Parameters.ElementAtOrDefault(item.ActiveParameterIndex);
+                var content = BuildOverloadContentText(item.Summary, activeParameter);
                 e.Overloads.Add((
-                    DisplaySegmentRenderer.BuildSignature(item.Signature, isDark),
-                    BuildOverloadContentText(item.Summary, activeParameter)));
+                    DisplaySegmentRenderer.BuildParameterInfoSignature(item.Signature, isDark, maxWidth, charWidth),
+                    content is null ? null : new TextBlock { Text = content, TextWrapping = TextWrapping.Wrap, MaxWidth = maxWidth }));
             }
         };
 

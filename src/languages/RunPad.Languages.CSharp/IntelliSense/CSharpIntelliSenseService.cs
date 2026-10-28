@@ -48,6 +48,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // args`, `string? label = null`) instead of just bare "type name" pairs.
     private static readonly SymbolDisplayFormat _briefFormat =
         new(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly,
+            genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
             parameterOptions: SymbolDisplayParameterOptions.IncludeType | SymbolDisplayParameterOptions.IncludeName |
                 SymbolDisplayParameterOptions.IncludeParamsRefOut | SymbolDisplayParameterOptions.IncludeDefaultValue,
             memberOptions: SymbolDisplayMemberOptions.IncludeParameters | SymbolDisplayMemberOptions.IncludeType,
