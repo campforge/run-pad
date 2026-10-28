@@ -108,6 +108,8 @@ Notable changes in each RunPad release. Downloads are on the
   enum's default is picked from its values.
 - The Dependencies window's add, update and remove actions in lists, its paging arrows and the
   argument and set buttons are icon buttons with tooltips, as tall as the fields beside them.
+- A script with an optional text or list argument no longer gets two CS8669 warnings about
+  nullable annotations in its results.
 - Windows, dialogs, menus, dropdowns, tooltips and the editor's completion list, parameter info
   and value tips all have the same rounded corners, set by the theme; the splash screen and the
   editor toolbar no longer use a radius of their own.

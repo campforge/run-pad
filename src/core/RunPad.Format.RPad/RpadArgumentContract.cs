@@ -86,10 +86,12 @@ public sealed record RpadArgumentContract(IReadOnlyList<RpadArgumentContractMemb
     }
 
     /// <summary>Creates the fixed-width <c>Arguments</c> facade used by the compiler. The replacement name is nine
-    /// characters long, matching the old expression width, so source locations remain stable.</summary>
+    /// characters long, matching the old expression width, so source locations remain stable.
+    /// The compiler takes the file it goes in (*.Generated.cs) for generated code, where nullable is
+    /// off: an annotations context lets an optional argument be T? without warning CS8669.</summary>
     public string GenerateCSharpFacade()
     {
-        var builder = new System.Text.StringBuilder("internal static class Arguments\n{\n");
+        var builder = new System.Text.StringBuilder("#nullable enable annotations\ninternal static class Arguments\n{\n");
         foreach (var member in Members)
         {
             var type = member.Type == "enum"
@@ -116,7 +118,7 @@ public sealed record RpadArgumentContract(IReadOnlyList<RpadArgumentContractMemb
                     .Append(" = ").Append(i).Append(",\n");
             builder.Append("}\n");
         }
-        return builder.ToString();
+        return builder.Append("#nullable restore\n").ToString();
     }
 
     public string GenerateVisualBasicFacade()
