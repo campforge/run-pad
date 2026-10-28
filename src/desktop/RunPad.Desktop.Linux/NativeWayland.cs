@@ -5,7 +5,7 @@ namespace RunPad.Desktop.Linux;
 /// <summary>
 /// Avalonia's native Wayland back end, with the window frame drawn by the app, and the fixes it needs.
 /// </summary>
-public static class NativeWayland
+internal static class NativeWayland
 {
     /// <summary>Running in a Wayland session: UseWayland has no fallback without a compositor.</summary>
     public static bool IsAvailable =>

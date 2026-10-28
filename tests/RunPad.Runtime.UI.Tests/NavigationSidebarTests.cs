@@ -16,6 +16,7 @@ using RunPad.Connectors.Http;
 using RunPad.Contracts;
 using RunPad.Contracts.Connections;
 using RunPad.Contracts.IntelliSense;
+using RunPad.Desktop.MacOS;
 using RunPad.Format.RPad;
 using RunPad.Services;
 using RunPad.Services.BuildCache;

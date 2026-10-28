@@ -26,6 +26,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\main\RunPad\RunPad.csproj" />
+    <!-- ControlClick lives in the macOS integration; its tests run on every OS. -->
+    <ProjectReference Include="..\..\src\desktop\RunPad.Desktop.MacOS\RunPad.Desktop.MacOS.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />

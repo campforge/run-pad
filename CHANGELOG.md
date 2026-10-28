@@ -34,9 +34,9 @@ Notable changes in each RunPad release. Downloads are on the
 - On Linux in a Wayland session, RunPad runs natively on Wayland and draws its own window frames:
   rounded corners, a shadow, a border in the theme's colors and, in every window, a title bar that
   matches the main window. The mouse pointer follows the desktop's cursor theme. If a window
-  misbehaves, **Native Wayland window** in Preferences → Interface → Advanced turns this off after a
+  misbehaves, **Native Wayland window** in Preferences → Interface → System turns this off after a
   restart (or start RunPad with `RUNPAD_WAYLAND=0`) to use XWayland and the system frame.
-- On KDE, **Remember window position and center dialogs** in Preferences → Interface → Advanced adds
+- On KDE, **Remember window position and center dialogs** in Preferences → Interface → System adds
   two window rules to KDE's settings: KDE puts the main window back where it was and opens dialogs
   in the middle of the screen. Turning it off removes them.
 - The main window's size, and whether it was maximized, are kept between runs.
@@ -69,6 +69,8 @@ Notable changes in each RunPad release. Downloads are on the
   Inter.
 - **Restore open tabs and unsaved changes** moved from Preferences → Interface to Preferences →
   Editor.
+- On Windows, the title bars of dialogs and other windows turn dark with a dark theme instead of
+  staying light.
 
 ### Fixed
 

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Windows desktop integration: system title bars that follow RunPad's theme. RunPad
+       references this project only in Windows builds. -->
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RunPad.Desktop\RunPad.Desktop.csproj" />
+  </ItemGroup>
+</Project>

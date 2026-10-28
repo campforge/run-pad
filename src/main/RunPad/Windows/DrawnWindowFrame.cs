@@ -2,7 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
-using RunPad.Services.Desktop;
+using RunPad.Desktop;
 
 namespace RunPad.Windows;
 
@@ -16,9 +16,9 @@ internal static class DrawnWindowFrame
     private const double ContentRadius = 7;
 
     /// <summary>Rounds the content corners of every window that opens from now on.</summary>
-    public static void Install(IDesktopSession desktop)
+    public static void Install(IDesktopIntegration desktop)
     {
-        if (!desktop.NativeWaylandActive) return;
+        if (desktop.MainWindowFrame != WindowFrame.DrawnFrame) return;
         Window.WindowOpenedEvent.AddClassHandler<Window>((window, _) => FitDecoratedWindow(window));
     }
 

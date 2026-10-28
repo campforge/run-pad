@@ -10,7 +10,7 @@ namespace RunPad.Desktop.Linux;
 /// The rules are RunPad's own groups in ~/.config/kwinrulesrc, listed in [General] rules=; the user's
 /// other rules are left exactly as they are.
 /// </remarks>
-public static class KdeWindowRule
+internal static class KdeWindowRule
 {
     internal const string Group = "runpad-remember-position";
     internal const string DialogGroup = "runpad-center-dialogs";
