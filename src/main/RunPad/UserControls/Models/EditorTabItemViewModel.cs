@@ -88,6 +88,7 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
     // and these are no longer consulted.
     public RpadLanguage NewFileLanguage { get; }
     public RpadKind NewFileKind { get; }
+    internal string UntitledTitle { get; }
 
     // Whether the editor's text has changed since this tab was last written to disk — starts false
     // (a freshly opened/created tab has nothing unsaved yet) and flips true on the first real edit;
@@ -116,7 +117,7 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         internal set => this.RaiseAndSetIfChanged(ref field, value);
     }
 
-    public string FileName => FilePath is null ? RestoredRecovery?.Title ?? Example?.Title ?? "Untitled" : Path.GetFileNameWithoutExtension(FilePath);
+    public string FileName => FilePath is null ? RestoredRecovery?.Title ?? Example?.Title ?? UntitledTitle : Path.GetFileNameWithoutExtension(FilePath);
 
     /// <summary>The bundled example this untitled tab was opened from: its document is the tab's
     /// starting text (a copy — the example itself never changes). Null for any other tab.</summary>
@@ -278,7 +279,8 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         IPreferencesService prefs,
         IEditorTabActions actions,
         RpadLanguage newFileLanguage = RpadLanguage.CSharp,
-        RpadKind newFileKind = RpadKind.Statements)
+        RpadKind newFileKind = RpadKind.Statements,
+        string untitledTitle = "Untitled")
     {
         FilePath = filePath;
         AvailableSdks = sdks;
@@ -289,6 +291,7 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         _actions = actions;
         NewFileLanguage = newFileLanguage;
         NewFileKind = newFileKind;
+        UntitledTitle = untitledTitle;
 
         CloseCommand = ReactiveCommand.CreateFromTask(() => _actions.CloseAsync(this));
         SaveAsCommand = ReactiveCommand.CreateFromTask(() => _actions.SaveAsAsync(this));
