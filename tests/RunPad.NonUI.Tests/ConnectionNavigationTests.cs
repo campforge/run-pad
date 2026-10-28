@@ -552,10 +552,9 @@ public sealed class ConnectionStatusTests : IDisposable
         var first = vm.RefreshConnectionAsync(row);
         await driver.FetchStarted.Task;
 
-        driver.Next = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        driver.FetchStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        // The second refresh cancels the first one's wait and waits for the same read: a schema
+        // being read isn't read a second time (ConnectionSchemas.EnsureAsync).
         var second = vm.RefreshConnectionAsync(row);
-        await driver.FetchStarted.Task;
         await first;
 
         driver.Next.SetResult(new ConnectionSchema("current", [], ""));
