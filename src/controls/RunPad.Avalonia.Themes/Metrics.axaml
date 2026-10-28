@@ -13,6 +13,15 @@
     <Thickness x:Key="RunPad.Padding.IconButton">4</Thickness>
     <CornerRadius x:Key="RunPad.Radius.Control">4</CornerRadius>
     <CornerRadius x:Key="RunPad.Radius.Selection">5</CornerRadius>
+    <!-- Windows, dialogs and everything that pops up (menus, dropdowns, tooltips, flyouts, the editor's
+         completion lists and tips) share one radius; what sits inside them uses Control or Selection. -->
+    <CornerRadius x:Key="RunPad.Radius.Overlay">8</CornerRadius>
+    <!-- The same corner just inside a 1 px frame, for surfaces drawn within a window's border. -->
+    <CornerRadius x:Key="RunPad.Radius.OverlayInner">7</CornerRadius>
+    <CornerRadius x:Key="RunPad.Radius.OverlayInnerTop">7,7,0,0</CornerRadius>
+    <!-- Fluent's own keys, so its popups, flyouts, menus, dropdowns and controls follow these. -->
+    <StaticResource x:Key="OverlayCornerRadius" ResourceKey="RunPad.Radius.Overlay"/>
+    <StaticResource x:Key="ControlCornerRadius" ResourceKey="RunPad.Radius.Control"/>
     <x:Double x:Key="RunPad.Type.DialogTitle">15</x:Double>
     <Thickness x:Key="RunPad.Dialog.Padding">24</Thickness>
     <Thickness x:Key="RunPad.Dialog.ActionsMargin">0,24,0,0</Thickness>

@@ -30,7 +30,7 @@
 
     <Border Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
             BorderBrush="{DynamicResource RunPad.Toolbar.BorderBrush}"
-            BorderThickness="1" CornerRadius="4" Padding="2">
+            BorderThickness="1" CornerRadius="{DynamicResource RunPad.Radius.Overlay}" Padding="2">
         <TreeView x:Name="Tree"
                   Classes="navigation transient-selection debug-value"
                   MinWidth="220" MaxWidth="640" MaxHeight="360"

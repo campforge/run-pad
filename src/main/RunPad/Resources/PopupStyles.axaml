@@ -1,5 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:search="using:AvaloniaEdit.Search" x:Class="RunPad.Resources.PopupStyles">
+        xmlns:search="using:AvaloniaEdit.Search" xmlns:cc="using:AvaloniaEdit.CodeCompletion"
+        x:Class="RunPad.Resources.PopupStyles">
     <Styles.Resources>
         <!-- Fluent pulls a submenu 4 px over its parent menu; open it right at the parent's edge. -->
         <x:Double x:Key="MenuFlyoutSubItemPopupHorizontalOffset">0</x:Double>
@@ -27,6 +28,11 @@
     <Style Selector="MenuItem MenuItem, ContextMenu MenuItem, MenuFlyoutPresenter MenuItem">
         <Setter Property="Margin" Value="4,0"/>
     </Style>
+    <!-- The editor's completion list, its description tip and parameter info pop up like any menu. -->
+    <Style Selector="cc|CompletionListBox, cc|CompletionTipContentControl, cc|OverloadViewer">
+        <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Overlay}"/>
+        <Setter Property="ClipToBounds" Value="True"/>
+    </Style>
     <Style Selector="MenuFlyoutPresenter Separator, ContextMenu Separator, Menu Separator">
         <Setter Property="Background" Value="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
@@ -42,7 +48,7 @@
     </Style>
     <Style Selector="search|SearchPanel">
         <Setter Property="Margin" Value="6,0"/>
-        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Overlay}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Background" Value="{DynamicResource RunPad.Panel.BackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>

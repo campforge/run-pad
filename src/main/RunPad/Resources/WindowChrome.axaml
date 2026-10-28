@@ -34,9 +34,9 @@
             </ControlTemplate>
         </Setter>
 
-        <!-- Inside Avalonia's rounded frame (8px, 1px stroke) while the window is not maximized. -->
+        <!-- Inside the rounded window frame (RunPad.Radius.Overlay, 1px stroke) while the window is not maximized. -->
         <Style Selector="^.rounded /template/ Border#PART_Body">
-            <Setter Property="CornerRadius" Value="7"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.OverlayInner}"/>
         </Style>
     </ControlTheme>
 </ResourceDictionary>

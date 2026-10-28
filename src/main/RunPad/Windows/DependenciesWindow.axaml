@@ -34,7 +34,7 @@
         <Style Selector="Border.pane">
             <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Control}"/>
         </Style>
         <Style Selector="ListBox.entries ListBoxItem">
             <Setter Property="Padding" Value="8,4"/>
@@ -710,7 +710,7 @@
                     </StackPanel>
                     <Border Grid.Row="3"
                             BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}"
-                            BorderThickness="1" CornerRadius="4">
+                            BorderThickness="1" CornerRadius="{DynamicResource RunPad.Radius.Control}">
                         <ListBox x:Name="ScriptConnectionList" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}"
                                  Background="Transparent" BorderThickness="0"
                                  AutomationProperties.Name="The script's connections"
