@@ -19,11 +19,13 @@ using RunPad.Windows.Models;
 
 namespace RunPad.Windows;
 
-public sealed partial class MainWindow : Window, IDisposable
+public sealed partial class MainWindow : Window, IDisposable, IStartupWindow
 {
     private readonly IPreferencesService _prefs;
     private readonly EditorTabsControl _editorTabs;
     private readonly IDisposable _restoreStateSubscription;
+
+    Task IStartupWindow.Ready => _editorTabs.WorkspaceShown;
 
     // Set right before the confirmed, real Close() below — lets OnClosing tell "the user just
     // clicked the confirmed, second time through" apart from the very first Closing that it itself

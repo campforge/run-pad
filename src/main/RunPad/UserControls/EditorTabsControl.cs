@@ -88,7 +88,30 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
         // Restores the previous session's open tabs
         // (in order) + active tab instead of always starting from one blank tab.
-        _ = vm.RestoreSessionAsync();
+        _ = RestoreSessionAsync(vm);
+    }
+
+    // Done once the restored session's tabs all have their headers and the active one shows its
+    // script: tabs appear one by one (each first creates its language services, see
+    // OnTabsCollectionChanged), so the window stays hidden behind the splash until then.
+    internal Task WorkspaceShown => _workspaceShown.Task;
+    private readonly TaskCompletionSource _workspaceShown = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private bool _sessionRestored;
+
+    private async Task RestoreSessionAsync(MainWindowViewModel vm)
+    {
+        try { await vm.RestoreSessionAsync(); }
+        finally
+        {
+            _sessionRestored = true;
+            SignalWorkspaceShownIfDone();
+        }
+    }
+
+    private void SignalWorkspaceShownIfDone()
+    {
+        if (_disposed || _sessionRestored && _vm is not null && _vm.Tabs.All(_tabs.ContainsKey))
+            _workspaceShown.TrySetResult();
     }
 
     // Dependencies window copies its draft into the active tab's RpadFrontMatter only on OK.
@@ -135,6 +158,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
                     // which already ran and only cancelled the creation, since _tabs had no entry yet.
                     intelliSense?.Dispose();
                     vm.Dispose();
+                    SignalWorkspaceShownIfDone();
                     continue;
                 }
 
@@ -151,6 +175,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
                 // select it explicitly now if it's still the active one.
                 if (ReferenceEquals(_vm?.ActiveTab, vm))
                     fileTabControl.SelectedItem = tab;
+                SignalWorkspaceShownIfDone();
             }
         }
 
@@ -169,6 +194,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
                 _tabs.Remove(vm);
                 vm.Dispose();
             }
+            SignalWorkspaceShownIfDone();
         }
     }
 
@@ -553,6 +579,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _workspaceShown.TrySetResult();
         if (_themeService is not null) _themeService.ThemeChanged -= OnThemeChanged;
         if (_vm is not null)
         {
