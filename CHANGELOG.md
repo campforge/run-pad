@@ -100,6 +100,8 @@ Notable changes in each RunPad release. Downloads are on the
 - The menu bar's dropdowns and submenus take the theme's colours and look like the context menus,
   with the same text size and spacing, and a submenu opens beside its menu instead of over its edge.
   Menu items are highlighted with rounded corners everywhere, inset from the menu's rounded border.
+- Dropdown lists take the theme's colours too and look like the menus: the same background,
+  border, corners and spacing, with rounded rows.
 - Windows, dialogs, menus, dropdowns, tooltips and the editor's completion list, parameter info
   and value tips all have the same rounded corners, set by the theme; the splash screen and the
   editor toolbar no longer use a radius of their own.

@@ -401,6 +401,10 @@
     <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
         <Setter Property="Foreground" Value="{DynamicResource RunPad.ToolTab.SelectedForegroundBrush}"/>
     </Style>
+    <!-- Dropdown rows are rounded like menu items (PopupStyles). -->
+    <Style Selector="ComboBoxItem">
+        <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Control}"/>
+    </Style>
     <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>

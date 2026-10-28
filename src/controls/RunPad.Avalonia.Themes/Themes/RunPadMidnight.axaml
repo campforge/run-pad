@@ -29,6 +29,9 @@
                     <!-- Fluent's menu popups: a menu bar's dropdowns and submenus draw their own border with these. -->
                     <SolidColorBrush x:Key="MenuFlyoutPresenterBackground" Color="#20242B" />
                     <SolidColorBrush x:Key="MenuFlyoutPresenterBorderBrush" Color="#353B46" />
+                    <!-- Fluent's ComboBox dropdown: the same surface as the menus. -->
+                    <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="#20242B" />
+                    <SolidColorBrush x:Key="ComboBoxDropDownBorderBrush" Color="#353B46" />
                     <SolidColorBrush x:Key="MenuFlyoutItemForeground" Color="#D7DAE0" />
                     <SolidColorBrush x:Key="MenuFlyoutItemForegroundPointerOver" Color="#D7DAE0" />
                     <SolidColorBrush x:Key="MenuFlyoutItemForegroundPressed" Color="#D7DAE0" />
