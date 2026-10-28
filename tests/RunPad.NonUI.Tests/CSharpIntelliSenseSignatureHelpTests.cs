@@ -186,4 +186,77 @@ public class CSharpIntelliSenseSignatureHelpTests
         Assert.NotNull(result);
         Assert.InRange(result!.SelectedItemIndex, 0, result.Items.Count - 1);
     }
+
+    private const string NestedCallDeclarations =
+        "\nstatic class Net\n{\n" +
+        "    public static void Send(Message message, int port = 80, bool secure = false) { }\n" +
+        "    public static void Send(Message message, TimeSpan timeout) { }\n" +
+        "}\n" +
+        "class Message { public Message(string text, int priority) { } }\n";
+
+    private static async Task<(string Selected, string? Active)> SignatureAtAsync(string code)
+    {
+        using var service = CreateService();
+        var position = code.IndexOf('|');
+        code = code.Remove(position, 1) + NestedCallDeclarations;
+        var result = await service.GetSignatureHelpAsync(code, position, ct: TestContext.Current.CancellationToken);
+        Assert.NotNull(result);
+        var item = result!.Items[result.SelectedItemIndex];
+        var selected = string.Concat(item.Signature.Select(s => s.Text));
+        return (selected, item.Parameters.ElementAtOrDefault(item.ActiveParameterIndex)?.Name);
+    }
+
+    [Fact]
+    public async Task SignatureHelp_InsideANestedCall_Should_ShowTheInnerCall()
+    {
+        var (selected, active) = await SignatureAtAsync("Net.Send(new Message(\"hi\", |");
+
+        Assert.Contains("Message(string text, int priority)", selected);
+        Assert.Equal("priority", active);
+    }
+
+    [Fact]
+    public async Task SignatureHelp_AfterTheNestedCallCloses_Should_ReturnToTheOuterCall()
+    {
+        var (selected, active) = await SignatureAtAsync("Net.Send(new Message(\"hi\", 1)|");
+
+        Assert.Contains("Send(Message message", selected);
+        Assert.Equal("message", active);
+    }
+
+    [Fact]
+    public async Task SignatureHelp_AfterTheNestedCallAndAComma_Should_MoveToTheOuterCallsNextParameter()
+    {
+        var (selected, active) = await SignatureAtAsync("Net.Send(new Message(\"hi\", 1), |");
+
+        Assert.Contains("Send(Message message", selected);
+        Assert.Equal("port", active);
+    }
+
+    [Fact]
+    public async Task SignatureHelp_ForANamedArgument_Should_PickTheOverloadAndParameterOfThatName()
+    {
+        var (selected, active) = await SignatureAtAsync("Net.Send(null, timeout: |");
+
+        Assert.Contains("TimeSpan timeout", selected);
+        Assert.Equal("timeout", active);
+    }
+
+    [Fact]
+    public async Task SignatureHelp_ForANamedArgumentOutOfOrder_Should_MarkTheNamedParameter()
+    {
+        var (selected, active) = await SignatureAtAsync("Net.Send(null, secure: |");
+
+        Assert.Contains("bool secure", selected);
+        Assert.Equal("secure", active);
+    }
+
+    [Fact]
+    public async Task SignatureHelp_AfterTheCallCloses_Should_ShowNothing()
+    {
+        using var service = CreateService();
+        const string code = "var x = 42;\nx.Dump()";
+
+        Assert.Null(await service.GetSignatureHelpAsync(code, code.Length, ct: TestContext.Current.CancellationToken));
+    }
 }
