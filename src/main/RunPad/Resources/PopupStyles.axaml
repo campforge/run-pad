@@ -19,6 +19,14 @@
         <Setter Property="FontFamily" Value="{DynamicResource ContentControlThemeFontFamily}"/>
         <Setter Property="FontSize" Value="{DynamicResource RunPad.Type.Body}"/>
     </Style>
+    <!-- Rounded rows, like the trees' and buttons' highlights; inside a popup they stand 4 px off its
+         rounded border instead of running into it. -->
+    <Style Selector="Menu MenuItem, ContextMenu MenuItem, MenuFlyoutPresenter MenuItem">
+        <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Control}"/>
+    </Style>
+    <Style Selector="MenuItem MenuItem, ContextMenu MenuItem, MenuFlyoutPresenter MenuItem">
+        <Setter Property="Margin" Value="4,0"/>
+    </Style>
     <Style Selector="MenuFlyoutPresenter Separator, ContextMenu Separator, Menu Separator">
         <Setter Property="Background" Value="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Separator.BackgroundBrush}"/>

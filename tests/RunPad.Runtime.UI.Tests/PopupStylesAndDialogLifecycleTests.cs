@@ -124,6 +124,14 @@ public class PopupStylesAndDialogLifecycleTests
             Assert.Equal(14, file.FontSize);
             Assert.Equal(copy.FontSize, submenu.FontSize);
             Assert.Equal(copy.Padding, submenu.Padding);
+            installed.Theme.TryGetResource("RunPad.Radius.Control", null, out var radius);
+            foreach (var item in new[] { file, submenu, copy })
+            {
+                var row = item.GetVisualDescendants().OfType<Border>().First(b => b.Name == "PART_LayoutRoot");
+                Assert.Equal((CornerRadius)radius!, row.CornerRadius);
+            }
+            Assert.Equal(new Thickness(4, 0), submenu.Margin);
+            Assert.Equal(new Thickness(4, 0), copy.Margin);
             foreach (var popup in popups)
             {
                 var chrome = Assert.IsType<Border>(popup.Child);
