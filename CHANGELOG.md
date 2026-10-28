@@ -94,6 +94,8 @@ Notable changes in each RunPad release. Downloads are on the
 - In C#, parameter info follows nested calls: inside `Send(new Message(` it shows `Message`, and
   once its `)` is typed it shows `Send` again, at the right parameter. A named argument such as
   `timeout:` selects the overload that has it and marks that parameter, wherever it is in the list.
+- The menu bar's dropdowns and submenus take the theme's colours and look like the context menus,
+  with the same text size and spacing, and a submenu opens beside its menu instead of over its edge.
 - While debugging, hovering a variable shows its value again in more places: over `c` in
   `c.Dump()` the tip shows `c`, not the whole call. The value tip opens as soon as the pointer
   rests on the variable and stays open while the pointer moves into it. Its members are a tree

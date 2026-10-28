@@ -1,5 +1,9 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:search="using:AvaloniaEdit.Search" x:Class="RunPad.Resources.PopupStyles">
+    <Styles.Resources>
+        <!-- Fluent pulls a submenu 4 px over its parent menu; open it right at the parent's edge. -->
+        <x:Double x:Key="MenuFlyoutSubItemPopupHorizontalOffset">0</x:Double>
+    </Styles.Resources>
     <Style Selector="FlyoutPresenter, MenuFlyoutPresenter, ContextMenu, ToolTip">
         <Setter Property="Background" Value="{DynamicResource RunPad.Panel.BackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
@@ -8,10 +12,12 @@
         <Setter Property="FontFamily" Value="{DynamicResource ContentControlThemeFontFamily}"/>
         <Setter Property="FontSize" Value="{DynamicResource RunPad.Type.Body}"/>
     </Style>
-    <!-- Items of menus and popup menus only: a MenuItem placed anywhere else keeps its own look. -->
+    <!-- Items of menus and popup menus only: a MenuItem placed anywhere else keeps its own look.
+         A menu bar's dropdowns, context menus and flyout menus share one text size. -->
     <Style Selector="Menu MenuItem, ContextMenu MenuItem, MenuFlyoutPresenter MenuItem">
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
         <Setter Property="FontFamily" Value="{DynamicResource ContentControlThemeFontFamily}"/>
+        <Setter Property="FontSize" Value="{DynamicResource RunPad.Type.Body}"/>
     </Style>
     <Style Selector="MenuFlyoutPresenter Separator, ContextMenu Separator, Menu Separator">
         <Setter Property="Background" Value="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
