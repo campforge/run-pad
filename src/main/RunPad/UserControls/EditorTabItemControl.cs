@@ -2354,8 +2354,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                                     ThemeBrush("RunPad.Editor.HoverHighlightBrush", new SolidColorBrush(Color.FromArgb(55, 90, 140, 210))));
                                 ToolTip.SetTip(editor.TextArea.TextView, null);
                                 ShowDebugValuePopup(editor, symbolStart,
-                                    BuildDebugHoverContent(debugValue!, debugContext, debugGeneration, debugToken,
-                                        symbol));
+                                    BuildDebugHoverContent(debugValue!, debugContext, debugToken, symbol));
                             }
                         });
                         return;
@@ -2471,22 +2470,29 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     }
 
     private Control BuildDebugHoverContent(IVariableInfo root, IBreakpointHitContext? context,
-        long generation, CancellationToken token, string symbol)
+        CancellationToken token, string symbol)
     {
-        var panel = new StackPanel { Spacing = 2, MaxWidth = 520, MaxHeight = 360 };
-        AddDebugVariableRow(panel, root, 0, context, generation, token, new DebugHoverController.TreeBudget(), symbol);
-        var border = new Border
-        {
-            Padding = new Thickness(8, 5),
-            Background = ThemeBrush("RunPad.Panel.BackgroundBrush", Brushes.White),
-            BorderBrush = ThemeBrush("RunPad.Toolbar.BorderBrush", Brushes.Gray),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(3),
-            Child = panel,
-        };
-        border.PointerEntered += OnDebugTooltipPointerEntered;
-        border.PointerExited += OnDebugTooltipPointerExited;
-        return border;
+        var tip = new DebugValueTip(CreateDebugHoverLocal(root, context, token, symbol));
+        tip.PointerEntered += OnDebugTooltipPointerEntered;
+        tip.PointerExited += OnDebugTooltipPointerExited;
+        return tip;
+    }
+
+    // Like the Locals panel's rows (CreateDebugLocal), but members are fetched only while this tip's
+    // stop is current, at most MaxChildren of them and within ChildTimeout.
+    private DebugLocal CreateDebugHoverLocal(IVariableInfo variable, IBreakpointHitContext? context,
+        CancellationToken token, string? name = null)
+    {
+        Func<Task<IReadOnlyList<DebugLocal>>>? loader = variable.HasChildren && context is not null
+            ? async () =>
+            {
+                if (!ReferenceEquals(context, State.CurrentDebugCtx)) return [];
+                var children = await _debugHover.LoadChildrenAsync(context, variable, token);
+                return children.Select(c => CreateDebugHoverLocal(c, context, token)).ToList();
+            }
+        : null;
+        return new DebugLocal(string.IsNullOrEmpty(variable.Name) ? name ?? "" : variable.Name,
+            variable.Value, variable.TypeName, loader is not null, loader);
     }
 
     private void OnDebugTooltipPointerEntered(object? sender, PointerEventArgs e)
@@ -2501,48 +2507,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (_disposed) return;
         _debugTooltipInside = false;
         ScheduleDebugTooltipClose(State.Editor);
-    }
-
-    private void AddDebugVariableRow(Panel panel, IVariableInfo variable, int depth,
-        IBreakpointHitContext? context, long generation, CancellationToken token,
-        DebugHoverController.TreeBudget budget, string rootSymbol)
-    {
-        if (!budget.TryReserve()) return;
-        var row = new StackPanel
-        {
-            Orientation = global::Avalonia.Layout.Orientation.Horizontal,
-            Spacing = 4,
-            Margin = new Thickness(depth * 14, 0, 0, 0),
-            Background = depth == 0 ? ThemeBrush("RunPad.Editor.HoverHighlightBrush", new SolidColorBrush(Color.FromArgb(35, 90, 140, 210))) : null
-        };
-        if (variable.HasChildren && context is not null && depth < DebugHoverController.MaxDepth)
-        {
-            var expand = new Button { Content = ">", Padding = new Thickness(2, 0), MinWidth = 18 };
-            expand.Click += async (_, _) =>
-            {
-                expand.IsEnabled = false;
-                try
-                {
-                    if (token.IsCancellationRequested || !_debugHover.IsCurrent(generation) || !ReferenceEquals(context, State.CurrentDebugCtx)) return;
-                    var children = await _debugHover.LoadChildrenAsync(context, variable, depth, token);
-                    if (_disposed || !_debugHover.IsCurrent(generation) ||
-                        !ReferenceEquals(context, State.CurrentDebugCtx)) return;
-                    foreach (var child in children)
-                        AddDebugVariableRow(panel, child, depth + 1, context, generation, token, budget, rootSymbol);
-                    expand.Content = "v";
-                }
-                catch (OperationCanceledException) { }
-                finally
-                {
-                    if (!_disposed) expand.IsEnabled = true;
-                }
-            };
-            row.Children.Add(expand);
-        }
-        row.Children.Add(new TextBlock { Text = $"{variable.Name} =", Foreground = ThemeBrush("RunPad.Text.PrimaryBrush", Brushes.Black) });
-        row.Children.Add(new TextBlock { Text = $"{{{variable.TypeName}}}", Foreground = ThemeBrush("RunPad.Text.SecondaryBrush", Brushes.Gray) });
-        row.Children.Add(new TextBlock { Text = variable.Value, Foreground = ThemeBrush("RunPad.Dump.StringBrush", Brushes.DarkGreen) });
-        panel.Children.Add(row);
     }
 
     private static IBrush ThemeBrush(string key, IBrush fallback)

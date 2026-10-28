@@ -4,10 +4,10 @@ namespace RunPad.UserControls;
 
 internal sealed class DebugHoverController : IDisposable
 {
-    public const int MaxDepth = 3;
-    public const int MaxChildren = 64;
-    public const int MaxTotalRows = 256;
-    public static readonly TimeSpan ChildTimeout = TimeSpan.FromMilliseconds(500);
+    public const int MaxChildren = 100;
+    // Hovering evaluates on its own, so it gives up fast; expanding a member is asked for, so it waits longer.
+    public static readonly TimeSpan EvaluateTimeout = TimeSpan.FromMilliseconds(500);
+    public static readonly TimeSpan ChildTimeout = TimeSpan.FromSeconds(3);
     private CancellationTokenSource? _pending;
     private long _generation;
     private bool _disposed;
@@ -44,16 +44,10 @@ internal sealed class DebugHoverController : IDisposable
         _generation++;
     }
 
-    internal sealed class TreeBudget
-    {
-        private int _remaining = MaxTotalRows;
-        public bool TryReserve() => Interlocked.Decrement(ref _remaining) >= 0;
-    }
-
     public async Task<IReadOnlyList<IVariableInfo>> LoadChildrenAsync(IBreakpointHitContext context,
-        IVariableInfo variable, int depth, CancellationToken cancellationToken)
+        IVariableInfo variable, CancellationToken cancellationToken)
     {
-        if (depth >= MaxDepth || variable.VariablesReference == 0) return [];
+        if (variable.VariablesReference == 0) return [];
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(ChildTimeout);
         var children = await context.GetChildrenAsync(variable.VariablesReference, timeout.Token).ConfigureAwait(false);
@@ -65,7 +59,7 @@ internal sealed class DebugHoverController : IDisposable
     {
         if (!IsSafeHoverExpression(expression)) return null;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(ChildTimeout);
+        timeout.CancelAfter(EvaluateTimeout);
         return await context.EvaluateAsync(expression, timeout.Token).ConfigureAwait(false);
     }
 
