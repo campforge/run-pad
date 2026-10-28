@@ -293,11 +293,11 @@ public sealed partial class MainWindow : Window, IDisposable
         _prefs.Save();
     }
 
-    // Native Wayland: Avalonia draws the frame and shadow (see DrawnWindowFrame), this window keeps
+    // Native Wayland: Avalonia draws the frame and shadow (see WindowChrome), this window keeps
     // its own title row.
     private void ApplyDrawnFrame()
     {
-        DrawnWindowFrame.FitExtendedWindow(this, this.FindControl<Grid>("RootLayout")!);
+        WindowChrome.FitExtendedWindow(this, this.FindControl<Grid>("RootLayout")!);
 
         // Wayland hands a press on a TitleBar-role element straight to the compositor as a move, so
         // the app never sees the double click that should maximize. Drag and maximize here instead.

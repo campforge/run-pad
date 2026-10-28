@@ -72,7 +72,7 @@ public class App : Application
     {
         // App-wide setup of this OS's desktop integration (macOS's Control-click, Linux's UI font, …).
         DesktopIntegration.Current.OnApplicationStarted(this);
-        DrawnWindowFrame.Install(DesktopIntegration.Current);
+        WindowChrome.Install(this, DesktopIntegration.Current);
         var serviceProvider = ConfigureServices();
         _serviceProvider = serviceProvider;
 
