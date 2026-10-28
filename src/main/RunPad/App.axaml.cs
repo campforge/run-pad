@@ -2,7 +2,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using Avalonia.Media;
 using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -54,12 +53,6 @@ public class App : Application
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
-        // Fluent puts its bundled Inter first. On Linux use the desktop's own UI font instead, as
-        // VS Code does: $Default is fontconfig's default sans face (Noto Sans on KDE, Cantarell or
-        // Adwaita Sans on GNOME, Ubuntu on Ubuntu). Windows and macOS keep Inter.
-        if (OperatingSystem.IsLinux())
-            Resources["ContentControlThemeFontFamily"] = new FontFamily("$Default");
-        DrawnWindowFrame.Install(DesktopSession.Current);
 
         // Avalonia.Native creates its application-menu
         // exporter in an AppBuilder.AfterSetup callback, i.e. right after this method returns and
@@ -77,8 +70,9 @@ public class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
-        // macOS: Control-click opens context menus as a right click does (Services/ControlClick).
-        ControlClick.RegisterForApp();
+        // App-wide setup of this OS's desktop integration (macOS's Control-click, Linux's UI font, …).
+        DesktopIntegration.Current.OnApplicationStarted(this);
+        DrawnWindowFrame.Install(DesktopIntegration.Current);
         var serviceProvider = ConfigureServices();
         _serviceProvider = serviceProvider;
 
@@ -211,7 +205,7 @@ public class App : Application
 
         services.AddSingleton<Application>(this);
         services.AddSingleton<IPreferencesService, PreferencesService>();
-        services.AddSingleton<IDesktopSession>(DesktopSession.Current);
+        services.AddSingleton(DesktopIntegration.Current);
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IFileSystemService, FileSystemService>();
         services.AddSingleton<ISdkProvider, DotnetSdkProvider>();

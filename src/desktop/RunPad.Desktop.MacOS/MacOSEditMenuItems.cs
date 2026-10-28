@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace RunPad.Shared;
+namespace RunPad.Desktop.MacOS;
 
 /// <summary>
 /// Keeps AppKit from appending its own items — AutoFill, Start Dictation… and Emoji &amp; Symbols,

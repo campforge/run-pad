@@ -12,6 +12,7 @@ using Avalonia.VisualTree;
 using AvaloniaEdit;
 using ReactiveUI;
 using RunPad.Format.RPad;
+using RunPad.Desktop;
 using RunPad.Services.Desktop;
 using RunPad.Services.Preferences;
 using RunPad.UserControls;
@@ -41,10 +42,10 @@ public sealed partial class MainWindow : Window, IDisposable
         IPreferencesService prefs,
         EditorTabsControl editorTabsCtrl,
         MainWindowViewModel viewModel,
-        IDesktopSession? desktop = null)
+        IDesktopIntegration? desktop = null)
     {
         _prefs = prefs;
-        _desktop = desktop ?? DesktopSession.Current;
+        _desktop = desktop ?? DesktopIntegration.Current;
         _editorTabs = editorTabsCtrl;
 
         DataContext = viewModel;
@@ -219,23 +220,24 @@ public sealed partial class MainWindow : Window, IDisposable
     // wc-btn min/max/close) and asks the OS only for a border. Windows' DWM composites a border,
     // shadow and rounded corners around that automatically — that's what this was designed against.
     //
-    // On Linux's native Wayland back end Avalonia draws the frame and shadow itself (see
-    // ApplyDrawnFrame), so the Windows layout is kept. Elsewhere on Linux (XWayland/X11, or with
-    // native Wayland turned off) a CSD request comes back as a bare rectangle with no border,
-    // shadow, or corner radius, so the window falls back to OS-drawn decorations: our title row
-    // keeps the menu but becomes a plain menu bar under the native titlebar, and the redundant
-    // wc-btn cluster is hidden.
+    // The OS's desktop integration says which frame the window gets (IDesktopIntegration).
+    // DrawnFrame (Linux's native Wayland): Avalonia draws the frame and shadow itself (see
+    // ApplyDrawnFrame), so the Windows layout is kept. SystemTitleBar (Linux on XWayland/X11, where
+    // a CSD request comes back as a bare rectangle with no border, shadow, or corner radius): our
+    // title row keeps the menu but becomes a plain menu bar under the native titlebar, and the
+    // redundant wc-btn cluster is hidden.
     //
-    // macOS keeps AppKit's titlebar as a separate row above the app toolbar, like Rider.
+    // MacOS keeps AppKit's titlebar as a separate row above the app toolbar, like Rider.
     private void ApplyPlatformChrome()
     {
         var windowControlButtons = this.FindControl<StackPanel>("WindowControlButtons");
 
-        if (OperatingSystem.IsLinux() && _desktop.NativeWaylandActive)
+        var frame = _desktop.MainWindowFrame;
+        if (frame == WindowFrame.DrawnFrame)
         {
             ApplyDrawnFrame();
         }
-        else if (OperatingSystem.IsLinux())
+        else if (frame == WindowFrame.SystemTitleBar)
         {
             WindowDecorations = WindowDecorations.Full;
             ExtendClientAreaToDecorationsHint = false;
@@ -247,7 +249,7 @@ public sealed partial class MainWindow : Window, IDisposable
             var appIcon = this.FindControl<Image>("AppIconImage");
             if (appIcon is not null) appIcon.IsVisible = false;
         }
-        else if (OperatingSystem.IsMacOS())
+        else if (frame == WindowFrame.MacOS)
         {
             WindowDecorations = WindowDecorations.BorderOnly;
             ExtendClientAreaToDecorationsHint = true;
@@ -313,7 +315,7 @@ public sealed partial class MainWindow : Window, IDisposable
     internal IReadOnlyList<MainMenuGroup> MainMenuEntries { get; private set; }
 
     private readonly Menu _mainMenu;
-    private readonly IDesktopSession _desktop;
+    private readonly IDesktopIntegration _desktop;
 
     private void OnPreferencesChanged()
     {

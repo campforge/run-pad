@@ -6,6 +6,9 @@
     <PackageReference Include="Avalonia.Wayland" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\RunPad.Desktop\RunPad.Desktop.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="RunPad.NonUI.Tests" />
   </ItemGroup>
 </Project>

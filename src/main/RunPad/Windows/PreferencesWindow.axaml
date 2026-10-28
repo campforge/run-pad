@@ -244,19 +244,17 @@
                     <TextBox PlaceholderText="Path to netcoredbg.exe" Text="{Binding DebuggerPath}"/>
                 </StackPanel>
 
-                <StackPanel IsVisible="{Binding IsAdvancedSelected}" Spacing="6">
-                    <StackPanel IsVisible="{Binding IsWaylandSupported}" Spacing="6">
-                        <CheckBox Content="Native Wayland window" IsChecked="{Binding NativeWayland}"/>
-                        <TextBlock Text="RunPad draws its own window frame on Wayland. Turn off if the window misbehaves to use XWayland and the system frame. Applies after restarting RunPad; RUNPAD_WAYLAND=0 also turns it off."
-                                   TextWrapping="Wrap" Margin="0,0,0,8"/>
-                    </StackPanel>
-
-                    <StackPanel IsVisible="{Binding IsKdeWindowRuleSupported}" Spacing="6">
-                        <CheckBox Content="Remember window position and center dialogs" IsChecked="{Binding RememberWindowPosition}"/>
-                        <TextBlock Text="Adds two window rules for RunPad to KDE's settings (System Settings → Window Rules): KDE puts the main window back where it was and opens dialogs in the middle of the screen. On Wayland only KDE can place windows. Turning it off removes the rules."
-                                   TextWrapping="Wrap" Margin="0,0,0,8"/>
-                    </StackPanel>
-                </StackPanel>
+                <!-- Interface → System: the settings of this OS's desktop integration, each one a check box. -->
+                <ItemsControl IsVisible="{Binding IsSystemSelected}" ItemsSource="{Binding SystemSettings}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="viewModels:SystemSettingViewModel">
+                            <StackPanel Spacing="6" Margin="0,0,0,8">
+                                <CheckBox Content="{Binding Title}" IsChecked="{Binding Value}"/>
+                                <TextBlock Text="{Binding Description}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
 
                 <StackPanel IsVisible="{Binding IsExperimentalSelected}" Spacing="6">
                     <TextBlock Text="Experimental:" FontWeight="SemiBold"/>

@@ -2,7 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 
-namespace RunPad.Services;
+namespace RunPad.Desktop.MacOS;
 
 /// <summary>
 /// On macOS, Control-click is the secondary click: a context menu and whatever a right click does

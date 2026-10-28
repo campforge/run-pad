@@ -13,14 +13,18 @@
     <NoWarn>$(NoWarn);AVLN3001</NoWarn>
   </PropertyGroup>
 
-  <!-- Linux desktop integration (native Wayland, KDE) ships only in Linux builds: a linux-* RID, or
-       no RID on a Linux host. -->
-  <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('linux')) Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('Linux')))">
-    <RunPadLinux>true</RunPadLinux>
-    <DefineConstants>$(DefineConstants);RUNPAD_LINUX</DefineConstants>
+  <!-- Desktop integration: the contract on every OS, and the implementation for the OS this build is
+       for only — a matching RID, or no RID on that host. Its native dependencies (Avalonia.Wayland on
+       Linux) stay out of the other systems' builds. -->
+  <PropertyGroup>
+    <RunPadDesktopOS Condition="$(RuntimeIdentifier.StartsWith('linux')) Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('Linux')))">Linux</RunPadDesktopOS>
+    <RunPadDesktopOS Condition="$(RuntimeIdentifier.StartsWith('osx')) Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('OSX')))">MacOS</RunPadDesktopOS>
+    <RunPadDesktopOS Condition="$(RuntimeIdentifier.StartsWith('win')) Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('Windows')))">Windows</RunPadDesktopOS>
+    <DefineConstants Condition="'$(RunPadDesktopOS)' != ''">$(DefineConstants);RUNPAD_$(RunPadDesktopOS.ToUpperInvariant())</DefineConstants>
   </PropertyGroup>
-  <ItemGroup Condition="'$(RunPadLinux)' == 'true'">
-    <ProjectReference Include="..\..\desktop\RunPad.Desktop.Linux\RunPad.Desktop.Linux.csproj"/>
+  <ItemGroup>
+    <ProjectReference Include="..\..\desktop\RunPad.Desktop\RunPad.Desktop.csproj"/>
+    <ProjectReference Condition="'$(RunPadDesktopOS)' != ''" Include="..\..\desktop\RunPad.Desktop.$(RunPadDesktopOS)\RunPad.Desktop.$(RunPadDesktopOS).csproj"/>
   </ItemGroup>
 
   <ItemGroup>

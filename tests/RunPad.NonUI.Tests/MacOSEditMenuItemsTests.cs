@@ -1,4 +1,4 @@
-using RunPad.Shared;
+using RunPad.Desktop.MacOS;
 using Xunit;
 
 namespace RunPad.NonUI.Tests;
