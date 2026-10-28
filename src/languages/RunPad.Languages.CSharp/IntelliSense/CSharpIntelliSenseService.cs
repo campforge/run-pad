@@ -1105,30 +1105,32 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
 
             var node = root.FindNode(new TextSpan(Math.Max(0, pos - 1), 1), getInnermostNodeForTie: true);
 
-            // "new Foo(" behaves the same as a method call for signature-help purposes — it just
-            // wasn't recognized at all before, so opening a constructor's argument
-            // list never showed its parameters. BaseObjectCreationExpressionSyntax is the shared base
-            // of both `new Foo(...)` and the target-typed `new(...)`.
-            var callLike = node.AncestorsAndSelf()
-                .FirstOrDefault(n => n is InvocationExpressionSyntax or BaseObjectCreationExpressionSyntax);
-            var argumentList = callLike switch
-            {
-                InvocationExpressionSyntax inv => inv.ArgumentList,
-                BaseObjectCreationExpressionSyntax oce => oce.ArgumentList,
-                _ => null,
-            };
+            // The innermost call whose parentheses the caret is between: in `Outer(new Inner(|` that
+            // is Inner, and once Inner's `)` is typed, Outer again. "new Foo(" (and the target-typed
+            // `new(`) behaves like a method call.
+            var (callLike, argumentList) = node.AncestorsAndSelf()
+                .Select(n => (Call: n, List: n switch
+                {
+                    InvocationExpressionSyntax inv => inv.ArgumentList,
+                    BaseObjectCreationExpressionSyntax oce => oce.ArgumentList,
+                    _ => null,
+                }))
+                .FirstOrDefault(c => c.List is not null && IsInsideArgumentList(c.List, pos));
             if (callLike == null || argumentList == null) return null;
 
             var argIndex = CountArgumentsBefore(argumentList, pos);
             var argCount = argumentList.Arguments.Count;
             var isArgumentSlotEmpty = IsArgumentSlotEmpty(argumentList, argIndex, pos);
+            var argumentName = argIndex < argCount ? argumentList.Arguments[argIndex].NameColon?.Name.Identifier.ValueText : null;
 
             var methods = GetCandidateMethods(model, callLike);
 
             if (methods.Count == 0) return null;
 
-            var items = methods.Select(m => (ISignatureHelpItem)new SimpleSignatureHelpItem(m, argIndex)).ToList();
-            var selectedIndex = SelectBestOverloadIndex(methods, argumentList, argCount, model);
+            var items = methods
+                .Select(m => (ISignatureHelpItem)new SimpleSignatureHelpItem(m, ActiveParameter(m, argIndex, argumentName)))
+                .ToList();
+            var selectedIndex = SelectBestOverloadIndex(methods, argumentList, argCount, argumentName, model);
 
             return new SimpleSignatureHelpResult(items, selectedIndex, argIndex, isArgumentSlotEmpty);
         }
@@ -1144,25 +1146,45 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // to the corresponding parameter, and falls back to the pre-existing count-only match — unchanged
     // — for anything that approximation can't confidently call (params/named/optional arguments,
     // nothing typed yet, or no candidate type-checks perfectly).
+    // A named argument is checked against the parameter of its name, and an overload without that
+    // name doesn't fit.
     private static int SelectBestOverloadIndex(
-        List<IMethodSymbol> methods, ArgumentListSyntax argumentList, int argCount, SemanticModel model)
+        List<IMethodSymbol> methods, ArgumentListSyntax argumentList, int argCount, string? argumentName, SemanticModel model)
     {
         var typeAware = methods.FindIndex(m =>
         {
             if (m.Parameters.Length < argCount) return false;
+            if (argumentName is not null && m.Parameters.All(p => p.Name != argumentName)) return false;
             for (var i = 0; i < argCount; i++)
             {
-                var argType = model.GetTypeInfo(argumentList.Arguments[i].Expression).ConvertedType;
+                var argument = argumentList.Arguments[i];
+                var parameter = argument.NameColon is { } nameColon
+                    ? m.Parameters.FirstOrDefault(p => p.Name == nameColon.Name.Identifier.ValueText)
+                    : m.Parameters[i];
+                if (parameter == null) return false;
+                var argType = model.GetTypeInfo(argument.Expression).ConvertedType;
                 if (argType == null) continue; // couldn't infer (e.g. still typing) — don't penalize
-                if (!model.Compilation.ClassifyConversion(argType, m.Parameters[i].Type).IsImplicit)
+                if (!model.Compilation.ClassifyConversion(argType, parameter.Type).IsImplicit)
                     return false;
             }
             return true;
         });
         if (typeAware >= 0) return typeAware;
 
-        var arityOnly = methods.FindIndex(m => m.Parameters.Length >= argCount);
+        var arityOnly = methods.FindIndex(m => m.Parameters.Length >= argCount
+            && (argumentName is null || m.Parameters.Any(p => p.Name == argumentName)));
         return arityOnly >= 0 ? arityOnly : methods.Count - 1;
+    }
+
+    // The parameter the argument at the caret goes to: the one it names, the one at its position,
+    // or a `params` tail past the last.
+    private static IParameterSymbol? ActiveParameter(IMethodSymbol method, int argumentIndex, string? argumentName)
+    {
+        if (argumentName is not null) return method.Parameters.FirstOrDefault(p => p.Name == argumentName);
+        if (method.Parameters.Length == 0) return null;
+        if (argumentIndex < method.Parameters.Length) return method.Parameters[argumentIndex];
+        var last = method.Parameters[^1];
+        return last.IsParams ? last : null;
     }
 
     // A position inside a // or /* */ comment (including /// doc comments) has nothing to complete —
@@ -2497,28 +2519,21 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
 
     private sealed class SimpleSignatureHelpItem : ISignatureHelpItem
     {
-        public SimpleSignatureHelpItem(IMethodSymbol method, int argumentIndex)
+        // activeParameter is bolded in the header, the way LINQPad/VS Code do.
+        public SimpleSignatureHelpItem(IMethodSymbol method, IParameterSymbol? activeParameter)
         {
-            Signature = method.ToDisplayParts(_briefFormat).ToSegments(EmphasizedParameter(method, argumentIndex));
+            Signature = method.ToDisplayParts(_briefFormat).ToSegments(activeParameter);
             Summary = XmlDocSummary.GetSummary(method);
             Parameters = method.Parameters
                 .Select(p => (ISignatureHelpParameter)new SimpleSignatureHelpParameter(method, p))
                 .ToList();
+            ActiveParameterIndex = activeParameter is null ? -1 : method.Parameters.IndexOf(activeParameter);
         }
 
         public IReadOnlyList<DisplayTextSegment> Signature { get; }
         public string? Summary { get; }
         public IReadOnlyList<ISignatureHelpParameter> Parameters { get; }
-
-        // The parameter the caret is currently sitting in, so the UI can bold it in the header the
-        // way LINQPad/VS Code do — a `params` tail parameter stays emphasized past its own index.
-        private static IParameterSymbol? EmphasizedParameter(IMethodSymbol method, int argumentIndex)
-        {
-            if (method.Parameters.Length == 0) return null;
-            if (argumentIndex < method.Parameters.Length) return method.Parameters[argumentIndex];
-            var last = method.Parameters[^1];
-            return last.IsParams ? last : null;
-        }
+        public int ActiveParameterIndex { get; }
     }
 
     private sealed class SimpleSignatureHelpParameter : ISignatureHelpParameter

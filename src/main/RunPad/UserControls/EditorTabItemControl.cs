@@ -2100,7 +2100,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var isDark = _themeService.CurrentTheme.Editor.IsDark;
             foreach (var item in result.Items)
             {
-                var activeParameter = item.Parameters.ElementAtOrDefault(result.ArgumentIndex);
+                var activeParameter = item.Parameters.ElementAtOrDefault(item.ActiveParameterIndex);
                 e.Overloads.Add((
                     DisplaySegmentRenderer.BuildSignature(item.Signature, isDark),
                     BuildOverloadContentText(item.Summary, activeParameter)));
