@@ -3,11 +3,14 @@ using System.Text;
 using System.Web;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Primitives.PopupPositioning;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using AvaloniaEdit;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
 using Microsoft.Extensions.Logging;
@@ -59,6 +62,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private long _tooltipGeneration;
     // The symbol whose debugger value tip is open; null when no value tip is shown.
     private (int Start, int Length)? _debugTooltipSpan;
+    // A popup, not a ToolTip: Avalonia closes a ToolTip on any mouse press, its own content
+    // included, so the value tip's expand buttons could never be clicked.
+    private Popup? _debugValuePopup;
     private InlayHintRenderer? _inlayHintRenderer;
     private IIntelliSenseService? _intelliSense;
     private IntelliSenseEventSubscriptions? _intelliSenseEventSubscriptions;
@@ -943,7 +949,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             State.Editor.TextArea.TextView.PointerMoved -= quickInfoMoved;
         if (_quickInfoPointerExitedHandler is { } quickInfoExited)
             State.Editor.TextArea.TextView.PointerExited -= quickInfoExited;
-        ToolTip.RemoveToolTipClosingHandler(State.Editor.TextArea.TextView, OnHoverToolTipClosing);
         var refactoringCts = Interlocked.Exchange(ref _refactoringCts, null);
         refactoringCts?.Cancel();
         refactoringCts?.Dispose();
@@ -969,6 +974,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         schemaWarmupCts?.Cancel();
         _quickInfoCts?.Cancel();
         _debugTooltipCloseCts?.Cancel();
+        if (_debugValuePopup is { } debugValuePopup)
+        {
+            debugValuePopup.IsOpen = false;
+            ((ISetLogicalParent)debugValuePopup).SetParent(null);
+        }
         DisposePreview();
         Cancel();
         CancelAllWatchEvaluations();
@@ -2342,7 +2352,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                                 _debugTooltipSpan = (symbolStart, symbol.Length);
                                 editor.SetHoverTokenHighlight(symbolStart, symbol.Length,
                                     ThemeBrush("RunPad.Editor.HoverHighlightBrush", new SolidColorBrush(Color.FromArgb(55, 90, 140, 210))));
-                                ToolTip.SetTip(editor.TextArea.TextView,
+                                ToolTip.SetTip(editor.TextArea.TextView, null);
+                                ShowDebugValuePopup(editor, symbolStart,
                                     BuildDebugHoverContent(debugValue!, debugContext, debugGeneration, debugToken,
                                         symbol));
                             }
@@ -2388,7 +2399,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             ScheduleDebugTooltipClose(editor);
         };
         editor.TextArea.TextView.PointerExited += _quickInfoPointerExitedHandler;
-        ToolTip.AddToolTipClosingHandler(editor.TextArea.TextView, OnHoverToolTipClosing);
     }
 
     private void InvalidateHoverTooltip()
@@ -2399,15 +2409,41 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _debugHover.Cancel();
         State.Editor.ClearHoverTokenHighlight();
         ToolTip.SetTip(State.Editor.TextArea.TextView, null);
+        if (_debugValuePopup is { } popup)
+        {
+            popup.IsOpen = false;
+            ((ISetLogicalParent)popup).SetParent(null);
+            _debugValuePopup = null;
+        }
     }
 
-    // Avalonia closes the tip on its own too (a click, the pointer leaving the window), so the value
-    // tip's symbol must not keep blocking new hovers after that.
-    private void OnHoverToolTipClosing(object? sender, RoutedEventArgs e)
+    // Just below the hovered symbol's line, like the completion window.
+    private void ShowDebugValuePopup(CodeTextEditor editor, int symbolStart, Control content)
     {
-        if (_debugTooltipSpan is null) return;
-        _debugTooltipSpan = null;
-        State.Editor.ClearHoverTokenHighlight();
+        if (_debugValuePopup is { } previous)
+        {
+            previous.IsOpen = false;
+            ((ISetLogicalParent)previous).SetParent(null);
+        }
+        var textView = editor.TextArea.TextView;
+        var location = editor.Document.GetLocation(symbolStart);
+        var position = textView.GetVisualPosition(new TextViewPosition(location), VisualYPosition.LineBottom)
+            - textView.ScrollOffset;
+        var popup = _debugValuePopup = new Popup
+        {
+            PlacementTarget = textView,
+            InheritsTransform = true,
+            Placement = PlacementMode.AnchorAndGravity,
+            PlacementAnchor = PopupAnchor.TopLeft,
+            PlacementGravity = PopupGravity.BottomRight,
+            HorizontalOffset = position.X,
+            VerticalOffset = position.Y,
+            IsLightDismissEnabled = false,
+            Focusable = false,
+            Child = content,
+        };
+        ((ISetLogicalParent)popup).SetParent(TopLevel.GetTopLevel(editor));
+        popup.IsOpen = true;
     }
 
     private void ScheduleDebugTooltipClose(CodeTextEditor editor)
@@ -2442,7 +2478,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var border = new Border
         {
             Padding = new Thickness(8, 5),
-            Background = ThemeBrush("RunPad.Panel.BackgroundBrush", Brushes.Transparent),
+            Background = ThemeBrush("RunPad.Panel.BackgroundBrush", Brushes.White),
+            BorderBrush = ThemeBrush("RunPad.Toolbar.BorderBrush", Brushes.Gray),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(3),
             Child = panel,
         };
         border.PointerEntered += OnDebugTooltipPointerEntered;
