@@ -258,7 +258,8 @@ public sealed partial class CSharpIntelliSenseService
                 .Cast<ICompletionItem>()
                 .Concat(_keywords.Where(k => IsKeywordApplicable(k, root, pos, isTypeArgumentPosition)
                     && (expected is null || FitsExpectedType(k.DisplayText, expected, model.Compilation))))
-                .Concat(expected is null ? [] : ExpectedTypeSuggestions(expected, model, pos)));
+                .Concat(expected is null ? [] : ExpectedTypeSuggestions(expected, model, pos))
+                .Concat(isTypeArgumentPosition || expected is { AfterNew: true } ? [] : NamedArgumentSuggestions(model, root, pos)));
 
             // Types from added packages not in scope yet, prefix-matched; accepting one adds its using
             // (UsingsToAdd). Only package references: walking every namespace of the ~170 framework
