@@ -14,6 +14,10 @@ Notable changes in each RunPad release. Downloads are on the
 - C# completion offers `name:` where an argument starts, for the parameters of the call that are
   still open: those of the overloads the arguments typed so far fit, not given by position or
   by name yet. It works for methods and constructors.
+- C# completion offers types from every reference of the script that aren't imported yet, not just
+  from packages: framework types such as `StringBuilder` once three letters are typed, and the
+  script's own assemblies. Accepting one adds its `using`. Types that share a name, such as
+  `JsonSerializer` in two libraries, are each offered with their namespace instead of not at all.
 - Enum arguments generate real enum types: an `env` declaration exposes `Arguments.Env` as
   `ArgumentsEnv`, with values such as `ArgumentsEnv.Dev` and `ArgumentsEnv.Prod` in C# and Visual Basic.
 - **Toggle Line Comment** (Ctrl+/, Cmd+/ on macOS) comments or uncomments every line the selection

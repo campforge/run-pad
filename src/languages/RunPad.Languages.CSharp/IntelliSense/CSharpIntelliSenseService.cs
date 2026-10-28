@@ -899,7 +899,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     private static bool IsRunPadRuntimeMember(ISymbol symbol) =>
         symbol.ContainingAssembly?.Name == "RunPad.Runtime";
 
-    // A type from an added NuGet package that isn't in
+    // A type from a reference that isn't in
     // scope yet. Own tier (ScopeRank 3, between ordinary types and namespaces) rather than sharing
     // rank 2 with already-visible types, and carries Detail (the containing namespace) so the
     // completion list itself shows the ReSharper-style "(in Namespace)" annotation — see
@@ -929,44 +929,49 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             UsingsToAdd: ns is null ? [] : [ns], Detail: ns, Source: CompletionSourceKind.ImportableType);
     }
 
-    // Types from added NuGet references (not the full BCL reference pack — see the call site) whose
-    // simple name starts with what's typed so far and isn't already visible. Candidates that collide
-    // on name — either with something already in scope, or with each other (two different packages
-    // exporting the same type name) — are dropped entirely rather than guessing which one the user
-    // meant; offering the wrong one and silently adding the wrong `using` would be worse than not
-    // offering it at all.
+    // Types from the script's references whose simple name starts with what's typed so far and
+    // isn't already visible: packages and the script's own assemblies from the first letter, the
+    // framework from MinFrameworkImportPrefix letters, so a letter or two doesn't list half the
+    // framework. Types that share a name are all offered, each with its own namespace: the user
+    // picks which `using` to add, none is chosen for them.
     private IEnumerable<INamedTypeSymbol> FindImportableTypes(
         Compilation compilation, string prefix, HashSet<string> alreadyVisible)
     {
         if (prefix.Length == 0) yield break;
 
-        var byName = new Dictionary<string, INamedTypeSymbol?>(StringComparer.Ordinal);
-        foreach (var reference in _nugetRefs)
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var reference in compilation.References)
         {
+            if (prefix.Length < MinFrameworkImportPrefix && !IsAddedReference(reference)) continue;
             if (compilation.GetAssemblyOrModuleSymbol(reference) is not IAssemblySymbol assembly) continue;
 
             foreach (var entry in GetImportableTypeIndex(assembly, reference))
             {
                 if (alreadyVisible.Contains(entry.Name)) continue;
                 if (!entry.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
+                // The same type can come from two references (a package that also ships in the framework).
+                if (!seen.Add(entry.MetadataName)) continue;
 
                 var type = assembly.GetTypeByMetadataName(entry.MetadataName);
-                if (type == null) continue;
-
-                // First sighting of this name -> tentatively importable; a second, different type
-                // with the same name makes it ambiguous -> null marks it as excluded.
-                byName[entry.Name] = byName.TryGetValue(entry.Name, out var existing) && existing != null
-                    ? null
-                    : type;
+                if (type == null || IsHiddenFromEditor(type)) continue;
+                yield return type;
             }
         }
-
-        foreach (var type in byName.Values)
-            if (type != null)
-                yield return type;
     }
 
-    // Flattened index of every public importable type in a NuGet-reference assembly, built once per
+    private const int MinFrameworkImportPrefix = 3;
+
+    private bool IsAddedReference(MetadataReference reference) =>
+        _nugetRefs.Contains(reference)
+        || (reference is PortableExecutableReference { FilePath: { } path }
+            && _userReferencePaths.Contains(path, StringComparer.OrdinalIgnoreCase));
+
+    // [EditorBrowsable(Never)]: public for technical reasons, not meant to be written by hand.
+    private static bool IsHiddenFromEditor(ISymbol symbol) =>
+        symbol.GetAttributes().Any(a => a.AttributeClass?.Name == nameof(System.ComponentModel.EditorBrowsableAttribute)
+            && a.ConstructorArguments is [{ Value: int state }] && state == (int)System.ComponentModel.EditorBrowsableState.Never);
+
+    // Flattened index of every public importable type in a referenced assembly, built once per
     // reference and cached for the process lifetime (shared across every tab/service instance, same
     // sharing rationale as ReferenceCache — a MetadataReference is immutable, so its type index is
     // too). Walking the whole namespace tree (EnumerateNamespaceTypes) on every completion keystroke

@@ -228,7 +228,7 @@ public sealed partial class CSharpIntelliSenseService
     }
 
     // Anywhere else: the names in scope and the keywords that fit, narrowed to types inside `List<`
-    // and to what fits where the code wants a type, plus types from packages not imported yet.
+    // and to what fits where the code wants a type, plus types from references not imported yet.
     private sealed class IdentifierProvider(CSharpIntelliSenseService service) : ICompletionProvider
     {
         public SimpleCompletionList? Provide(CompletionRequest request)
@@ -261,10 +261,8 @@ public sealed partial class CSharpIntelliSenseService
                 .Concat(expected is null ? [] : ExpectedTypeSuggestions(expected, model, pos))
                 .Concat(isTypeArgumentPosition || expected is { AfterNew: true } ? [] : NamedArgumentSuggestions(model, root, pos)));
 
-            // Types from added packages not in scope yet, prefix-matched; accepting one adds its using
-            // (UsingsToAdd). Only package references: walking every namespace of the ~170 framework
-            // facades on each new identifier would be slow, and the framework's common types are in
-            // the implicit usings already.
+            // Types from the references not in scope yet, prefix-matched; accepting one adds its using
+            // (UsingsToAdd).
             var prefix = GetIdentifierPrefix(request.Code, request.Position);
             var alreadyVisible = new HashSet<string>(visible.Select(i => i.DisplayText), StringComparer.Ordinal);
             var importable = service.FindImportableTypes(model.Compilation, prefix, alreadyVisible)
