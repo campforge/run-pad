@@ -20,13 +20,12 @@
         <Setter Property="FontFamily" Value="{DynamicResource ContentControlThemeFontFamily}"/>
         <Setter Property="FontSize" Value="{DynamicResource RunPad.Type.Body}"/>
     </Style>
-    <!-- Rounded rows, like the trees' and buttons' highlights; inside a popup they stand 4 px off its
-         rounded border instead of running into it. -->
+    <!-- Rounded rows, like the trees' and buttons' highlights. They stand off the popup's rounded
+         border by the popup's own padding (MenuFlyoutPresenterThemePadding in the theme's metrics),
+         not by a margin of their own: on Wayland a popup is sized before new items get their style,
+         and a margin added then pushed the popup's sides and corners out of it. -->
     <Style Selector="Menu MenuItem, ContextMenu MenuItem, MenuFlyoutPresenter MenuItem">
         <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Control}"/>
-    </Style>
-    <Style Selector="MenuItem MenuItem, ContextMenu MenuItem, MenuFlyoutPresenter MenuItem">
-        <Setter Property="Margin" Value="4,0"/>
     </Style>
     <!-- The editor's completion list, its description tip and parameter info pop up like any menu. -->
     <Style Selector="cc|CompletionListBox, cc|CompletionTipContentControl, cc|OverloadViewer">
