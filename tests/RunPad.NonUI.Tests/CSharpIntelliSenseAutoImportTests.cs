@@ -9,7 +9,7 @@ namespace RunPad.Runtime.UI.Tests;
 // Completion now offers types from an added-but-not-yet-imported NuGet
 // package too (ReSharper-style), tagged with the namespace EditorTabItemControl should add as a
 // `using` if the item is accepted (see EditorCompletionDataTests for the generic accept-side
-// plumbing). Scoped to NuGet references only — see CSharpIntelliSenseService.FindImportableTypes.
+// plumbing). Framework types are offered too, once three letters are typed.
 public class CSharpIntelliSenseAutoImportTests
 {
     private static CSharpIntelliSenseService CreateServiceWithNewtonsoftJson()
@@ -103,5 +103,49 @@ public class CSharpIntelliSenseAutoImportTests
         // Without a package reference, "JsonConvert" simply isn't reachable at all.
         Assert.NotNull(result);
         Assert.DoesNotContain(result!.Items, i => i.DisplayText == "JsonConvert");
+    }
+
+    private static CSharpIntelliSenseService CreateServiceWithoutPackages()
+    {
+        var referenceService = new CSharpReferenceService();
+        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
+        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
+    }
+
+    [Fact]
+    public async Task GetCompletionsAsync_Should_OfferAnUnimportedFrameworkType()
+    {
+        using var service = CreateServiceWithoutPackages();
+        const string code = "StringBuil";
+
+        var result = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);
+
+        var item = Assert.Single(result!.Items, i => i.DisplayText == "StringBuilder");
+        Assert.Equal(["System.Text"], item.UsingsToAdd);
+        Assert.Equal("System.Text", item.Detail);
+    }
+
+    [Fact]
+    public async Task GetCompletionsAsync_Should_NotOfferUnimportedFrameworkTypes_ForOneOrTwoLetters()
+    {
+        using var service = CreateServiceWithoutPackages();
+        const string code = "St";
+
+        var result = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.DoesNotContain(result!.Items, i => i.UsingsToAdd.Count > 0);
+    }
+
+    [Fact]
+    public async Task GetCompletionsAsync_Should_OfferEachTypeOfTheSameName_WithItsNamespace()
+    {
+        using var service = CreateServiceWithNewtonsoftJson();
+        const string code = "JsonSeriali";
+
+        var result = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);
+
+        var namespaces = result!.Items.Where(i => i.DisplayText == "JsonSerializer").Select(i => i.Detail).Order().ToList();
+        Assert.Equal(["Newtonsoft.Json", "System.Text.Json"], namespaces);
     }
 }
