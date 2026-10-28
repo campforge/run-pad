@@ -23,7 +23,7 @@
     <Border x:Name="DialogSurface" Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
             BorderBrush="{DynamicResource RunPad.Border.BackgroundBrush}"
             BorderThickness="1"
-            CornerRadius="8"
+            CornerRadius="{DynamicResource RunPad.Radius.Overlay}"
             Padding="16">
         <Grid RowDefinitions="Auto,Auto,Auto">
 

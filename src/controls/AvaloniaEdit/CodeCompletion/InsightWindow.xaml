@@ -21,6 +21,7 @@
         <Border BorderThickness="{TemplateBinding BorderThickness}"
                 BorderBrush="{TemplateBinding BorderBrush}"
                 Background="{TemplateBinding Background}"
+                CornerRadius="{TemplateBinding CornerRadius}"
                 Padding="{TemplateBinding Padding}">
           <Grid ColumnDefinitions="Auto,*"
                 RowDefinitions="Auto,*">

@@ -41,12 +41,12 @@
                             <Border x:Name="PART_WindowBorder"
                                     BorderThickness="{TemplateBinding FrameThickness}"
                                     BorderBrush="{DynamicResource RunPad.Border.BackgroundBrush}"
-                                    CornerRadius="8"
+                                    CornerRadius="{DynamicResource RunPad.Radius.Overlay}"
                                     IsHitTestVisible="False"/>
                             <Border x:Name="PART_TitleBar" VerticalAlignment="Top"
                                     Height="{TemplateBinding TitleBarHeight}"
                                     Background="{DynamicResource RunPad.Sidebar.BackgroundBrush}"
-                                    CornerRadius="7,7,0,0"
+                                    CornerRadius="{DynamicResource RunPad.Radius.OverlayInnerTop}"
                                     IsVisible="{TemplateBinding HasTitleBar}"
                                     WindowDecorationProperties.ElementRole="TitleBar"/>
                         </Panel>

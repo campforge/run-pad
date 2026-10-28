@@ -112,7 +112,7 @@
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Control}"/>
     </Style>
     <Style Selector="Button.secondary /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
@@ -156,7 +156,7 @@
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Control}"/>
     </Style>
     <!-- NumericUpDown is a ButtonSpinner around an inner TextBox.  Style both layers so its
          value field and increment/decrement buttons stay on the same surface as other inputs. -->
@@ -165,7 +165,7 @@
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Control}"/>
     </Style>
     <Style Selector="NumericUpDown /template/ ButtonSpinner">
         <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>

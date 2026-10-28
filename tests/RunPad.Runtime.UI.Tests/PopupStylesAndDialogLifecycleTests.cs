@@ -132,6 +132,13 @@ public class PopupStylesAndDialogLifecycleTests
             }
             Assert.Equal(new Thickness(4, 0), submenu.Margin);
             Assert.Equal(new Thickness(4, 0), copy.Margin);
+            // Fluent's popup and control radii are the theme's, so every popup has the theme's corner.
+            installed.Theme.TryGetResource("RunPad.Radius.Overlay", null, out var overlay);
+            installed.Theme.TryGetResource("OverlayCornerRadius", null, out var fluentOverlay);
+            installed.Theme.TryGetResource("ControlCornerRadius", null, out var fluentControl);
+            Assert.Equal(overlay, fluentOverlay);
+            Assert.Equal(radius, fluentControl);
+            Assert.Equal((CornerRadius)overlay!, context.CornerRadius);
             foreach (var popup in popups)
             {
                 var chrome = Assert.IsType<Border>(popup.Child);

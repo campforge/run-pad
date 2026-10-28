@@ -48,7 +48,8 @@ public class BorderlessWindowChromeTests
                 var background = Assert.IsAssignableFrom<ISolidColorBrush>(window.Background).Color;
                 Assert.Equal(transparent ? Colors.Transparent : Assert.IsAssignableFrom<ISolidColorBrush>(expected).Color,
                     background);
-                Assert.Equal(transparent ? new CornerRadius(kind == "splash" ? 12 : 8) : default,
+                theme.TryGetResource("RunPad.Radius.Overlay", null, out var overlay);
+                Assert.Equal(transparent ? (CornerRadius)overlay! : default,
                     surface.CornerRadius);
             }
         }
