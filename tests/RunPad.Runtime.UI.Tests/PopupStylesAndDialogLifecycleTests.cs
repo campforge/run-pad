@@ -130,8 +130,10 @@ public class PopupStylesAndDialogLifecycleTests
                 var row = item.GetVisualDescendants().OfType<Border>().First(b => b.Name == "PART_LayoutRoot");
                 Assert.Equal((CornerRadius)radius!, row.CornerRadius);
             }
-            Assert.Equal(new Thickness(4, 0), submenu.Margin);
-            Assert.Equal(new Thickness(4, 0), copy.Margin);
+            // The inset comes from the popup's padding, not the items' margins (see PopupStyles).
+            Assert.Equal(default, submenu.Margin);
+            Assert.Equal(default, copy.Margin);
+            Assert.Equal(new Thickness(4), context.Padding);
             // Fluent's popup and control radii are the theme's, so every popup has the theme's corner.
             installed.Theme.TryGetResource("RunPad.Radius.Overlay", null, out var overlay);
             installed.Theme.TryGetResource("OverlayCornerRadius", null, out var fluentOverlay);
