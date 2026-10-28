@@ -26,6 +26,9 @@
                     <SolidColorBrush x:Key="RunPad.Separator.BackgroundBrush"         Color="#DDD8CF" />
                     <SolidColorBrush x:Key="RunPad.Border.BackgroundBrush"            Color="#D3CEC5" />
                     <SolidColorBrush x:Key="RunPad.Text.PrimaryBrush"                 Color="#2F343B" />
+                    <!-- Fluent's menu popups: a menu bar's dropdowns and submenus draw their own border with these. -->
+                    <SolidColorBrush x:Key="MenuFlyoutPresenterBackground" Color="#F6F3EE" />
+                    <SolidColorBrush x:Key="MenuFlyoutPresenterBorderBrush" Color="#D3CEC5" />
                     <SolidColorBrush x:Key="MenuFlyoutItemForeground" Color="#2F343B" />
                     <SolidColorBrush x:Key="MenuFlyoutItemForegroundPointerOver" Color="#2F343B" />
                     <SolidColorBrush x:Key="MenuFlyoutItemForegroundPressed" Color="#2F343B" />

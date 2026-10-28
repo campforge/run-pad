@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
 using Avalonia.Styling;
@@ -83,6 +84,73 @@ public class PopupStylesAndDialogLifecycleTests
         finally
         {
             context.Close();
+            host.Close();
+            Uninstall(installed);
+        }
+    }
+
+    // A menu bar's dropdown and its submenus are each MenuItem's own popup, not a MenuFlyoutPresenter:
+    // they take the palette's panel colours, look like a context menu, and a submenu opens at its
+    // parent's edge, not over it. The main window's style for the bar's own items stops at the bar.
+    [AvaloniaFact]
+    public void MenuPopups_Should_LookLikeAContextMenu_AndNotOverlapTheParent()
+    {
+        var installed = Install();
+        var file = new MenuItem { Header = "File" };
+        var submenu = new MenuItem { Header = "New RPad File" };
+        submenu.Items.Add(new MenuItem { Header = "C#" });
+        file.Items.Add(submenu);
+        var menu = new Menu();
+        menu.Styles.Add(new Style(x => x.OfType<Menu>().Child().OfType<MenuItem>())
+        {
+            Setters = { new Setter(TemplatedControl.FontSizeProperty, 14.0), new Setter(TemplatedControl.PaddingProperty, new Thickness(4)) },
+        });
+        menu.Items.Add(file);
+        var copy = new MenuItem { Header = "Copy" };
+        var context = new ContextMenu();
+        context.Items.Add(copy);
+        var target = new Border { Width = 100, Height = 20, ContextMenu = context };
+        var host = new Window { Width = 600, Height = 300, Content = new StackPanel { Children = { menu, target } } };
+        try
+        {
+            host.Show();
+            file.IsSubMenuOpen = true;
+            submenu.IsSubMenuOpen = true;
+            context.Open(target);
+            Dispatcher.UIThread.RunJobs();
+            var popups = new[] { file, submenu }
+                .Select(item => item.GetVisualDescendants().OfType<Popup>().Single(p => p.Name == "PART_Popup")).ToArray();
+            Assert.Equal(0, popups[1].HorizontalOffset);
+            Assert.Equal(14, file.FontSize);
+            Assert.Equal(copy.FontSize, submenu.FontSize);
+            Assert.Equal(copy.Padding, submenu.Padding);
+            foreach (var popup in popups)
+            {
+                var chrome = Assert.IsType<Border>(popup.Child);
+                Assert.Equal(context.CornerRadius, chrome.CornerRadius);
+                Assert.Equal(context.Padding, chrome.Padding);
+                Assert.Equal(context.BorderThickness, chrome.BorderThickness);
+            }
+            foreach (var variant in Variants)
+            {
+                host.RequestedThemeVariant = variant;
+                Dispatcher.UIThread.RunJobs();
+                installed.Theme.TryGetResource("RunPad.Panel.BackgroundBrush", variant, out var panel);
+                installed.Theme.TryGetResource("RunPad.Border.BackgroundBrush", variant, out var border);
+                foreach (var popup in popups)
+                {
+                    var chrome = Assert.IsType<Border>(popup.Child);
+                    Assert.Equal(ColorOf((IBrush)panel!), ColorOf(chrome.Background));
+                    Assert.Equal(ColorOf((IBrush)border!), ColorOf(chrome.BorderBrush));
+                }
+                Assert.Equal(ColorOf((IBrush)panel!), ColorOf(context.Background));
+                Assert.Equal(ColorOf((IBrush)border!), ColorOf(context.BorderBrush));
+            }
+        }
+        finally
+        {
+            context.Close();
+            file.IsSubMenuOpen = false;
             host.Close();
             Uninstall(installed);
         }

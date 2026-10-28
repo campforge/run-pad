@@ -69,7 +69,8 @@
                     <!-- Items come from MainWindow.CreateMainMenu (shared with the macOS NativeMenu). -->
                     <Menu x:Name="MainMenu" Background="Transparent" VerticalAlignment="Center">
                         <Menu.Styles>
-                            <Style Selector="MenuItem">
+                            <!-- The bar's own items only: its dropdowns look like every other popup menu (PopupStyles). -->
+                            <Style Selector="Menu > MenuItem">
                                 <Setter Property="Padding" Value="4,4"/>
                                 <Setter Property="FontSize" Value="14"/>
                             </Style>
