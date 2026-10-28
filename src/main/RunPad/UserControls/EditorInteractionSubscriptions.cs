@@ -1,5 +1,5 @@
-using RunPad.Avalonia.CodeTextEditor;
 using AvaloniaEdit.Document;
+using RunPad.Avalonia.CodeTextEditor;
 
 namespace RunPad.UserControls;
 
