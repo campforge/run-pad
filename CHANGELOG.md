@@ -120,6 +120,8 @@ Notable changes in each RunPad release. Downloads are on the
   when long, with the name, type and value of every member on one row.
 - Stopping a debug session clears its paused/running state, current-line highlight and timer when
   execution ends, so the toolbar no longer remains stuck in debugging mode.
+- New untitled tabs get their next available numbered name, and untouched blank tabs are not
+  treated as unsaved work during recovery or application close.
 - On macOS, Control-click works as a right click: it opens context menus and selects the row under
   the pointer, in the sidebar, the editor and every other window.
 - With result wrapping on, ordinary output and errors wrap at the pane width too, long unbroken text
