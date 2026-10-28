@@ -102,6 +102,10 @@ Notable changes in each RunPad release. Downloads are on the
   Menu items are highlighted with rounded corners everywhere, inset from the menu's rounded border.
 - Dropdown lists take the theme's colours too and look like the menus: the same background,
   border, corners and spacing, with rounded rows.
+- Buttons take the theme's colours instead of Fluent's grey, and a form's buttons are as tall as
+  the fields beside them, so a row of them lines up.
+- In the Arguments tab every row's value starts in the Value column, also for an enum, and an
+  enum's default is picked from its values.
 - Windows, dialogs, menus, dropdowns, tooltips and the editor's completion list, parameter info
   and value tips all have the same rounded corners, set by the theme; the splash screen and the
   editor toolbar no longer use a radius of their own.

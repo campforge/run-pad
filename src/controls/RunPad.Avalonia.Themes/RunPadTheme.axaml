@@ -107,6 +107,11 @@
     </Style>
 
     <!-- Secondary form actions follow the palette instead of the platform's grey fill. -->
+    <!-- Dialog and form buttons are as tall as the fields beside them; small buttons with a size of
+         their own (icons, tab close, title bar) don't use these classes. -->
+    <Style Selector=":is(Button).primary, :is(Button).secondary, Button[IsDefault=True], Button[IsCancel=True], :is(TextBox), :is(ComboBox), NumericUpDown">
+        <Setter Property="MinHeight" Value="{DynamicResource RunPad.Size.Control}"/>
+    </Style>
     <Style Selector=":is(Button).secondary">
         <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
