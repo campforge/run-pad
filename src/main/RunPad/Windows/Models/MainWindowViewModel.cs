@@ -85,9 +85,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             {
                 if (frames.Count == 0)
                 {
-                    // A checkpoint containing only pristine in-memory tabs is intentionally empty;
-                    // restore the normal file-backed session instead of starting with no tab.
-                    RestoreSession();
+                    // An explicit empty checkpoint means the user closed all tabs. Do not create
+                    // a fresh blank tab on the next start; only a missing snapshot uses the normal
+                    // file-backed session fallback above.
                 }
                 foreach (var frame in frames)
                 {
