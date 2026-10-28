@@ -13,6 +13,16 @@
     <NoWarn>$(NoWarn);AVLN3001</NoWarn>
   </PropertyGroup>
 
+  <!-- Linux desktop integration (native Wayland, KDE) ships only in Linux builds: a linux-* RID, or
+       no RID on a Linux host. -->
+  <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('linux')) Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('Linux')))">
+    <RunPadLinux>true</RunPadLinux>
+    <DefineConstants>$(DefineConstants);RUNPAD_LINUX</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(RunPadLinux)' == 'true'">
+    <ProjectReference Include="..\..\desktop\RunPad.Desktop.Linux\RunPad.Desktop.Linux.csproj"/>
+  </ItemGroup>
+
   <ItemGroup>
     <AvaloniaResource Include="Assets\**"/>
     <!-- The sidebar's Samples (Services/Examples/ExampleScripts): read from the assembly, never from disk.

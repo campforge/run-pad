@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Linux desktop integration: Avalonia's native Wayland back end and the fixes it needs, and
+       KDE window rules. RunPad references this project only in Linux builds. -->
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Wayland" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="RunPad.NonUI.Tests" />
+  </ItemGroup>
+</Project>

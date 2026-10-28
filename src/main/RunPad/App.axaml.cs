@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -18,12 +19,14 @@ using RunPad.Logging;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Connections;
+using RunPad.Services.Desktop;
 using RunPad.Services.Preferences;
 using RunPad.Services.Recovery;
 using RunPad.Services.Scaling;
 using RunPad.Services.Secrets;
 using RunPad.Services.Setup;
 using RunPad.UserControls;
+using RunPad.Windows;
 using RunPad.Windows.Models;
 using ConnectionsWindow = RunPad.Windows.ConnectionsWindow;
 using DependenciesWindow = RunPad.Windows.DependenciesWindow;
@@ -51,6 +54,12 @@ public class App : Application
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
+        // Fluent puts its bundled Inter first. On Linux use the desktop's own UI font instead, as
+        // VS Code does: $Default is fontconfig's default sans face (Noto Sans on KDE, Cantarell or
+        // Adwaita Sans on GNOME, Ubuntu on Ubuntu). Windows and macOS keep Inter.
+        if (OperatingSystem.IsLinux())
+            Resources["ContentControlThemeFontFamily"] = new FontFamily("$Default");
+        DrawnWindowFrame.Install(DesktopSession.Current);
 
         // Avalonia.Native creates its application-menu
         // exporter in an AppBuilder.AfterSetup callback, i.e. right after this method returns and
@@ -202,6 +211,7 @@ public class App : Application
 
         services.AddSingleton<Application>(this);
         services.AddSingleton<IPreferencesService, PreferencesService>();
+        services.AddSingleton<IDesktopSession>(DesktopSession.Current);
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IFileSystemService, FileSystemService>();
         services.AddSingleton<ISdkProvider, DotnetSdkProvider>();

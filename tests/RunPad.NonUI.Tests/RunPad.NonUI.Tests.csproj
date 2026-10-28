@@ -36,6 +36,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\main\RunPad\RunPad.csproj" />
+    <!-- Pure managed code, so its tests build on every OS although only Linux builds of RunPad ship it. -->
+    <ProjectReference Include="..\..\src\desktop\RunPad.Desktop.Linux\RunPad.Desktop.Linux.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
