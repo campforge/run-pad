@@ -11,8 +11,8 @@ namespace RunPad.Windows;
 /// One title bar design for every window on every system: each window but MainWindow, which draws
 /// its own title row, gets RunPad's title bar (WindowTitleBar, Resources/WindowChrome.axaml) instead of
 /// the system's, with the frame around it left to the platform — the system's border and shadow on
-/// Windows, AppKit's title bar with its traffic lights on macOS, Avalonia's drawn frame on native
-/// Wayland (Resources/WindowDecorations.axaml). Where the system has to draw the title bar itself
+/// Windows and macOS (where RunPad draws its own traffic lights, as MainWindow does), Avalonia's drawn
+/// frame on native Wayland (Resources/WindowDecorations.axaml). Where the system has to draw the title bar itself
 /// (Linux on XWayland or X11, where a client-drawn one comes back as a bare rectangle), windows keep it.
 /// </summary>
 internal static class WindowChrome
@@ -44,8 +44,7 @@ internal static class WindowChrome
         if (window is MainWindow || window.WindowDecorations != WindowDecorations.Full) return;
 
         window.Theme = theme;
-        // macOS keeps its title bar for the traffic lights, with the content drawn under it.
-        window.WindowDecorations = frame == WindowFrame.MacOS ? WindowDecorations.Full : WindowDecorations.BorderOnly;
+        window.WindowDecorations = WindowDecorations.BorderOnly;
         window.ExtendClientAreaToDecorationsHint = true;
         window.ExtendClientAreaTitleBarHeightHint = TitleBarHeight;
         // The title bar now takes room the system's took outside the window: a fixed size grows by it.

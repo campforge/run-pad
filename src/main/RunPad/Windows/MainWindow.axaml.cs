@@ -2,8 +2,6 @@ using System.Reactive;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Chrome;
-using Avalonia.Controls.Shapes;
-using AvaloniaPath = Avalonia.Controls.Shapes.Path;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
@@ -36,7 +34,6 @@ public sealed partial class MainWindow : Window, IDisposable
     // still awaiting a dialog must not start a second, overlapping walk over the dirty tabs.
     private bool _closeConfirmationInProgress;
     private bool _disposed;
-    private bool _macWindowActive;
 
     public MainWindow(
         IPreferencesService prefs,
@@ -97,8 +94,6 @@ public sealed partial class MainWindow : Window, IDisposable
         // Coming back to RunPad from another program is when its files were most likely changed
         // there; scripts outside the watched scripts folder are only noticed this way.
         Activated += (_, _) => _ = editorTabsCtrl.CheckFilesChangedOnDiskAsync();
-        Activated += (_, _) => SetMacWindowButtonsActive(true);
-        Deactivated += (_, _) => SetMacWindowButtonsActive(false);
 
         Closing += OnClosing;
         // The window owns the per-window view model and controls. Dispose them on every
@@ -257,7 +252,7 @@ public sealed partial class MainWindow : Window, IDisposable
             this.FindControl<Menu>("MainMenu")!.IsVisible = false;
             this.FindControl<Image>("AppIconImage")!.IsVisible = false;
             windowControlButtons!.IsVisible = false;
-            this.FindControl<StackPanel>("MacWindowButtons")!.IsVisible = true;
+            this.FindControl<MacWindowButtons>("MacWindowButtons")!.IsVisible = true;
             var sidebarToggle = this.FindControl<Button>("SidebarToggleButton");
             sidebarToggle!.Width = 30;
             this.FindControl<PathIcon>("SidebarToggleIcon")!.Width = 14;
@@ -532,43 +527,6 @@ public sealed partial class MainWindow : Window, IDisposable
         if (e.ClickCount == 2) Maximize_Click(sender, e);
         else BeginMoveDrag(e);
         e.Handled = true;
-    }
-
-    private void SetMacWindowButtonsActive(bool active)
-    {
-        if (this.FindControl<StackPanel>("MacWindowButtons")?.IsVisible != true) return;
-        _macWindowActive = active;
-        if (!active) SetMacWindowGlyphsVisible(false);
-        SetMacWindowDotColors(active);
-    }
-
-    private void SetMacWindowDotColors(bool highlighted)
-    {
-        var color = highlighted ? new[] { "#FF5F57", "#FEBC2E", "#28C840" } : new[] { "#8E8E93", "#8E8E93", "#8E8E93" };
-        foreach (var item in new[] { ("MacCloseDot", color[0]), ("MacMinimizeDot", color[1]), ("MacMaximizeDot", color[2]) })
-            this.FindControl<Ellipse>(item.Item1)!.Fill = new SolidColorBrush(Color.Parse(item.Item2));
-    }
-
-    private void MacWindowButton_PointerEntered(object? sender, PointerEventArgs e)
-    {
-        SetMacWindowDotColors(true);
-        SetMacWindowGlyphsVisible(true);
-    }
-
-    private void MacWindowButtons_PointerExited(object? sender, PointerEventArgs e)
-    {
-        SetMacWindowDotColors(_macWindowActive);
-        if (this.FindControl<StackPanel>("MacWindowButtons")?.IsPointerOver != true)
-            SetMacWindowGlyphsVisible(false);
-    }
-
-    private void SetMacWindowGlyphsVisible(bool visible)
-    {
-        var buttons = this.FindControl<StackPanel>("MacWindowButtons");
-        if (buttons is null) return;
-        foreach (var button in buttons.Children.OfType<Button>())
-            if (button.Content is Grid grid && grid.Children.Count > 1)
-                ((AvaloniaPath)grid.Children[1]).IsVisible = visible;
     }
 
     private void Minimize_Click(object? sender, RoutedEventArgs e)

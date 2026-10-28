@@ -10,9 +10,6 @@ namespace RunPad.Windows;
 
 public partial class WindowTitleBar : UserControl
 {
-    // MacOS keeps AppKit's traffic-light buttons at the left of the title bar.
-    private const double MacOSButtonsWidth = 78;
-
     public WindowTitleBar()
     {
         AvaloniaXamlLoader.Load(this);
@@ -25,18 +22,19 @@ public partial class WindowTitleBar : UserControl
     {
         base.OnAttachedToVisualTree(e);
         var bar = this.FindControl<Border>("Bar")!;
-        switch (Mode)
+        if (Mode == TitleBarMode.MacOS)
         {
-            case TitleBarMode.MacOS:
-                this.FindControl<StackPanel>("Buttons")!.IsVisible = false;
-                this.FindControl<TextBlock>("TitleText")!.Margin = new Thickness(MacOSButtonsWidth, 0, 12, 0);
-                break;
-            case TitleBarMode.AppDrag:
-                // Wayland hands a press on a TitleBar-role element straight to the compositor as a move,
-                // so a double click never reaches the app: drag and maximize here instead.
-                WindowDecorationProperties.SetElementRole(bar, WindowDecorationsElementRole.None);
-                bar.AddHandler(PointerPressedEvent, Bar_PointerPressed);
-                break;
+            this.FindControl<StackPanel>("Buttons")!.IsVisible = false;
+            this.FindControl<MacWindowButtons>("MacButtons")!.IsVisible = true;
+            this.FindControl<TextBlock>("TitleText")!.Margin = new Thickness(4, 0, 12, 0);
+        }
+        if (Mode != TitleBarMode.Native)
+        {
+            // Wayland hands a press on a TitleBar-role element straight to the compositor as a move, so
+            // a double click never reaches the app; MainWindow drags itself on macOS too. Drag and
+            // maximize here instead.
+            WindowDecorationProperties.SetElementRole(bar, WindowDecorationsElementRole.None);
+            bar.AddHandler(PointerPressedEvent, Bar_PointerPressed);
         }
     }
 
@@ -82,6 +80,6 @@ internal enum TitleBarMode
     /// <summary>RunPad drags and maximizes itself (native Wayland).</summary>
     AppDrag,
 
-    /// <summary>AppKit's traffic-light buttons instead of RunPad's; the platform drags the window.</summary>
+    /// <summary>RunPad's own traffic lights (MacWindowButtons) on the left; RunPad drags and zooms itself.</summary>
     MacOS,
 }
