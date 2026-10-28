@@ -6,8 +6,9 @@ using Avalonia.Styling;
 namespace RunPad.Desktop.Windows;
 
 /// <summary>
-/// RunPad on Windows: the main window draws its own title row; the other windows keep the system
-/// title bar, which is made dark with a dark theme instead of staying light.
+/// RunPad on Windows: windows draw their own title bars inside the system's border. With a dark
+/// theme the system's part of a window — its border, and the title bar of a window that keeps the
+/// system's — is made dark as well, instead of staying light.
 /// </summary>
 public sealed class WindowsDesktopIntegration : IDesktopIntegration
 {

@@ -69,8 +69,9 @@ Notable changes in each RunPad release. Downloads are on the
   Inter.
 - **Restore open tabs and unsaved changes** moved from Preferences → Interface to Preferences →
   Editor.
-- On Windows, the title bars of dialogs and other windows turn dark with a dark theme instead of
-  staying light.
+- Every window has the same title bar as the main window — its colors, title and window buttons —
+  on Windows, macOS (beside the system's traffic lights) and Linux on Wayland, instead of the
+  system's. A dialog that can't be resized has only a close button.
 
 ### Fixed
 
