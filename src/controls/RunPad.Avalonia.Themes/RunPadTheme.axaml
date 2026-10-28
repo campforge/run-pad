@@ -107,12 +107,17 @@
     </Style>
 
     <!-- Secondary form actions follow the palette instead of the platform's grey fill. -->
+    <!-- Dialog and form buttons are as tall as the fields beside them; small buttons with a size of
+         their own (icons, tab close, title bar) don't use these classes. -->
+    <Style Selector=":is(Button).primary, :is(Button).secondary, Button[IsDefault=True], Button[IsCancel=True], :is(TextBox), :is(ComboBox), NumericUpDown">
+        <Setter Property="MinHeight" Value="{DynamicResource RunPad.Size.Control}"/>
+    </Style>
     <Style Selector=":is(Button).secondary">
         <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Control}"/>
     </Style>
     <Style Selector="Button.secondary /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
@@ -156,7 +161,7 @@
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Control}"/>
     </Style>
     <!-- NumericUpDown is a ButtonSpinner around an inner TextBox.  Style both layers so its
          value field and increment/decrement buttons stay on the same surface as other inputs. -->
@@ -165,7 +170,7 @@
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Control}"/>
     </Style>
     <Style Selector="NumericUpDown /template/ ButtonSpinner">
         <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
@@ -257,6 +262,17 @@
     <Style Selector="GridSplitter.seam[ResizeDirection=Rows] /template/ Border#PART_Line">
         <Setter Property="Height" Value="1"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <!-- Keep the seam subtle at rest, with a soft accent only while it is being used. -->
+    <Style Selector="GridSplitter.seam:pointerover /template/ Border#PART_Line,
+                    GridSplitter.seam:focus /template/ Border#PART_Line">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+        <Setter Property="Opacity" Value="1"/>
+        <Setter Property="Effect">
+            <DropShadowEffect BlurRadius="5"
+                              Opacity="0.12"
+                              Color="{DynamicResource RunPad.Tab.AccentColor}"/>
+        </Setter>
     </Style>
 
     <!-- One focus geometry for shell controls, including the tree's template focus target.
@@ -389,6 +405,10 @@
     </Style>
     <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
         <Setter Property="Foreground" Value="{DynamicResource RunPad.ToolTab.SelectedForegroundBrush}"/>
+    </Style>
+    <!-- Dropdown rows are rounded like menu items (PopupStyles). -->
+    <Style Selector="ComboBoxItem">
+        <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Control}"/>
     </Style>
     <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>

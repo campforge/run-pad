@@ -13,6 +13,8 @@ namespace RunPad.Runtime.UI.Tests;
 // The stages a compile or run goes through reach the host's StageChanged in order: what the
 // compiler reports, then Running once the script's process has started. A failed or cancelled stage
 // is the last one reported.
+[Trait("Category", "Integration")]
+[Trait("Category", "RealBuild")]
 public sealed class CompiledDotnetLanguageHostStageTests : IDisposable
 {
     private readonly string _outputDir = Path.Combine(Path.GetTempPath(), "runpad-tests-" + Guid.NewGuid());

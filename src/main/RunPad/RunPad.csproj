@@ -5,13 +5,27 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <Product>RunPad</Product>
-    <Version>0.9.5</Version>
+    <Version>0.10.0</Version>
     <Authors>hobobyte</Authors>
     <Company>hobobyte</Company>
     <Copyright>© 2026 Vadim S (hobobyte)</Copyright>
     <!-- AVLN3001: XAML controls using constructor DI have no public ctor — expected pattern -->
     <NoWarn>$(NoWarn);AVLN3001</NoWarn>
   </PropertyGroup>
+
+  <!-- Desktop integration: the contract on every OS, and the implementation for the OS this build is
+       for only — a matching RID, or no RID on that host. Its native dependencies (Avalonia.Wayland on
+       Linux) stay out of the other systems' builds. -->
+  <PropertyGroup>
+    <RunPadDesktopOS Condition="$(RuntimeIdentifier.StartsWith('linux')) Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('Linux')))">Linux</RunPadDesktopOS>
+    <RunPadDesktopOS Condition="$(RuntimeIdentifier.StartsWith('osx')) Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('OSX')))">MacOS</RunPadDesktopOS>
+    <RunPadDesktopOS Condition="$(RuntimeIdentifier.StartsWith('win')) Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('Windows')))">Windows</RunPadDesktopOS>
+    <DefineConstants Condition="'$(RunPadDesktopOS)' != ''">$(DefineConstants);RUNPAD_$(RunPadDesktopOS.ToUpperInvariant())</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\desktop\RunPad.Desktop\RunPad.Desktop.csproj"/>
+    <ProjectReference Condition="'$(RunPadDesktopOS)' != ''" Include="..\..\desktop\RunPad.Desktop.$(RunPadDesktopOS)\RunPad.Desktop.$(RunPadDesktopOS).csproj"/>
+  </ItemGroup>
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**"/>
@@ -114,6 +128,15 @@
     <Compile Update="UserControls\FileTreeView.cs">
       <DependentUpon>FileTreeView.axaml</DependentUpon>
       <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="UserControls\EditorTabItemControl.Preview.cs">
+      <DependentUpon>EditorTabItemControl.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="UserControls\EditorTabItemControl.PreviewScroll.cs">
+      <DependentUpon>EditorTabItemControl.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="UserControls\ConnectionNavigationView.cs">
+      <DependentUpon>ConnectionNavigationView.axaml</DependentUpon>
     </Compile>
   </ItemGroup>
 

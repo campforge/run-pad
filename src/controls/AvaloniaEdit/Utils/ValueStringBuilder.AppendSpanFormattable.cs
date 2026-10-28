@@ -3,8 +3,6 @@
 
 // Source taken from https://github.com/dotnet/runtime/blob/v11.0.100/src/libraries/Common/src/System/Text/ValueStringBuilder.AppendSpanFormattable.cs
 
-using System;
-
 #nullable enable
 
 namespace AvaloniaEdit.Utils;

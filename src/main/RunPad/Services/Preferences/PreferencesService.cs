@@ -22,6 +22,7 @@ public sealed class PreferencesService : IPreferencesService
     public LayoutSettings Layout => _settings.Layout;
     public SessionSettings Session => _settings.Session;
     public ExperimentalSettings Experimental => _settings.Experimental;
+    public Dictionary<string, bool> System => _settings.System;
 
     public event Action? Changed;
 
@@ -39,6 +40,24 @@ public sealed class PreferencesService : IPreferencesService
         File.WriteAllText(tmp, JsonSerializer.Serialize(_settings, SerializerOptions));
         File.Move(tmp, SettingsPath, overwrite: true);
         Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// The settings as saved, for choices made before Avalonia (and this service) start;
+    /// defaults when the file is missing or unreadable.
+    /// </summary>
+    internal static AppSettings ReadForStartup()
+    {
+        try
+        {
+            return File.Exists(SettingsPath)
+                ? JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(SettingsPath)) ?? new()
+                : new();
+        }
+        catch (Exception)
+        {
+            return new();
+        }
     }
 
     private void Load()

@@ -75,7 +75,7 @@
                 Background="{DynamicResource RunPad.Toolbar.BackgroundBrush}"
                 BorderBrush="{DynamicResource RunPad.Toolbar.BorderBrush}"
                 BorderThickness="1"
-                CornerRadius="6"
+                CornerRadius="{DynamicResource RunPad.Radius.Overlay}"
                 ClipToBounds="True"
                 Margin="6,4">
             <Panel>

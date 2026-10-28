@@ -16,6 +16,8 @@ namespace RunPad.NonUI.Tests;
 // and namespaces) as well as the LINQPad member style (a bare Main at the top level).
 [Trait("Category", "RealBuild")]
 [Collection(RealBuildTestCollection.Name)]
+[Trait("Category", "Integration")]
+[Trait("Category", "RealBuild")]
 public class LinqPadCompatibilityRunTests
 {
     [Fact]

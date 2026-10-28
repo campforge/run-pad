@@ -8,7 +8,6 @@ using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using RunPad.Contracts.IntelliSense;
-using RunPad.Languages.CSharp;
 using ContractSeverity = RunPad.Contracts.IntelliSense.DiagnosticSeverity;
 using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
 

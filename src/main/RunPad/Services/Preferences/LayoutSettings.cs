@@ -7,6 +7,11 @@ public sealed class LayoutSettings
     public double DebugPanelHeight { get; set; } = 220;
     public bool DebugPanelCollapsed { get; set; }
 
+    /// <summary>Main window client size when last closed in the normal state; null until then.</summary>
+    public double? WindowWidth { get; set; }
+    public double? WindowHeight { get; set; }
+    public bool WindowMaximized { get; set; }
+
     /// <summary>Folded sections of the sidebar: "Connections", "Scripts", "Samples". Samples starts folded.</summary>
     public List<string> CollapsedSidebarSections { get; set; } = ["Samples"];
 

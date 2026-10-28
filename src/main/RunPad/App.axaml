@@ -7,6 +7,8 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceInclude Source="avares://RunPad/Resources/Icons.axaml"/>
+                <ResourceInclude Source="avares://RunPad/Resources/WindowDecorations.axaml"/>
+                <ResourceInclude Source="avares://RunPad/Resources/WindowChrome.axaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
@@ -21,5 +23,8 @@
         <StyleInclude Source="avares://MarkView.Avalonia/Themes/MarkdownTheme.axaml"/>
         <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"/>
         <StyleInclude Source="avares://RunPad/Resources/PopupStyles.axaml"/>
+        <Style Selector="Window">
+            <Setter Property="WindowDecorationsTheme" Value="{StaticResource RunPadWindowDecorations}"/>
+        </Style>
     </Application.Styles>
 </Application>

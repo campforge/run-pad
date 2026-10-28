@@ -5,7 +5,6 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using ReactiveUI;
 using RunPad.Connectors.Grpc;
 using RunPad.Connectors.Http;
 using RunPad.Connectors.Sqlite;
@@ -19,12 +18,14 @@ using RunPad.Logging;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Connections;
+using RunPad.Services.Desktop;
 using RunPad.Services.Preferences;
 using RunPad.Services.Recovery;
 using RunPad.Services.Scaling;
 using RunPad.Services.Secrets;
 using RunPad.Services.Setup;
 using RunPad.UserControls;
+using RunPad.Windows;
 using RunPad.Windows.Models;
 using ConnectionsWindow = RunPad.Windows.ConnectionsWindow;
 using DependenciesWindow = RunPad.Windows.DependenciesWindow;
@@ -69,8 +70,9 @@ public class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
-        // macOS: Control-click opens context menus as a right click does (Services/ControlClick).
-        ControlClick.RegisterForApp();
+        // App-wide setup of this OS's desktop integration (macOS's Control-click, Linux's UI font, …).
+        DesktopIntegration.Current.OnApplicationStarted(this);
+        WindowChrome.Install(this, DesktopIntegration.Current);
         var serviceProvider = ConfigureServices();
         _serviceProvider = serviceProvider;
 
@@ -182,6 +184,20 @@ public class App : Application
             if (window.IsVisible) window.Close();
             throw;
         }
+        _ = RevealStartupWindowAsync(window, desktop, previous, targetOpacity);
+    }
+
+    // At most this long behind the splash, so a stuck tab can't keep RunPad from showing at all.
+    internal static TimeSpan StartupReadyTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    private static async Task RevealStartupWindowAsync(Window window,
+        IClassicDesktopStyleApplicationLifetime desktop, Window? previous, double targetOpacity)
+    {
+        if (window is IStartupWindow { Ready: { IsCompleted: false } ready })
+        {
+            (previous as SplashWindow)?.SetStartupStatus("Opening scripts…");
+            await Task.WhenAny(ready, Task.Delay(StartupReadyTimeout));
+        }
         // Give the destination two frames: one for the initial layout and one for bindings and
         // deferred control initialization. Only then reveal it and close the previous window.
         Dispatcher.UIThread.Post(() =>
@@ -203,6 +219,7 @@ public class App : Application
 
         services.AddSingleton<Application>(this);
         services.AddSingleton<IPreferencesService, PreferencesService>();
+        services.AddSingleton(DesktopIntegration.Current);
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IFileSystemService, FileSystemService>();
         services.AddSingleton<ISdkProvider, DotnetSdkProvider>();
@@ -232,6 +249,8 @@ public class App : Application
         services.AddTransient<MainWindow>();
         services.AddSingleton<IRecoveryStore>(_ => new DiskRecoveryStore(Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RunPad", "recovery", "v1")));
+        services.AddSingleton<ISessionSnapshotLoader, DiskSessionSnapshotLoader>();
+        services.AddTransient<ISessionRecoveryCoordinator, SessionRecoveryCoordinator>();
         services.AddTransient<MainWindowViewModel>();
         services.AddTransient<PreferencesWindowViewModel>();
         services.AddTransient<DependenciesWindowViewModel>();
@@ -255,14 +274,16 @@ public class App : Application
             ConnectionSchemaCache.DefaultFolder, DotnetConnectionTools.Default,
             sp.GetRequiredService<ISecretStore>().Find));
         services.AddSingleton<IConnectionStore>(_ => new FileConnectionStore());
-        services.AddSingleton(sp => new RunPad.UserControls.Models.ConnectionNavigationViewModel(
+        // Navigation rows and attached/collapsed state belong to one main-window session.
+        services.AddTransient(sp => new RunPad.UserControls.Models.ConnectionNavigationViewModel(
             sp.GetRequiredService<IConnectionStore>(), sp.GetRequiredService<ConnectionDriverRegistry>(),
             secrets: sp.GetRequiredService<ISecretStore>(), schemas: sp.GetRequiredService<ConnectionSchemas>()));
         services.AddTransient<ConnectionsWindowViewModel>();
         services.AddTransient<ConnectionsWindow>();
         services.AddTransient<SetupWizardViewModel>();
         services.AddTransient<SetupWizardWindow>();
-        services.AddSingleton<EditorTabsControl>();
+        // The control owns tab controls and subscriptions; it must follow MainWindow's lifetime.
+        services.AddTransient<EditorTabsControl>();
 
         // WindowService's own Func<TWindow> factories (a fresh Transient instance
         // each time a dialog is shown).

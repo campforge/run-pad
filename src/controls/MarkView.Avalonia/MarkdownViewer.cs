@@ -16,7 +16,6 @@ using Markdig;
 
 using MarkView.Avalonia.Extensions;
 using MarkView.Avalonia.Rendering;
-using MarkView.Avalonia.Rendering.Inlines;
 
 namespace MarkView.Avalonia;
 

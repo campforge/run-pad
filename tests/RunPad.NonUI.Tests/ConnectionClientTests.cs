@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging.Abstractions;
-using RunPad.Build.Core.Models;
 using RunPad.Connectors.Http;
 using RunPad.Contracts.Connections;
 using RunPad.Contracts.IntelliSense;

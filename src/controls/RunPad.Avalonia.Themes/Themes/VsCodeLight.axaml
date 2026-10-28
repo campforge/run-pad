@@ -8,6 +8,7 @@
                 <ResourceDictionary x:Key="{x:Static themes:RunPadThemeVariants.VsCodeLight}">
                     <SolidColorBrush x:Key="RunPad.Sidebar.BackgroundBrush"           Color="#F3F3F3" />
                     <SolidColorBrush x:Key="RunPad.Toolbar.BackgroundBrush"           Color="#F3F3F3" />
+                    <SolidColorBrush x:Key="RunPad.TitleBar.BackgroundBrush"          Color="#F3F3F3" />
                     <SolidColorBrush x:Key="RunPad.Toolbar.BorderBrush"               Color="#E7E7E7" />
                     <SolidColorBrush x:Key="RunPad.Editor.BackgroundBrush"            Color="#FFFFFF" />
                     <SolidColorBrush x:Key="RunPad.Editor.SelectionBrush"             Color="#ADD6FF" />
@@ -25,6 +26,25 @@
                     <SolidColorBrush x:Key="RunPad.Separator.BackgroundBrush"         Color="#E7E7E7" />
                     <SolidColorBrush x:Key="RunPad.Border.BackgroundBrush"            Color="#DDDDDD" />
                     <SolidColorBrush x:Key="RunPad.Text.PrimaryBrush"                 Color="#383838" />
+                    <!-- Fluent's menu popups: a menu bar's dropdowns and submenus draw their own border with these. -->
+                    <SolidColorBrush x:Key="MenuFlyoutPresenterBackground" Color="#F3F3F3" />
+                    <SolidColorBrush x:Key="MenuFlyoutPresenterBorderBrush" Color="#DDDDDD" />
+                    <!-- Fluent's ComboBox dropdown: the same surface as the menus. -->
+                    <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="#F3F3F3" />
+                    <SolidColorBrush x:Key="ComboBoxDropDownBorderBrush" Color="#DDDDDD" />
+                    <!-- Fluent's plain buttons (and DropDownButton): the secondary button's surface. -->
+                    <SolidColorBrush x:Key="ButtonBackground" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#E0E0E0" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#F3F3F3" />
+                    <SolidColorBrush x:Key="ButtonBorderBrush" Color="#DDDDDD" />
+                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#DDDDDD" />
+                    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#DDDDDD" />
+                    <SolidColorBrush x:Key="ButtonForeground" Color="#383838" />
+                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#383838" />
+                    <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#383838" />
+                    <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="#DDDDDD" />
+                    <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#6D6D6D" />
                     <SolidColorBrush x:Key="MenuFlyoutItemForeground" Color="#383838" />
                     <SolidColorBrush x:Key="MenuFlyoutItemForegroundPointerOver" Color="#383838" />
                     <SolidColorBrush x:Key="MenuFlyoutItemForegroundPressed" Color="#383838" />

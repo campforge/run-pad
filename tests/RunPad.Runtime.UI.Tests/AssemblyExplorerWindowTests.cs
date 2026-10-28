@@ -18,7 +18,6 @@ using RunPad.Build.Core.Models;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.CSharp.Compiler;
 using RunPad.Languages.DotnetCommon;
-using RunPad.Languages.DotnetCommon.Compiler;
 using RunPad.Languages.DotnetCommon.Sdk;
 using RunPad.Services;
 using RunPad.Services.Preferences;
@@ -40,6 +39,8 @@ namespace RunPad.Runtime.UI.Tests;
 // 3 tests; they only ever READ the resulting binary, so it's compiled once via IClassFixture and
 // shared. RecursiveCode below is still built inline — only one test needs it, so there's nothing to
 // share.
+[Trait("Category", "Integration")]
+[Trait("Category", "Decompiler")]
 public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowTests.CompiledExplorerAssembly>
 {
     private readonly CompiledExplorerAssembly _explorerAssembly;

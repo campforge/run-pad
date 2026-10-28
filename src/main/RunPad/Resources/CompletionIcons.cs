@@ -28,7 +28,7 @@ public static class CompletionIcons
 
     private static (string Geometry, string Color) GetGeometryAndColor(CompletionItemKind kind) => kind switch
     {
-        CompletionItemKind.Method => (AlphaMBoxOutline, Purple),
+        CompletionItemKind.Method or CompletionItemKind.ExtensionMethod => (AlphaMBoxOutline, Purple),
         CompletionItemKind.Function => (CodeBraces, Purple),
         CompletionItemKind.Constructor => (CubeOutline, Purple),
 

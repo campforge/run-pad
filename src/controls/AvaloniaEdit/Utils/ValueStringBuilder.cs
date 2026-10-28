@@ -3,7 +3,6 @@
 
 // Source taken from: https://github.com/dotnet/runtime/blob/v11.0.100/src/libraries/Common/src/System/Text/ValueStringBuilder.cs
 
-using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;

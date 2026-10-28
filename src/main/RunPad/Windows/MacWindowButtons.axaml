@@ -1,0 +1,58 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="RunPad.Windows.MacWindowButtons"
+             VerticalAlignment="Center">
+    <!-- RunPad's own macOS window buttons, drawn like AppKit's traffic lights so every window's title
+         bar is RunPad's (AppKit's own are not used): grey while the window is inactive, glyphs while
+         the pointer is over them. Used by MainWindow's title row and WindowTitleBar. -->
+    <UserControl.Styles>
+        <Style Selector="Button.mac-window-btn">
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <ControlTemplate TargetType="Button">
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.mac-window-btn:disabled">
+            <Setter Property="Opacity" Value="0.4"/>
+        </Style>
+        <Style Selector="Button.mac-window-btn Path">
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel x:Name="Buttons" Orientation="Horizontal" Spacing="2" Margin="4,0,4,0" PointerExited="Buttons_PointerExited">
+        <Button Classes="mac-window-btn" Click="Close_Click" PointerEntered="Button_PointerEntered" AutomationProperties.Name="Close">
+            <Grid>
+                <Ellipse x:Name="CloseDot" Width="14" Height="14" Fill="#FF5F57"/>
+                <Path Classes="mac-close-glyph" IsVisible="False" Width="13" Height="13" Stretch="None"
+                      Data="M 3.5,3.5 L 9.5,9.5 M 9.5,3.5 L 3.5,9.5" Stroke="#7A0000" StrokeThickness="2" StrokeLineCap="Round"/>
+            </Grid>
+        </Button>
+        <Button x:Name="MinimizeButton" Classes="mac-window-btn" Click="Minimize_Click" PointerEntered="Button_PointerEntered" AutomationProperties.Name="Minimize">
+            <Grid>
+                <Ellipse x:Name="MinimizeDot" Width="14" Height="14" Fill="#FEBC2E"/>
+                <Path IsVisible="False" Width="13" Height="13" Stretch="None"
+                      Data="M 3.5,6.5 H 9.5" Stroke="#7A5700" StrokeThickness="2" StrokeLineCap="Round"/>
+            </Grid>
+        </Button>
+        <Button x:Name="ZoomButton" Classes="mac-window-btn" Click="Zoom_Click" PointerEntered="Button_PointerEntered" AutomationProperties.Name="Zoom">
+            <Grid>
+                <Ellipse x:Name="ZoomDot" Width="14" Height="14" Fill="#28C840"/>
+                <Path IsVisible="False" Width="13" Height="13" Stretch="None"
+                      Data="M 3.5,6 V 3.5 H 6 M 9.5,7 V 9.5 H 7" Stroke="#006A1B" StrokeThickness="2" StrokeLineCap="Round"/>
+            </Grid>
+        </Button>
+    </StackPanel>
+</UserControl>

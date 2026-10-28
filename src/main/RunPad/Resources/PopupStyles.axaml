@@ -1,5 +1,10 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:search="using:AvaloniaEdit.Search" x:Class="RunPad.Resources.PopupStyles">
+        xmlns:search="using:AvaloniaEdit.Search" xmlns:cc="using:AvaloniaEdit.CodeCompletion"
+        x:Class="RunPad.Resources.PopupStyles">
+    <Styles.Resources>
+        <!-- Fluent pulls a submenu 4 px over its parent menu; open it right at the parent's edge. -->
+        <x:Double x:Key="MenuFlyoutSubItemPopupHorizontalOffset">0</x:Double>
+    </Styles.Resources>
     <Style Selector="FlyoutPresenter, MenuFlyoutPresenter, ContextMenu, ToolTip">
         <Setter Property="Background" Value="{DynamicResource RunPad.Panel.BackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
@@ -8,10 +13,24 @@
         <Setter Property="FontFamily" Value="{DynamicResource ContentControlThemeFontFamily}"/>
         <Setter Property="FontSize" Value="{DynamicResource RunPad.Type.Body}"/>
     </Style>
-    <!-- Items of menus and popup menus only: a MenuItem placed anywhere else keeps its own look. -->
+    <!-- Items of menus and popup menus only: a MenuItem placed anywhere else keeps its own look.
+         A menu bar's dropdowns, context menus and flyout menus share one text size. -->
     <Style Selector="Menu MenuItem, ContextMenu MenuItem, MenuFlyoutPresenter MenuItem">
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
         <Setter Property="FontFamily" Value="{DynamicResource ContentControlThemeFontFamily}"/>
+        <Setter Property="FontSize" Value="{DynamicResource RunPad.Type.Body}"/>
+    </Style>
+    <!-- Rounded rows, like the trees' and buttons' highlights. They stand off the popup's rounded
+         border by the popup's own padding (MenuFlyoutPresenterThemePadding in the theme's metrics),
+         not by a margin of their own: on Wayland a popup is sized before new items get their style,
+         and a margin added then pushed the popup's sides and corners out of it. -->
+    <Style Selector="Menu MenuItem, ContextMenu MenuItem, MenuFlyoutPresenter MenuItem">
+        <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Control}"/>
+    </Style>
+    <!-- The editor's completion list, its description tip and parameter info pop up like any menu. -->
+    <Style Selector="cc|CompletionListBox, cc|CompletionTipContentControl, cc|OverloadViewer">
+        <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Overlay}"/>
+        <Setter Property="ClipToBounds" Value="True"/>
     </Style>
     <Style Selector="MenuFlyoutPresenter Separator, ContextMenu Separator, Menu Separator">
         <Setter Property="Background" Value="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
@@ -28,7 +47,7 @@
     </Style>
     <Style Selector="search|SearchPanel">
         <Setter Property="Margin" Value="6,0"/>
-        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Overlay}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Background" Value="{DynamicResource RunPad.Panel.BackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>

@@ -3,7 +3,6 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Primitives.PopupPositioning;
 using Avalonia.Input;
-using Avalonia.LogicalTree;
 using Avalonia.Media;
 using AvaloniaEdit.Editing;
 using AvaloniaEdit.Rendering;
@@ -31,6 +30,16 @@ internal sealed class MemberTemplateOffer : TextAreaStackedInputHandler
             FontSize = Math.Max(8, editor.FontSize * 0.85),
             Foreground = editor.Foreground,
         };
+        var border = new Border
+        {
+            Background = editor.Background ?? Brushes.White,
+            BorderBrush = editor.Foreground ?? Brushes.Gray,
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(6, 2),
+            Child = Hint,
+        };
+        // The theme's radius for popups (Fluent's key, which the app maps to its own).
+        border.Bind(Border.CornerRadiusProperty, border.GetResourceObservable("OverlayCornerRadius"));
         _popup = new Popup
         {
             // Placed like the completion window, just below the caret's line.
@@ -41,15 +50,7 @@ internal sealed class MemberTemplateOffer : TextAreaStackedInputHandler
             PlacementGravity = PopupGravity.BottomRight,
             IsLightDismissEnabled = false,
             Focusable = false,
-            Child = new Border
-            {
-                Background = editor.Background ?? Brushes.White,
-                BorderBrush = editor.Foreground ?? Brushes.Gray,
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(3),
-                Padding = new Thickness(6, 2),
-                Child = Hint,
-            },
+            Child = border,
         };
     }
 

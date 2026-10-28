@@ -10,7 +10,6 @@ using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.CSharp.IntelliSense;
-using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -184,6 +183,8 @@ public class EditorTabItemControlCodeFixSettingsTests
     // ExcludedDiagnosticIds here) — confirms the default value actually suppresses the real
     // suggestion in practice, not merely in the settings object.
     [AvaloniaFact]
+    [Trait("Category", "Integration")]
+    [Trait("Category", "Roslyn")]
     public async Task FixFormatting_Should_NotAppear_ByDefault_ForRealBadlyFormattedCode()
     {
         var prefs = MakePrefs();

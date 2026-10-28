@@ -50,7 +50,26 @@ public sealed class ArgumentRowViewModel : ReactiveObject
     }
 
     /// <summary>The default value; empty for none. A list has one item per line.</summary>
-    public string DefaultText { get => _defaultText; set => Set(ref _defaultText, value ?? ""); }
+    public string DefaultText
+    {
+        get => _defaultText;
+        set
+        {
+            Set(ref _defaultText, value ?? "");
+            this.RaisePropertyChanged(nameof(EnumDefault));
+        }
+    }
+
+    /// <summary>An enum's default, picked from its values. The ComboBox clears its selection while
+    /// the values are retyped; that keeps the default instead of dropping it.</summary>
+    public string? EnumDefault
+    {
+        get => EnumValues.Contains(_defaultText) ? _defaultText : null;
+        set
+        {
+            if (value is not null) DefaultText = value;
+        }
+    }
 
     /// <summary>An enum's values, separated by commas.</summary>
     public string ValuesText
@@ -60,6 +79,7 @@ public sealed class ArgumentRowViewModel : ReactiveObject
         {
             Set(ref _valuesText, value ?? "");
             this.RaisePropertyChanged(nameof(EnumValues));
+            this.RaisePropertyChanged(nameof(EnumDefault));
         }
     }
 

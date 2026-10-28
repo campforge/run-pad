@@ -13,6 +13,7 @@ public partial class ConnectionsWindow : Window
         InitializeComponent();
         DataContext = viewModel;
         Closing += OnClosing;
+        Closed += (_, _) => viewModel.Dispose();
         // One Add entry per driver this RunPad has, in registration order.
         var menu = (MenuFlyout)AddButton.Flyout!;
         foreach (var driver in viewModel.Drivers)

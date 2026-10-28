@@ -1,4 +1,3 @@
-using Avalonia.Input;
 using AvaloniaEdit;
 using AvaloniaEdit.Search;
 using RunPad.Avalonia.CodeTextEditor;

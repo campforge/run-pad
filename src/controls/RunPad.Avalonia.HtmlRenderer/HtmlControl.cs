@@ -19,7 +19,6 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Media.Immutable;
 using Avalonia.Metadata;
-using Avalonia.Threading;
 using RunPad.Avalonia.HtmlRenderer.External.Core;
 using RunPad.Avalonia.HtmlRenderer.External.Core.Entities;
 

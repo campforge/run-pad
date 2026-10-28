@@ -15,6 +15,8 @@ namespace RunPad.Runtime.UI.Tests;
 // then dispose (kill) the process and never read its exit code — `Environment.Exit(7)` looked like a
 // success, and a script that closed its own output streams was killed while still running. Now the
 // run completes when the process exits and reports how it ended (RunResult).
+[Trait("Category", "Integration")]
+[Trait("Category", "RealBuild")]
 public class CompiledDotnetLanguageHostRunResultTests
 {
     private sealed class FakeCompiler(ProcessCompilerResult result) : IDotnetProcessCompiler

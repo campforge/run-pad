@@ -239,53 +239,92 @@ public partial class ConnectionNavigationView : UserControl
 
     // ── Context menu ──────────────────────────────────────────────────────────
 
+    // The items are built once, like those of the menus declared in XAML, and each opening only
+    // updates what they say and whether they show. Items created anew on every opening left the
+    // popup, on Wayland, at the size of its first layout before they were styled, which cut off its
+    // sides and rounded corners.
+    private readonly List<Control> _menuItems = [];
+    private MenuItem _addToScript = null!, _refreshConnection = null!, _editConnection = null!, _newGroup = null!,
+        _renameGroup = null!, _deleteGroup = null!, _moveUp = null!, _moveDown = null!, _moveTo = null!, _refreshAll = null!;
+    private Separator _connectionSeparator = null!;
+    private ConnectionNavigationNode? _menuNode;
+
+    private void BuildContextMenu(ContextMenu menu)
+    {
+        _addToScript = Item("Add to Script", "Icon.ConnectionAttached", true,
+            () => OnMenuNode(node => RaiseEvent(new ConnectionNavigationEventArgs(AddToScriptEvent, node.Id))));
+        _refreshConnection = Item("Refresh", "Icon.Sync", true, () => OnMenuNode(node => _ = ViewModel?.RefreshConnectionAsync(node)));
+        _editConnection = Item("Edit Connection…", "Icon.Rename", true, () => OnMenuNode(node => RaiseOpen(node.Id)));
+        _connectionSeparator = new Separator();
+        _newGroup = Item("New Group", "Icon.Plus", true, () =>
+        {
+            if (ViewModel is { } vm) CreateGroup(vm, _menuNode is { IsGroup: true } ? _menuNode : null);
+        });
+        _renameGroup = Item("Rename", "Icon.Rename", true, () => OnMenuNode(StartRename));
+        _deleteGroup = Item("Delete Group", "Icon.Delete", true, () => OnMenuNode(node => { if (ViewModel is { } vm) DeleteGroup(vm, node); }));
+        _moveUp = Item("Move Up", null, true, () => OnMenuNode(node => { if (ViewModel is { } vm) Reorder(vm, node, -1); }));
+        _moveDown = Item("Move Down", null, true, () => OnMenuNode(node => { if (ViewModel is { } vm) Reorder(vm, node, 1); }));
+        _moveTo = new MenuItem { Header = "Move To" };
+        _refreshAll = Item("Refresh All", "Icon.Sync", true, () => _ = ViewModel?.RefreshAllAsync());
+        var manage = Item("Manage Connections…", "Icon.Settings", true, () => RaiseOpen(null));
+        _menuItems.AddRange([_addToScript, _refreshConnection, _editConnection, _connectionSeparator, _newGroup,
+            _renameGroup, _deleteGroup, _moveUp, _moveDown, _moveTo, new Separator(), _refreshAll, manage]);
+        foreach (var item in _menuItems) menu.Items.Add(item);
+    }
+
+    private void OnMenuNode(Action<ConnectionNavigationNode> action)
+    {
+        if (_menuNode is { } node) action(node);
+    }
+
     internal void FillContextMenu(ContextMenu menu)
     {
-        menu.Items.Clear();
-        if (ViewModel is not { } vm) return;
-        var node = Selected;
+        if (_menuItems.Count == 0) BuildContextMenu(menu);
+        var vm = ViewModel;
+        foreach (var item in _menuItems) item.IsVisible = vm is not null;
+        if (vm is null) return;
+        var node = _menuNode = Selected;
         var editable = vm.CanEditGroups;
 
-        if (node is { IsConnection: true })
+        var isConnection = node is { IsConnection: true };
+        foreach (var item in new Control[] { _addToScript, _refreshConnection, _editConnection, _connectionSeparator })
+            item.IsVisible = isConnection;
+        if (isConnection)
         {
-            menu.Items.Add(Item(node.IsAttached ? "In This Script" : "Add to Script", "Icon.ConnectionAttached", vm.CanAddToScript(node),
-                () => RaiseEvent(new ConnectionNavigationEventArgs(AddToScriptEvent, node.Id))));
-            menu.Items.Add(Item(node.HasContract ? "Refresh Contract" : "Refresh", "Icon.Sync", !node.IsLoading,
-                () => _ = vm.RefreshConnectionAsync(node)));
-            menu.Items.Add(Item("Edit Connection…", "Icon.Rename", true, () => RaiseOpen(node.Id)));
-            menu.Items.Add(new Separator());
+            _addToScript.Header = node!.IsAttached ? "In This Script" : "Add to Script";
+            _addToScript.IsEnabled = vm.CanAddToScript(node);
+            _refreshConnection.Header = node.HasContract ? "Refresh Contract" : "Refresh";
+            _refreshConnection.IsEnabled = !node.IsLoading;
         }
-        menu.Items.Add(Item(node is { IsGroup: true } ? "New Subgroup" : "New Group", "Icon.Plus",
-            editable && (node is not { IsGroup: true } || vm.Grouping.DepthOf(node.Id) < Services.Connections.ConnectionGroupingModel.MaxDepth),
-            () => CreateGroup(vm, node is { IsGroup: true } ? node : null)));
-        if (node is { IsGroup: true })
+
+        var isGroup = node is { IsGroup: true };
+        _newGroup.Header = isGroup ? "New Subgroup" : "New Group";
+        _newGroup.IsEnabled = editable && (!isGroup || vm.Grouping.DepthOf(node!.Id) < Services.Connections.ConnectionGroupingModel.MaxDepth);
+        foreach (var item in new[] { _renameGroup, _deleteGroup, _moveUp, _moveDown })
         {
-            menu.Items.Add(Item("Rename", "Icon.Rename", editable, () => StartRename(node)));
-            menu.Items.Add(Item("Delete Group", "Icon.Delete", editable, () => DeleteGroup(vm, node)));
-            menu.Items.Add(Item("Move Up", null, editable, () => Reorder(vm, node, -1)));
-            menu.Items.Add(Item("Move Down", null, editable, () => Reorder(vm, node, 1)));
+            item.IsVisible = isGroup;
+            item.IsEnabled = editable;
         }
+
+        _moveTo.IsVisible = node is not null;
+        _moveTo.Items.Clear();
         if (node is not null)
         {
-            var move = new MenuItem { Header = "Move To", IsEnabled = editable };
             var current = node.IsConnection ? vm.Grouping.GroupFor(node.Id) : vm.Grouping.Find(node.Id)?.ParentId;
             foreach (var target in vm.MoveTargets(node))
             {
                 var isCurrent = target.GroupId == current || (target.GroupId is null && current == Services.Connections.ConnectionGroupingModel.UngroupedId);
                 var targetId = target.GroupId;
-                move.Items.Add(Item(new string(' ', Math.Max(0, target.Depth - 1) * 3) + target.Path.Split(" / ")[^1], null, !isCurrent, () =>
+                _moveTo.Items.Add(Item(new string(' ', Math.Max(0, target.Depth - 1) * 3) + target.Path.Split(" / ")[^1], null, !isCurrent, () =>
                 {
                     if (node.IsConnection) vm.MoveConnection(node, targetId);
                     else vm.MoveGroup(node, targetId);
                     Select(vm.Find(node.Id, node.IsConnection));
                 }, target.Path));
             }
-            move.IsEnabled = editable && move.Items.Count > 1;
-            menu.Items.Add(move);
+            _moveTo.IsEnabled = editable && _moveTo.Items.Count > 1;
         }
-        menu.Items.Add(new Separator());
-        menu.Items.Add(Item("Refresh All", "Icon.Sync", vm.IsLoaded && !vm.IsLoading, () => _ = vm.RefreshAllAsync()));
-        menu.Items.Add(Item("Manage Connections…", "Icon.Settings", true, () => RaiseOpen(null)));
+        _refreshAll.IsEnabled = vm.IsLoaded && !vm.IsLoading;
     }
 
     private MenuItem Item(string header, string? iconKey, bool enabled, Action action, string? accessibleName = null)

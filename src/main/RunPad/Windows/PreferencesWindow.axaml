@@ -102,10 +102,6 @@
             <Panel Margin="16">
 
                 <StackPanel IsVisible="{Binding IsInterfaceSelected}" Spacing="6">
-                    <CheckBox Content="Restore open tabs and unsaved changes" IsChecked="{Binding RestoreUnsavedTabs}"/>
-                    <TextBlock Text="Applies after restarting RunPad. Drafts are stored locally; source files are not auto-saved. Existing drafts are kept when disabled."
-                               TextWrapping="Wrap" Margin="0,0,0,8"/>
-
                     <!-- Interface scale: everything in RunPad's windows, code included -->
                     <TextBlock Text="Interface scale:" FontWeight="SemiBold" Margin="0,0,0,2"/>
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -193,6 +189,13 @@
                     </StackPanel>
 
                     <StackPanel Spacing="{DynamicResource RunPad.Space.Tight}">
+                        <TextBlock Classes="settings-heading" Text="Tabs on restart"/>
+                        <CheckBox Content="Restore open tabs and unsaved changes" IsChecked="{Binding RestoreUnsavedTabs}"/>
+                        <TextBlock Classes="settings-help"
+                                   Text="Applies after restarting RunPad. Drafts are stored locally; source files are not auto-saved. Existing drafts are kept when disabled."/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="{DynamicResource RunPad.Space.Tight}">
                         <TextBlock Classes="settings-heading" Text="Display"/>
                         <CheckBox IsChecked="{Binding ShowLineNumbers}" Content="Show line numbers"/>
                         <CheckBox IsChecked="{Binding ShowFolding}" Content="Show code folding"/>
@@ -240,6 +243,18 @@
                     <TextBlock Text="Debugger path:" Margin="0,8,0,0"/>
                     <TextBox PlaceholderText="Path to netcoredbg.exe" Text="{Binding DebuggerPath}"/>
                 </StackPanel>
+
+                <!-- Interface → System: the settings of this OS's desktop integration, each one a check box. -->
+                <ItemsControl IsVisible="{Binding IsSystemSelected}" ItemsSource="{Binding SystemSettings}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="viewModels:SystemSettingViewModel">
+                            <StackPanel Spacing="6" Margin="0,0,0,8">
+                                <CheckBox Content="{Binding Title}" IsChecked="{Binding Value}"/>
+                                <TextBlock Text="{Binding Description}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
 
                 <StackPanel IsVisible="{Binding IsExperimentalSelected}" Spacing="6">
                     <TextBlock Text="Experimental:" FontWeight="SemiBold"/>

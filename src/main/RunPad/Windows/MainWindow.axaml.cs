@@ -1,15 +1,17 @@
 using System.Reactive;
-using System.Reactive.Linq;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Chrome;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
 using ReactiveUI;
+using RunPad.Desktop;
 using RunPad.Format.RPad;
-using RunPad.Services.Examples;
+using RunPad.Services.Desktop;
 using RunPad.Services.Preferences;
 using RunPad.UserControls;
 using RunPad.UserControls.Models;
@@ -17,11 +19,13 @@ using RunPad.Windows.Models;
 
 namespace RunPad.Windows;
 
-public sealed partial class MainWindow : Window, IDisposable
+public sealed partial class MainWindow : Window, IDisposable, IStartupWindow
 {
     private readonly IPreferencesService _prefs;
     private readonly EditorTabsControl _editorTabs;
     private readonly IDisposable _restoreStateSubscription;
+
+    Task IStartupWindow.Ready => _editorTabs.WorkspaceShown;
 
     // Set right before the confirmed, real Close() below — lets OnClosing tell "the user just
     // clicked the confirmed, second time through" apart from the very first Closing that it itself
@@ -31,13 +35,16 @@ public sealed partial class MainWindow : Window, IDisposable
     // A second Close (Cmd+Q / window button again) while the first confirmation is
     // still awaiting a dialog must not start a second, overlapping walk over the dirty tabs.
     private bool _closeConfirmationInProgress;
+    private bool _disposed;
 
     public MainWindow(
         IPreferencesService prefs,
         EditorTabsControl editorTabsCtrl,
-        MainWindowViewModel viewModel)
+        MainWindowViewModel viewModel,
+        IDesktopIntegration? desktop = null)
     {
         _prefs = prefs;
+        _desktop = desktop ?? DesktopIntegration.Current;
         _editorTabs = editorTabsCtrl;
 
         DataContext = viewModel;
@@ -50,6 +57,8 @@ public sealed partial class MainWindow : Window, IDisposable
         foreach (var item in MainMenuDefinition.ToMenuItems(MainMenuEntries)) _mainMenu.Items.Add(item);
 
         ApplyPlatformChrome();
+        RestoreWindowSize();
+        Closed += (_, _) => SaveWindowSize();
         viewModel.RecentFilesChanged += OnRecentFilesChanged;
         Closed += (_, _) => viewModel.RecentFilesChanged -= OnRecentFilesChanged;
 
@@ -89,6 +98,9 @@ public sealed partial class MainWindow : Window, IDisposable
         Activated += (_, _) => _ = editorTabsCtrl.CheckFilesChangedOnDiskAsync();
 
         Closing += OnClosing;
+        // The window owns the per-window view model and controls. Dispose them on every
+        // successful close so a recreated MainWindow cannot retain subscriptions or tabs.
+        Closed += (_, _) => Dispose();
     }
 
     // Quitting the app used to skip the per-tab
@@ -205,30 +217,24 @@ public sealed partial class MainWindow : Window, IDisposable
     // wc-btn min/max/close) and asks the OS only for a border. Windows' DWM composites a border,
     // shadow and rounded corners around that automatically — that's what this was designed against.
     //
-    // On Linux there's no equivalent guarantee: KWin/GNOME hand back a bare rectangle with no
-    // border, shadow, or corner radius for a CSD request (confirmed on this KDE/KWin/Wayland
-    // session), and different compositors could behave differently still — there's no portable way
-    // to replicate a specific compositor's decoration from inside the app. Falling back to normal
-    // OS-drawn decorations is the documented cheaper fix: our custom title row keeps the app
-    // icon/menu but becomes a plain menu bar sitting under the native titlebar, and the redundant
-    // wc-btn cluster is hidden.
+    // The OS's desktop integration says which frame the window gets (IDesktopIntegration).
+    // DrawnFrame (Linux's native Wayland): Avalonia draws the frame and shadow itself (see
+    // ApplyDrawnFrame), so the Windows layout is kept. SystemTitleBar (Linux on XWayland/X11, where
+    // a CSD request comes back as a bare rectangle with no border, shadow, or corner radius): our
+    // title row keeps the menu but becomes a plain menu bar under the native titlebar, and the
+    // redundant wc-btn cluster is hidden.
     //
-    // On macOS the window gets the stock titlebar — traffic
-    // lights, "RunPad" title, system drag/resize/fullscreen — and the menu moves to the system menu
-    // bar via NativeMenu, projected from the same MainMenuEntries as the in-window Menu
-    //. The whole custom title row would then only duplicate
-    // the icon/menu/window buttons, so it's hidden and its 32px row collapsed.
+    // MacOS keeps AppKit's titlebar as a separate row above the app toolbar, like Rider.
     private void ApplyPlatformChrome()
     {
         var windowControlButtons = this.FindControl<StackPanel>("WindowControlButtons");
 
-        // With WindowDecorations.Full, the OS now draws its own native titlebar
-        // (icon + title + min/max/close) above our custom title row. A CSD request
-        // (WindowDecorations.BorderOnly, the "pretty menu" branch) was tried first and confirmed —
-        // on a real KDE/KWin/Wayland session — to come back as a bare rectangle with no
-        // border/shadow/corner-radius on Linux, so there's no portable way to get both a native
-        // border AND full CSD control here; Full is the deliberate fallback, not an oversight.
-        if (OperatingSystem.IsLinux())
+        var frame = _desktop.MainWindowFrame;
+        if (frame == WindowFrame.DrawnFrame)
+        {
+            ApplyDrawnFrame();
+        }
+        else if (frame == WindowFrame.SystemTitleBar)
         {
             WindowDecorations = WindowDecorations.Full;
             ExtendClientAreaToDecorationsHint = false;
@@ -240,16 +246,61 @@ public sealed partial class MainWindow : Window, IDisposable
             var appIcon = this.FindControl<Image>("AppIconImage");
             if (appIcon is not null) appIcon.IsVisible = false;
         }
-        else if (OperatingSystem.IsMacOS())
+        else if (frame == WindowFrame.MacOS)
         {
-            WindowDecorations = WindowDecorations.Full;
-            ExtendClientAreaToDecorationsHint = false;
-
-            this.FindControl<Border>("TitleBar")!.IsVisible = false;
-            this.FindControl<Grid>("RootLayout")!.RowDefinitions[0].Height = new GridLength(0);
+            WindowDecorations = WindowDecorations.BorderOnly;
+            ExtendClientAreaToDecorationsHint = true;
+            ExtendClientAreaTitleBarHeightHint = 32;
+            this.FindControl<Menu>("MainMenu")!.IsVisible = false;
+            this.FindControl<Image>("AppIconImage")!.IsVisible = false;
+            windowControlButtons!.IsVisible = false;
+            this.FindControl<MacWindowButtons>("MacWindowButtons")!.IsVisible = true;
+            var sidebarToggle = this.FindControl<Button>("SidebarToggleButton");
+            sidebarToggle!.Width = 30;
+            this.FindControl<PathIcon>("SidebarToggleIcon")!.Width = 14;
+            this.FindControl<PathIcon>("SidebarToggleIcon")!.Height = 14;
+            this.FindControl<Border>("TitleBar")!.AddHandler(PointerPressedEvent, OnCustomTitleBarPointerPressed);
 
             NativeMenu.SetMenu(this, MainMenuDefinition.ToNativeMenu(MainMenuEntries));
         }
+    }
+
+    // Size only, not position: native Wayland never tells a window where it is, and the window
+    // manager places it sensibly on every system.
+    private void RestoreWindowSize()
+    {
+        var layout = _prefs.Layout;
+        if (layout is { WindowWidth: > 0 and var width, WindowHeight: > 0 and var height })
+        {
+            Width = width;
+            Height = height;
+        }
+        if (layout.WindowMaximized) WindowState = WindowState.Maximized;
+    }
+
+    private void SaveWindowSize()
+    {
+        var layout = _prefs.Layout;
+        layout.WindowMaximized = WindowState == WindowState.Maximized;
+        if (WindowState == WindowState.Normal)
+        {
+            layout.WindowWidth = ClientSize.Width;
+            layout.WindowHeight = ClientSize.Height;
+        }
+        _prefs.Save();
+    }
+
+    // Native Wayland: Avalonia draws the frame and shadow (see WindowChrome), this window keeps
+    // its own title row.
+    private void ApplyDrawnFrame()
+    {
+        WindowChrome.FitExtendedWindow(this, this.FindControl<Grid>("RootLayout")!);
+
+        // Wayland hands a press on a TitleBar-role element straight to the compositor as a move, so
+        // the app never sees the double click that should maximize. Drag and maximize here instead.
+        var titleBar = this.FindControl<Border>("TitleBar")!;
+        WindowDecorationProperties.SetElementRole(titleBar, WindowDecorationsElementRole.None);
+        titleBar.AddHandler(PointerPressedEvent, OnCustomTitleBarPointerPressed);
     }
 
     // The one menu tree behind both the in-window Menu and
@@ -261,6 +312,7 @@ public sealed partial class MainWindow : Window, IDisposable
     internal IReadOnlyList<MainMenuGroup> MainMenuEntries { get; private set; }
 
     private readonly Menu _mainMenu;
+    private readonly IDesktopIntegration _desktop;
 
     private void OnPreferencesChanged()
     {
@@ -468,6 +520,17 @@ public sealed partial class MainWindow : Window, IDisposable
 
     // ── Title bar window controls ─────────────────────────────────────────────
 
+    private void OnCustomTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed || e.Source is not Visual source)
+            return;
+        if (source.GetSelfAndVisualAncestors().TakeWhile(v => v != sender)
+            .OfType<Control>().Any(control => control.Focusable)) return;
+        if (e.ClickCount == 2) Maximize_Click(sender, e);
+        else BeginMoveDrag(e);
+        e.Handled = true;
+    }
+
     private void Minimize_Click(object? sender, RoutedEventArgs e)
     {
         WindowState = WindowState.Minimized;
@@ -608,10 +671,13 @@ public sealed partial class MainWindow : Window, IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         GetViewModel().RecentFilesChanged -= OnRecentFilesChanged;
         _prefs.Changed -= OnPreferencesChanged;
         _restoreStateSubscription.Dispose();
         _editorTabs.Dispose();
+        GetViewModel().Dispose();
         GC.SuppressFinalize(this);
     }
 }

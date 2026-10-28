@@ -3,6 +3,7 @@ using RunPad.Contracts;
 using RunPad.Format.RPad;
 using RunPad.Services;
 using RunPad.Services.Preferences;
+using RunPad.Services.Recovery;
 using RunPad.Windows.Models;
 using Xunit;
 
@@ -102,5 +103,38 @@ public class MainWindowViewModelNewFileTests
             Assert.Null(vm.ActiveTab!.FilePath);
         }
         finally { Directory.Delete(rootFolder, recursive: true); }
+    }
+
+    [Fact]
+    public void NewRpadFile_Should_UseIncrementingUntitledNames()
+    {
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-newfile-test").FullName;
+        try
+        {
+            var (vm, _) = CreateViewModel(rootFolder);
+
+            vm.NewRpadFile();
+            vm.NewRpadFile();
+
+            Assert.Equal(["Untitled1", "Untitled2"], vm.Tabs.Select(t => t.FileName));
+        }
+        finally { Directory.Delete(rootFolder, recursive: true); }
+    }
+
+    [Fact]
+    public void Recovery_Should_DropPristineUntitledTabs_ButKeepDirtyAndImportedTabs()
+    {
+        static RecoveryTab Tab(bool dirty = false, string? path = null, string? original = null) => new()
+        {
+            EditorText = "",
+            IsDirty = dirty,
+            FilePath = path,
+            OriginalPath = original,
+        };
+
+        Assert.False(MainWindowViewModel.ShouldKeepRecoveryTab(Tab()));
+        Assert.True(MainWindowViewModel.ShouldKeepRecoveryTab(Tab(dirty: true)));
+        Assert.True(MainWindowViewModel.ShouldKeepRecoveryTab(Tab(path: "/tmp/a.rpad")));
+        Assert.True(MainWindowViewModel.ShouldKeepRecoveryTab(Tab(original: "/tmp/a.rpad")));
     }
 }
