@@ -67,26 +67,17 @@ public sealed class DebugHoverControllerTests
     }
 
     [Fact]
-    public async Task LoadChildren_ShouldHonorDepthBreadthAndZeroReference()
+    public async Task LoadChildren_ShouldHonorBreadthAndZeroReference()
     {
-        var context = new ChildContext(Enumerable.Range(0, 100)
+        var context = new ChildContext(Enumerable.Range(0, 150)
             .Select(i => (IVariableInfo)new Variable($"v{i}", "int", i.ToString())).ToArray());
         var controller = new DebugHoverController();
         var parent = new Variable("root", "T", "{}", hasChildren: true, variablesReference: 1);
 
-        Assert.Empty(await controller.LoadChildrenAsync(context, parent, DebugHoverController.MaxDepth, TestContext.Current.CancellationToken));
-        Assert.Empty(await controller.LoadChildrenAsync(context, new Variable("empty", "T", "", true, 0), 0, TestContext.Current.CancellationToken));
+        Assert.Empty(await controller.LoadChildrenAsync(context, new Variable("empty", "T", "", true, 0), TestContext.Current.CancellationToken));
         Assert.Equal(DebugHoverController.MaxChildren,
-            (await controller.LoadChildrenAsync(context, parent, 0, TestContext.Current.CancellationToken)).Count);
+            (await controller.LoadChildrenAsync(context, parent, TestContext.Current.CancellationToken)).Count);
         Assert.Equal(1, context.Calls);
-    }
-
-    [Fact]
-    public void TreeBudget_ShouldCapOneHoverTree()
-    {
-        var budget = new DebugHoverController.TreeBudget();
-        for (var i = 0; i < DebugHoverController.MaxTotalRows; i++) Assert.True(budget.TryReserve());
-        Assert.False(budget.TryReserve());
     }
 
     [Theory]
@@ -120,7 +111,7 @@ public sealed class DebugHoverControllerTests
         var controller = new DebugHoverController();
         var parent = new Variable("root", "T", "{}", true, 1);
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            controller.LoadChildrenAsync(new BlockingContext(), parent, 0, TestContext.Current.CancellationToken));
+            controller.LoadChildrenAsync(new BlockingContext(), parent, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -129,7 +120,7 @@ public sealed class DebugHoverControllerTests
         using var cancellation = new CancellationTokenSource();
         var parent = new Variable("root", "T", "{}", true, 1);
         var load = new DebugHoverController().LoadChildrenAsync(
-            new BlockingContext(), parent, 0, cancellation.Token);
+            new BlockingContext(), parent, cancellation.Token);
 
         cancellation.Cancel();
 
@@ -165,7 +156,7 @@ public sealed class DebugHoverControllerTests
         using var controller = new DebugHoverController();
         var hover = controller.Begin();
         var parent = new Variable("root", "T", "{}", true, 1);
-        var load = controller.LoadChildrenAsync(new BlockingContext(), parent, 0, hover.Token);
+        var load = controller.LoadChildrenAsync(new BlockingContext(), parent, hover.Token);
 
         controller.Dispose();
 

@@ -96,8 +96,9 @@ Notable changes in each RunPad release. Downloads are on the
   `timeout:` selects the overload that has it and marks that parameter, wherever it is in the list.
 - While debugging, hovering a variable shows its value again in more places: over `c` in
   `c.Dump()` the tip shows `c`, not the whole call. The value tip opens as soon as the pointer
-  rests on the variable and stays open while the pointer moves into it, and clicking its buttons
-  to expand members no longer closes it.
+  rests on the variable and stays open while the pointer moves into it. Its members are a tree
+  like the one in Rider: each opens under its own parent, at any depth, folds back, and scrolls
+  when long, with the name, type and value of every member on one row.
 - Stopping a debug session clears its paused/running state, current-line highlight and timer when
   execution ends, so the toolbar no longer remains stuck in debugging mode.
 - On macOS, Control-click works as a right click: it opens context menus and selects the row under
