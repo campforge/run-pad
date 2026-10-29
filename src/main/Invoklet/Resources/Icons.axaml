@@ -100,6 +100,8 @@
     <!-- Connections tree (ConnectionNavigationView), Material Design Icons: folder-outline, link,
          alert-outline, web, swap-horizontal (gRPC), database. -->
     <StreamGeometry x:Key="Icon.ConnectionGroup">M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z</StreamGeometry>
+    <!-- A plug: the Connections header's Add. Not a plus, which the section headers use to open and close. -->
+    <StreamGeometry x:Key="Icon.ConnectionAdd">M9,2H11V7H9Z M13,2H15V7H13Z M7,7H17V11A5,5 0 0,1 12,16A5,5 0 0,1 7,11Z M11,16H13V22H11Z</StreamGeometry>
     <StreamGeometry x:Key="Icon.ConnectionAttached">M3.9,12C3.9,10.29 5.29,8.9 7,8.9H11V7H7A5,5 0 0,0 2,12A5,5 0 0,0 7,17H11V15.1H7C5.29,15.1 3.9,13.71 3.9,12M8,13H16V11H8V13M17,7H13V8.9H17C18.71,8.9 20.1,10.29 20.1,12C20.1,13.71 18.71,15.1 17,15.1H13V17H17A5,5 0 0,0 22,12A5,5 0 0,0 17,7Z</StreamGeometry>
     <StreamGeometry x:Key="Icon.Warning">M12,2L1,21H23M12,6L19.53,19H4.47M11,10V14H13V10M11,16V18H13V16</StreamGeometry>
     <StreamGeometry x:Key="Icon.Sync">M12,18A6,6 0 0,1 6,12C6,11 6.25,10.03 6.7,9.2L5.24,7.74C4.46,8.97 4,10.43 4,12A8,8 0 0,0 12,20V23L16,19L12,15M12,4V1L8,5L12,9V6A6,6 0 0,1 18,12C18,13 17.75,13.97 17.3,14.8L18.76,16.26C19.54,15.03 20,13.57 20,12A8,8 0 0,0 12,4Z</StreamGeometry>
