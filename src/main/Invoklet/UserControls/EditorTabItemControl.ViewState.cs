@@ -33,11 +33,14 @@ public partial class EditorsTabItemControl
         if (state.SelectionLength > 0) editor.Select(start, Math.Min(state.SelectionLength, length - start));
 
         // The editor has no size until the tab is shown, and a line can only be scrolled to once it has one.
+        // It stays invisible until then, so the text is never seen at the top and then jumping.
+        Opacity = 0;
         Dispatcher.UIThread.Post(() =>
         {
             if (_disposed) return;
             editor.UpdateLayout();
             ScrollEditorToLine(state.TopLine);
+            Opacity = 1;
         }, DispatcherPriority.Loaded);
     }
 }

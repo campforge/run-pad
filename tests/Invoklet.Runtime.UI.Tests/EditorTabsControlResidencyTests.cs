@@ -187,6 +187,8 @@ public class EditorTabsControlResidencyTests
             Assert.Equal("a > 0", breakpoint.Condition);
             Assert.False(breakpoint.IsEnabled);
             Assert.Equal(4, reloaded.CaretOffset);
+            await TestWait.WhileAsync(() => tabs.ControlForTests(file)!.Opacity < 1);
+            Assert.Equal(1, tabs.ControlForTests(file)!.Opacity); // shown once it is scrolled
         }
         finally { tabs.Dispose(); Directory.Delete(folder, true); }
     }
