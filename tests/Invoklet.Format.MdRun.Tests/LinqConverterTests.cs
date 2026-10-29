@@ -27,6 +27,26 @@ public class LinqConverterTests
         Assert.Equal("Console.WriteLine(\"hi\");", doc.RunCode);
     }
 
+    // LINQPad's password manager by name is Invoklet's Secret Store: Util.GetPassword(name) asks for
+    // and keeps a password there, while Invoklet's own Util.GetPassword(prompt) keeps nothing.
+    [Fact]
+    public void Convert_Should_TurnLinqPadPasswordCalls_IntoSecretStoreCalls()
+    {
+        const string linq = """
+            <Query Kind="Statements" />
+
+            var token = Util.GetPassword("api-token");
+            Util . SetPassword ("db", token);
+            var other = MyUtil.GetPassword("x");
+            """;
+
+        Assert.Equal("""
+            var token = Util.GetSecret("api-token");
+            Util.SetSecret("db", token);
+            var other = MyUtil.GetPassword("x");
+            """, LinqConverter.Convert(linq).RunCode);
+    }
+
     [Theory]
     [InlineData("Program", MdRunLanguage.CSharp, MdRunKind.Program)]
     [InlineData("Expression", MdRunLanguage.CSharp, MdRunKind.Expression)]

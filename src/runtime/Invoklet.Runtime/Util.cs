@@ -539,6 +539,29 @@ public static class Util
         return text is null ? default : (T)Convert.ChangeType(text, typeof(T), CultureInfo.InvariantCulture);
     }
 
+    /// <summary>
+    /// Saves a secret in Invoklet's Secret Store, or replaces the value of the one of that name
+    /// (letter case aside), as LINQPad's <c>Util.SetPassword</c> does. Invoklet writes it, so it
+    /// works only in a script Invoklet runs (not under the debugger or the command line).
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Nothing here can save it (debugger, command line).</exception>
+    /// <exception cref="IOException">Invoklet couldn't write its Secret Store.</exception>
+    public static void SetSecret(string name, string value)
+    {
+        if (name is null) throw new ArgumentNullException(nameof(name));
+        if (value is null) throw new ArgumentNullException(nameof(value));
+        if (name.Trim().Length == 0) throw new ArgumentException("A secret needs a name.", nameof(name));
+        if (Environment.GetEnvironmentVariable(InputEnvVar) != "1")
+            throw new InvalidOperationException(
+                "Util.SetSecret saves through Invoklet: run the script from Invoklet, not under the debugger or the command line.");
+        // An input request with the value: Invoklet keeps it and answers 1 (kept) or 0, asking nobody.
+        var json = "{\"Secret\":" + JsonString(name) + ",\"Value\":" + JsonString(value) + "}";
+        Console.WriteLine(InputRequestPrefixChar + Convert.ToBase64String(Encoding.UTF8.GetBytes(json)));
+        if (Console.In.ReadLine() != "1")
+            throw new IOException($"Invoklet couldn't save the secret '{name}' in its Secret Store.");
+        lock (AskedSecrets) AskedSecrets[name] = value;
+    }
+
     // Only where Invoklet answers input; null when it can't be asked, or the run ended instead.
     private static string? AskForSecret(string name)
     {

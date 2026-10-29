@@ -482,9 +482,14 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
                     _scriptListensForStop = true;
                     break;
                 default:
-                    (string? prompt, bool isPassword, string? secret) = ParseInputRequest(payload);
-                    _pendingSecret = secret;
-                    OnInputRequested(prompt, isPassword);
+                    var request = ParseInputRequest(payload);
+                    if (request is { Secret: { } name, Value: { } value })
+                    {
+                        _ = KeepSecretAsync(name, value); // Util.SetSecret: nobody is asked
+                        break;
+                    }
+                    _pendingSecret = request.Secret;
+                    OnInputRequested(request.Prompt, request.IsPassword);
                     break;
             }
         };
@@ -523,7 +528,35 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
     // The secret the script is asking for (Util.GetSecret found none), to keep with the answer.
     private string? _pendingSecret;
 
-    private static (string? Prompt, bool IsPassword, string? Secret) ParseInputRequest(string base64)
+    // Util.SetSecret: kept through SecretSaver, then the script is told 1 (kept) or 0 on its stdin.
+    private async Task KeepSecretAsync(string name, string value)
+    {
+        if (_currentInputStream is not { } stream) return;
+        var kept = false;
+        if (SecretSaver is { } save)
+        {
+            try
+            {
+                await Task.Run(() => save(name, value));
+                kept = true;
+            }
+            catch (Exception ex)
+            {
+                _loggerFactory.CreateLogger<CompiledDotnetLanguageHostBase>().LogWarning(ex, "Could not keep the secret '{Name}' in the Secret Store", name);
+            }
+        }
+        try
+        {
+            await stream.WriteAsync(Encoding.UTF8.GetBytes(kept ? "1\n" : "0\n"));
+            await stream.FlushAsync();
+        }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException)
+        {
+            // The script ended meanwhile.
+        }
+    }
+
+    private static (string? Prompt, bool IsPassword, string? Secret, string? Value) ParseInputRequest(string base64)
     {
         try
         {
@@ -535,11 +568,12 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
                 : null;
             var isPassword = root.TryGetProperty("IsPassword", out var ip) && ip.ValueKind == JsonValueKind.True;
             var secret = root.TryGetProperty("Secret", out var s) && s.ValueKind == JsonValueKind.String ? s.GetString() : null;
-            return (prompt, isPassword, secret);
+            var value = root.TryGetProperty("Value", out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+            return (prompt, isPassword, secret, value);
         }
         catch (Exception)
         {
-            return (null, false, null);
+            return (null, false, null, null);
         }
     }
 

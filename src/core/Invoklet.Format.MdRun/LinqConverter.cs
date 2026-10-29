@@ -9,7 +9,7 @@ namespace Invoklet.Format.MdRun;
 /// wrapping on the code itself, so the header is parsed as an isolated fragment rather than the whole
 /// file (which usually isn't valid XML end to end once the code is anything nontrivial).
 /// </summary>
-public static class LinqConverter
+public static partial class LinqConverter
 {
     // LINQPad's own supported Kind values — SQL/ESQL/F# ones have no Invoklet-supported equivalent
     // (only C#/VB, see MdRunLanguage) and are rejected explicitly below rather than silently
@@ -113,11 +113,21 @@ public static class LinqConverter
         return new MdRunDocument
         {
             FrontMatter = frontMatter,
-            RunCode = code,
+            RunCode = WithInvokletSecrets(code),
             BodyBeforeCode = bodyBeforeCode,
             BodyAfterCode = bodyAfterCode,
         };
     }
+
+    // LINQPad's password manager calls by name: Util.GetPassword(name) reads a saved password (asking
+    // for it when there is none) and Util.SetPassword(name, value) saves one. In Invoklet that is the
+    // Secret Store's Util.GetSecret/SetSecret; Invoklet's own Util.GetPassword(prompt) only asks, and
+    // keeps nothing. The calls are renamed as written, in C# and VB alike.
+    internal static string WithInvokletSecrets(string code) =>
+        LinqPadPasswordCall().Replace(code, m => "Util." + (m.Groups[1].Value == "Get" ? "GetSecret" : "SetSecret") + "(");
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\bUtil\s*\.\s*(Get|Set)Password\s*\(")]
+    private static partial System.Text.RegularExpressions.Regex LinqPadPasswordCall();
 
     // The <Query> header is the only part of a .linq file that's actually XML — everything after it
     // is plain source code, which usually isn't well-formed XML on its own (unescaped '<'/'&', etc.),
