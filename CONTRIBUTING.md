@@ -23,6 +23,10 @@ dotnet build --configuration Release -warnaserror
 dotnet test                                        # or one project: dotnet test tests/Invoklet.NonUI.Tests
 ```
 
+The slow tests that use the real compiler, decompiler and highlighter (`tests/Invoklet.IntegrationTests`) are
+built and formatted with the solution but not run when the `CI` environment variable is set; run them with
+`dotnet test tests/Invoklet.IntegrationTests`.
+
 ## Contributor License Agreement
 
 By opening a pull request you agree to the [Contributor License Agreement](CLA.md) — nothing to sign.
@@ -63,7 +67,8 @@ Invoklet, under the project's license and, if the licensing ever changes, under 
   regenerate `THIRD-PARTY-NOTICES.txt` with `python scripts/make-third-party-notices.py` and commit it.
 - **Tests:** required for every change. UI tests that create real Avalonia controls go to
   `tests/Invoklet.Runtime.UI.Tests`, everything else to `tests/Invoklet.NonUI.Tests` or the project's own
-  test project.
+  test project. A test of a window or control replaces the classes it only uses with mocks or fakes and
+  does not compile or decompile anything; what needs the real thing goes to `tests/Invoklet.IntegrationTests`.
 - **Style:** `.editorconfig` (CRLF, 4 spaces, Allman braces, file-scoped namespaces) and no warnings.
   Match the surrounding code. Comments are in English, explain *why* and stand on their own — no
   references to issue numbers or notes outside the repository.
