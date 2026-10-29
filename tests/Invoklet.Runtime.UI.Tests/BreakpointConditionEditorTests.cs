@@ -49,7 +49,8 @@ public class BreakpointConditionEditorTests
         host.Show();
         try
         {
-            await TestWait.WhileAsync(() => editor.FindControl<TextBlock>("ErrorText")!.Text is null);
+            var suggestions = editor.FindControl<ListBox>("Suggestions")!;
+            await TestWait.WhileAsync(() => !suggestions.IsVisible || suggestions.ItemCount == 0);
             host.KeyPressQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None);
             host.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
             Assert.Equal("count", editor.FindControl<TextBox>("ConditionBox")!.Text);
