@@ -128,14 +128,22 @@
                                   IsVisible="{Binding HasConnectionNavigation}"
                                   AutomationProperties.Name="Connections navigation bundle">
                             <Expander.Header>
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Path Classes="bundle-icon" Data="{StaticResource Icon.NavigationConnections}"/>
-                                    <TextBlock Text="Connections"/>
-                                </StackPanel>
+                                <DockPanel>
+                                    <uc:TreeActionButton x:Name="AddConnectionButton" DockPanel.Dock="Right"
+                                                         Icon="{StaticResource Icon.Plus}"
+                                                         ToolTip.Tip="Add connection"
+                                                         AutomationProperties.Name="Add connection"
+                                                         Click="AddConnection_Click"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Path Classes="bundle-icon" Data="{StaticResource Icon.NavigationConnections}"/>
+                                        <TextBlock Text="Connections"/>
+                                    </StackPanel>
+                                </DockPanel>
                             </Expander.Header>
                             <uc:ConnectionNavigationView x:Name="ConnectionNavigationView" DataContext="{Binding ConnectionNavigation}"
                                                          OpenConnections="ConnectionNavigation_OpenConnections"
-                                                         AddToScript="ConnectionNavigation_AddToScript"/>
+                                                         AddToScript="ConnectionNavigation_AddToScript"
+                                                         RemoveFromScript="ConnectionNavigation_RemoveFromScript"/>
                         </Expander>
                         <Expander x:Name="ScriptsBundle" Grid.Row="1" Classes="bundle"
                                   IsExpanded="{Binding IsScriptsSectionExpanded, Mode=TwoWay}"

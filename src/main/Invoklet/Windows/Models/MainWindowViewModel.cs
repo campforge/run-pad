@@ -454,6 +454,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     {
         await _windowService.ShowDependenciesAsync(ActiveTab?.WhenAnyValue(x => x.FrontMatter), ActiveTab?.WhenAnyValue(x => x.FilePath));
         DependenciesWindowClosed?.Invoke();
+        // Dependencies edits the front matter in place, so the FrontMatter subscription that keeps
+        // the attached badges doesn't fire: a connection removed there kept its badge.
+        if (ActiveTab?.FrontMatter is { } frontMatter) ConnectionNavigation?.SetAttached(frontMatter.Connections);
         // Dependencies can edit the reusable connections too.
         RefreshConnectionNavigation();
     }
@@ -481,6 +484,13 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     {
         if (ConnectionNavigation is not { } navigation || ActiveTab is not { FrontMatter: { } frontMatter } tab) return;
         if (await navigation.AddToScriptAsync(frontMatter, tab.FilePath, connectionName, _windowService.ConfirmConnectionPackagesAsync))
+            DependenciesWindowClosed?.Invoke();
+    }
+
+    public void RemoveConnectionFromScript(string connectionName)
+    {
+        if (ConnectionNavigation is not { } navigation || ActiveTab is not { FrontMatter: { } frontMatter }) return;
+        if (navigation.RemoveFromScript(frontMatter, connectionName))
             DependenciesWindowClosed?.Invoke();
     }
 

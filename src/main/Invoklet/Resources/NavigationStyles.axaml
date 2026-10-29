@@ -1,6 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:conv="clr-namespace:Invoklet.Converters">
+        xmlns:conv="clr-namespace:Invoklet.Converters"
+        xmlns:uc="clr-namespace:Invoklet.UserControls">
 
     <!-- Self-contained: the window includes this file (MainWindow.axaml), so nothing here may rely on
          the app's resources (Resources/Icons.axaml), which a window shown elsewhere, such as in the
@@ -54,7 +55,8 @@
 
     <Style Selector="ToggleButton.bundle-header">
         <Setter Property="HorizontalAlignment" Value="Stretch"/>
-        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <!-- Stretch, so a header can dock an action (TreeActionButton) to its right edge. -->
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         <Setter Property="Height" Value="24"/>
         <Setter Property="MinHeight" Value="0"/>
         <Setter Property="Margin" Value="0"/>
@@ -110,6 +112,45 @@
     <Style Selector="ToggleButton.bundle-header:checked /template/ TextBlock#CollapseGlyph">
         <Setter Property="IsVisible" Value="True"/>
     </Style>
+    <!-- TreeActionButton: an 18 px icon button with a hairline border, for section-header and row
+         actions. Quiet until hovered; the border turns to the focus colour for the keyboard. -->
+    <Style Selector="uc|TreeActionButton">
+        <Setter Property="Width" Value="18"/>
+        <Setter Property="Height" Value="18"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+        <Setter Property="CornerRadius" Value="3"/>
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <ControlTemplate TargetType="uc:TreeActionButton">
+                <Border x:Name="PART_Border" Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="{TemplateBinding CornerRadius}">
+                    <PathIcon Data="{TemplateBinding Icon}" Width="10" Height="10"
+                              Foreground="{TemplateBinding Foreground}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="uc|TreeActionButton:pointerover">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+    </Style>
+    <Style Selector="uc|TreeActionButton:pressed">
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+    </Style>
+    <Style Selector="uc|TreeActionButton:focus-visible">
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Focus.BorderBrush}"/>
+    </Style>
+
     <!-- Header icons: as tall as the 12 pt label, an outline in the secondary text colour. Stretching
          scales the geometry, not the pen, so the line stays 1.2 px at any size. -->
     <Style Selector="ToggleButton.bundle-header Path.bundle-icon">

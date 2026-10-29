@@ -51,6 +51,16 @@ public partial class ConnectionNavigationView : UserControl
         remove => RemoveHandler(AddToScriptEvent, value);
     }
 
+    /// <summary>Asks the window to take a connection out of the active script.</summary>
+    public static readonly RoutedEvent<ConnectionNavigationEventArgs> RemoveFromScriptEvent =
+        RoutedEvent.Register<ConnectionNavigationView, ConnectionNavigationEventArgs>(nameof(RemoveFromScript), RoutingStrategies.Bubble);
+
+    public event EventHandler<ConnectionNavigationEventArgs>? RemoveFromScript
+    {
+        add => AddHandler(RemoveFromScriptEvent, value);
+        remove => RemoveHandler(RemoveFromScriptEvent, value);
+    }
+
     /// <summary>The connection a drag from this tree carries, for a drop target outside it (the editor).</summary>
     public static string? DraggedConnectionName(IDataTransfer data)
         => data.TryGetValue(NodeFormat) is { } text && Decode(text) is { IsConnection: true } source ? source.Id : null;
@@ -252,7 +262,8 @@ public partial class ConnectionNavigationView : UserControl
     private void BuildContextMenu(ContextMenu menu)
     {
         _addToScript = Item("Add to Script", "Icon.ConnectionAttached", true,
-            () => OnMenuNode(node => RaiseEvent(new ConnectionNavigationEventArgs(AddToScriptEvent, node.Id))));
+            () => OnMenuNode(node => RaiseEvent(new ConnectionNavigationEventArgs(
+                node.IsAttached ? RemoveFromScriptEvent : AddToScriptEvent, node.Id))));
         _refreshConnection = Item("Refresh", "Icon.Sync", true, () => OnMenuNode(node => _ = ViewModel?.RefreshConnectionAsync(node)));
         _editConnection = Item("Edit Connection…", "Icon.Rename", true, () => OnMenuNode(node => RaiseOpen(node.Id)));
         _connectionSeparator = new Separator();
@@ -291,8 +302,8 @@ public partial class ConnectionNavigationView : UserControl
             item.IsVisible = isConnection;
         if (isConnection)
         {
-            _addToScript.Header = node!.IsAttached ? "In This Script" : "Add to Script";
-            _addToScript.IsEnabled = vm.CanAddToScript(node);
+            _addToScript.Header = node!.IsAttached ? "Remove from Script" : "Add to Script";
+            _addToScript.IsEnabled = node.IsAttached ? vm.HasActiveScript : vm.CanAddToScript(node);
             _refreshConnection.Header = node.HasContract ? "Refresh Contract" : "Refresh";
             _refreshConnection.IsEnabled = !node.IsLoading;
         }
@@ -337,8 +348,6 @@ public partial class ConnectionNavigationView : UserControl
         item.Click += (_, _) => action();
         return item;
     }
-
-    private void ManageConnections_Click(object? sender, RoutedEventArgs e) => RaiseOpen(null);
 
     private void DismissNotice_Click(object? sender, RoutedEventArgs e) => ViewModel?.DismissNotice();
 

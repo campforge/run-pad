@@ -605,6 +605,18 @@ public sealed partial class MainWindow : Window, IDisposable, IStartupWindow
     private void ConnectionNavigation_OpenConnections(object? sender, ConnectionNavigationEventArgs e)
         => _ = GetViewModel().OpenConnectionsAsync(e.ConnectionName);
 
+    // The Connections header's own button: handled, so the click doesn't also fold the section.
+    private void AddConnection_Click(object? sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        _ = GetViewModel().OpenConnectionsAsync(null);
+    }
+
+    private void ConnectionNavigation_RemoveFromScript(object? sender, ConnectionNavigationEventArgs e)
+    {
+        if (e.ConnectionName is { } name) GetViewModel().RemoveConnectionFromScript(name);
+    }
+
     private void ConnectionNavigation_AddToScript(object? sender, ConnectionNavigationEventArgs e)
     {
         if (e.ConnectionName is { } name) _ = GetViewModel().AddConnectionToScriptAsync(name);
