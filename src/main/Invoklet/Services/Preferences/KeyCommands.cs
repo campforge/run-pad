@@ -64,7 +64,9 @@ public static class KeyCommands
     public static readonly KeyCommand ReplaceNext = new("editor.replaceNext", Editor, "Replace Next", "Alt+R");
     public static readonly KeyCommand ReplaceAll = new("editor.replaceAll", Editor, "Replace All", "Alt+A");
 
-    public static readonly KeyCommand TriggerCompletion = new("editor.completion", Editor, "Show Completion", "Ctrl+Space");
+    // Not Ctrl+Space on macOS: with two or more input sources the system takes it to switch them,
+    // and the editor never sees the key.
+    public static readonly KeyCommand TriggerCompletion = new("editor.completion", Editor, "Show Completion", "Ctrl+Space", "Ctrl+Shift+Space");
     public static readonly KeyCommand SignatureHelp = new("editor.signatureHelp", Editor, "Signature Help", "Ctrl+Shift+Space", "Cmd+Shift+Space");
     public static readonly KeyCommand GoToDefinition = new("editor.goToDefinition", Editor, "Go to Definition", "F12");
     public static readonly KeyCommand FindReferences = new("editor.findReferences", Editor, "Find References", "Shift+F12");
