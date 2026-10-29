@@ -30,11 +30,6 @@
             <Setter Property="FontSize" Value="{DynamicResource Invoklet.Type.Body}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
-        <Style Selector="TextBlock.settings-help">
-            <Setter Property="FontSize" Value="{DynamicResource Invoklet.Type.Caption}"/>
-            <Setter Property="TextWrapping" Value="Wrap"/>
-            <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
-        </Style>
         <Style Selector="TreeViewItem">
             <Setter Property="Padding" Value="6,0,6,0"/>
             <Setter Property="MinHeight" Value="27"/>
@@ -106,6 +101,7 @@
                     <TextBlock Text="Interface scale:" FontWeight="SemiBold" Margin="0,0,0,2"/>
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <ComboBox x:Name="InterfaceScaleBox"
+                                  ToolTip.Tip="Text, icons and spacing of every Invoklet window, code included. Code zoom (Editor) is applied on top."
                                   ItemsSource="{Binding InterfaceScaleOptions}"
                                   SelectedItem="{Binding InterfaceScalePercent}"
                                   MinWidth="90">
@@ -117,8 +113,6 @@
                         </ComboBox>
                         <Button Classes="secondary" Content="Reset to 100%" Command="{Binding ResetInterfaceScaleCommand}"/>
                     </StackPanel>
-                    <TextBlock Text="Text, icons and spacing of every Invoklet window, code included. Code zoom (Editor) is applied on top."
-                               TextWrapping="Wrap" Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
 
                     <!-- Appearance mode -->
                     <TextBlock Text="Appearance:" FontWeight="SemiBold" Margin="0,8,0,2"/>
@@ -176,7 +170,8 @@
                                            Value="{Binding FontSize}" Minimum="8" Maximum="32"
                                            Increment="1" FormatString="0" Width="120" HorizontalAlignment="Left"/>
                         </Grid>
-                        <Grid ColumnDefinitions="100,*">
+                        <Grid ColumnDefinitions="100,*"
+                              ToolTip.Tip="Code zoom applies to every editor on top of the interface scale. Use View → Zoom or Ctrl+wheel (Cmd+wheel on macOS).">
                             <TextBlock Text="Code zoom:" VerticalAlignment="Center"/>
                             <WrapPanel Grid.Column="1" Orientation="Horizontal">
                                 <TextBlock x:Name="CodeZoomText" VerticalAlignment="Center" Margin="0,0,8,0"
@@ -184,15 +179,12 @@
                         <Button Classes="secondary" Content="Reset to 100%" Command="{Binding ResetCodeZoomCommand}"/>
                             </WrapPanel>
                         </Grid>
-                        <TextBlock Classes="settings-help"
-                                   Text="Code zoom applies to every editor on top of the interface scale. Use View → Zoom or Ctrl+wheel (Cmd+wheel on macOS)."/>
                     </StackPanel>
 
                     <StackPanel Spacing="{DynamicResource Invoklet.Space.Tight}">
                         <TextBlock Classes="settings-heading" Text="Tabs on restart"/>
-                        <CheckBox Content="Restore open tabs and unsaved changes" IsChecked="{Binding RestoreUnsavedTabs}"/>
-                        <TextBlock Classes="settings-help"
-                                   Text="Applies after restarting Invoklet. Drafts are stored locally; source files are not auto-saved. Existing drafts are kept when disabled."/>
+                        <CheckBox Content="Restore open tabs and unsaved changes" IsChecked="{Binding RestoreUnsavedTabs}"
+                                  ToolTip.Tip="Applies after restarting Invoklet. Drafts are stored locally; source files are not auto-saved. Existing drafts are kept when disabled."/>
                     </StackPanel>
 
                     <StackPanel Spacing="{DynamicResource Invoklet.Space.Tight}">
@@ -208,12 +200,12 @@
                     <StackPanel Spacing="{DynamicResource Invoklet.Space.Tight}">
                         <TextBlock Classes="settings-heading" Text="Editing"/>
                         <CheckBox IsChecked="{Binding UseTabs}" Content="Use tab characters for indentation"/>
-                        <Grid ColumnDefinitions="Auto,100" ColumnSpacing="12">
+                        <Grid ColumnDefinitions="Auto,100" ColumnSpacing="12"
+                              ToolTip.Tip="Applies to Tab, automatic indentation and formatting. Existing text changes only when you edit or format it.">
                             <TextBlock Text="Indent / tab width" VerticalAlignment="Center"/>
                             <NumericUpDown Grid.Column="1" Value="{Binding IndentationSize}"
                                            Minimum="1" Maximum="16" Increment="1"/>
                         </Grid>
-                        <TextBlock Classes="settings-help" Text="Applies to Tab, automatic indentation and formatting. Existing text changes only when you edit or format it." TextWrapping="Wrap"/>
                         <CheckBox IsChecked="{Binding WordWrap}" Content="Wrap long lines in code editor"/>
                         <CheckBox IsChecked="{Binding CommitCharactersEnabled}">
                             <TextBlock Text="Accept completion when typing punctuation" TextWrapping="Wrap"/>
@@ -248,31 +240,22 @@
                 <ItemsControl IsVisible="{Binding IsSystemSelected}" ItemsSource="{Binding SystemSettings}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="viewModels:SystemSettingViewModel">
-                            <StackPanel Spacing="6" Margin="0,0,0,8">
-                                <CheckBox Content="{Binding Title}" IsChecked="{Binding Value}"/>
-                                <TextBlock Text="{Binding Description}" TextWrapping="Wrap"/>
-                            </StackPanel>
+                            <CheckBox Content="{Binding Title}" IsChecked="{Binding Value}" Margin="0,0,0,8"
+                                      ToolTip.Tip="{Binding Description}"/>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
                 <StackPanel IsVisible="{Binding IsExperimentalSelected}" Spacing="6">
-                    <TextBlock Text="Experimental:" FontWeight="SemiBold"/>
-                    <TextBlock Text="Features that work but are not finished yet. They are off by default and may change or go away."
-                               TextWrapping="Wrap" Margin="0,0,0,6"
-                               Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+                    <TextBlock Text="Experimental:" FontWeight="SemiBold"
+                               ToolTip.Tip="Features that work but are not finished yet. They are off by default and may change or go away."/>
                     <CheckBox Content="Invoklet analyzers (RPAD… warnings in C# scripts)"
-                              IsChecked="{Binding InvokletAnalyzersEnabled}"/>
-                    <TextBlock Text="Invoklet's own checks for code that always fails at run time, such as int.Parse(&quot;abc&quot;), shown as warnings while you type."
-                               TextWrapping="Wrap" Margin="28,0,0,0"
-                               Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+                              IsChecked="{Binding InvokletAnalyzersEnabled}"
+                              ToolTip.Tip="Invoklet's own checks for code that always fails at run time, such as int.Parse(&quot;abc&quot;), shown as warnings while you type."/>
                 </StackPanel>
 
                 <StackPanel IsVisible="{Binding IsKeyboardSelected}" Spacing="4">
                     <TextBlock Text="Key Bindings:" FontWeight="SemiBold"/>
-                    <TextBlock Text="Type a key combination such as Ctrl+Shift+S, Cmd+, or F5; leave it empty to remove the key. Changes apply when the field loses focus."
-                               TextWrapping="Wrap" Margin="0,0,0,6"
-                               Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
                     <ItemsControl ItemsSource="{Binding KeyBindingGroups}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="viewModels:KeyBindingGroup">
@@ -284,7 +267,8 @@
                                                 <Grid ColumnDefinitions="170,180,Auto,*" RowDefinitions="Auto,Auto" Margin="0,0,0,4">
                                                     <TextBlock Grid.Column="0" Text="{Binding Title}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                     <TextBox Grid.Column="1" Text="{Binding Key, UpdateSourceTrigger=LostFocus}"
-                                                             PlaceholderText="none"/>
+                                                             PlaceholderText="none"
+                                                             ToolTip.Tip="Type a key combination such as Ctrl+Shift+S, Cmd+, or F5; leave it empty to remove the key. Changes apply when the field loses focus."/>
                                                     <Button Classes="secondary" Grid.Column="2" Content="Reset" Margin="6,0,0,0" Padding="8,2"
                                                             Command="{Binding ResetCommand}" IsVisible="{Binding IsCustomized}"
                                                             ToolTip.Tip="{Binding DefaultKeyText}"/>
@@ -324,18 +308,18 @@
                               Content="Code fixes and refactorings (lightbulb)"
                               Margin="0,8,0,0"/>
 
-                    <TextBlock Text="Excluded diagnostic IDs (one per line, e.g. CS0184, IDE0007)"
-                               Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"
-                               FontSize="11"
+                    <TextBlock Text="Excluded diagnostic IDs:"
                                Margin="0,8,0,4"
-                               IsEnabled="{Binding CodeFixesEnabled}"/>
+                               IsEnabled="{Binding CodeFixesEnabled}"
+                               ToolTip.Tip="One diagnostic ID per line, such as CS0184 or IDE0007: the lightbulb offers no fixes for them."/>
                     <TextBox Text="{Binding ExcludedDiagnosticIdsText, UpdateSourceTrigger=LostFocus}"
                              AcceptsReturn="True"
                              TextWrapping="NoWrap"
                              Height="90"
                              FontFamily="{x:Static cte:MonospaceFont.Default}"
                              IsEnabled="{Binding CodeFixesEnabled}"
-                             PlaceholderText="CS0184&#10;IDE0007"/>
+                             PlaceholderText="CS0184&#10;IDE0007"
+                             ToolTip.Tip="One diagnostic ID per line, such as CS0184 or IDE0007: the lightbulb offers no fixes for them."/>
                 </StackPanel>
 
             </Panel>
