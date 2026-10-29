@@ -289,7 +289,8 @@ public partial class EditorTabsControl : UserControl, IDisposable
         // The session checkpoint still gets this tab's state, without a live editor to ask.
         vm.CaptureRecovery = () => snapshot;
         _viewStates[vm] = ctrl.CaptureViewState();
-        entry.Tab.Content = null;
+        // The editor's own background, not an empty tab: nothing flashes while the control is built again.
+        entry.Tab.Content = new Border { Background = _themeService!.GetBrush("Invoklet.Editor.BackgroundBrush") };
         ctrl.Dispose();
         _tabs[vm] = (entry.Tab, null);
     }
