@@ -45,6 +45,25 @@
                     <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="#FFFDF8" />
                     <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="#D3CEC5" />
                     <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#676C74" />
+                    <!-- Fluent's Expander ("Storage and usage"): the panel surface for its header, the editor's for its content. -->
+                    <SolidColorBrush x:Key="ExpanderHeaderBackground" Color="#F6F3EE" />
+                    <SolidColorBrush x:Key="ExpanderHeaderBackgroundPointerOver" Color="#E5DFD6" />
+                    <SolidColorBrush x:Key="ExpanderHeaderBackgroundPressed" Color="#EEEAE4" />
+                    <SolidColorBrush x:Key="ExpanderHeaderBackgroundDisabled" Color="#F6F3EE" />
+                    <SolidColorBrush x:Key="ExpanderHeaderForeground" Color="#2F343B" />
+                    <SolidColorBrush x:Key="ExpanderHeaderForegroundPointerOver" Color="#2F343B" />
+                    <SolidColorBrush x:Key="ExpanderHeaderForegroundPressed" Color="#2F343B" />
+                    <SolidColorBrush x:Key="ExpanderHeaderForegroundDisabled" Color="#676C74" />
+                    <SolidColorBrush x:Key="ExpanderHeaderBorderBrush" Color="#D3CEC5" />
+                    <SolidColorBrush x:Key="ExpanderHeaderBorderBrushPointerOver" Color="#D3CEC5" />
+                    <SolidColorBrush x:Key="ExpanderHeaderBorderBrushPressed" Color="#D3CEC5" />
+                    <SolidColorBrush x:Key="ExpanderHeaderBorderBrushDisabled" Color="#D3CEC5" />
+                    <SolidColorBrush x:Key="ExpanderChevronForeground" Color="#676C74" />
+                    <SolidColorBrush x:Key="ExpanderChevronForegroundPointerOver" Color="#2F343B" />
+                    <SolidColorBrush x:Key="ExpanderChevronForegroundPressed" Color="#2F343B" />
+                    <SolidColorBrush x:Key="ExpanderChevronForegroundDisabled" Color="#676C74" />
+                    <SolidColorBrush x:Key="ExpanderContentBackground" Color="#FFFDF8" />
+                    <SolidColorBrush x:Key="ExpanderContentBorderBrush" Color="#D3CEC5" />
                     <SolidColorBrush x:Key="MenuFlyoutItemForeground" Color="#2F343B" />
                     <SolidColorBrush x:Key="MenuFlyoutItemForegroundPointerOver" Color="#2F343B" />
                     <SolidColorBrush x:Key="MenuFlyoutItemForegroundPressed" Color="#2F343B" />
