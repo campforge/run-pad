@@ -45,6 +45,8 @@ public sealed class ArgumentRowViewModel : ReactiveObject
             if (value is null) return; // the ComboBox clears it while its items are replaced
             Set(ref _type, value);
             this.RaisePropertyChanged(nameof(IsEnum));
+            this.RaisePropertyChanged(nameof(IsBool));
+            this.RaisePropertyChanged(nameof(IsText));
             this.RaisePropertyChanged(nameof(IsList));
         }
     }
@@ -57,8 +59,18 @@ public sealed class ArgumentRowViewModel : ReactiveObject
         {
             Set(ref _defaultText, value ?? "");
             this.RaisePropertyChanged(nameof(EnumDefault));
+            this.RaisePropertyChanged(nameof(BoolDefault));
         }
     }
+
+    /// <summary>What a bool's picker offers: none (empty text), true or false.</summary>
+    public static IReadOnlyList<string> BoolChoices { get; } = ["none", "true", "false"];
+
+    internal static string ToChoice(string text) => text.Length == 0 ? "none" : text;
+    internal static string FromChoice(string? choice) => choice is null or "none" ? "" : choice;
+
+    /// <summary>A bool's default as its picker shows it.</summary>
+    public string BoolDefault { get => ToChoice(_defaultText); set { if (value is not null) DefaultText = FromChoice(value); } }
 
     /// <summary>An enum's default, picked from its values. The ComboBox clears its selection while
     /// the values are retyped; that keeps the default instead of dropping it.</summary>
@@ -87,6 +99,8 @@ public sealed class ArgumentRowViewModel : ReactiveObject
         [.. _valuesText.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)];
 
     public bool IsEnum => _type.Type == MdRunArgumentType.Enum;
+    public bool IsBool => _type.Type == MdRunArgumentType.Bool;
+    public bool IsText => !IsEnum && !IsBool;
     public bool IsList => _type.Type == MdRunArgumentType.StringList;
 
     public ReactiveCommand<Unit, Unit> RemoveCommand { get; }
@@ -141,9 +155,13 @@ public sealed class ArgumentSetValueViewModel : ReactiveObject
             if (_set.TextFor(Argument) == (value ?? "")) return;
             _set.SetText(Argument, value ?? "");
             this.RaisePropertyChanged();
+            this.RaisePropertyChanged(nameof(BoolText));
             this.RaisePropertyChanged(nameof(ValueError));
         }
     }
+
+    /// <summary>A bool value as its picker shows it; none uses the default.</summary>
+    public string BoolText { get => ArgumentRowViewModel.ToChoice(Text); set { if (value is not null) Text = ArgumentRowViewModel.FromChoice(value); } }
 
     public string Hint => Argument.DefaultText.Length > 0 ? $"default: {Argument.DefaultText.Replace("\n", ", ")}" : "not passed";
 

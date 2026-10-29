@@ -522,11 +522,6 @@
                     <StackPanel Margin="0,12,0,0" Spacing="14"
                                 DataContext="{Binding Arguments}" x:DataType="viewModels:ScriptArgumentsViewModel"
                                 IsEnabled="{Binding $parent[Window].((viewModels:DependenciesWindowViewModel)DataContext).HasFrontMatter}">
-                        <Expander Header="How arguments are passed" HorizontalAlignment="Stretch">
-                            <TextBlock Classes="hint" TextWrapping="Wrap"
-                                       Text="A run passes each argument as --name value (a list as --name once per item), with the values of the set it uses or else the defaults; an argument with neither is left out. On the command line, --args-set NAME picks a set, and arguments after the script replace them all."/>
-                        </Expander>
-
                         <!-- The declared arguments -->
                         <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
                             <StackPanel Spacing="2">
@@ -566,7 +561,10 @@
                                         <!-- The value starts at the column's edge for every type: an enum splits the
                                              column into its values and a default picked from them. -->
                                         <Grid Grid.Column="2" ColumnDefinitions="*,*" ColumnSpacing="8">
-                                            <TextBox Grid.ColumnSpan="2" Text="{Binding DefaultText}" IsVisible="{Binding !IsEnum}"
+                                            <ComboBox Grid.ColumnSpan="2" HorizontalAlignment="Stretch" IsVisible="{Binding IsBool}"
+                                                      ItemsSource="{x:Static viewModels:ArgumentRowViewModel.BoolChoices}" SelectedItem="{Binding BoolDefault}"
+                                                      AutomationProperties.Name="Default value"/>
+                                            <TextBox Grid.ColumnSpan="2" Text="{Binding DefaultText}" IsVisible="{Binding IsText}"
                                                      AcceptsReturn="{Binding IsList}" TextWrapping="NoWrap"
                                                      PlaceholderText="none"
                                                      AutomationProperties.Name="Default value"/>
@@ -650,8 +648,14 @@
                                                           IsVisible="{Binding Argument.IsEnum}"
                                                           ToolTip.Tip="{Binding ValueError}"
                                                           AutomationProperties.Name="{Binding Argument.Name}"/>
+                                                <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
+                                                          ItemsSource="{x:Static viewModels:ArgumentRowViewModel.BoolChoices}"
+                                                          SelectedItem="{Binding BoolText}"
+                                                          IsVisible="{Binding Argument.IsBool}"
+                                                          ToolTip.Tip="{Binding Hint}"
+                                                          AutomationProperties.Name="{Binding Argument.Name}"/>
                                                 <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Text}" PlaceholderText="{Binding Hint}"
-                                                         IsVisible="{Binding !Argument.IsEnum}"
+                                                         IsVisible="{Binding Argument.IsText}"
                                                          AcceptsReturn="{Binding Argument.IsList}" TextWrapping="NoWrap"
                                                          ToolTip.Tip="{Binding ValueError}"
                                                          AutomationProperties.Name="{Binding Argument.Name}"/>
@@ -672,6 +676,10 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                         <TextBlock x:Name="ArgumentsError" Classes="error" Text="{Binding BlockingError}" IsVisible="{Binding HasError}"/>
+                        <Expander Header="How arguments are passed" HorizontalAlignment="Stretch">
+                            <TextBlock Classes="hint" TextWrapping="Wrap"
+                                       Text="A run passes each argument as --name value (a list as --name once per item), with the values of the set it uses or else the defaults; an argument with neither is left out. On the command line, --args-set NAME picks a set, and arguments after the script replace them all."/>
+                        </Expander>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
