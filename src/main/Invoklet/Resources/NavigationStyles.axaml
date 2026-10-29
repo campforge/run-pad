@@ -31,11 +31,17 @@
                     <DockPanel>
                         <!-- Not named ExpanderHeader: Fluent styles that part by name in each state
                              (borders, corners, padding), and this header looks the same open or folded. -->
-                        <ToggleButton x:Name="PART_BundleHeader" DockPanel.Dock="Top" Classes="bundle-header"
-                                      IsChecked="{TemplateBinding IsExpanded, Mode=TwoWay}"
-                                      Content="{TemplateBinding Header}"
-                                      ContentTemplate="{TemplateBinding HeaderTemplate}"
-                                      AutomationProperties.Name="{TemplateBinding (AutomationProperties.Name)}"/>
+                        <!-- The section's actions (SidebarSection.Actions) sit at the header's right edge,
+                             past the open/close marker, outside the toggle so a click on one doesn't fold it. -->
+                        <DockPanel DockPanel.Dock="Top">
+                            <ContentPresenter x:Name="PART_HeaderActions" DockPanel.Dock="Right" VerticalAlignment="Center"
+                                              Content="{TemplateBinding (uc:SidebarSection.Actions)}"/>
+                            <ToggleButton x:Name="PART_BundleHeader" Classes="bundle-header"
+                                          IsChecked="{TemplateBinding IsExpanded, Mode=TwoWay}"
+                                          Content="{TemplateBinding Header}"
+                                          ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                          AutomationProperties.Name="{TemplateBinding (AutomationProperties.Name)}"/>
+                        </DockPanel>
                         <ContentPresenter x:Name="PART_ContentPresenter"
                                           IsVisible="{TemplateBinding IsExpanded}"
                                           Content="{TemplateBinding Content}"
@@ -55,8 +61,7 @@
 
     <Style Selector="ToggleButton.bundle-header">
         <Setter Property="HorizontalAlignment" Value="Stretch"/>
-        <!-- Stretch, so a header can dock an action (TreeActionButton) to its right edge. -->
-        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
         <Setter Property="Height" Value="24"/>
         <Setter Property="MinHeight" Value="0"/>
         <Setter Property="Margin" Value="0"/>
