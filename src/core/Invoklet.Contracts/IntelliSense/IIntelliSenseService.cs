@@ -164,12 +164,12 @@ public interface IIntelliSenseService : IDisposable
     void ApplyExecutionContext(ExecutionRequest request, CancellationToken cancellationToken)
         => UpdateExecutionContext(request);
 
-    // Call when the tab's .rpad front-matter `namespaces:` list changes (including once at initial
+    // Call when the tab's .inv front-matter `namespaces:` list changes (including once at initial
     // load) so completion/diagnostics/quick-fix ranking see the same global usings the compiler
     // will add — see IMaterializedFix.UsingsToAdd.
     void UpdateGlobalUsings(IReadOnlyList<string> usings);
 
-    // Call when the tab's .rpad front-matter `kind:` changes (including once at initial load) so live
+    // Call when the tab's .inv front-matter `kind:` changes (including once at initial load) so live
     // analysis mirrors the same kind-specific transform the compiler applies before running/debugging
     // (e.g. MdRunKind.Program's implicit `Main();` call) — otherwise the user's own entry point can be
     // flagged as unused.

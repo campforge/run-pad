@@ -380,7 +380,7 @@ public sealed partial class MainWindow : Window, IDisposable, IStartupWindow
             new MainMenuGroup("File",
             [
                 Item("_New File", KeyCommands.NewFile),
-                new MainMenuGroup("New _RPad File",
+                new MainMenuGroup("New _Invoklet File",
                 [
                     .. vm.NewFileLanguages.Select(l => new MainMenuCommand(
                         l.DisplayName, ReactiveCommand.CreateFromTask(() => NewMdRunFileWithKindAsync(l.Language)))),

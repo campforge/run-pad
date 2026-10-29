@@ -162,7 +162,7 @@ internal sealed record CliArguments
         {
             value = inlineValue;
         }
-        // Another option (or "--") is never the value: "--sdk --compile-only a.rpad" lacks the SDK
+        // Another option (or "--") is never the value: "--sdk --compile-only a.inv" lacks the SDK
         // rather than naming one called "--compile-only" and running the script.
         else if (index + 1 < args.Count && args[index + 1] != "--" && !TrySplitOption(args[index + 1], out _, out _))
         {

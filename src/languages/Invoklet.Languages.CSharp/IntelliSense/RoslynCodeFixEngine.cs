@@ -69,7 +69,7 @@ internal sealed class RoslynCodeFixEngine
     // Refactoring providers that only make sense for a multi-file project on disk. MoveType offers
     // "Move type to C.cs", "Rename file to C.cs" and — keyed to CSharpIntelliSenseService's synthetic
     // document name — "Rename type to Script" on every type declaration (confirmed via a live probe).
-    // A .rpad script is one self-contained file the user never sees as
+    // A .inv script is one self-contained file the user never sees as
     // Script.cs, so all three are meaningless there. Matched by the provider's own type name
     // (MoveTypeCodeRefactoringProvider is internal to Microsoft.CodeAnalysis.Features, no public type
     // to compare against) rather than by titles — covers every variant the provider can produce.

@@ -36,7 +36,7 @@ public sealed class OpenScriptTests : IDisposable
 
     private string Script(string name)
     {
-        var path = Path.Combine(_root, name + ".rpad");
+        var path = Path.Combine(_root, name + ".inv");
         File.WriteAllText(path, MdRunWriter.NewFile("1.Dump();", name));
         return path;
     }
@@ -59,6 +59,23 @@ public sealed class OpenScriptTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task OldExtension_Should_BeRejected_AndRenamedScriptShouldOpen()
+    {
+        var vm = Create();
+        var oldPath = Path.Combine(_root, "script.rpad");
+        File.WriteAllText(oldPath, MdRunWriter.NewFile("1.Dump();", "script"));
+
+        await vm.OpenScriptAsync(oldPath);
+        Assert.Empty(vm.Tabs);
+        _windows.Verify(w => w.ShowErrorAsync("Open Failed", It.IsAny<string>()), Times.Once);
+
+        var newPath = Path.ChangeExtension(oldPath, ".inv");
+        File.Move(oldPath, newPath);
+        await vm.OpenScriptAsync(newPath);
+        Assert.Equal(newPath, Assert.Single(vm.Tabs).FilePath);
+    }
+
+    [AvaloniaFact]
     public async Task CancelledPicker_Should_PreserveDirtyUntitledTabAndHistory()
     {
         var vm = Create();
@@ -78,7 +95,7 @@ public sealed class OpenScriptTests : IDisposable
         var vm = Create();
         for (var i = 0; i < RecentFilesService.MaximumCount + 3; i++) await vm.OpenScriptAsync(Script(i.ToString()));
         Assert.Equal(RecentFilesService.MaximumCount, vm.RecentFiles.Count);
-        var path = Path.Combine(_root, "20.rpad");
+        var path = Path.Combine(_root, "20.inv");
         await vm.OpenRecentFileCommand.Execute(path);
         Assert.Equal(path, vm.RecentFiles[0]);
         Assert.Equal(RecentFilesService.MaximumCount, vm.RecentFiles.Count);
@@ -109,7 +126,7 @@ public sealed class OpenScriptTests : IDisposable
         var path = Script("exists");
         await vm.OpenScriptAsync(path);
         var tab = vm.ActiveTab;
-        await vm.OpenRecentFileCommand.Execute(Path.Combine(_root, "missing.rpad"));
+        await vm.OpenRecentFileCommand.Execute(Path.Combine(_root, "missing.inv"));
         _windows.Verify(w => w.ShowErrorAsync("Open Failed", It.IsAny<string>()), Times.Once);
         Assert.Same(tab, Assert.Single(vm.Tabs));
         Assert.Equal([path], vm.RecentFiles);

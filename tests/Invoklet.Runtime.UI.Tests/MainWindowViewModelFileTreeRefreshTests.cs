@@ -122,7 +122,7 @@ public class MainWindowViewModelFileTreeRefreshTests
         {
             uiThreadField.SetValue(null, null);
             Task.Run(() => fileSystem.Raise(f => f.WatcherEvent += null,
-                new FileSystemEventArgs(WatcherChangeTypes.Changed, "/root", "a.rpad")));
+                new FileSystemEventArgs(WatcherChangeTypes.Changed, "/root", "a.inv")));
 
             // Either outcome ends the wait: the callback posted to the captured dispatcher, or it read
             // the static and recreated it on its own thread.

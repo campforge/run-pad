@@ -409,7 +409,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set => SetPref(_prefs.Editor.FontFamily, value, v => _prefs.Editor.FontFamily = v);
     }
 
-    // Live user request: File > New RPad File always asked for a language+kind via
+    // Live user request: File > New Invoklet File always asked for a language+kind via
     // NewFileKindDialog, even for someone who creates the same combination every time. These are the
     // defaults Ctrl+N/File > New File use to skip that dialog (MainWindowViewModel.
     // NewMdRunFileWithDefaults) — plain enum values, same ComboBox.ToString() display NewFileKindDialog

@@ -18,7 +18,7 @@ public sealed class MdRunParseResult
 
     public MdRunDocument? Document { get; }
 
-    /// <summary>Human-readable diagnostic describing why the content isn't a valid .rpad document.</summary>
+    /// <summary>Human-readable diagnostic describing why the content isn't a valid .inv document.</summary>
     public string? Error { get; }
 
     [MemberNotNullWhen(true, nameof(Document))]

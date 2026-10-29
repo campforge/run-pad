@@ -56,7 +56,7 @@ public class DocumentIdSaveTests
     [AvaloniaFact]
     public void LegacyFile_Should_GetAnIdOnItsFirstSave_AndKeepIt() => InTemporaryFolder(dir =>
     {
-        var path = Path.Combine(dir, "old.rpad");
+        var path = Path.Combine(dir, "old.inv");
         File.WriteAllText(path, Legacy);
         var (ctrl, vm, host) = Open(path);
         try
@@ -74,10 +74,10 @@ public class DocumentIdSaveTests
     [AvaloniaFact]
     public void Duplicate_Should_GetItsOwnId_AndLeaveTheOriginalsAlone() => InTemporaryFolder(dir =>
     {
-        var path = Path.Combine(dir, "a.rpad");
+        var path = Path.Combine(dir, "a.inv");
         File.WriteAllText(path, MdRunWriter.NewFile("1.Dump();\n"));
         var original = IdIn(path);
-        var copy = Path.Combine(dir, "a copy.rpad");
+        var copy = Path.Combine(dir, "a copy.inv");
         var (ctrl, vm, host) = Open(path);
         try
         {
@@ -94,10 +94,10 @@ public class DocumentIdSaveTests
     [AvaloniaFact]
     public void SaveAs_Should_MoveTheTabToTheNewId() => InTemporaryFolder(dir =>
     {
-        var path = Path.Combine(dir, "a.rpad");
+        var path = Path.Combine(dir, "a.inv");
         File.WriteAllText(path, MdRunWriter.NewFile("1.Dump();\n"));
         var original = IdIn(path);
-        var moved = Path.Combine(dir, "b.rpad");
+        var moved = Path.Combine(dir, "b.inv");
         var (ctrl, vm, host) = Open(path);
         try
         {

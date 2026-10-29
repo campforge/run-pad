@@ -188,7 +188,7 @@ public class EditorTabsControlCloseConfirmationTests
             ctrl.State.Editor.Text = "Console.WriteLine(1);";
             var tab = Assert.Single(mainVm.Tabs);
 
-            var chosenPath = Path.Combine(rootFolder, "Saved.rpad");
+            var chosenPath = Path.Combine(rootFolder, "Saved.inv");
             windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
                 .ReturnsAsync(UnsavedChangesResult.Save);
             windowService.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), rootFolder))
@@ -238,7 +238,7 @@ public class EditorTabsControlCloseConfirmationTests
         var (_, editorTabs, mainVm, windowService, rootFolder) = h;
         try
         {
-            var filePath = Path.Combine(rootFolder, "demo.rpad");
+            var filePath = Path.Combine(rootFolder, "demo.inv");
             File.WriteAllText(filePath, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
             mainVm.OpenTab(filePath);
             await TestWait.WhileAsync(() => mainVm.ActiveTab?.FrontMatter is null);
@@ -358,7 +358,7 @@ public class EditorTabsControlCloseConfirmationTests
         {
             var ctrl = await GetSoleControlAsync(editorTabs);
             ctrl.State.Editor.Text = "Console.WriteLine(1);";
-            var chosenPath = Path.Combine(rootFolder, "Saved.rpad");
+            var chosenPath = Path.Combine(rootFolder, "Saved.inv");
             windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
                 .ReturnsAsync(UnsavedChangesResult.Save);
             windowService.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), rootFolder))
@@ -431,7 +431,7 @@ public class EditorTabsControlCloseConfirmationTests
 
         var h = CreateHarness();
         var (_, editorTabs, mainVm, windowService, rootFolder) = h;
-        var filePath = Path.Combine(rootFolder, "demo.rpad");
+        var filePath = Path.Combine(rootFolder, "demo.inv");
         try
         {
             File.WriteAllText(filePath, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
@@ -466,7 +466,7 @@ public class EditorTabsControlCloseConfirmationTests
         var (_, editorTabs, mainVm, windowService, rootFolder) = h;
         try
         {
-            var filePath = Path.Combine(rootFolder, "demo.rpad");
+            var filePath = Path.Combine(rootFolder, "demo.inv");
             File.WriteAllText(filePath, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
             var (tab, ctrl) = await OpenNamedTabAsync(editorTabs, mainVm, filePath);
             ctrl.State.Editor.Text = "Console.WriteLine(3);";
@@ -491,7 +491,7 @@ public class EditorTabsControlCloseConfirmationTests
 
         var h = CreateHarness();
         var (_, editorTabs, mainVm, windowService, rootFolder) = h;
-        var filePath = Path.Combine(rootFolder, "demo.rpad");
+        var filePath = Path.Combine(rootFolder, "demo.inv");
         try
         {
             File.WriteAllText(filePath, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));

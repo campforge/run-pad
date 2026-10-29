@@ -86,7 +86,7 @@ public class EditorTabsControlTabActionsWiringTests
         var (editorTabs, mainVm, _, rootFolder) = CreateHarness();
         try
         {
-            var original = Path.Combine(rootFolder, "Query 1.rpad");
+            var original = Path.Combine(rootFolder, "Query 1.inv");
             File.WriteAllText(original, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Query 1"));
             mainVm.OpenTab(original);
             await GetSoleControlAsync(editorTabs);
@@ -95,7 +95,7 @@ public class EditorTabsControlTabActionsWiringTests
 
             tab.DuplicateCommand.Execute().Subscribe();
 
-            var expectedCopyPath = Path.Combine(rootFolder, "Query 1 copy.rpad");
+            var expectedCopyPath = Path.Combine(rootFolder, "Query 1 copy.inv");
             await TestWait.WhileAsync(() => !File.Exists(expectedCopyPath));
 
             Assert.True(File.Exists(expectedCopyPath));
@@ -110,7 +110,7 @@ public class EditorTabsControlTabActionsWiringTests
         var (editorTabs, mainVm, fileSystem, rootFolder) = CreateHarness();
         try
         {
-            var filePath = Path.Combine(rootFolder, "demo.rpad");
+            var filePath = Path.Combine(rootFolder, "demo.inv");
             File.WriteAllText(filePath, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
             mainVm.OpenTab(filePath);
             await GetSoleControlAsync(editorTabs);

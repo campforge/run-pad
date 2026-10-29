@@ -121,7 +121,7 @@ public class DocumentSafetyHeadlessTests
         var h = CreateHarness();
         try
         {
-            var (tab, ctrl) = await OpenNamedAsync(h, "a.rpad");
+            var (tab, ctrl) = await OpenNamedAsync(h, "a.inv");
             ctrl.State.Editor.Text = "Console.WriteLine(\"unsaved\");";
             tab.WriteToFile = ThrowDiskFull;
             h.WindowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
@@ -145,10 +145,10 @@ public class DocumentSafetyHeadlessTests
         var h = CreateHarness();
         try
         {
-            var (tab, ctrl) = await OpenNamedAsync(h, "a.rpad");
+            var (tab, ctrl) = await OpenNamedAsync(h, "a.inv");
             ctrl.State.Editor.Text = "Console.WriteLine(\"unsaved\");";
             tab.WriteToFile = ThrowDiskFull;
-            await OpenNamedAsync(h, "b.rpad"); // a.rpad becomes inactive
+            await OpenNamedAsync(h, "b.inv"); // a.inv becomes inactive
             Assert.NotSame(tab, h.MainVm.ActiveTab);
             h.WindowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
                 .ReturnsAsync(UnsavedChangesResult.Cancel);
@@ -175,10 +175,10 @@ public class DocumentSafetyHeadlessTests
         if (OperatingSystem.IsWindows()) return; // the Unix file-mode trick below doesn't apply
 
         var h = CreateHarness();
-        var path = Path.Combine(h.Root, "a.rpad");
+        var path = Path.Combine(h.Root, "a.inv");
         try
         {
-            var (tab, ctrl) = await OpenNamedAsync(h, "a.rpad");
+            var (tab, ctrl) = await OpenNamedAsync(h, "a.inv");
             Assert.False(tab.IsDirty);
             File.SetUnixFileMode(path, UnixFileMode.UserRead);
             h.WindowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
@@ -208,7 +208,7 @@ public class DocumentSafetyHeadlessTests
         var h = CreateHarness();
         try
         {
-            var (tab, _) = await OpenNamedAsync(h, "a.rpad");
+            var (tab, _) = await OpenNamedAsync(h, "a.inv");
 
             tab.SelectedKind = nameof(MdRunKind.Program);
 
@@ -268,7 +268,7 @@ public class DocumentSafetyHeadlessTests
         var h = CreateHarness();
         try
         {
-            var (tab, ctrl) = await OpenNamedAsync(h, "a.rpad");
+            var (tab, ctrl) = await OpenNamedAsync(h, "a.inv");
             var onDisk = File.ReadAllText(tab.FilePath!);
             ctrl.State.Editor.Text = "Console.WriteLine(\"unsaved\");";
             Assert.True(tab.IsDirty);
@@ -289,7 +289,7 @@ public class DocumentSafetyHeadlessTests
         var h = CreateHarness();
         try
         {
-            var (tab, _) = await OpenNamedAsync(h, "a.rpad");
+            var (tab, _) = await OpenNamedAsync(h, "a.inv");
             SetupDependenciesDialog(h, apply: true);
 
             await h.MainVm.OpenDependenciesCommand.Execute();
@@ -307,10 +307,10 @@ public class DocumentSafetyHeadlessTests
         if (OperatingSystem.IsWindows()) return; // the Unix file-mode trick below doesn't apply
 
         var h = CreateHarness();
-        var path = Path.Combine(h.Root, "a.rpad");
+        var path = Path.Combine(h.Root, "a.inv");
         try
         {
-            var (tab, ctrl) = await OpenNamedAsync(h, "a.rpad");
+            var (tab, ctrl) = await OpenNamedAsync(h, "a.inv");
             File.SetUnixFileMode(path, UnixFileMode.UserRead);
             SetupDependenciesDialog(h, apply: true);
 
@@ -332,12 +332,12 @@ public class DocumentSafetyHeadlessTests
         var h = CreateHarness();
         try
         {
-            var (tab, ctrl) = await OpenNamedAsync(h, "original.rpad");
+            var (tab, ctrl) = await OpenNamedAsync(h, "original.inv");
             var oldPath = tab.FilePath!;
             var oldBytes = File.ReadAllBytes(oldPath);
             const string edited = "Console.WriteLine(\"Привет 🌍\");";
             ctrl.State.Editor.Text = edited;
-            var destination = Path.Combine(h.Root, "retry.rpad");
+            var destination = Path.Combine(h.Root, "retry.inv");
             h.WindowService.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), h.Root))
                 .ReturnsAsync(destination);
 

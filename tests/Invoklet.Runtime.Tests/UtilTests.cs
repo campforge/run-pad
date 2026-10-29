@@ -160,9 +160,9 @@ public class UtilTests
         var original = Environment.GetEnvironmentVariable(Util.CurrentQueryPathEnvVar);
         try
         {
-            Environment.SetEnvironmentVariable(Util.CurrentQueryPathEnvVar, "/home/user/Documents/Invoklet Queries/a.rpad");
+            Environment.SetEnvironmentVariable(Util.CurrentQueryPathEnvVar, "/home/user/Documents/Invoklet Queries/a.inv");
 
-            Assert.Equal("/home/user/Documents/Invoklet Queries/a.rpad", Util.CurrentQueryPath);
+            Assert.Equal("/home/user/Documents/Invoklet Queries/a.inv", Util.CurrentQueryPath);
         }
         finally { Environment.SetEnvironmentVariable(Util.CurrentQueryPathEnvVar, original); }
     }

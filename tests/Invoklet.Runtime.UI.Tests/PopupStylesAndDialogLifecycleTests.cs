@@ -97,7 +97,7 @@ public class PopupStylesAndDialogLifecycleTests
     {
         var installed = Install();
         var file = new MenuItem { Header = "File" };
-        var submenu = new MenuItem { Header = "New RPad File" };
+        var submenu = new MenuItem { Header = "New Invoklet File" };
         submenu.Items.Add(new MenuItem { Header = "C#" });
         file.Items.Add(submenu);
         var menu = new Menu();

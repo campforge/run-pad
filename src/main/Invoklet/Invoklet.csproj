@@ -32,7 +32,7 @@
     <AvaloniaResource Include="Assets\**"/>
     <!-- The sidebar's Samples (Services/Examples/ExampleScripts): read from the assembly, never from disk.
          A subfolder is a folder of the Samples tree, kept in the resource name. -->
-    <EmbeddedResource Include="Examples\**\*.rpad" LogicalName="Invoklet.Examples.%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Examples\**\*.inv" LogicalName="Invoklet.Examples.%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

@@ -31,13 +31,13 @@ public static class MdRunParser
     };
 
     /// <summary>
-    /// Parses an .rpad file. Returns null if the content isn't a valid .rpad document — see
+    /// Parses an .inv file. Returns null if the content isn't a valid .inv document — see
     /// <see cref="Parse"/> for the reason.
     /// </summary>
     public static MdRunDocument? TryParse(string content) => Parse(content).Document;
 
     /// <summary>
-    /// Parses an .rpad file, reporting why it isn't a valid document instead of guessing: missing
+    /// Parses an .inv file, reporting why it isn't a valid document instead of guessing: missing
     /// front matter, malformed YAML (e.g. an unknown <c>kind:</c>) and a missing run block for the
     /// declared language are all errors. Absent/empty optional values still fall back to defaults.
     /// </summary>
@@ -390,7 +390,7 @@ internal sealed class StrictEnumYamlConverter<TEnum>(bool lowercase) : IYamlType
     private string Display(TEnum member) => lowercase ? member.ToString().ToLowerInvariant() : member.ToString();
 }
 
-// TargetSdk/Package are plain YAML scalars ("net8.0", "2.1.66") in the .rpad file, not mappings —
+// TargetSdk/Package are plain YAML scalars ("net8.0", "2.1.66") in the .inv file, not mappings —
 // without these, YamlDotNet tries to bind the scalar onto the record's constructor and throws,
 // which Parse would report as an invalid document.
 internal sealed class TargetSdkYamlConverter : IYamlTypeConverter

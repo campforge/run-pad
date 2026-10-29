@@ -210,7 +210,7 @@ public sealed class RecoveryStoreTests : IDisposable
         string other;
         using (var first = new DiskRecoveryStore(_root))
         {
-            var clean = new RecoveryTab { FilePath = Path.Combine(_root, "clean.rpad"), EditorText = "saved", IsDirty = false };
+            var clean = new RecoveryTab { FilePath = Path.Combine(_root, "clean.inv"), EditorText = "saved", IsDirty = false };
             await first.CommitAsync(new RecoverySnapshot { Revision = 1, Tabs = [clean, new RecoveryTab { EditorText = "" }] });
             other = Assert.Single(Directory.GetDirectories(_root));
             using var second = new DiskRecoveryStore(_root);

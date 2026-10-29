@@ -21,8 +21,8 @@ public class ExampleScriptsTests
         var examples = ExampleScripts.All;
 
         Assert.Equal(
-            ["quick-start.rpad", "expression-kind.rpad", "program-kind.rpad", "products-overview.rpad",
-             "live-output.rpad", "debugging-loop.rpad"],
+            ["quick-start.inv", "expression-kind.inv", "program-kind.inv", "products-overview.inv",
+             "live-output.inv", "debugging-loop.inv"],
             examples.Select(e => e.Id));
         Assert.Equal(
             ["Quick start", "Expression kind", "Program kind", "Products overview", "Live output", "Debugging loop"],
@@ -56,8 +56,8 @@ public class ExampleScriptsTests
         => Assert.Empty(ExampleScripts.Load(typeof(ExampleScriptsTests).Assembly));
 
     [Theory]
-    [InlineData("---\nkind: Statements\n---\n\n# My sample\n\ntext", "x.rpad", "My sample")]
-    [InlineData("---\nkind: Statements\n---\n\nno heading", "first-steps.rpad", "First steps")]
+    [InlineData("---\nkind: Statements\n---\n\n# My sample\n\ntext", "x.inv", "My sample")]
+    [InlineData("---\nkind: Statements\n---\n\nno heading", "first-steps.inv", "First steps")]
     public void TitleOf_Should_UseTheFirstHeading_ElseTheFileName(string text, string id, string expected)
         => Assert.Equal(expected, ExampleScripts.TitleOf(text, id));
 

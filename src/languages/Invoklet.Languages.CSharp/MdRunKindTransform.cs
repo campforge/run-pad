@@ -45,7 +45,7 @@ internal static class MdRunKindTransform
 {
     // Double-underscore prefix to keep a collision with a user-declared member of the same name
     // astronomically unlikely — neither identifier is ever shown to the user (they exist only in the
-    // throwaway .cs file actually handed to `dotnet build`/Roslyn, never in the .rpad source itself).
+    // throwaway .cs file actually handed to `dotnet build`/Roslyn, never in the .inv source itself).
     public const string ProgramWrapperClassName = "__InvokletProgram";
     internal const string TrampolineMethodName = "__InvokletRun";
 

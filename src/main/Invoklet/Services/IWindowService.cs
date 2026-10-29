@@ -31,7 +31,7 @@ public interface IWindowService
     /// </summary>
     Task<string?> ShowSaveFileDialogAsync(string suggestedFileName, string startFolder);
 
-    /// <summary>Native picker for a local .rpad script; null on cancellation.</summary>
+    /// <summary>Native picker for a local .inv script; null on cancellation.</summary>
     Task<string?> ShowOpenScriptFileDialogAsync(string startFolder);
 
     /// <summary>

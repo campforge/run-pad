@@ -45,7 +45,7 @@ public class ExternalFileChangeReloadTests
         public Harness()
         {
             Folder = Directory.CreateTempSubdirectory("Invoklet-external-reload").FullName;
-            Path = System.IO.Path.Combine(Folder, "demo.rpad");
+            Path = System.IO.Path.Combine(Folder, "demo.inv");
             File.WriteAllText(Path, MdRunWriter.NewFile(Original + "\n", "Demo"));
 
             var prefs = new Mock<IPreferencesService>();
@@ -86,7 +86,7 @@ public class ExternalFileChangeReloadTests
             Windows.Setup(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>())).ReturnsAsync(reload);
 
         public void AssertAskedToReload(int times) =>
-            Windows.Verify(w => w.ShowReloadChangedFileDialogAsync("demo.rpad"), Times.Exactly(times));
+            Windows.Verify(w => w.ShowReloadChangedFileDialogAsync("demo.inv"), Times.Exactly(times));
 
         public void Dispose()
         {
@@ -255,11 +255,11 @@ public class ExternalFileChangeReloadTests
         using var h = new Harness();
         var (vm, ctrl) = await h.OpenAsync();
         ctrl.State.Editor.Text = EditedHere + "\n";
-        h.Windows.Setup(w => w.ShowRevertFileDialogAsync("demo.rpad")).ReturnsAsync(revert);
+        h.Windows.Setup(w => w.ShowRevertFileDialogAsync("demo.inv")).ReturnsAsync(revert);
 
         await h.Tabs.RevertActiveAsync();
 
-        h.Windows.Verify(w => w.ShowRevertFileDialogAsync("demo.rpad"), Times.Once);
+        h.Windows.Verify(w => w.ShowRevertFileDialogAsync("demo.inv"), Times.Once);
         Assert.Equal(revert ? Original : EditedHere, ctrl.State.Editor.Text.Trim());
         Assert.Equal(!revert, vm.IsDirty);
     }
@@ -365,10 +365,10 @@ public class ExternalFileChangeReloadTests
     [AvaloniaFact]
     public void TheDialog_Should_NameTheFile_AndKeepTheChangesByDefault()
     {
-        var dialog = ReloadFileDialog.ChangedOnDisk("demo.rpad");
+        var dialog = ReloadFileDialog.ChangedOnDisk("demo.inv");
         var buttons = dialog.GetLogicalDescendants().OfType<Button>().ToDictionary(b => (string)b.Content!);
 
-        Assert.Contains("\"demo.rpad\" was changed by another program", dialog.FindControl<TextBlock>("MessageBlock")!.Text);
+        Assert.Contains("\"demo.inv\" was changed by another program", dialog.FindControl<TextBlock>("MessageBlock")!.Text);
         Assert.Equal(["Reload", "Keep My Changes"], buttons.Keys);
         Assert.False(buttons["Reload"].IsDefault);
         Assert.True(buttons["Keep My Changes"].IsDefault);
@@ -378,11 +378,11 @@ public class ExternalFileChangeReloadTests
     [AvaloniaFact]
     public async Task TheDialog_Should_ReloadOnlyFromItsButton()
     {
-        Assert.True(await AnswerAsync(ReloadFileDialog.Revert("demo.rpad"),
+        Assert.True(await AnswerAsync(ReloadFileDialog.Revert("demo.inv"),
             d => d.FindControl<Button>("ReloadButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent))));
-        Assert.False(await AnswerAsync(ReloadFileDialog.Revert("demo.rpad"),
+        Assert.False(await AnswerAsync(ReloadFileDialog.Revert("demo.inv"),
             d => d.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None)));
-        Assert.False(await AnswerAsync(ReloadFileDialog.Revert("demo.rpad"),
+        Assert.False(await AnswerAsync(ReloadFileDialog.Revert("demo.inv"),
             d => d.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None)));
     }
 }

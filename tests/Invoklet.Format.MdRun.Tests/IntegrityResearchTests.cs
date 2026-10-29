@@ -15,7 +15,7 @@ public class IntegrityResearchTests
         var root = Directory.CreateTempSubdirectory("Invoklet-integrity-probe").FullName;
         try
         {
-            var path = Path.Combine(root, "probe.rpad");
+            var path = Path.Combine(root, "probe.inv");
             var body = nl + "# Заметки 🌍" + nl + "Before 日本語" + nl + "```csharp run" + nl
                 + (code.Length == 0 ? "" : code + nl) + "```" + nl + "After é" + nl;
             var header = "---" + nl + "language: csharp" + nl + "---" + nl;

@@ -23,7 +23,7 @@ public class MainWindowViewModelSaveConflictTests : IDisposable
 
     public MainWindowViewModelSaveConflictTests()
     {
-        _file = Path.Combine(_root, "a.rpad");
+        _file = Path.Combine(_root, "a.inv");
         File.WriteAllText(_file, "read by the tab");
 
         var fileSystem = new Mock<IFileSystemService>();
@@ -60,7 +60,7 @@ public class MainWindowViewModelSaveConflictTests : IDisposable
     private void ChangeExternally() => File.WriteAllText(_file, "written by another program");
 
     private void Answer(SaveConflictChoice choice) =>
-        _windows.Setup(w => w.ShowSaveConflictDialogAsync("a.rpad")).ReturnsAsync(choice);
+        _windows.Setup(w => w.ShowSaveConflictDialogAsync("a.inv")).ReturnsAsync(choice);
 
     private Task<bool> CloseAsync(EditorTabItemViewModel tab) => _vm.ResolveUnsavedChangesBeforeCloseAsync(tab);
 
@@ -144,7 +144,7 @@ public class MainWindowViewModelSaveConflictTests : IDisposable
         var tab = OpenDirtyTab();
         ChangeExternally();
         Answer(SaveConflictChoice.SaveAs);
-        var other = Path.Combine(_root, "b.rpad");
+        var other = Path.Combine(_root, "b.inv");
         _windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(other);
 
         Assert.True(await CloseAsync(tab));
@@ -158,7 +158,7 @@ public class MainWindowViewModelSaveConflictTests : IDisposable
     [Fact]
     public async Task Close_SaveAs_WithAFailedWrite_Should_ReportIt_AndStopTheClose()
     {
-        var other = Path.Combine(_root, "b.rpad");
+        var other = Path.Combine(_root, "b.inv");
         var tab = OpenDirtyTab(fails: p => p == other);
         ChangeExternally();
         Answer(SaveConflictChoice.SaveAs);
@@ -183,7 +183,7 @@ public class MainWindowViewModelSaveConflictTests : IDisposable
 
         await ((IEditorTabActions)_vm).SaveAsAsync(tab);
 
-        _windows.Verify(w => w.ShowSaveConflictDialogAsync("a.rpad"), Times.Once);
+        _windows.Verify(w => w.ShowSaveConflictDialogAsync("a.inv"), Times.Once);
         Assert.Equal("written by another program", File.ReadAllText(_file));
         Assert.True(tab.IsDirty);
     }
@@ -206,7 +206,7 @@ public class MainWindowViewModelSaveConflictTests : IDisposable
     public async Task SaveAs_Should_MakeTheNewFileTheBaseline()
     {
         var tab = OpenDirtyTab();
-        var other = Path.Combine(_root, "b.rpad");
+        var other = Path.Combine(_root, "b.inv");
         _windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(other);
         await ((IEditorTabActions)_vm).SaveAsAsync(tab);
         tab.IsDirty = true;
@@ -228,7 +228,7 @@ public class MainWindowViewModelSaveConflictTests : IDisposable
         await _vm.RenameFile(_file, "renamed");
 
         Assert.Equal("written by another program", File.ReadAllText(_file));
-        Assert.False(File.Exists(Path.Combine(_root, "renamed.rpad")));
+        Assert.False(File.Exists(Path.Combine(_root, "renamed.inv")));
         Assert.Contains(tab, _vm.Tabs);
         Assert.True(tab.IsDirty);
     }
@@ -257,6 +257,6 @@ public class MainWindowViewModelSaveConflictTests : IDisposable
         await _vm.MoveFileOrFolder(_file, target);
 
         Assert.False(File.Exists(_file));
-        Assert.Equal("edited in Invoklet", File.ReadAllText(Path.Combine(target, "a.rpad")));
+        Assert.Equal("edited in Invoklet", File.ReadAllText(Path.Combine(target, "a.inv")));
     }
 }

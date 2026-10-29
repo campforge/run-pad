@@ -47,7 +47,7 @@ public class ReferencePathTabTests : IDisposable
         _newDir = Directory.CreateDirectory(Path.Combine(_root, "new", "deeper")).FullName;
         _library = Path.Combine(Directory.CreateDirectory(Path.Combine(_oldDir, "lib")).FullName, "Greeter.dll");
         File.WriteAllText(_library, "");
-        _script = Path.Combine(_oldDir, "query.rpad");
+        _script = Path.Combine(_oldDir, "query.inv");
         var text = MdRunWriter.NewFile("Console.WriteLine(1);\n", "Demo");
         var document = MdRunParser.TryParse(text)!;
         document.FrontMatter.References = [.. References];
@@ -135,7 +135,7 @@ public class ReferencePathTabTests : IDisposable
                 It.Is<PackageReferenceContext>(c => c.AssemblyReferences != null
                     && c.AssemblyReferences.SequenceEqual(new[] { _library, _library }))), Times.AtLeastOnce()));
 
-            var newScript = Path.Combine(_newDir, "query.rpad");
+            var newScript = Path.Combine(_newDir, "query.inv");
             _windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(newScript);
             var original = File.ReadAllBytes(_script);
 
@@ -190,7 +190,7 @@ public class ReferencePathTabTests : IDisposable
             vm.IsDirty = true;
             if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(_newDir, UnixFileMode.UserRead | UnixFileMode.UserExecute);
             _windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(Path.Combine(_newDir, "query.rpad"));
+                .ReturnsAsync(Path.Combine(_newDir, "query.inv"));
 
             await vm.SaveAsCommand.Execute();
 
@@ -291,7 +291,7 @@ public class ReferencePathTabTests : IDisposable
         {
             ((IEditorTabActions)shell).Duplicate(vm);
 
-            var copy = Path.Combine(_oldDir, "query copy.rpad");
+            var copy = Path.Combine(_oldDir, "query copy.inv");
             Assert.Equal(References, ReferencesIn(copy));
             Assert.Equal(_script, vm.FilePath);
             Assert.Equal(References, ctrl.State.MdRunDocument!.FrontMatter.References);

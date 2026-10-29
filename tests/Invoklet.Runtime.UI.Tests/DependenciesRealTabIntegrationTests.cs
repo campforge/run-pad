@@ -20,7 +20,7 @@ using Xunit;
 namespace Invoklet.Runtime.UI.Tests;
 
 // Reproduces "packages added via Dependencies aren't there for an already-open, already-saved
-// .rpad file" end-to-end: real EditorTabsControl/MainWindowViewModel tab loading (the same async
+// .inv file" end-to-end: real EditorTabsControl/MainWindowViewModel tab loading (the same async
 // path CreateControlAsync uses), real ILocalPackageCacheService, real DependenciesWindow —
 // IPackageSearchService itself is mocked (no real network dependency in CI), only the DI-only
 // services with no bearing on this flow are mocked otherwise.
@@ -34,7 +34,7 @@ public class DependenciesRealTabIntegrationTests
         var tmpDir = Directory.CreateTempSubdirectory("Invoklet-deps-it").FullName;
         try
         {
-            var filePath = Path.Combine(tmpDir, "demo.rpad");
+            var filePath = Path.Combine(tmpDir, "demo.inv");
             var doc = MdRunParser.TryParse(MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
             doc.FrontMatter.Packages["Existing.Package"] = new Package("1.2.3");
             File.WriteAllText(filePath, MdRunWriter.Write(doc));
@@ -98,7 +98,7 @@ public class DependenciesRealTabIntegrationTests
                 host.Show();
                 editorTabs.Attach(mainVm); // opens the initial blank tab
 
-                // Act: open the already-saved .rpad file, same as double-clicking it in the file tree,
+                // Act: open the already-saved .inv file, same as double-clicking it in the file tree,
                 // and wait for the async tab load (EditorTabsControl.CreateControlAsync) to finish.
                 mainVm.OpenTab(filePath);
                 await TestWait.WhileAsync(() => mainVm.ActiveTab?.FrontMatter is null);

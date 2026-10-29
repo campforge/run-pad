@@ -23,7 +23,7 @@ public interface IFileSystemService : IDisposable
     string Folder { get; }
 
     /// <summary>
-    /// Raised on the thread-pool when a tracked file (.rpad) or a directory
+    /// Raised on the thread-pool when a tracked file (.inv) or a directory
     /// inside the watched folder is created, deleted, renamed, or changed.
     /// For Renamed events the argument is <see cref="RenamedEventArgs"/>.
     /// </summary>
@@ -34,7 +34,7 @@ public interface IFileSystemService : IDisposable
 
 public sealed class FileSystemService : IFileSystemService
 {
-    private const string FileExtension = ".rpad";
+    private const string FileExtension = ".inv";
     private readonly string _rootFolder;
 
     private readonly FileSystemWatcher _watcher = new();
@@ -88,7 +88,7 @@ public sealed class FileSystemService : IFileSystemService
         ct.ThrowIfCancellationRequested();
         var result = new List<FileSystemItem>();
 
-        // Walk folders first. Don't skip folders with no .rpad files inside (used to have "if
+        // Walk folders first. Don't skip folders with no .inv files inside (used to have "if
         // (children.Count > 0)" here) — otherwise a folder just created via "New Folder", while still
         // empty, would immediately disappear from the tree on the very next RefreshNodes(), which is
         // exactly what happened: the "New Folder" command really did create the directory on disk, but
@@ -162,10 +162,10 @@ public sealed class FileSystemService : IFileSystemService
 
 
     // File tree's "New File" — same "probe for a free name" pattern as CreateNewFolder,
-    // but for a .rpad file, written into the caller-resolved target directory instead of always the
+    // but for a .inv file, written into the caller-resolved target directory instead of always the
     // workspace root (the caller — MainWindowViewModel.CreateFileAsync — resolves that the same way
     // CreateFolderAsync does). Written with MdRunWriter.NewFile around the caller's <code> (the
-    // language's template for the kind), so the file is a well-formed .rpad document at once.
+    // language's template for the kind), so the file is a well-formed .inv document at once.
     public string CreateNewFile(string parentDir, MdRunLanguage language, MdRunKind kind, string code)
     {
         int i = 1;
@@ -201,7 +201,7 @@ public sealed class FileSystemService : IFileSystemService
     public void StartWatcher()
     {
         _watcher.Path = _rootFolder;
-        // Everything: a "*.rpad" filter is applied by the system watcher to folder names too, so a
+        // Everything: a "*.inv" filter is applied by the system watcher to folder names too, so a
         // folder created or renamed outside Invoklet (project.v2, Imported) never raised an event.
         // Which changes matter is decided in IsRelevant.
         _watcher.Filter = "";

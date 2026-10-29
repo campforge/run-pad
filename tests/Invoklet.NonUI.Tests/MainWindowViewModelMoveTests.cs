@@ -47,14 +47,14 @@ public class MainWindowViewModelMoveTests
         {
             var sub = Path.Combine(root, "Sub");
             Directory.CreateDirectory(sub);
-            var file = Path.Combine(root, "a.rpad");
+            var file = Path.Combine(root, "a.inv");
             File.WriteAllText(file, "content");
 
             var (vm, _) = CreateViewModel(root);
             vm.MoveFileOrFolder(file, sub);
 
             Assert.False(File.Exists(file));
-            Assert.True(File.Exists(Path.Combine(sub, "a.rpad")));
+            Assert.True(File.Exists(Path.Combine(sub, "a.inv")));
         }
         finally { Directory.Delete(root, recursive: true); }
     }
@@ -69,14 +69,14 @@ public class MainWindowViewModelMoveTests
             Directory.CreateDirectory(target);
             var source = Path.Combine(root, "Source");
             Directory.CreateDirectory(source);
-            File.WriteAllText(Path.Combine(source, "a.rpad"), "content");
+            File.WriteAllText(Path.Combine(source, "a.inv"), "content");
 
             var (vm, _) = CreateViewModel(root);
             vm.MoveFileOrFolder(source, target);
 
             Assert.False(Directory.Exists(source));
             Assert.True(Directory.Exists(Path.Combine(target, "Source")));
-            Assert.True(File.Exists(Path.Combine(target, "Source", "a.rpad")));
+            Assert.True(File.Exists(Path.Combine(target, "Source", "a.inv")));
         }
         finally { Directory.Delete(root, recursive: true); }
     }
@@ -89,14 +89,14 @@ public class MainWindowViewModelMoveTests
         {
             var sub = Path.Combine(root, "Sub");
             Directory.CreateDirectory(sub);
-            var file = Path.Combine(sub, "a.rpad");
+            var file = Path.Combine(sub, "a.inv");
             File.WriteAllText(file, "content");
 
             var (vm, _) = CreateViewModel(root);
             vm.MoveFileOrFolder(file, null);
 
             Assert.False(File.Exists(file));
-            Assert.True(File.Exists(Path.Combine(root, "a.rpad")));
+            Assert.True(File.Exists(Path.Combine(root, "a.inv")));
         }
         finally { Directory.Delete(root, recursive: true); }
     }
@@ -111,16 +111,16 @@ public class MainWindowViewModelMoveTests
         {
             var sub = Path.Combine(root, "Sub");
             Directory.CreateDirectory(sub);
-            var targetFile = Path.Combine(sub, "b.rpad");
+            var targetFile = Path.Combine(sub, "b.inv");
             File.WriteAllText(targetFile, "content");
-            var sourceFile = Path.Combine(root, "a.rpad");
+            var sourceFile = Path.Combine(root, "a.inv");
             File.WriteAllText(sourceFile, "content");
 
             var (vm, _) = CreateViewModel(root);
             vm.MoveFileOrFolder(sourceFile, targetFile);
 
             Assert.False(File.Exists(sourceFile));
-            Assert.True(File.Exists(Path.Combine(sub, "a.rpad")));
+            Assert.True(File.Exists(Path.Combine(sub, "a.inv")));
         }
         finally { Directory.Delete(root, recursive: true); }
     }
@@ -138,7 +138,7 @@ public class MainWindowViewModelMoveTests
         var root = Directory.CreateTempSubdirectory("Invoklet-move-test").FullName;
         try
         {
-            var file = Path.Combine(root, "a.rpad");
+            var file = Path.Combine(root, "a.inv");
             File.WriteAllText(file, "content");
 
             var (vm, windowService) = CreateViewModel(root);
@@ -162,7 +162,7 @@ public class MainWindowViewModelMoveTests
         {
             var sub = Path.Combine(root, "Sub");
             Directory.CreateDirectory(sub);
-            var file = Path.Combine(root, "a.rpad");
+            var file = Path.Combine(root, "a.inv");
             File.WriteAllText(file, "content");
 
             var (vm, _) = CreateViewModel(root);
@@ -171,7 +171,7 @@ public class MainWindowViewModelMoveTests
 
             vm.MoveFileOrFolder(file, sub);
 
-            var newPath = Path.Combine(sub, "a.rpad");
+            var newPath = Path.Combine(sub, "a.inv");
             Assert.Contains(vm.Tabs, t => t.FilePath == newPath);
             Assert.DoesNotContain(vm.Tabs, t => t.FilePath == file);
         }
@@ -188,7 +188,7 @@ public class MainWindowViewModelMoveTests
             Directory.CreateDirectory(target);
             var source = Path.Combine(root, "Source");
             Directory.CreateDirectory(source);
-            var nested = Path.Combine(source, "a.rpad");
+            var nested = Path.Combine(source, "a.inv");
             File.WriteAllText(nested, "content");
 
             var (vm, _) = CreateViewModel(root);
@@ -197,7 +197,7 @@ public class MainWindowViewModelMoveTests
 
             vm.MoveFileOrFolder(source, target);
 
-            var newNestedPath = Path.Combine(target, "Source", "a.rpad");
+            var newNestedPath = Path.Combine(target, "Source", "a.inv");
             Assert.Contains(vm.Tabs, t => t.FilePath == newNestedPath);
         }
         finally { Directory.Delete(root, recursive: true); }
@@ -215,7 +215,7 @@ public class MainWindowViewModelMoveTests
             var parent = Path.Combine(root, "Parent");
             var child = Path.Combine(parent, "Child");
             Directory.CreateDirectory(child);
-            var nested = Path.Combine(parent, "a.rpad");
+            var nested = Path.Combine(parent, "a.inv");
             File.WriteAllText(nested, "content");
 
             var (vm, windowService) = CreateViewModel(root);

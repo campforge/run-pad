@@ -9,7 +9,7 @@
 - **Cross-platform** — the same app on Windows, Linux and macOS (Apple Silicon and Intel).
 
 Write C# against the .NET SDK you already have, run it in a keystroke and explore the results with
-`.Dump()`. Every script is a `.rpad` file — Markdown with a short YAML header and one runnable code
+`.Dump()`. Every script is a `.inv` file — Markdown with a short YAML header and one runnable code
 block — so your notes live right next to the code.
 
 ![Invoklet main window](https://tervforge.github.io/invoklet-docs/assets/screenshots/overview.png)
@@ -47,7 +47,7 @@ for the first-launch steps on each OS.
 
 - [User guide](https://tervforge.github.io/invoklet-docs/) — installation, quick start, editor,
   debugging, results, packages, command line.
-- [Scripts and `.rpad` files](https://tervforge.github.io/invoklet-docs/scripts/) — the script format.
+- [Scripts and `.inv` files](https://tervforge.github.io/invoklet-docs/scripts/) — the script format.
 - [Changelog](CHANGELOG.md) — what changed in each release.
 - [Roadmap](ROADMAP.md) — what is planned next.
 

@@ -9,7 +9,7 @@ namespace Invoklet.Languages.DotnetCommon;
 /// Options shared by every <see cref="CompiledDotnetLanguageHostBase"/> subclass — was two
 /// byte-for-byte identical classes (CSharpLanguageHostOptions/VbLanguageHostOptions) before
 /// unification. What differs between languages (kind-transform, project-file
-/// shape) lives on the host/profile instead, not on the options a caller builds from .rpad front
+/// shape) lives on the host/profile instead, not on the options a caller builds from .inv front
 /// matter.
 /// </summary>
 public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
@@ -22,10 +22,10 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
     public bool BreakOnAllExceptions { get; init; }
     public bool BreakOnUncaughtExceptions { get; init; } = true;
 
-    /// <summary>NuGet package id → version, from the .rpad front matter's <c>packages:</c>.</summary>
+    /// <summary>NuGet package id → version, from the .inv front matter's <c>packages:</c>.</summary>
     public IReadOnlyDictionary<string, string> Packages { get; init; } = new Dictionary<string, string>();
 
-    /// <summary>Global usings/imports, from the .rpad front matter's <c>namespaces:</c>.</summary>
+    /// <summary>Global usings/imports, from the .inv front matter's <c>namespaces:</c>.</summary>
     public IReadOnlyList<string> Usings { get; init; } = [];
 
     public IReadOnlyList<string> AssemblyReferences { get; init; } = [];
@@ -49,7 +49,7 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
     /// <summary>Compile with unsafe code allowed (C# /unsafe); languages without unsafe code ignore it.</summary>
     public bool AllowUnsafe { get; init; }
 
-    // The .rpad file's own path, null for a
+    // The .inv file's own path, null for a
     // never-saved (untitled) tab, same as LINQPad's own Util.CurrentQueryPath for an unsaved query.
     // Threaded down to the compiled script's child process as an environment variable
     // (ChildProcess.ForExecution) for a plain run, and via DapSessionOptions/the DAP launch request's

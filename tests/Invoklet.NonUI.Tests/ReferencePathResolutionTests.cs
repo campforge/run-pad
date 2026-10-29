@@ -25,7 +25,7 @@ public sealed class ReferencePathResolutionTests : IDisposable
     public ReferencePathResolutionTests()
     {
         _scriptDir = Directory.CreateDirectory(Path.Combine(_root, "Scripts 日本語", "it's here")).FullName;
-        _script = Path.Combine(_scriptDir, "query.rpad");
+        _script = Path.Combine(_scriptDir, "query.inv");
     }
 
     public void Dispose() => Directory.Delete(_root, recursive: true);

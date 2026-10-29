@@ -63,8 +63,8 @@ public sealed class NavigationSidebarTests : IDisposable
         fileSystem.Setup(f => f.Folder).Returns(_folder);
         fileSystem.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>())).ReturnsAsync(
         [
-            new FileSystemItem("first.rpad", false, Path.Combine(_folder, "first.rpad"), null),
-            new FileSystemItem("second.rpad", false, Path.Combine(_folder, "second.rpad"), null),
+            new FileSystemItem("first.inv", false, Path.Combine(_folder, "first.inv"), null),
+            new FileSystemItem("second.inv", false, Path.Combine(_folder, "second.inv"), null),
         ]);
 
         var theme = new Mock<IThemeService>();
@@ -271,7 +271,7 @@ public sealed class NavigationSidebarTests : IDisposable
         Settle();
         Assert.Equal(["Getting started", "Output", "Debugging"], vm.SampleTree.Select(n => n.Title));
         Assert.All(vm.SampleTree, folder => Assert.True(folder.IsFolder));
-        Assert.Equal(["quick-start.rpad", "expression-kind.rpad", "program-kind.rpad"], vm.SampleTree[0].Children!.Select(c => c.Id));
+        Assert.Equal(["quick-start.inv", "expression-kind.inv", "program-kind.inv"], vm.SampleTree[0].Children!.Select(c => c.Id));
         var rows = Named<TreeView>(window, "SampleTree").GetVisualDescendants().OfType<TreeViewItem>().ToList();
         Assert.Equal("Getting started folder, 3 items", global::Avalonia.Automation.AutomationProperties.GetName(rows[0]));
     }
@@ -459,7 +459,7 @@ public sealed class NavigationSidebarTests : IDisposable
         Assert.Equal(count, vm.Tabs.Count);
         Assert.Same(tab, vm.ActiveTab);
 
-        var target = Path.Combine(_folder, "my copy.rpad");
+        var target = Path.Combine(_folder, "my copy.inv");
         windowService.Setup(w => w.ShowSaveFileDialogAsync("Quick start", _folder)).ReturnsAsync(target);
         editor.Document.Insert(editor.Document.TextLength, "\n// edited");
         tab.SaveAsCommand.Execute().Subscribe();

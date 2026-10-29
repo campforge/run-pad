@@ -5,7 +5,7 @@ namespace Invoklet.Format.MdRun.Tests;
 // Extracted from EditorTabsControl's private PeekLanguage so the main UI project's file
 // tree can reuse the same cheap front-matter peek for its per-language icon, instead of duplicating
 // the parse-and-default logic a second time. Lives in this project (not the main Invoklet one) because
-// it's fundamentally a .rpad-format concern, next to MdRunParser/MdRunLanguage themselves.
+// it's fundamentally a .inv-format concern, next to MdRunParser/MdRunLanguage themselves.
 public class MdRunFilePeekTests
 {
     [Fact]
@@ -34,7 +34,7 @@ public class MdRunFilePeekTests
 
     [Fact]
     public void PeekLanguage_Should_DefaultToCSharp_WhenTheFileDoesNotExist()
-        => Assert.Equal(MdRunLanguage.CSharp, MdRunFilePeek.PeekLanguage("/no/such/file.rpad"));
+        => Assert.Equal(MdRunLanguage.CSharp, MdRunFilePeek.PeekLanguage("/no/such/file.inv"));
 
     [Fact]
     public void PeekLanguage_Should_DefaultToCSharp_ForANullPath()

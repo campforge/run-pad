@@ -156,7 +156,7 @@ public class EditorThemeRefreshTests : IDisposable
         var (tabs, shell, host) = Open();
         try
         {
-            shell.OpenTab(Script("a.rpad"));
+            shell.OpenTab(Script("a.inv"));
             var editor = (await ShownAsync(tabs, shell.ActiveTab!)).State.Editor;
             Assert.Equal(lightKeyword, await WaitForColorAsync(editor, Keyword, lightKeyword));
             PublishSemanticTokens();
@@ -179,7 +179,7 @@ public class EditorThemeRefreshTests : IDisposable
         var (tabs, shell, host) = Open();
         try
         {
-            shell.OpenTab(Script("services.rpad"));
+            shell.OpenTab(Script("services.inv"));
             var ctrl = await ShownAsync(tabs, shell.ActiveTab!);
             var services = ctrl.IntelliSenseForTests;
             Assert.Same(_intelliSense.Object, services);
@@ -205,12 +205,12 @@ public class EditorThemeRefreshTests : IDisposable
         var (tabs, shell, host) = Open();
         try
         {
-            shell.OpenTab(Script("a.rpad"));
+            shell.OpenTab(Script("a.inv"));
             var first = shell.ActiveTab!;
             var a = await ShownAsync(tabs, first);
             Assert.Equal(lightKeyword, await WaitForColorAsync(a.State.Editor, Keyword, lightKeyword));
             PublishSemanticTokens();
-            shell.OpenTab(Script("b.rpad"));
+            shell.OpenTab(Script("b.inv"));
             var b = await ShownAsync(tabs, shell.ActiveTab!);
             await TestWait.WhileAsync(() => TopLevel.GetTopLevel(a) is not null);
             Assert.Null(TopLevel.GetTopLevel(a));
@@ -242,9 +242,9 @@ public class EditorThemeRefreshTests : IDisposable
         var (tabs, shell, host) = Open();
         try
         {
-            shell.OpenTab(Script("a.rpad"));
+            shell.OpenTab(Script("a.inv"));
             var first = shell.ActiveTab!;
-            shell.OpenTab(Script("b.rpad"));
+            shell.OpenTab(Script("b.inv"));
             var a = await ShownAsync(tabs, first);
             await ShownAsync(tabs, shell.ActiveTab!);
             Assert.Null(TopLevel.GetTopLevel(a)); // never in the visual tree so far

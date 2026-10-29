@@ -121,7 +121,7 @@ public sealed class ProgramSelectionExecutionTests : IDisposable
     private (EditorsTabItemControl Ctrl, Window Host)? Real(MdRunLanguage language, string code, IReadOnlyList<string>? args = null)
     {
         if (new DotnetSdkProvider().Get().FirstOrDefault() is null) return null; // no .NET SDK to compile with
-        var path = Path.Combine(_root, language == MdRunLanguage.Vb ? "program-vb.rpad" : "program.rpad");
+        var path = Path.Combine(_root, language == MdRunLanguage.Vb ? "program-vb.inv" : "program.inv");
         var document = MdRunWriter.NewFile(code, "Demo", kind: MdRunKind.Program, language: language);
         if (args is { Count: > 0 })
         {
@@ -168,7 +168,7 @@ public sealed class ProgramSelectionExecutionTests : IDisposable
         if (Real(MdRunLanguage.CSharp, code, ["a1", "a2"]) is not var (ctrl, window)) return;
         try
         {
-            var original = File.ReadAllBytes(Path.Combine(_root, "program.rpad"));
+            var original = File.ReadAllBytes(Path.Combine(_root, "program.inv"));
             await RunAsync(ctrl, "Console.WriteLine(\"selected:\" + string.Join(\",\", args));");
 
             var output = ctrl.State.Output.Content;
@@ -176,7 +176,7 @@ public sealed class ProgramSelectionExecutionTests : IDisposable
             Assert.DoesNotContain("not selected", output);
             Assert.DoesNotContain("helper", output);
             Assert.Equal("Success", ctrl.State.ExecStatusText);
-            Assert.Equal(original, File.ReadAllBytes(Path.Combine(_root, "program.rpad")));
+            Assert.Equal(original, File.ReadAllBytes(Path.Combine(_root, "program.inv")));
         }
         finally { window.Close(); ctrl.Dispose(); }
     }

@@ -23,9 +23,9 @@ public class ChildProcessCurrentQueryPathTests
     public void ForExecution_Should_SetTheEnvironmentVariable_WhenCurrentQueryPathIsGiven()
     {
         var process = ChildProcess.ForExecution(
-            CreateOptions(), "out.dll", "123", currentQueryPath: "/root/a.rpad");
+            CreateOptions(), "out.dll", "123", currentQueryPath: "/root/a.inv");
 
-        Assert.Equal("/root/a.rpad", process.StartInfoForTests.Environment[ChildProcess.CurrentQueryPathEnvVar]);
+        Assert.Equal("/root/a.inv", process.StartInfoForTests.Environment[ChildProcess.CurrentQueryPathEnvVar]);
     }
 
     [Fact]

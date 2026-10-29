@@ -154,7 +154,7 @@ public class CSharpIntelliSenseRefactoringsTests
 
     // Roslyn's MoveTypeCodeRefactoringProvider offered "Move type to C.cs",
     // "Rename file to C.cs" and — keyed to the synthetic document's name — "Rename type to Script" on
-    // every type declaration. A .rpad script is one file the user never sees as Script.cs.
+    // every type declaration. A .inv script is one file the user never sees as Script.cs.
     [Theory]
     [InlineData("class C { }\n")]
     [InlineData("Console.WriteLine(1);\nclass C { }\n")]

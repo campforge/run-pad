@@ -18,7 +18,7 @@ public class UnsavedChangesDialogTests
     {
         var owner = new Window();
         owner.Show();
-        var dialog = new UnsavedChangesDialog("demo.rpad");
+        var dialog = new UnsavedChangesDialog("demo.inv");
         var result = dialog.ShowDialog<UnsavedChangesResult?>(owner);
         Dispatcher.UIThread.RunJobs();
         answer(dialog);
@@ -103,7 +103,7 @@ public class UnsavedChangesDialogTests
     [AvaloniaFact]
     public void LongFileName_Should_WrapAndKeepActionsInsideWindow()
     {
-        var name = string.Concat(Enumerable.Repeat("long-script-name-", 12)) + ".rpad";
+        var name = string.Concat(Enumerable.Repeat("long-script-name-", 12)) + ".inv";
         var dialog = new UnsavedChangesDialog(name);
         dialog.Show();
         Dispatcher.UIThread.RunJobs();
@@ -131,7 +131,7 @@ public class UnsavedChangesDialogTests
     [AvaloniaFact]
     public void TheHeading_Should_BeTheTitle_AndTheFileLine_FollowTheFileName()
     {
-        var dialog = new UnsavedChangesDialog("demo.rpad");
+        var dialog = new UnsavedChangesDialog("demo.inv");
         dialog.Show();
         Dispatcher.UIThread.RunJobs();
         try
@@ -157,7 +157,7 @@ public class UnsavedChangesDialogTests
     [InlineData(DialogKind.Error, "×", "Invoklet.Status.ErrorBrush")]
     public void TheBadge_Should_FollowTheKind(DialogKind kind, string glyph, string brushKey)
     {
-        var dialog = new UnsavedChangesDialog("demo.rpad");
+        var dialog = new UnsavedChangesDialog("demo.inv");
         // The test application has no Invoklet theme: give each role its own brush to tell them apart.
         var brushes = new[] { "Invoklet.Button.Primary.BackgroundBrush", "Invoklet.Status.PausedBrush", "Invoklet.Status.ErrorBrush" }
             .ToDictionary(k => k, _ => (global::Avalonia.Media.IBrush)new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Colors.Transparent));

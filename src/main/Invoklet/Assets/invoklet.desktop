@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Invoklet
-Comment=C# scratchpad/scripting IDE for .rpad files
+Comment=C# scratchpad/scripting IDE for .inv files
 Exec=Invoklet %f
 Icon=invoklet
 Categories=Development;IDE;

@@ -132,7 +132,7 @@ public class EditorTabSnippetsTests
         var tmpDir = Directory.CreateTempSubdirectory("Invoklet-snippets-test").FullName;
         try
         {
-            var filePath = Path.Combine(tmpDir, "demo.rpad");
+            var filePath = Path.Combine(tmpDir, "demo.inv");
             // NewFile emits the matching ```{language} run fence — retargeting a parsed C# document's
             // language would leave a C# fence the parser (rightly) rejects for VB.
             File.WriteAllText(filePath, MdRunWriter.NewFile(language == MdRunLanguage.Vb ? "Console.WriteLine(\"Hello, RPad!\")\n" : "Console.WriteLine(\"Hello, RPad!\");\n", "Demo", language: language));

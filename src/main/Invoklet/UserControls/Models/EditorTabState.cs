@@ -37,10 +37,10 @@ internal sealed class EditorTabState
     public DebugExceptionInfo? UnhandledDebugException { get; set; }
     public readonly Stopwatch RunStopwatch = new();
 
-    // Set when the active file is an .rpad document; null for untitled tabs
+    // Set when the active file is an .inv document; null for untitled tabs
     public MdRunDocument? MdRunDocument { get; set; }
 
-    // Set when the file on disk isn't a valid .rpad document (MdRunParser.Parse error): the
+    // Set when the file on disk isn't a valid .inv document (MdRunParser.Parse error): the
     // editor then holds the full raw file so Save writes it back verbatim, and Run/Debug are refused.
     public string? DocumentParseError { get; set; }
 

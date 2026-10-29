@@ -19,7 +19,7 @@ using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;
 
-// A .rpad with malformed YAML used to open as a default C# document (no
+// A .inv with malformed YAML used to open as a default C# document (no
 // packages/references, empty code from a C# fence that wasn't there), and the next save persisted
 // those defaults over the original metadata. Now the tab shows the whole file verbatim, saves it
 // back verbatim, and refuses Run/Debug until the file is fixed and reopened.
@@ -121,7 +121,7 @@ public class InvalidDocumentHeadlessTests
 
     private static string WriteMalformed(Harness h)
     {
-        var path = Path.Combine(h.Root, "bad.rpad");
+        var path = Path.Combine(h.Root, "bad.inv");
         File.WriteAllText(path, MalformedVb);
         return path;
     }
@@ -157,7 +157,7 @@ public class InvalidDocumentHeadlessTests
             Assert.Equal(MalformedVb, File.ReadAllText(path));
 
             // Save As goes through the same tab writer.
-            var savedAs = Path.Combine(h.Root, "copy.rpad");
+            var savedAs = Path.Combine(h.Root, "copy.inv");
             h.WindowService.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>()))
                 .ReturnsAsync(savedAs);
             await h.MainVm.SaveTabAsAsync(tab, tab.WriteToFile!);
@@ -195,7 +195,7 @@ public class InvalidDocumentHeadlessTests
         var h = CreateHarness();
         try
         {
-            var path = Path.Combine(h.Root, "numeric.rpad");
+            var path = Path.Combine(h.Root, "numeric.inv");
             var original = MalformedVb.Replace("kind: nonsense", "kind: 99");
             File.WriteAllText(path, original);
             var (tab, ctrl) = await OpenAsync(h, path);

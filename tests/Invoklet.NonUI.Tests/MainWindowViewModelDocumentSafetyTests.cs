@@ -57,7 +57,7 @@ public class MainWindowViewModelDocumentSafetyTests
         var root = Directory.CreateTempSubdirectory("Invoklet-docsafety-test").FullName;
         try
         {
-            var file = Path.Combine(root, "a.rpad");
+            var file = Path.Combine(root, "a.inv");
             File.WriteAllText(file, "old");
             var (vm, windowService, _) = CreateViewModel(root);
             string? writtenTo = null;
@@ -78,7 +78,7 @@ public class MainWindowViewModelDocumentSafetyTests
         var root = Directory.CreateTempSubdirectory("Invoklet-docsafety-test").FullName;
         try
         {
-            var file = Path.Combine(root, "a.rpad");
+            var file = Path.Combine(root, "a.inv");
             File.WriteAllText(file, "old");
             var (vm, windowService, _) = CreateViewModel(root);
             windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
@@ -100,7 +100,7 @@ public class MainWindowViewModelDocumentSafetyTests
         var root = Directory.CreateTempSubdirectory("Invoklet-docsafety-test").FullName;
         try
         {
-            var file = Path.Combine(root, "a.rpad");
+            var file = Path.Combine(root, "a.inv");
             File.WriteAllText(file, "old");
             var (vm, windowService, _) = CreateViewModel(root);
             windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
@@ -120,7 +120,7 @@ public class MainWindowViewModelDocumentSafetyTests
         var root = Directory.CreateTempSubdirectory("Invoklet-docsafety-test").FullName;
         try
         {
-            var file = Path.Combine(root, "a.rpad");
+            var file = Path.Combine(root, "a.inv");
             File.WriteAllText(file, "old");
             var (vm, windowService, _) = CreateViewModel(root);
             windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
@@ -146,7 +146,7 @@ public class MainWindowViewModelDocumentSafetyTests
         var root = Directory.CreateTempSubdirectory("Invoklet-docsafety-test").FullName;
         try
         {
-            var file = Path.Combine(root, "a.rpad");
+            var file = Path.Combine(root, "a.inv");
             File.WriteAllText(file, "old");
             var (vm, windowService, _) = CreateViewModel(root);
             windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
@@ -176,7 +176,7 @@ public class MainWindowViewModelDocumentSafetyTests
         var root = Directory.CreateTempSubdirectory("Invoklet-docsafety-test").FullName;
         try
         {
-            var file = Path.Combine(root, "old.rpad");
+            var file = Path.Combine(root, "old.inv");
             File.WriteAllText(file, "old");
             var (vm, windowService, _) = CreateViewModel(root);
             var tab = OpenDirtyTab(vm, file, ThrowDiskFull);
@@ -184,7 +184,7 @@ public class MainWindowViewModelDocumentSafetyTests
             vm.RenameFile(file, "new");
 
             Assert.True(File.Exists(file));
-            Assert.False(File.Exists(Path.Combine(root, "new.rpad")));
+            Assert.False(File.Exists(Path.Combine(root, "new.inv")));
             Assert.Contains(tab, vm.Tabs);
             Assert.True(tab.IsDirty);
             windowService.Verify(w => w.ShowErrorAsync("Rename Failed", It.Is<string>(m => m.Contains("disk full"))), Times.Once);
@@ -198,14 +198,14 @@ public class MainWindowViewModelDocumentSafetyTests
         var root = Directory.CreateTempSubdirectory("Invoklet-docsafety-test").FullName;
         try
         {
-            var file = Path.Combine(root, "old.rpad");
+            var file = Path.Combine(root, "old.inv");
             File.WriteAllText(file, "old");
             var (vm, _, _) = CreateViewModel(root);
             var tab = OpenDirtyTab(vm, file, p => File.WriteAllText(p, "edited"));
 
             vm.RenameFile(file, "new");
 
-            var newPath = Path.Combine(root, "new.rpad");
+            var newPath = Path.Combine(root, "new.inv");
             Assert.Equal("edited", File.ReadAllText(newPath));
             Assert.DoesNotContain(tab, vm.Tabs);
             Assert.Contains(vm.Tabs, t => t.FilePath == newPath);
@@ -221,7 +221,7 @@ public class MainWindowViewModelDocumentSafetyTests
         {
             var folder = Path.Combine(root, "Folder");
             Directory.CreateDirectory(folder);
-            var nested = Path.Combine(folder, "a.rpad");
+            var nested = Path.Combine(folder, "a.inv");
             File.WriteAllText(nested, "old");
             var (vm, windowService, _) = CreateViewModel(root);
             var tab = OpenDirtyTab(vm, nested, ThrowDiskFull);
@@ -246,7 +246,7 @@ public class MainWindowViewModelDocumentSafetyTests
             var parent = Path.Combine(root, "Parent");
             var child = Path.Combine(parent, "Child");
             Directory.CreateDirectory(child);
-            var nested = Path.Combine(parent, "a.rpad");
+            var nested = Path.Combine(parent, "a.inv");
             File.WriteAllText(nested, "old");
             var (vm, windowService, _) = CreateViewModel(root);
             var tab = OpenDirtyTab(vm, nested, p => File.WriteAllText(p, "edited"));
@@ -266,7 +266,7 @@ public class MainWindowViewModelDocumentSafetyTests
         var root = Directory.CreateTempSubdirectory("Invoklet-docsafety-test").FullName;
         try
         {
-            var file = Path.Combine(root, "a.rpad");
+            var file = Path.Combine(root, "a.inv");
             File.WriteAllText(file, "content");
             var (vm, _, _) = CreateViewModel(root);
             vm.NewMdRunFile();
@@ -288,7 +288,7 @@ public class MainWindowViewModelDocumentSafetyTests
     {
         var (vm, windowService, fileSystem) = CreateViewModel("/root");
         fileSystem.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new FileSystemItem("a.rpad", false, "/root/a.rpad", null)]);
+            .ReturnsAsync([new FileSystemItem("a.inv", false, "/root/a.inv", null)]);
         await vm.RefreshNodesAsync();
 
         fileSystem.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>()))
@@ -296,7 +296,7 @@ public class MainWindowViewModelDocumentSafetyTests
         await vm.RefreshNodesAsync();
         await vm.RefreshNodesAsync();
 
-        Assert.Single(vm.FileTree.Nodes, n => n.FilePath == "/root/a.rpad");
+        Assert.Single(vm.FileTree.Nodes, n => n.FilePath == "/root/a.inv");
         windowService.Verify(w => w.ShowErrorAsync("Folder Unavailable", It.Is<string>(m => m.Contains("denied"))), Times.Once);
 
         // A successful refresh re-arms the report for the next failure.
@@ -331,13 +331,13 @@ public class MainWindowViewModelDocumentSafetyTests
 
         var olderRefresh = vm.RefreshNodesAsync();
         var newerRefresh = vm.RefreshNodesAsync();
-        newer.SetResult([new FileSystemItem("new.rpad", false, "/root/new.rpad", null)]);
+        newer.SetResult([new FileSystemItem("new.inv", false, "/root/new.inv", null)]);
         await newerRefresh;
-        older.SetResult([new FileSystemItem("old.rpad", false, "/root/old.rpad", null)]);
+        older.SetResult([new FileSystemItem("old.inv", false, "/root/old.inv", null)]);
         await olderRefresh;
 
         var node = Assert.Single(vm.FileTree.Nodes);
-        Assert.Equal("/root/new.rpad", node.FilePath);
+        Assert.Equal("/root/new.inv", node.FilePath);
     }
 
     // Comparing against the last APPLIED version let an older walk land after a
@@ -347,7 +347,7 @@ public class MainWindowViewModelDocumentSafetyTests
     {
         var (vm, _, fileSystem) = CreateViewModel("/root");
         fileSystem.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new FileSystemItem("current.rpad", false, "/root/current.rpad", null)]);
+            .ReturnsAsync([new FileSystemItem("current.inv", false, "/root/current.inv", null)]);
         await vm.RefreshNodesAsync();
 
         var older = new TaskCompletionSource<IReadOnlyList<FileSystemItem>>();
@@ -357,11 +357,11 @@ public class MainWindowViewModelDocumentSafetyTests
 
         var olderRefresh = vm.RefreshNodesAsync();
         await vm.RefreshNodesAsync(); // newer one fails
-        older.SetResult([new FileSystemItem("stale.rpad", false, "/root/stale.rpad", null)]);
+        older.SetResult([new FileSystemItem("stale.inv", false, "/root/stale.inv", null)]);
         await olderRefresh;
 
         var node = Assert.Single(vm.FileTree.Nodes);
-        Assert.Equal("/root/current.rpad", node.FilePath);
+        Assert.Equal("/root/current.inv", node.FilePath);
     }
 
     [Fact]
@@ -373,7 +373,7 @@ public class MainWindowViewModelDocumentSafetyTests
 
         var refresh = vm.RefreshNodesAsync();
         vm.Dispose();
-        pending.SetResult([new FileSystemItem("a.rpad", false, "/root/a.rpad", null)]);
+        pending.SetResult([new FileSystemItem("a.inv", false, "/root/a.inv", null)]);
         await refresh;
 
         Assert.Empty(vm.FileTree.Nodes);

@@ -38,7 +38,7 @@ public class FileTreeViewDragDropTests
         var vm = new FileTreeViewModel(prefs.Object, new LanguageHostRegistry());
         vm.Refresh([
             new FileSystemItem("Sub", true, "/root/Sub", []),
-            new FileSystemItem("a.rpad", false, "/root/a.rpad", null),
+            new FileSystemItem("a.inv", false, "/root/a.inv", null),
         ]);
 
         var view = new FileTreeView { DataContext = vm };
@@ -52,7 +52,7 @@ public class FileTreeViewDragDropTests
 
         var treeView = view.FindControl<TreeView>("FileTree")!;
         var folder = vm.Nodes.Single(n => n.FilePath == "/root/Sub");
-        var file = vm.Nodes.Single(n => n.FilePath == "/root/a.rpad");
+        var file = vm.Nodes.Single(n => n.FilePath == "/root/a.inv");
         return (view, treeView, folder, file);
     }
 
@@ -61,7 +61,7 @@ public class FileTreeViewDragDropTests
     {
         var (_, treeView, folder, _) = CreateViewWithRealizedNodes();
         var container = (TreeViewItem)treeView.ContainerFromItem(folder)!;
-        var data = BuildNodeDragData("/root/a.rpad");
+        var data = BuildNodeDragData("/root/a.inv");
         var e = new DragEventArgs(DragDrop.DragOverEvent, data, container, default, KeyModifiers.None);
 
         container.RaiseEvent(e);
@@ -94,12 +94,12 @@ public class FileTreeViewDragDropTests
         FileTreeMoveEventArgs? raised = null;
         view.Move += (_, e) => raised = e;
 
-        var data = BuildNodeDragData("/root/a.rpad");
+        var data = BuildNodeDragData("/root/a.inv");
         var dropArgs = new DragEventArgs(DragDrop.DropEvent, data, container, default, KeyModifiers.None);
         container.RaiseEvent(dropArgs);
 
         Assert.NotNull(raised);
-        Assert.Equal("/root/a.rpad", raised!.SourcePath);
+        Assert.Equal("/root/a.inv", raised!.SourcePath);
         Assert.Equal("/root/Sub", raised.TargetPath);
     }
 
@@ -111,12 +111,12 @@ public class FileTreeViewDragDropTests
         FileTreeMoveEventArgs? raised = null;
         view.Move += (_, e) => raised = e;
 
-        var data = BuildNodeDragData("/root/Sub/b.rpad");
+        var data = BuildNodeDragData("/root/Sub/b.inv");
         var dropArgs = new DragEventArgs(DragDrop.DropEvent, data, container, default, KeyModifiers.None);
         container.RaiseEvent(dropArgs);
 
         Assert.NotNull(raised);
-        Assert.Equal("/root/a.rpad", raised!.TargetPath);
+        Assert.Equal("/root/a.inv", raised!.TargetPath);
     }
 
     // No FileTreeViewNode under the pointer at all (dropped on empty tree space) — TargetPath null
@@ -128,7 +128,7 @@ public class FileTreeViewDragDropTests
         FileTreeMoveEventArgs? raised = null;
         view.Move += (_, e) => raised = e;
 
-        var data = BuildNodeDragData("/root/a.rpad");
+        var data = BuildNodeDragData("/root/a.inv");
         var dropArgs = new DragEventArgs(DragDrop.DropEvent, data, treeView, default, KeyModifiers.None);
         treeView.RaiseEvent(dropArgs);
 
@@ -161,7 +161,7 @@ public class FileTreeViewDragDropTests
     {
         var (_, treeView, folder, _) = CreateViewWithRealizedNodes();
         var container = (TreeViewItem)treeView.ContainerFromItem(folder)!;
-        var data = BuildNodeDragData("/root/a.rpad");
+        var data = BuildNodeDragData("/root/a.inv");
 
         container.RaiseEvent(new DragEventArgs(DragDrop.DragOverEvent, data, container, default, KeyModifiers.None));
 
@@ -174,7 +174,7 @@ public class FileTreeViewDragDropTests
         var (_, treeView, folder, file) = CreateViewWithRealizedNodes();
         var folderContainer = (TreeViewItem)treeView.ContainerFromItem(folder)!;
         var fileContainer = (TreeViewItem)treeView.ContainerFromItem(file)!;
-        var data = BuildNodeDragData("/root/Sub/b.rpad");
+        var data = BuildNodeDragData("/root/Sub/b.inv");
 
         folderContainer.RaiseEvent(new DragEventArgs(DragDrop.DragOverEvent, data, folderContainer, default, KeyModifiers.None));
         Assert.True(folder.IsDropTarget);
@@ -190,7 +190,7 @@ public class FileTreeViewDragDropTests
     {
         var (_, treeView, folder, _) = CreateViewWithRealizedNodes();
         var container = (TreeViewItem)treeView.ContainerFromItem(folder)!;
-        var data = BuildNodeDragData("/root/a.rpad");
+        var data = BuildNodeDragData("/root/a.inv");
         container.RaiseEvent(new DragEventArgs(DragDrop.DragOverEvent, data, container, default, KeyModifiers.None));
         Assert.True(folder.IsDropTarget);
 
@@ -204,7 +204,7 @@ public class FileTreeViewDragDropTests
     {
         var (_, treeView, folder, _) = CreateViewWithRealizedNodes();
         var container = (TreeViewItem)treeView.ContainerFromItem(folder)!;
-        var data = BuildNodeDragData("/root/a.rpad");
+        var data = BuildNodeDragData("/root/a.inv");
         container.RaiseEvent(new DragEventArgs(DragDrop.DragOverEvent, data, container, default, KeyModifiers.None));
         Assert.True(folder.IsDropTarget);
 
@@ -219,7 +219,7 @@ public class FileTreeViewDragDropTests
     public void DragOver_Should_HighlightTheTreeBackground_WhenHoveringEmptySpace()
     {
         var (_, treeView, _, _) = CreateViewWithRealizedNodes();
-        var data = BuildNodeDragData("/root/a.rpad");
+        var data = BuildNodeDragData("/root/a.inv");
 
         treeView.RaiseEvent(new DragEventArgs(DragDrop.DragOverEvent, data, treeView, default, KeyModifiers.None));
 
@@ -230,7 +230,7 @@ public class FileTreeViewDragDropTests
     public void DragLeave_Should_ClearTheTreeBackgroundHighlight()
     {
         var (_, treeView, _, _) = CreateViewWithRealizedNodes();
-        var data = BuildNodeDragData("/root/a.rpad");
+        var data = BuildNodeDragData("/root/a.inv");
         treeView.RaiseEvent(new DragEventArgs(DragDrop.DragOverEvent, data, treeView, default, KeyModifiers.None));
         Assert.NotEqual(Brushes.Transparent, treeView.Background);
 

@@ -94,9 +94,9 @@ public sealed class WindowService : IWindowService
         {
             Title = "Save As",
             SuggestedFileName = suggestedFileName,
-            DefaultExtension = "rpad",
+            DefaultExtension = "inv",
             SuggestedStartLocation = startLocation,
-            FileTypeChoices = [new FilePickerFileType("RPad Script") { Patterns = ["*.rpad"] }],
+            FileTypeChoices = [new FilePickerFileType("Invoklet Script") { Patterns = ["*.inv"] }],
         });
         return file is null ? null : file.TryGetLocalPath();
     }
@@ -111,7 +111,7 @@ public sealed class WindowService : IWindowService
             Title = "Open Script",
             AllowMultiple = false,
             SuggestedStartLocation = startLocation,
-            FileTypeFilter = [new FilePickerFileType("RPad Script") { Patterns = ["*.rpad"] }],
+            FileTypeFilter = [new FilePickerFileType("Invoklet Script") { Patterns = ["*.inv"] }],
         });
         return files.Count > 0 ? files[0].TryGetLocalPath() : null;
     }

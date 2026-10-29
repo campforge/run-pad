@@ -99,7 +99,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
     [AvaloniaFact]
     public async Task NormalExitAndRestart_Should_RestoreOrderActiveTextAndMetadata_WithoutWritingOriginals()
     {
-        var path = Path.Combine(_root, "named.rpad");
+        var path = Path.Combine(_root, "named.inv");
         File.WriteAllText(path, MdRunWriter.NewFile("saved", "Named"));
         var original = File.ReadAllBytes(path);
         Guid active;
@@ -156,7 +156,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
         Assert.Same(saving, duplicate);
         var checkpoint = session.Vm.CheckpointRecoveryAsync();
         Assert.False(checkpoint.IsCompleted);
-        var path = Path.Combine(_root, "saved-as.rpad");
+        var path = Path.Combine(_root, "saved-as.inv");
         answer.SetResult(path);
         await saving;
         Assert.True(await checkpoint);
@@ -222,8 +222,8 @@ public sealed class SessionDraftLifecycleTests : IDisposable
     [AvaloniaFact]
     public async Task CleanChangedAndDeletedFiles_Should_UseCurrentDiskOrRecoverTheMissingCopy()
     {
-        var changed = Path.Combine(_root, "changed.rpad");
-        var deleted = Path.Combine(_root, "deleted.rpad");
+        var changed = Path.Combine(_root, "changed.inv");
+        var deleted = Path.Combine(_root, "deleted.inv");
         File.WriteAllText(changed, MdRunWriter.NewFile("old", "Changed"));
         File.WriteAllText(deleted, MdRunWriter.NewFile("cached", "Deleted"));
         RecoveryTab Frame(string path)
@@ -300,7 +300,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
             var tab = first.Vm.Tabs.Single();
             first.Control(tab).State.Editor.Text = "not lost";
             first.Windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(writeFails ? Path.Combine(_root, "missing", "file.rpad") : null);
+                .ReturnsAsync(writeFails ? Path.Combine(_root, "missing", "file.inv") : null);
             await first.Vm.SaveTabAsAsync(tab, tab.WriteToFile!);
             Assert.Null(tab.FilePath);
             Assert.True(tab.IsDirty);
@@ -378,7 +378,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
     [AvaloniaFact]
     public async Task RenameWaitingForConflictChoice_Should_FinishBeforeTheExitSnapshot()
     {
-        var original = Path.Combine(_root, "before.rpad");
+        var original = Path.Combine(_root, "before.inv");
         File.WriteAllText(original, MdRunWriter.NewFile("old", "Before"));
         using (var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot)))
         {
@@ -401,7 +401,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
         using var next = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
         await next.Ready();
         var renamed = next.Vm.Tabs.Single(t => t.FilePath is not null);
-        Assert.Equal(Path.Combine(_root, "after.rpad"), renamed.FilePath);
+        Assert.Equal(Path.Combine(_root, "after.inv"), renamed.FilePath);
         Assert.Equal("current code", next.Control(renamed).State.Editor.Text.Trim());
         Assert.False(File.Exists(original));
         await next.Close();
@@ -484,7 +484,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
     [AvaloniaFact]
     public async Task TwoWindowsDraftsOfTheSameFile_Should_BothBeRestored_WithoutWritingTheFile()
     {
-        var path = Path.Combine(_root, "shared.rpad");
+        var path = Path.Combine(_root, "shared.inv");
         File.WriteAllText(path, MdRunWriter.NewFile("on disk", "Shared"));
         var disk = File.ReadAllBytes(path);
         var otherFolder = await ClosedSessionAsync(DateTime.UtcNow.AddMinutes(-10), DirtyFileDraft(path, "other window's edit", "other-arg"));
@@ -529,7 +529,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
     [AvaloniaFact]
     public async Task AnImportedDraftOfAFileNotOpenHere_Should_ReopenItWithTheBaselineItWasEditedAgainst()
     {
-        var path = Path.Combine(_root, "elsewhere.rpad");
+        var path = Path.Combine(_root, "elsewhere.inv");
         File.WriteAllText(path, MdRunWriter.NewFile("original", "Elsewhere"));
         var draft = DirtyFileDraft(path, "edited in the other window", "x");
         File.WriteAllText(path, MdRunWriter.NewFile("changed on disk later", "Elsewhere"));
@@ -588,7 +588,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
 
     private async Task<(Session Session, EditorTabItemViewModel Named, string Path)> DirtyNamedTabAsync(IRecoveryStore? store = null)
     {
-        var path = Path.Combine(_root, "named.rpad");
+        var path = Path.Combine(_root, "named.inv");
         File.WriteAllText(path, MdRunWriter.NewFile("saved text", "Named"));
         var session = new Session(_root, store ?? new DiskRecoveryStore(RecoveryRoot));
         await session.Ready();
@@ -612,7 +612,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
     [AvaloniaFact]
     public async Task ClosingWithNothingUnsaved_Should_NotAsk_AndStillKeepTheSession()
     {
-        var path = Path.Combine(_root, "clean.rpad");
+        var path = Path.Combine(_root, "clean.inv");
         File.WriteAllText(path, MdRunWriter.NewFile("clean", "Clean"));
         using (var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot)))
         {
@@ -795,7 +795,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
         var macro = Path.Combine(folder, "lib", "macro.dll");
         File.Copy(typeof(Assert).Assembly.Location, library);
         File.Copy(typeof(Assert).Assembly.Location, macro);
-        var path = Path.Combine(folder, "shared.rpad");
+        var path = Path.Combine(folder, "shared.inv");
         File.WriteAllText(path, MdRunWriter.NewFile("on disk", "Shared"));
         RecoveryTab Draft(string text, string arg)
         {
@@ -855,7 +855,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
     {
         var (script, library, macro) = await SameFileDraftsWithReferencesAsync();
         var original = File.ReadAllBytes(script);
-        var target = Path.Combine(Directory.CreateDirectory(Path.Combine(_root, "elsewhere", "deeper")).FullName, "copy.rpad");
+        var target = Path.Combine(Directory.CreateDirectory(Path.Combine(_root, "elsewhere", "deeper")).FullName, "copy.inv");
         using var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
         await session.Ready();
         var copy = Copy(session);
@@ -909,7 +909,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
         Assert.Null(copy.FilePath);
         Assert.True(copy.IsDirty);
         Assert.Equal(original, File.ReadAllBytes(script));
-        session.Windows.Verify(w => w.ShowErrorAsync("Save Failed", It.Is<string>(m => m.Contains("shared.rpad"))), Times.Once);
+        session.Windows.Verify(w => w.ShowErrorAsync("Save Failed", It.Is<string>(m => m.Contains("shared.inv"))), Times.Once);
         await session.Close();
     }
 

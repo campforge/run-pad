@@ -46,7 +46,7 @@ public class CSharpLanguageHostProgramKindCompileTests
     // old "raw top-level statements + a glued-on Main(); call" transform this failed with CS0165 (the
     // field observed as unassigned inside Main's closure, since the synthesized call ran before the
     // field's own declaration statement) AND CS0106 (private is not valid on a local function).
-    // System.Text.RegularExpressions comes from front-matter Usings (the way a real .rpad script would
+    // System.Text.RegularExpressions comes from front-matter Usings (the way a real .inv script would
     // supply it) rather than an inline `using` in the code block — a `using` directive can't appear
     // inside a class body, which the user's code becomes here; it never could have appeared as the
     // first line of Program-kind code either, even before this fix (the old transform glued "Main();"

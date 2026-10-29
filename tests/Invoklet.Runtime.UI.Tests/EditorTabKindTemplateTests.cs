@@ -66,7 +66,7 @@ public class EditorTabKindTemplateTests
         try
         {
             const string code = "var x = 21;\nConsole.WriteLine(x * 2);\n";
-            var filePath = Path.Combine(tmpDir, "demo.rpad");
+            var filePath = Path.Combine(tmpDir, "demo.inv");
             File.WriteAllText(filePath, MdRunWriter.NewFile(code, "Demo", kind: MdRunKind.Statements));
             mainVm.OpenTab(filePath);
             var ctrl = await ActiveControlAsync(mainVm, editorTabs);

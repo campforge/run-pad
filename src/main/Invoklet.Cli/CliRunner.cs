@@ -6,7 +6,7 @@ using Spectre.Console;
 
 namespace Invoklet.Cli;
 
-// Compiles and runs a .rpad file's code the same "fast path" the GUI's non-debug Run
+// Compiles and runs a .inv file's code the same "fast path" the GUI's non-debug Run
 // button uses (ILanguageHost.RunAsync, see EditorTabItemControl.RunAsync/BuildRunOptions) — no
 // Avalonia, no DAP/netcoredbg. Structured as a static class (rather than top-level statements in
 // Program.cs) so the orchestration itself is unit-testable via its IAnsiConsole/CancellationToken
@@ -30,7 +30,7 @@ public static class CliRunner
 
         // The GUI's "File → Import LINQPad Query..." equivalent
         // for scripting/batch use. Unlike the GUI, overwrites the destination outright rather than
-        // picking a free "Foo 2.rpad" — a CLI tool re-run with the same arguments should be idempotent,
+        // picking a free "Foo 2.inv" — a CLI tool re-run with the same arguments should be idempotent,
         // not silently rename around a leftover file from a previous run.
         if (string.Equals(args[0], "convert", StringComparison.OrdinalIgnoreCase))
             return await ConvertLinqAsync(args, stdout, stderr, cancellationToken);
@@ -68,7 +68,7 @@ public static class CliRunner
         var parsed = MdRunParser.Parse(raw);
         if (!parsed.IsSuccess)
         {
-            stderr.WriteLine($"Failed to parse '{filePath}' as a .rpad document: {parsed.Error}");
+            stderr.WriteLine($"Failed to parse '{filePath}' as a .inv document: {parsed.Error}");
             return NotRunExitCode;
         }
 
@@ -190,8 +190,8 @@ public static class CliRunner
 
     private static void WriteUsage(IAnsiConsole console)
     {
-        console.WriteLine("Usage: Invoklet [run] [options] <script.rpad> [--] [script arguments...]");
-        console.WriteLine("       Invoklet convert <input.linq> [output.rpad]");
+        console.WriteLine("Usage: Invoklet [run] [options] <script.inv> [--] [script arguments...]");
+        console.WriteLine("       Invoklet convert <input.linq> [output.inv]");
         console.WriteLine();
         console.WriteLine("Options:");
         console.WriteLine("  -lang=<kind>, -k, --kind <kind>   Statements, Program or Expression (s, p, e)");
@@ -224,7 +224,7 @@ public static class CliRunner
     {
         if (args.Length < 2)
         {
-            stderr.WriteLine("Usage: Invoklet convert <input.linq> [output.rpad]");
+            stderr.WriteLine("Usage: Invoklet convert <input.linq> [output.inv]");
             return 1;
         }
 
@@ -237,7 +237,7 @@ public static class CliRunner
 
         var outputPath = args.Length >= 3
             ? Path.GetFullPath(args[2])
-            : Path.Combine(Path.GetDirectoryName(linqPath)!, Path.GetFileNameWithoutExtension(linqPath) + ".rpad");
+            : Path.Combine(Path.GetDirectoryName(linqPath)!, Path.GetFileNameWithoutExtension(linqPath) + ".inv");
 
         MdRunDocument document;
         try
