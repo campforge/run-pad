@@ -175,7 +175,11 @@ public sealed class FileSecretStore : ISecretStore
         var unprotect = file.Protection switch
         {
             NoProtection => (Func<string, string, string>)((_, value) => value),
-            Dpapi when OperatingSystem.IsWindows() => (_, value) => Unprotect(value),
+            Dpapi when OperatingSystem.IsWindows() => (_, value) =>
+            {
+                System.Diagnostics.Debug.Assert(OperatingSystem.IsWindows());
+                return Unprotect(value);
+            },
             Dpapi => throw new InvalidDataException("The secret store is encrypted for a Windows user and can't be read here."),
             SecretKeys.Protection => KeychainUnprotect(),
             _ => throw new InvalidDataException($"The secret store uses an unknown protection ({file.Protection})."),

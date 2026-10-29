@@ -522,8 +522,10 @@
                     <StackPanel Margin="0,12,0,0" Spacing="14"
                                 DataContext="{Binding Arguments}" x:DataType="viewModels:ScriptArgumentsViewModel"
                                 IsEnabled="{Binding $parent[Window].((viewModels:DependenciesWindowViewModel)DataContext).HasFrontMatter}">
-                        <TextBlock Classes="hint"
-                                   Text="A run passes each argument as --name value (a list as --name once per item), with the values of the set it uses or else the defaults; an argument with neither is left out. On the command line, --args-set NAME picks a set, and arguments after the script replace them all."/>
+                        <Expander Header="How arguments are passed" HorizontalAlignment="Stretch">
+                            <TextBlock Classes="hint" TextWrapping="Wrap"
+                                       Text="A run passes each argument as --name value (a list as --name once per item), with the values of the set it uses or else the defaults; an argument with neither is left out. On the command line, --args-set NAME picks a set, and arguments after the script replace them all."/>
+                        </Expander>
 
                         <!-- The declared arguments -->
                         <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
@@ -682,8 +684,10 @@
                               IsChecked="{Binding AllowUnsafe}"
                               IsEnabled="{Binding HasFrontMatter}"
                               AutomationProperties.Name="Allow unsafe code"/>
-                    <TextBlock x:Name="AllowUnsafeHint" TextWrapping="Wrap" Classes="hint"
-                               Text="Compiles this script with C#'s /unsafe option, which pointers, fixed buffers and sizeof of your own structs need. It is a compiler setting, not a sandbox: a script always runs with your full permissions, with or without it."/>
+                    <Expander Header="About unsafe code" HorizontalAlignment="Stretch">
+                        <TextBlock x:Name="AllowUnsafeHint" TextWrapping="Wrap" Classes="hint"
+                                   Text="Compiles this script with C#'s /unsafe option, which pointers, fixed buffers and sizeof of your own structs need. It is a compiler setting, not a sandbox: a script always runs with your full permissions, with or without it."/>
+                    </Expander>
                 </StackPanel>
             </TabItem>
 
@@ -710,8 +714,6 @@
                         <Button Classes="secondary" x:Name="AddConnectionButton" Grid.Column="2" Content="Add to Script" Command="{Binding AddCommand}"/>
                     </Grid>
                     <StackPanel Grid.Row="1" Spacing="6">
-                        <TextBlock Classes="hint" TextWrapping="Wrap"
-                                   Text="Add a connection to use its client in this script. Its secrets stay out of the script: the script reads them when it runs."/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button Classes="secondary" x:Name="NewConnectionButton" Content="New Connection…" IsEnabled="{Binding CanEditConnections}"
                                     AutomationProperties.Name="New connection"
@@ -760,8 +762,14 @@
                                 ToolTip.Tip="Reads this connection's description (such as a gRPC server's services) again, for a contract that changed"/>
                     </StackPanel>
                     <StackPanel Grid.Row="5" Spacing="6">
-                        <TextBlock Classes="hint" TextWrapping="Wrap"
-                                   Text="Import to Your Connections saves right away in Tools → Connections. Add to Script and Remove from Script change this script only when you press Save below."/>
+                        <Expander Header="How connections work" HorizontalAlignment="Stretch">
+                            <StackPanel Spacing="6">
+                                <TextBlock Classes="hint" TextWrapping="Wrap"
+                                           Text="Add a connection to use its client in this script. Its secrets stay out of the script: the script reads them when it runs."/>
+                                <TextBlock Classes="hint" TextWrapping="Wrap"
+                                           Text="Import to Your Connections saves right away in Tools → Connections. Add to Script and Remove from Script change this script only when you press Save below."/>
+                            </StackPanel>
+                        </Expander>
                         <TextBlock x:Name="RefreshMessage" Text="{Binding RefreshMessage}" TextWrapping="Wrap"
                                    IsVisible="{Binding RefreshMessage, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                         <TextBlock x:Name="ImportMessage" Text="{Binding ImportMessage}" TextWrapping="Wrap"/>
