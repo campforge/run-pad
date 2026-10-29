@@ -31,17 +31,11 @@
                     <DockPanel>
                         <!-- Not named ExpanderHeader: Fluent styles that part by name in each state
                              (borders, corners, padding), and this header looks the same open or folded. -->
-                        <!-- The section's actions (SidebarSection.Actions) sit at the header's right edge,
-                             past the open/close marker, outside the toggle so a click on one doesn't fold it. -->
-                        <DockPanel DockPanel.Dock="Top">
-                            <ContentPresenter x:Name="PART_HeaderActions" DockPanel.Dock="Right" VerticalAlignment="Center"
-                                              Content="{TemplateBinding (uc:SidebarSection.Actions)}"/>
-                            <ToggleButton x:Name="PART_BundleHeader" Classes="bundle-header"
-                                          IsChecked="{TemplateBinding IsExpanded, Mode=TwoWay}"
-                                          Content="{TemplateBinding Header}"
-                                          ContentTemplate="{TemplateBinding HeaderTemplate}"
-                                          AutomationProperties.Name="{TemplateBinding (AutomationProperties.Name)}"/>
-                        </DockPanel>
+                        <ToggleButton x:Name="PART_BundleHeader" DockPanel.Dock="Top" Classes="bundle-header"
+                                      IsChecked="{TemplateBinding IsExpanded, Mode=TwoWay}"
+                                      Content="{TemplateBinding Header}"
+                                      ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                      AutomationProperties.Name="{TemplateBinding (AutomationProperties.Name)}"/>
                         <ContentPresenter x:Name="PART_ContentPresenter"
                                           IsVisible="{TemplateBinding IsExpanded}"
                                           Content="{TemplateBinding Content}"

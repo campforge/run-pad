@@ -131,15 +131,13 @@
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <Path Classes="bundle-icon" Data="{StaticResource Icon.NavigationConnections}"/>
                                     <TextBlock Text="Connections"/>
+                                    <uc:TreeActionButton x:Name="AddConnectionButton" Margin="2,0,0,0"
+                                                         Icon="{StaticResource Icon.ConnectionAdd}"
+                                                         ToolTip.Tip="Add connection"
+                                                         AutomationProperties.Name="Add connection"
+                                                         Click="AddConnection_Click"/>
                                 </StackPanel>
                             </Expander.Header>
-                            <uc:SidebarSection.Actions>
-                                <uc:TreeActionButton x:Name="AddConnectionButton" Margin="0,0,6,0"
-                                                     Icon="{StaticResource Icon.ConnectionAdd}"
-                                                     ToolTip.Tip="Add connection"
-                                                     AutomationProperties.Name="Add connection"
-                                                     Click="AddConnection_Click"/>
-                            </uc:SidebarSection.Actions>
                             <uc:ConnectionNavigationView x:Name="ConnectionNavigationView" DataContext="{Binding ConnectionNavigation}"
                                                          OpenConnections="ConnectionNavigation_OpenConnections"
                                                          AddToScript="ConnectionNavigation_AddToScript"
