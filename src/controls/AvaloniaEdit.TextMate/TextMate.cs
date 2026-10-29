@@ -37,6 +37,7 @@ public static class TextMate
     public class Installation : IDisposable
     {
         private bool _isDisposed;
+        private bool _isFrozen;
         private readonly object _lock = new object();
         private readonly Registry _textMateRegistry;
         private readonly TextEditor _editor;
@@ -209,6 +210,41 @@ public static class TextMate
         /// <summary>
         /// Releases all resources used by this <see cref="Installation"/> instance.
         /// </summary>
+        /// <summary>
+        /// Stops the tokenizer, which otherwise holds a thread-pool thread for as long as the installation
+        /// lives, and keeps what it has computed: the lines keep their colours, the lines edited meanwhile
+        /// keep the old ones until <see cref="Resume"/>. For an editor that is loaded but not being used.
+        /// </summary>
+        public void Freeze()
+        {
+            lock (_lock)
+            {
+                if (_isDisposed || _isFrozen || _tmModel is null || _transformer is null)
+                    return;
+                _isFrozen = true;
+                // The model stops its tokenizer when its last listener goes.
+                _tmModel.RemoveModelTokensChangedListener(_transformer);
+            }
+        }
+
+        /// <summary>Starts the tokenizer again after <see cref="Freeze"/>; lines edited meanwhile are tokenized.</summary>
+        public void Resume()
+        {
+            lock (_lock)
+            {
+                if (_isDisposed || !_isFrozen || _tmModel is null || _transformer is null)
+                    return;
+                _isFrozen = false;
+                _tmModel.AddModelTokensChangedListener(_transformer);
+                _tmModel.InvalidateLine(0);
+            }
+        }
+
+        public bool IsFrozen
+        {
+            get { lock (_lock) return _isFrozen; }
+        }
+
         public void Dispose()
         {
             Dispose(disposing: true);
@@ -317,7 +353,8 @@ public static class TextMate
                     _tmModel.SetGrammar(_grammar);
 
                     _transformer.SetModel(_editor.Document, _tmModel);
-                    _tmModel.AddModelTokensChangedListener(_transformer);
+                    if (!_isFrozen)
+                        _tmModel.AddModelTokensChangedListener(_transformer);
                 }
                 catch (Exception ex)
                 {
