@@ -26,7 +26,7 @@ public class StartupWorkspaceReadyTests
     public async Task Ready_Should_WaitForEveryRestoredTabsHeader()
     {
         var root = Directory.CreateTempSubdirectory("Invoklet-startup-ready-test").FullName;
-        var paths = new[] { "a.rpad", "b.rpad", "c.rpad" }.Select(n => Path.Combine(root, n)).ToArray();
+        var paths = new[] { "a.inv", "b.inv", "c.inv" }.Select(n => Path.Combine(root, n)).ToArray();
         foreach (var path in paths)
             File.WriteAllText(path, MdRunWriter.NewFile("Console.WriteLine(1);\n", Path.GetFileNameWithoutExtension(path)));
 

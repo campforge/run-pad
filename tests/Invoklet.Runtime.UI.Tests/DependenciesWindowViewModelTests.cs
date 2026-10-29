@@ -463,7 +463,7 @@ public class DependenciesWindowViewModelTests
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
         prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
         var tab = new EditorTabItemViewModel(
-            filePath: "demo.rpad", sdks: [], prefs: prefs.Object, actions: new Mock<IEditorTabActions>().Object);
+            filePath: "demo.inv", sdks: [], prefs: prefs.Object, actions: new Mock<IEditorTabActions>().Object);
 
         var vm = new DependenciesWindowViewModel(
             new Mock<IPackageSearchService>().Object,

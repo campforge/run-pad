@@ -6,7 +6,7 @@ using Xunit;
 namespace Invoklet.Runtime.UI.Tests;
 
 // GetFilesTreeInternal used to filter out any folder whose subtree
-// contained zero .rpad files ("if (children.Count > 0)") — meant to declutter folders with no scripts
+// contained zero .inv files ("if (children.Count > 0)") — meant to declutter folders with no scripts
 // in them, but it silently ate a folder the moment it had no content yet, which is exactly the shape
 // of a folder the new "New Folder" command just created. The user hit this immediately
 // after that feature shipped: the directory really was created on disk, but RefreshNodes() never
@@ -52,17 +52,17 @@ public class FileSystemServiceTests
         {
             var sub = Path.Combine(root, "Sub");
             Directory.CreateDirectory(sub);
-            File.WriteAllText(Path.Combine(sub, "a.rpad"), "");
+            File.WriteAllText(Path.Combine(sub, "a.inv"), "");
 
             var tree = FileSystemService.GetFilesTreeInternal(root, ct: TestContext.Current.CancellationToken);
 
             var folder = Assert.Single(tree, i => i is { IsDirectory: true, Name: "Sub" });
-            Assert.Contains(folder.Children!, i => i is { IsDirectory: false, Name: "a.rpad" });
+            Assert.Contains(folder.Children!, i => i is { IsDirectory: false, Name: "a.inv" });
         }
         finally { Directory.Delete(root, recursive: true); }
     }
 
-    // File tree's "New File" — CreateNewFile writes real, parseable .rpad content (via
+    // File tree's "New File" — CreateNewFile writes real, parseable .inv content (via
     // MdRunWriter.NewFile) into a caller-given directory, not just an empty stub. NullLogger avoids
     // wiring up a real Microsoft.Extensions.Logging pipeline just to construct FileSystemService —
     // the constructor's only side effect (see GetOrCreateDefaultFolder) is ensuring the real
@@ -93,11 +93,11 @@ public class FileSystemServiceTests
         var dir = Directory.CreateTempSubdirectory("Invoklet-filesystem-test").FullName;
         try
         {
-            File.WriteAllText(Path.Combine(dir, "Query 1.rpad"), "");
+            File.WriteAllText(Path.Combine(dir, "Query 1.inv"), "");
 
             var path = service.CreateNewFile(dir, MdRunLanguage.CSharp, MdRunKind.Statements, "");
 
-            Assert.Equal(Path.Combine(dir, "Query 2.rpad"), path);
+            Assert.Equal(Path.Combine(dir, "Query 2.inv"), path);
         }
         finally { Directory.Delete(dir, recursive: true); }
     }
@@ -131,10 +131,10 @@ public class FileSystemServiceTests
         try
         {
             Directory.CreateDirectory(locked);
-            File.WriteAllText(Path.Combine(locked, "hidden.rpad"), "");
+            File.WriteAllText(Path.Combine(locked, "hidden.inv"), "");
             Directory.CreateDirectory(Path.Combine(root, "Open"));
-            File.WriteAllText(Path.Combine(root, "Open", "b.rpad"), "");
-            File.WriteAllText(Path.Combine(root, "a.rpad"), "");
+            File.WriteAllText(Path.Combine(root, "Open", "b.inv"), "");
+            File.WriteAllText(Path.Combine(root, "a.inv"), "");
             File.SetUnixFileMode(locked, UnixFileMode.None);
 
             var tree = FileSystemService.GetFilesTreeInternal(root, ct: TestContext.Current.CancellationToken);
@@ -142,8 +142,8 @@ public class FileSystemServiceTests
             var lockedNode = Assert.Single(tree, i => i.Name == "Locked");
             Assert.Empty(lockedNode.Children!);
             var openNode = Assert.Single(tree, i => i.Name == "Open");
-            Assert.Single(openNode.Children!, i => i.Name == "b.rpad");
-            Assert.Contains(tree, i => i.Name == "a.rpad");
+            Assert.Single(openNode.Children!, i => i.Name == "b.inv");
+            Assert.Contains(tree, i => i.Name == "a.inv");
         }
         finally
         {
@@ -154,7 +154,7 @@ public class FileSystemServiceTests
 
     // A queries folder that is also an Obsidian vault (or a Git repository) has .obsidian/.git
     // folders full of tool files: folders whose own name starts with a dot are not listed, at any
-    // depth, and nothing inside them is walked. Files keep their current rule (*.rpad, any name).
+    // depth, and nothing inside them is walked. Files keep their current rule (*.inv, any name).
     [Fact]
     public void GetFilesTreeInternal_Should_HideDotFolders_AtEveryDepth_AndKeepEverythingElse()
     {
@@ -162,23 +162,23 @@ public class FileSystemServiceTests
         try
         {
             Directory.CreateDirectory(Path.Combine(root, ".obsidian", "plugins"));
-            File.WriteAllText(Path.Combine(root, ".obsidian", "inside.rpad"), "");
-            File.WriteAllText(Path.Combine(root, ".obsidian", "plugins", "deep.rpad"), "");
+            File.WriteAllText(Path.Combine(root, ".obsidian", "inside.inv"), "");
+            File.WriteAllText(Path.Combine(root, ".obsidian", "plugins", "deep.inv"), "");
             Directory.CreateDirectory(Path.Combine(root, ".git"));
             Directory.CreateDirectory(Path.Combine(root, "Notes", ".trash"));
-            File.WriteAllText(Path.Combine(root, "Notes", ".trash", "old.rpad"), "");
-            File.WriteAllText(Path.Combine(root, "Notes", "kept.rpad"), "");
+            File.WriteAllText(Path.Combine(root, "Notes", ".trash", "old.inv"), "");
+            File.WriteAllText(Path.Combine(root, "Notes", "kept.inv"), "");
             Directory.CreateDirectory(Path.Combine(root, "Empty"));
             Directory.CreateDirectory(Path.Combine(root, "project.v2"));
-            File.WriteAllText(Path.Combine(root, "project.v2", "script.rpad"), "");
-            File.WriteAllText(Path.Combine(root, ".dotted.rpad"), "");
+            File.WriteAllText(Path.Combine(root, "project.v2", "script.inv"), "");
+            File.WriteAllText(Path.Combine(root, ".dotted.inv"), "");
 
             var tree = FileSystemService.GetFilesTreeInternal(root, ct: TestContext.Current.CancellationToken);
 
-            Assert.Equal([".dotted.rpad", "Empty", "Notes", "project.v2"], tree.Select(i => i.Name).Order(StringComparer.Ordinal));
+            Assert.Equal([".dotted.inv", "Empty", "Notes", "project.v2"], tree.Select(i => i.Name).Order(StringComparer.Ordinal));
             var notes = tree.Single(i => i.Name == "Notes");
-            Assert.Equal(["kept.rpad"], notes.Children!.Select(i => i.Name));
-            Assert.Equal(["script.rpad"], tree.Single(i => i.Name == "project.v2").Children!.Select(i => i.Name));
+            Assert.Equal(["kept.inv"], notes.Children!.Select(i => i.Name));
+            Assert.Equal(["script.inv"], tree.Single(i => i.Name == "project.v2").Children!.Select(i => i.Name));
             Assert.DoesNotContain(Flatten(tree), i => i.FilePath.Contains(".obsidian") || i.FilePath.Contains(".git") || i.FilePath.Contains(".trash"));
         }
         finally { Directory.Delete(root, recursive: true); }
@@ -194,14 +194,14 @@ public class FileSystemServiceTests
         {
             var root = Path.Combine(parent, ".hidden-parent", ".queries");
             Directory.CreateDirectory(Path.Combine(root, "Scripts"));
-            File.WriteAllText(Path.Combine(root, "Scripts", "a.rpad"), "");
+            File.WriteAllText(Path.Combine(root, "Scripts", "a.inv"), "");
             Directory.CreateDirectory(Path.Combine(root, ".cache"));
 
             var tree = FileSystemService.GetFilesTreeInternal(root + Path.DirectorySeparatorChar, ct: TestContext.Current.CancellationToken);
 
             var scripts = Assert.Single(tree);
             Assert.Equal("Scripts", scripts.Name);
-            Assert.Equal(["a.rpad"], scripts.Children!.Select(i => i.Name));
+            Assert.Equal(["a.inv"], scripts.Children!.Select(i => i.Name));
         }
         finally { Directory.Delete(parent, recursive: true); }
     }
@@ -214,7 +214,7 @@ public class FileSystemServiceTests
         try
         {
             Directory.CreateDirectory(Path.Combine(root, "Drafts"));
-            File.WriteAllText(Path.Combine(root, "Drafts", "d.rpad"), "");
+            File.WriteAllText(Path.Combine(root, "Drafts", "d.inv"), "");
             List<string> Names() => [.. FileSystemService.GetFilesTreeInternal(root, ct: TestContext.Current.CancellationToken).Select(i => i.Name)];
 
             Assert.Equal(["Drafts"], Names());

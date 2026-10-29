@@ -166,7 +166,7 @@ public sealed class SqliteConnectionTests : IDisposable
             Platform = new DotnetSdkProvider().Get().First(),
             OutputDirectory = outputDir,
             WorkingDirectory = outputDir,
-            CurrentQueryPath = Path.Combine(ScriptDirectory, "shop.rpad"),
+            CurrentQueryPath = Path.Combine(ScriptDirectory, "shop.inv"),
             Packages = packages,
             Connections = generated,
         }, new CSharpReferenceService().GetExtensionReference());
@@ -210,7 +210,7 @@ public sealed class SqliteConnectionTests : IDisposable
 
         var tab = new ScriptConnectionsViewModel(null, null, schemas.Drivers, schemas);
         tab.UsePackages(() => new HashSet<string>(packages, StringComparer.OrdinalIgnoreCase), (_, _) => { });
-        tab.SetScriptPath(Path.Combine(ScriptDirectory, "shop.rpad"));
+        tab.SetScriptPath(Path.Combine(ScriptDirectory, "shop.inv"));
         tab.Load(new MdRunFrontMatter { Connections = [connection] });
         Assert.Equal($"Its description couldn't be read: {reason}", Assert.Single(tab.Items).Problem);
     }
@@ -335,7 +335,7 @@ public sealed class SqliteConnectionTests : IDisposable
             Platform = new DotnetSdkProvider().Get().First(),
             OutputDirectory = outputDir,
             WorkingDirectory = outputDir,
-            CurrentQueryPath = Path.Combine(ScriptDirectory, "shop.rpad"),
+            CurrentQueryPath = Path.Combine(ScriptDirectory, "shop.inv"),
             Packages = packages,
             Connections = generated,
         }, new CSharpReferenceService().GetExtensionReference());

@@ -321,7 +321,7 @@
                        VerticalAlignment="Center"
                        FontSize="12"/>
 
-            <!-- "{Kind} · {TargetSdk}" for the currently open .rpad — set in SetDocumentContent. -->
+            <!-- "{Kind} · {TargetSdk}" for the currently open .inv — set in SetDocumentContent. -->
             <TextBlock x:Name="ProjectInfoBlock"
                        Grid.Column="2"
                        Foreground="{DynamicResource Invoklet.StatusBar.ForegroundBrush}"

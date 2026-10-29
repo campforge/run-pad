@@ -39,7 +39,7 @@ public class ExternalFileChangeSaveTests
             Windows.Setup(w => w.ShowSaveConflictDialogAsync(It.IsAny<string>())).ReturnsAsync(choice);
 
         public void AssertAsked(int times) =>
-            Windows.Verify(w => w.ShowSaveConflictDialogAsync("demo.rpad"), Times.Exactly(times));
+            Windows.Verify(w => w.ShowSaveConflictDialogAsync("demo.inv"), Times.Exactly(times));
 
         public void Dispose()
         {
@@ -80,7 +80,7 @@ public class ExternalFileChangeSaveTests
         var dir = Directory.CreateTempSubdirectory("Invoklet-external-change").FullName;
         try
         {
-            var path = Path.Combine(dir, "demo.rpad");
+            var path = Path.Combine(dir, "demo.inv");
             File.WriteAllText(path, MdRunWriter.NewFile(Original + "\n", "Demo"));
             test(dir, path);
         }
@@ -285,7 +285,7 @@ public class ExternalFileChangeSaveTests
         InTemporaryScript((dir, path) =>
         {
             using var tab = Open(path);
-            var renamed = Path.Combine(dir, "renamed.rpad");
+            var renamed = Path.Combine(dir, "renamed.inv");
             File.Move(path, renamed);
 
             tab.Ctrl.SaveIfNeeded();
@@ -302,14 +302,14 @@ public class ExternalFileChangeSaveTests
     {
         InTemporaryScript((dir, _) =>
         {
-            var path = Path.Combine(dir, "later.rpad");
+            var path = Path.Combine(dir, "later.inv");
             using var tab = Open(path);
             File.WriteAllText(path, MdRunWriter.NewFile(External + "\n", "Demo"));
             tab.Answer(SaveConflictChoice.Cancel);
 
             tab.Ctrl.SaveIfNeeded();
 
-            tab.Windows.Verify(w => w.ShowSaveConflictDialogAsync("later.rpad"), Times.Once);
+            tab.Windows.Verify(w => w.ShowSaveConflictDialogAsync("later.inv"), Times.Once);
             Assert.Equal(External, CodeIn(path));
         });
     }
@@ -321,7 +321,7 @@ public class ExternalFileChangeSaveTests
         var dir = Directory.CreateTempSubdirectory("Invoklet-external-change").FullName;
         try
         {
-            var path = Path.Combine(dir, "demo.rpad");
+            var path = Path.Combine(dir, "demo.inv");
             File.WriteAllText(path, MdRunWriter.NewFile(Original + "\n", "Demo"));
             using var tab = Open(path);
             ChangeExternally(path, Change.Write);

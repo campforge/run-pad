@@ -125,7 +125,7 @@ public partial class EditorsTabItemControl
 
     internal string PreviewMarkdown() => PreviewMarkdown(out _);
 
-    // A file that isn't a valid .rpad has no MdRunDocument and is saved back verbatim; it is shown
+    // A file that isn't a valid .inv has no MdRunDocument and is saved back verbatim; it is shown
     // as the Markdown it is, line for line.
     private string PreviewMarkdown(out int codeLine)
     {

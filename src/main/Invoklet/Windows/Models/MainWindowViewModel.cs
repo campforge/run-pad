@@ -310,7 +310,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
     // OrdinalIgnoreCase matches Windows'/macOS' default case-insensitive filesystem; Linux's is
     // case-sensitive, where it would incorrectly collapse two distinct files differing only in
-    // case (e.g. Query1.rpad/query1.rpad) into one dictionary entry.
+    // case (e.g. Query1.inv/query1.inv) into one dictionary entry.
     private static readonly StringComparer FilePathComparer =
         OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
             ? StringComparer.OrdinalIgnoreCase
@@ -383,8 +383,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         try
         {
             path = Path.GetFullPath(path);
-            if (!string.Equals(Path.GetExtension(path), ".rpad", StringComparison.OrdinalIgnoreCase))
-                throw new IOException("Choose a .rpad script.");
+            if (!string.Equals(Path.GetExtension(path), ".inv", StringComparison.OrdinalIgnoreCase))
+                throw new IOException("Choose a .inv script.");
             // An already-open dirty tab remains usable even if its file was removed elsewhere.
             if (!_openTabs.ContainsKey(path))
             {
@@ -661,10 +661,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
     // Ctrl+N / the new File > New File menu item — same as NewMdRunFile above, but reads
     // the language+kind to use from EditorSettings instead of requiring an explicit choice, so it
-    // never has to show NewFileKindDialog. The explicit File > New RPad File submenu (still asking via
+    // never has to show NewFileKindDialog. The explicit File > New Invoklet File submenu (still asking via
     // the dialog) and the file tree's own "New File" (writes to disk immediately) are
     // both untouched — this only adds a third, dialog-free entry point.
-    // File > New RPad File's choices: the registered languages.
+    // File > New Invoklet File's choices: the registered languages.
     public IReadOnlyList<NewFileLanguageChoice> NewFileLanguages { get; }
 
     public void NewMdRunFileWithDefaults() => NewMdRunFile(_prefs.Editor.NewFileLanguage, _prefs.Editor.NewFileKind);
@@ -902,7 +902,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
     // "File → Import LINQPad Query..." — converts a .linq file (picked via a native
     // Open dialog, so it can live anywhere on disk, not just inside the current workspace folder) to
-    // a sibling .rpad next to it, then opens that as a real tab. Not written into the CURRENT
+    // a sibling .inv next to it, then opens that as a real tab. Not written into the CURRENT
     // workspace folder even if the .linq happens to live elsewhere — mirrors DuplicateTab's own
     // "next to the original" convention rather than always landing inside whatever workspace happens
     // to be open; if that means the new file isn't under the tracked folder, RefreshNodes below just
@@ -937,7 +937,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         do
         {
             var suffix = i == 1 ? "" : $" {i}";
-            newPath = Path.Combine(dir, $"{baseName}{suffix}.rpad");
+            newPath = Path.Combine(dir, $"{baseName}{suffix}.inv");
             i++;
         } while (File.Exists(newPath));
 
@@ -1051,7 +1051,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     {
         // Directory.Exists/File.Move are NOT interchangeable — File.Move on a directory path throws,
         // so renaming a folder always failed before this fix.
-        // A folder's own name has no extension to preserve (unlike a .rpad file's).
+        // A folder's own name has no extension to preserve (unlike a .inv file's).
         var isDirectory = Directory.Exists(filePath);
         var ext = isDirectory ? "" : Path.GetExtension(filePath);
         var dir = Path.GetDirectoryName(filePath)!;

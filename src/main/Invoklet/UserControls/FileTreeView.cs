@@ -33,7 +33,7 @@ public sealed class FileTreeCreateFolderEventArgs(RoutedEvent routedEvent, strin
 
 // Same ParentPath convention as FileTreeCreateFolderEventArgs; Language comes from
 // which "New File" submenu entry (C#/Visual Basic) was clicked, same split as MainWindow's
-// File → New RPad File menu.
+// File → New Invoklet File menu.
 public sealed class FileTreeCreateFileEventArgs(RoutedEvent routedEvent, string? parentPath, MdRunLanguage language)
     : RoutedEventArgs(routedEvent)
 {

@@ -58,9 +58,9 @@ public class MainWindowViewModelSessionTests
         var rootFolder = Directory.CreateTempSubdirectory("Invoklet-session-test").FullName;
         try
         {
-            var pathA = Path.Combine(rootFolder, "A.rpad");
-            var pathB = Path.Combine(rootFolder, "B.rpad");
-            var pathC = Path.Combine(rootFolder, "C.rpad");
+            var pathA = Path.Combine(rootFolder, "A.inv");
+            var pathB = Path.Combine(rootFolder, "B.inv");
+            var pathC = Path.Combine(rootFolder, "C.inv");
             File.WriteAllText(pathA, "");
             File.WriteAllText(pathB, "");
             File.WriteAllText(pathC, "");
@@ -81,8 +81,8 @@ public class MainWindowViewModelSessionTests
         var rootFolder = Directory.CreateTempSubdirectory("Invoklet-session-test").FullName;
         try
         {
-            var pathA = Path.Combine(rootFolder, "A.rpad");
-            var pathB = Path.Combine(rootFolder, "B.rpad");
+            var pathA = Path.Combine(rootFolder, "A.inv");
+            var pathB = Path.Combine(rootFolder, "B.inv");
             File.WriteAllText(pathA, "");
             File.WriteAllText(pathB, "");
 
@@ -105,8 +105,8 @@ public class MainWindowViewModelSessionTests
         var rootFolder = Directory.CreateTempSubdirectory("Invoklet-session-test").FullName;
         try
         {
-            var stillThere = Path.Combine(rootFolder, "StillThere.rpad");
-            var deletedSincelastSession = Path.Combine(rootFolder, "Deleted.rpad");
+            var stillThere = Path.Combine(rootFolder, "StillThere.inv");
+            var deletedSincelastSession = Path.Combine(rootFolder, "Deleted.inv");
             File.WriteAllText(stillThere, "");
 
             var (vm, session) = CreateViewModel(rootFolder);
@@ -127,7 +127,7 @@ public class MainWindowViewModelSessionTests
         try
         {
             var (vm, session) = CreateViewModel(rootFolder);
-            session.OpenTabs = [Path.Combine(rootFolder, "Gone1.rpad"), Path.Combine(rootFolder, "Gone2.rpad")];
+            session.OpenTabs = [Path.Combine(rootFolder, "Gone1.inv"), Path.Combine(rootFolder, "Gone2.inv")];
 
             vm.RestoreSession();
 
@@ -143,7 +143,7 @@ public class MainWindowViewModelSessionTests
         var rootFolder = Directory.CreateTempSubdirectory("Invoklet-session-test").FullName;
         try
         {
-            var path = Path.Combine(rootFolder, "Query.rpad");
+            var path = Path.Combine(rootFolder, "Query.inv");
             File.WriteAllText(path, "");
             var (vm, session) = CreateViewModel(rootFolder);
 
@@ -177,8 +177,8 @@ public class MainWindowViewModelSessionTests
         var rootFolder = Directory.CreateTempSubdirectory("Invoklet-session-test").FullName;
         try
         {
-            var pathA = Path.Combine(rootFolder, "A.rpad");
-            var pathB = Path.Combine(rootFolder, "B.rpad");
+            var pathA = Path.Combine(rootFolder, "A.inv");
+            var pathB = Path.Combine(rootFolder, "B.inv");
             File.WriteAllText(pathA, "");
             File.WriteAllText(pathB, "");
             var (vm, session) = CreateViewModel(rootFolder);

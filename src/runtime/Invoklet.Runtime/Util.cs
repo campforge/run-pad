@@ -27,7 +27,7 @@ public static class Util
     internal const string CurrentQueryPathEnvVar = "Invoklet_CURRENT_QUERY_PATH";
 
     /// <summary>
-    /// The full path to the running script's own <c>.rpad</c> file, or <see langword="null"/> if it's
+    /// The full path to the running script's own <c>.inv</c> file, or <see langword="null"/> if it's
     /// never been saved (an untitled tab) — LINQPad-compatible <c>Util.CurrentQueryPath</c>. Works
     /// under both a plain run and a debug session (DapSession forwards it via the launch request's
     /// own <c>env</c>, since netcoredbg spawns the debuggee itself rather than Invoklet).

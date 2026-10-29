@@ -9,7 +9,9 @@ Notable changes in each Invoklet release. Downloads are on the
 
 - RunPad is now Invoklet, hosted by Tervforge, with a new application icon and updated documentation.
 - The script-format library is now `Invoklet.Format.MdRun`, with `MdRun` model and parser names.
-  The `.rpad` file extension and document syntax remain unchanged.
+  Scripts now use the `.inv` extension; the Markdown/YAML document syntax remains unchanged.
+- **Breaking change:** rename existing `.rpad` scripts to `.inv` to use them in the script tree and
+  File → Open. New files, bundled examples and LINQPad conversions use `.inv`.
 - **Breaking change:** assemblies, namespaces, command-line executable and application data paths
   now use the Invoklet name. Existing settings, recovery sessions and secrets are not automatically
   migrated from the former RunPad folders. Scripts that explicitly reference `RunPad.Runtime` must

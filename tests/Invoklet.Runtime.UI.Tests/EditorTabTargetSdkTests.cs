@@ -103,7 +103,7 @@ public class EditorTabTargetSdkTests
 
     private static string WriteScript(string dir, string targetSdk)
     {
-        var path = Path.Combine(dir, "demo.rpad");
+        var path = Path.Combine(dir, "demo.inv");
         File.WriteAllText(path, MdRunWriter.NewFile("Console.WriteLine(1);\n", "Demo", targetSdk));
         return path;
     }

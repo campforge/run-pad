@@ -9,7 +9,7 @@ namespace Invoklet.Runtime.UI.Tests;
 // or deleted outside Invoklet (Finder, a terminal, Obsidian) must reach it — including folders whose
 // names contain a dot, such as project.v2 — while files that never show in the tree (notes.md, the
 // files inside .obsidian) should not trigger refreshes. These tests run the real service's watcher on
-// a temporary folder; each waits for an event with a bounded timeout, and a control .rpad file shows
+// a temporary folder; each waits for an event with a bounded timeout, and a control .inv file shows
 // the watcher is live and that earlier, ignored changes have already been delivered (or dropped).
 public sealed class FileSystemServiceWatcherTests : IDisposable
 {
@@ -56,7 +56,7 @@ public sealed class FileSystemServiceWatcherTests : IDisposable
     // Creates a control script and returns the events delivered before it (its own included last).
     private async Task<List<FileSystemEventArgs>> EventsUntilControlAsync()
     {
-        var name = $"control{++_control}.rpad";
+        var name = $"control{++_control}.inv";
         File.WriteAllText(P(name), "");
         var seen = new List<FileSystemEventArgs>();
         using var cts = new CancellationTokenSource(EventTimeout);
@@ -102,7 +102,7 @@ public sealed class FileSystemServiceWatcherTests : IDisposable
         await EventsUntilControlAsync();
         var outside = Directory.CreateTempSubdirectory("Invoklet-watcher-outside").FullName;
         Directory.CreateDirectory(Path.Combine(outside, "Imported"));
-        File.WriteAllText(Path.Combine(outside, "Imported", "a.rpad"), "");
+        File.WriteAllText(Path.Combine(outside, "Imported", "a.inv"), "");
 
         Directory.Move(Path.Combine(outside, "Imported"), P("Imported"));
         await WaitForAsync(P("Imported"));
@@ -141,7 +141,7 @@ public sealed class FileSystemServiceWatcherTests : IDisposable
         File.WriteAllText(P("Notes", "todo.txt"), "x");
         File.WriteAllText(P(".obsidian", "workspace.json"), "{}");
         Directory.CreateDirectory(P(".obsidian", "plugins", "x"));
-        File.WriteAllText(P(".obsidian", "plugins", "x", "inside.rpad"), "");
+        File.WriteAllText(P(".obsidian", "plugins", "x", "inside.inv"), "");
 
         var seen = await EventsUntilControlAsync();
 
@@ -156,9 +156,9 @@ public sealed class FileSystemServiceWatcherTests : IDisposable
         Directory.CreateDirectory(P("Notes"));
         await EventsUntilControlAsync();
 
-        File.WriteAllText(P("Notes", "new.rpad"), "");
-        await WaitForAsync(P("Notes", "new.rpad"));
-        File.WriteAllText(P(".dotted.rpad"), "");
-        await WaitForAsync(P(".dotted.rpad"));
+        File.WriteAllText(P("Notes", "new.inv"), "");
+        await WaitForAsync(P("Notes", "new.inv"));
+        File.WriteAllText(P(".dotted.inv"), "");
+        await WaitForAsync(P(".dotted.inv"));
     }
 }

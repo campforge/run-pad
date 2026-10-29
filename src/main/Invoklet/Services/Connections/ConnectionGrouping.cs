@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Invoklet.Services.Connections;
 
-/// <summary>A folder of the user's connections; organization only, never written into an .rpad file.</summary>
+/// <summary>A folder of the user's connections; organization only, never written into an .inv file.</summary>
 public sealed record ConnectionGroup(string Id, string Name, string? ParentId, int Order);
 
 public sealed record ConnectionGroupingSnapshot(

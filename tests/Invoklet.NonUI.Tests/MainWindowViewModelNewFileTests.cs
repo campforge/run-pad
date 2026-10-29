@@ -134,7 +134,7 @@ public class MainWindowViewModelNewFileTests
 
         Assert.False(MainWindowViewModel.ShouldKeepRecoveryTab(Tab()));
         Assert.True(MainWindowViewModel.ShouldKeepRecoveryTab(Tab(dirty: true)));
-        Assert.True(MainWindowViewModel.ShouldKeepRecoveryTab(Tab(path: "/tmp/a.rpad")));
-        Assert.True(MainWindowViewModel.ShouldKeepRecoveryTab(Tab(original: "/tmp/a.rpad")));
+        Assert.True(MainWindowViewModel.ShouldKeepRecoveryTab(Tab(path: "/tmp/a.inv")));
+        Assert.True(MainWindowViewModel.ShouldKeepRecoveryTab(Tab(original: "/tmp/a.inv")));
     }
 }

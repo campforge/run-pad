@@ -91,7 +91,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // A Run/Debug waiting for its save (possibly for the user's answer): another one doesn't start.
     private bool _savingBeforeRun;
     private string? _filePath;
-    // The last file WriteFile wrote an .rpad document to, and the document ID written there.
+    // The last file WriteFile wrote an .inv document to, and the document ID written there.
     private (string Path, Guid Id)? _writtenId;
     private IDisposable? _selectedSdkSub;
     private IDisposable? _selectedArgumentSetSub;
@@ -630,7 +630,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (_disposed || _runInProgress || _savingBeforeRun) return;
         var stopGeneration = _stopGeneration;
 
-        // Never run an invalid .rpad as raw code — the editor holds the whole file
+        // Never run an invalid .inv as raw code — the editor holds the whole file
         // (front matter + Markdown) there, not a script.
         if (s.DocumentParseError is { } parseError)
         {
@@ -1163,7 +1163,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // batch-of-one counterpart: resolves every unambiguous unresolved-type diagnostic in the document
     // at once instead of requiring the lightbulb's "using X;" fix to be accepted one at a time. Same
     // application path a single fix's UsingsToAdd already goes through (front matter `namespaces:`
-    // for a real .rpad, a prepended `using` line for a plain script with none).
+    // for a real .inv, a prepended `using` line for a plain script with none).
     internal async Task ResolveAllUsingsAsync()
     {
         if (_intelliSense is null) return;
@@ -1541,7 +1541,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     }
 
     private static string InvalidDocumentMessage(string parseError)
-        => $"Cannot run: this file is not a valid .rpad document. {parseError} " +
+        => $"Cannot run: this file is not a valid .inv document. {parseError} " +
            "Fix it in the editor, save, and reopen the file to run it.";
 
     // The run's status follows the script's real exit code (and a failed compile/start),
@@ -3020,7 +3020,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void RefreshIntelliSenseKind()
         => _intelliSense?.UpdateKind(State.MdRunDocument?.FrontMatter.Kind ?? MdRunKind.Statements);
 
-    // Adds namespaces to the .rpad front matter's `namespaces:` list (compiled in as `global using` —
+    // Adds namespaces to the .inv front matter's `namespaces:` list (compiled in as `global using` —
     // see docs/ImplementationPlanRPad.md) instead of inserting `using X;` text into the script, and
     // persists + re-syncs IntelliSense immediately so the fix's effect (squiggle gone) is visible
     // right away rather than waiting for the next save/run.
@@ -3106,7 +3106,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         CommitMetadataChange();
     }
 
-    // "{Kind} · {TargetSdk}" status-bar readout for the currently open .rpad —
+    // "{Kind} · {TargetSdk}" status-bar readout for the currently open .inv —
     // called on open (SetDocumentContent) and again whenever the kind combobox changes it.
     private void UpdateProjectInfoBlock()
         => ProjectInfoBlock.Text = State.MdRunDocument is { } rpad
@@ -3141,7 +3141,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             if (_disposed) return;
             if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
 
-            // Usings go to the .rpad front matter's `namespaces:` list (a project file, per
+            // Usings go to the .inv front matter's `namespaces:` list (a project file, per
             // docs/ImplementationPlanRPad.md), not the visible script — except for a plain script
             // with no front matter to route them to, where they're folded into the text.
             var hasProjectFile = State.MdRunDocument is not null;

@@ -132,7 +132,7 @@ public sealed class LanguageEditorServicesTests : IDisposable
         public string GetRuntimeAssemblyPath() => path;
     }
 
-    // The menus' New File choices: the registered languages the .rpad format can store, as listed before.
+    // The menus' New File choices: the registered languages the .inv format can store, as listed before.
     [Fact]
     public void TheNewFileChoices_Should_BeTheRegisteredLanguagesAFileCanHold()
     {

@@ -21,7 +21,7 @@ public sealed class ExecutionRequestTests : IDisposable
 
     public ExecutionRequestTests()
     {
-        _script = Path.Combine(Directory.CreateDirectory(Path.Combine(_root, "scripts")).FullName, "query.rpad");
+        _script = Path.Combine(Directory.CreateDirectory(Path.Combine(_root, "scripts")).FullName, "query.inv");
         _library = Path.Combine(Directory.CreateDirectory(Path.Combine(_root, "scripts", "lib")).FullName, "Greeter.dll");
         File.WriteAllText(_library, "");
     }

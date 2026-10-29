@@ -6,28 +6,28 @@ namespace Invoklet.Cli.Tests;
 public class CliArgumentsTests
 {
     [Theory]
-    [InlineData(new[] { "a.rpad" }, null)]
-    [InlineData(new[] { "a.rpad", "Hello", "World" }, new[] { "Hello", "World" })]  // lprun
-    [InlineData(new[] { "run", "a.rpad", "x" }, new[] { "x" })]                     // npad's explicit run
-    [InlineData(new[] { "a.rpad", "--", "-s", "--" }, new[] { "-s", "--" })]
-    [InlineData(new[] { "a.rpad", "x", "--", "-k" }, new[] { "x", "-k" })]
-    [InlineData(new[] { "a.rpad", "--" }, new string[0])]
-    [InlineData(new[] { "a.rpad", "-unknown", "-" }, new[] { "-unknown", "-" })]
+    [InlineData(new[] { "a.inv" }, null)]
+    [InlineData(new[] { "a.inv", "Hello", "World" }, new[] { "Hello", "World" })]  // lprun
+    [InlineData(new[] { "run", "a.inv", "x" }, new[] { "x" })]                     // npad's explicit run
+    [InlineData(new[] { "a.inv", "--", "-s", "--" }, new[] { "-s", "--" })]
+    [InlineData(new[] { "a.inv", "x", "--", "-k" }, new[] { "x", "-k" })]
+    [InlineData(new[] { "a.inv", "--" }, new string[0])]
+    [InlineData(new[] { "a.inv", "-unknown", "-" }, new[] { "-unknown", "-" })]
     public void Parse_Should_PassWhatFollowsTheScript_ToTheScript(string[] args, string[]? expected)
     {
         var cli = CliArguments.Parse(args);
 
         Assert.Null(cli.Error);
-        Assert.Equal("a.rpad", cli.ScriptPath);
+        Assert.Equal("a.inv", cli.ScriptPath);
         Assert.Equal(expected, cli.ScriptArguments);
     }
 
     [Theory]
-    [InlineData(new[] { "-lang=e", "a.rpad" }, MdRunKind.Expression, null)]
-    [InlineData(new[] { "-lang=Program", "a.rpad" }, MdRunKind.Program, null)]
-    [InlineData(new[] { "-lang=VBStatements", "a.rpad" }, MdRunKind.Statements, MdRunLanguage.Vb)]
-    [InlineData(new[] { "--kind", "program", "a.rpad" }, MdRunKind.Program, null)]
-    [InlineData(new[] { "a.rpad", "-k", "s" }, MdRunKind.Statements, null)]
+    [InlineData(new[] { "-lang=e", "a.inv" }, MdRunKind.Expression, null)]
+    [InlineData(new[] { "-lang=Program", "a.inv" }, MdRunKind.Program, null)]
+    [InlineData(new[] { "-lang=VBStatements", "a.inv" }, MdRunKind.Statements, MdRunLanguage.Vb)]
+    [InlineData(new[] { "--kind", "program", "a.inv" }, MdRunKind.Program, null)]
+    [InlineData(new[] { "a.inv", "-k", "s" }, MdRunKind.Statements, null)]
     public void Parse_Should_ReadTheKind_InEitherStyle(string[] args, MdRunKind kind, MdRunLanguage? language)
     {
         var cli = CliArguments.Parse(args);
@@ -48,22 +48,22 @@ public class CliArgumentsTests
     [InlineData("1", "net1.0")]   // valid, if not installed: the runner falls back with a warning
     public void Parse_Should_ReadTheSdk(string value, string expected)
     {
-        Assert.Equal(expected, CliArguments.Parse(["--sdk", value, "a.rpad"]).TargetSdk?.ToString());
-        Assert.Equal(expected, CliArguments.Parse(["a.rpad", "-s", value]).TargetSdk?.ToString());
-        Assert.Equal(expected, CliArguments.Parse([$"--sdk={value}", "a.rpad"]).TargetSdk?.ToString());
+        Assert.Equal(expected, CliArguments.Parse(["--sdk", value, "a.inv"]).TargetSdk?.ToString());
+        Assert.Equal(expected, CliArguments.Parse(["a.inv", "-s", value]).TargetSdk?.ToString());
+        Assert.Equal(expected, CliArguments.Parse([$"--sdk={value}", "a.inv"]).TargetSdk?.ToString());
     }
 
-    // A missing value must not take the next option (or "--") as the SDK: "--sdk --compile-only a.rpad"
+    // A missing value must not take the next option (or "--") as the SDK: "--sdk --compile-only a.inv"
     // would otherwise run the script on the newest SDK instead of only compiling it.
     [Theory]
-    [InlineData("--sdk --compile-only a.rpad")]
-    [InlineData("-s -compileonly a.rpad")]
-    [InlineData("--sdk --help a.rpad")]
-    [InlineData("a.rpad -s -- x")]
-    [InlineData("--kind --compile-only a.rpad")]
-    [InlineData("--sdk= a.rpad")]
-    [InlineData("-s= a.rpad")]
-    [InlineData("a.rpad --sdk")]
+    [InlineData("--sdk --compile-only a.inv")]
+    [InlineData("-s -compileonly a.inv")]
+    [InlineData("--sdk --help a.inv")]
+    [InlineData("a.inv -s -- x")]
+    [InlineData("--kind --compile-only a.inv")]
+    [InlineData("--sdk= a.inv")]
+    [InlineData("-s= a.inv")]
+    [InlineData("a.inv --sdk")]
     public void Parse_Should_RejectAMissingValue_WithoutTakingTheNextOption(string commandLine)
     {
         var cli = CliArguments.Parse(commandLine.Split(' '));
@@ -80,7 +80,7 @@ public class CliArgumentsTests
     [InlineData("v9")]
     public void Parse_Should_RejectAnSdkItCannotRead(string value)
     {
-        foreach (var args in new[] { new[] { "--sdk", value, "a.rpad" }, ["a.rpad", $"-s={value}"] })
+        foreach (var args in new[] { new[] { "--sdk", value, "a.inv" }, ["a.inv", $"-s={value}"] })
         {
             var cli = CliArguments.Parse(args);
 
@@ -94,16 +94,16 @@ public class CliArgumentsTests
     [InlineData("--compile-only")]
     public void Parse_Should_ReadCompileOnly(string option)
     {
-        Assert.True(CliArguments.Parse([option, "a.rpad"]).CompileOnly);
+        Assert.True(CliArguments.Parse([option, "a.inv"]).CompileOnly);
     }
 
     [Fact]
     public void Parse_Should_ReadRefreshConnections_BeforeOrAfterTheScript()
     {
-        Assert.True(CliArguments.Parse(["--refresh-connections", "a.rpad"]).RefreshConnections);
-        Assert.True(CliArguments.Parse(["a.rpad", "--refresh-connections"]).RefreshConnections);
-        Assert.False(CliArguments.Parse(["a.rpad"]).RefreshConnections);
-        Assert.Equal(["--refresh-connections"], CliArguments.Parse(["a.rpad", "--", "--refresh-connections"]).ScriptArguments);
+        Assert.True(CliArguments.Parse(["--refresh-connections", "a.inv"]).RefreshConnections);
+        Assert.True(CliArguments.Parse(["a.inv", "--refresh-connections"]).RefreshConnections);
+        Assert.False(CliArguments.Parse(["a.inv"]).RefreshConnections);
+        Assert.Equal(["--refresh-connections"], CliArguments.Parse(["a.inv", "--", "--refresh-connections"]).ScriptArguments);
     }
 
     [Theory]
@@ -112,20 +112,20 @@ public class CliArgumentsTests
     [InlineData("-b")]
     public void Parse_Should_AcceptCacheOptions_WithNoEffect(string option)
     {
-        var cli = CliArguments.Parse([option, "a.rpad"]);
+        var cli = CliArguments.Parse([option, "a.inv"]);
 
         Assert.Null(cli.Error);
-        Assert.Equal("a.rpad", cli.ScriptPath);
+        Assert.Equal("a.inv", cli.ScriptPath);
     }
 
     [Theory]
-    [InlineData("-format=html a.rpad")]
-    [InlineData("a.rpad --format json")]
-    [InlineData("-O a.rpad")]
+    [InlineData("-format=html a.inv")]
+    [InlineData("a.inv --format json")]
+    [InlineData("-O a.inv")]
     [InlineData("-e 1+1")]
-    [InlineData("--bogus a.rpad")]
-    [InlineData("-lang=sql a.rpad")]
-    [InlineData("a.rpad --kind")]
+    [InlineData("--bogus a.inv")]
+    [InlineData("-lang=sql a.inv")]
+    [InlineData("a.inv --kind")]
     public void Parse_Should_Reject_WhatItCannotDo(string commandLine)
     {
         Assert.NotNull(CliArguments.Parse(commandLine.Split(' ')).Error);

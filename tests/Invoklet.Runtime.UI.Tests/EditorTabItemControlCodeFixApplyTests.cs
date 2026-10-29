@@ -27,7 +27,7 @@ namespace Invoklet.Runtime.UI.Tests;
 // CodeFixMargin menu-item wiring (same idiom as CodeFixMarginTests.cs's own click test) rather than
 // simulating the click by calling internal methods directly. The "add using" fix this test drives
 // lands in FrontMatter.Namespaces, not the visible editor text — every Invoklet tab (even a brand-new
-// untitled one, see NewMdRunFile) is a real .rpad document, and usings are project-level metadata
+// untitled one, see NewMdRunFile) is a real .inv document, and usings are project-level metadata
 // there (docs/ImplementationPlanRPad.md), not text inserted into the script itself.
 [Trait("Category", "Integration")]
 [Trait("Category", "Roslyn")]
@@ -100,7 +100,7 @@ public class EditorTabItemControlCodeFixApplyTests
         var item = margin.BuildMenuItem(entry);
         item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
 
-        // A new untitled tab still gets a real MdRunDocument (every Invoklet script is a .rpad document
+        // A new untitled tab still gets a real MdRunDocument (every Invoklet script is a .inv document
         // — see NewMdRunFile), so this "add using" fix's namespace goes to FrontMatter.Namespaces
         // (docs/ImplementationPlanRPad.md — usings are project-level metadata), NOT into the visible
         // editor text (which is why the raw text is never expected to change here at all).

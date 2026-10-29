@@ -41,7 +41,7 @@ public class MainWindowViewModelDeleteRenameFolderTests
         {
             var sub = Path.Combine(root, "ToDelete");
             Directory.CreateDirectory(sub);
-            File.WriteAllText(Path.Combine(sub, "a.rpad"), "content");
+            File.WriteAllText(Path.Combine(sub, "a.inv"), "content");
 
             var vm = CreateViewModel(root);
             vm.DeleteFile(sub);
@@ -57,7 +57,7 @@ public class MainWindowViewModelDeleteRenameFolderTests
         var root = Directory.CreateTempSubdirectory("Invoklet-delete-test").FullName;
         try
         {
-            var file = Path.Combine(root, "a.rpad");
+            var file = Path.Combine(root, "a.inv");
             File.WriteAllText(file, "content");
 
             var vm = CreateViewModel(root);
@@ -81,7 +81,7 @@ public class MainWindowViewModelDeleteRenameFolderTests
         var root = Directory.CreateTempSubdirectory("Invoklet-delete-fail-test").FullName;
         try
         {
-            var file = Path.Combine(root, "a.rpad");
+            var file = Path.Combine(root, "a.inv");
             File.WriteAllText(file, "content");
 
             var vm = CreateViewModel(root);
@@ -115,14 +115,14 @@ public class MainWindowViewModelDeleteRenameFolderTests
         {
             var sub = Path.Combine(root, "OldName");
             Directory.CreateDirectory(sub);
-            File.WriteAllText(Path.Combine(sub, "a.rpad"), "content");
+            File.WriteAllText(Path.Combine(sub, "a.inv"), "content");
 
             var vm = CreateViewModel(root);
             vm.RenameFile(sub, "NewName");
 
             Assert.False(Directory.Exists(sub));
             Assert.True(Directory.Exists(Path.Combine(root, "NewName")));
-            Assert.True(File.Exists(Path.Combine(root, "NewName", "a.rpad")));
+            Assert.True(File.Exists(Path.Combine(root, "NewName", "a.inv")));
         }
         finally { Directory.Delete(root, recursive: true); }
     }
@@ -133,14 +133,14 @@ public class MainWindowViewModelDeleteRenameFolderTests
         var root = Directory.CreateTempSubdirectory("Invoklet-rename-test").FullName;
         try
         {
-            var file = Path.Combine(root, "old.rpad");
+            var file = Path.Combine(root, "old.inv");
             File.WriteAllText(file, "content");
 
             var vm = CreateViewModel(root);
             vm.RenameFile(file, "new");
 
             Assert.False(File.Exists(file));
-            Assert.True(File.Exists(Path.Combine(root, "new.rpad")));
+            Assert.True(File.Exists(Path.Combine(root, "new.inv")));
         }
         finally { Directory.Delete(root, recursive: true); }
     }

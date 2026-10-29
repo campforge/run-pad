@@ -103,7 +103,7 @@ public class DapSessionCurrentQueryPathTests
             Breakpoints: [],
             SourceFileExtension: ".cs",
             LineOffset: 0,
-            CurrentQueryPath: "/root/a.rpad");
+            CurrentQueryPath: "/root/a.inv");
 
         await using var session = new DapSession(
             process, options, outputHandler: null, onBreakpointHit: static _ => { },
@@ -115,7 +115,7 @@ public class DapSessionCurrentQueryPathTests
         var written = await WaitForWrittenRequestAsync(process.Input, "\"command\":\"launch\"");
 
         Assert.Contains("Invoklet_CURRENT_QUERY_PATH", written);
-        Assert.Contains("/root/a.rpad", written);
+        Assert.Contains("/root/a.inv", written);
 
         process.Output.Push(Frame(new { seq = 2, type = "event", @event = "exited" }));
         await runTask;
@@ -151,7 +151,7 @@ public class DapSessionCurrentQueryPathTests
 
     [Theory]
     [InlineData(null)]
-    [InlineData("/root/a.rpad")]
+    [InlineData("/root/a.inv")]
     public async Task RunAsync_Should_ForwardTypedArguments_InTheLaunchEnvironment(string? path)
     {
         const string contract = "{\"Members\":[{\"Name\":\"value\",\"Type\":\"int\",\"Values\":[\"3\"]}]}";

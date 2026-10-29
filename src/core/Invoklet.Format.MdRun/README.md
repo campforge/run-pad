@@ -1,10 +1,10 @@
 ---
 
-# RPad
+# MdRun (`.inv`)
 
-**RPad** is an open, human-readable format for executable documents.
+**MdRun** is an open, human-readable format for executable documents, stored as `.inv` files.
 
-An RPad document combines documentation, source code and execution metadata into a single text file. The format is language-neutral and is designed to be simple to read, easy to edit and friendly to version control systems.
+An MdRun document combines documentation, source code and execution metadata into a single text file. The format is language-neutral and is designed to be simple to read, easy to edit and friendly to version control systems.
 
 Although the first implementation targets the .NET ecosystem, the format itself is intentionally independent of any programming language or runtime.
 
@@ -12,11 +12,11 @@ Although the first implementation targets the .NET ecosystem, the format itself 
 
 ## Philosophy
 
-RPad is built around a few simple ideas.
+MdRun is built around a few simple ideas.
 
 ### Human First
 
-An RPad document should be understandable without specialized tools.
+An MdRun document should be understandable without specialized tools.
 
 Open it in any Markdown editor and it remains a readable document.
 
@@ -24,7 +24,7 @@ Open it in any Markdown editor and it remains a readable document.
 
 ### Open Format
 
-RPad is based on existing standards:
+MdRun is based on existing standards:
 
 * Markdown
 * YAML Front Matter

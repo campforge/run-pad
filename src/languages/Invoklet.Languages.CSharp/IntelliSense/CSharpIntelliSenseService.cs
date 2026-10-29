@@ -30,7 +30,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // Default usings the synthetic script document is built with, so completion/diagnostics work
     // without the user typing them — must match the compiler's own implicit usings exactly (see
     // ImplicitUsings.Default), otherwise IntelliSense shows no error for something
-    // that won't actually compile. Extended at runtime with the .rpad front matter's own
+    // that won't actually compile. Extended at runtime with the .inv front matter's own
     // `namespaces:` list (see UpdateGlobalUsings) so IntelliSense agrees with what the compiler
     // will actually add as `global using` too — see docs/ImplementationPlanRPad.md and RoslynCodeFixEngine.
     //
@@ -918,7 +918,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         };
         // A type in the global namespace needs no "using" to become visible — treat it as needing no
         // import rather than emitting an empty namespace, which would otherwise surface as "(in )" in
-        // the list and add an empty entry to the .rpad front matter's namespaces (later producing an
+        // the list and add an empty entry to the .inv front matter's namespaces (later producing an
         // invalid "using ;").
         var ns = type.ContainingNamespace.IsGlobalNamespace ? null : type.ContainingNamespace.ToDisplayString();
 

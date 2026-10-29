@@ -120,12 +120,12 @@ public class CompiledDotnetLanguageHostProcessFactoryTests
             return new FakeChildProcess();
         };
 
-        var (host, outputDir) = CreateHost(executionProcessFactory: factory, currentQueryPath: "/root/a.rpad");
+        var (host, outputDir) = CreateHost(executionProcessFactory: factory, currentQueryPath: "/root/a.inv");
         try
         {
             await host.RunAsync("int x = 1;", cancellationToken: TestContext.Current.CancellationToken);
 
-            Assert.Equal("/root/a.rpad", received);
+            Assert.Equal("/root/a.inv", received);
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
@@ -261,7 +261,7 @@ public class CompiledDotnetLanguageHostProcessFactoryTests
         var process = new PipeFakeChildProcess();
         DebuggerChildProcessFactory factory = _ => process;
 
-        var (host, outputDir) = CreateHost(debuggerProcessFactory: factory, currentQueryPath: "/root/a.rpad");
+        var (host, outputDir) = CreateHost(debuggerProcessFactory: factory, currentQueryPath: "/root/a.inv");
         try
         {
             var runTask = host.RunDebugAsync(
@@ -271,7 +271,7 @@ public class CompiledDotnetLanguageHostProcessFactoryTests
             var written = await WaitForWrittenRequestAsync(process.Input, "\"command\":\"launch\"");
 
             Assert.Contains("Invoklet_CURRENT_QUERY_PATH", written);
-            Assert.Contains("/root/a.rpad", written);
+            Assert.Contains("/root/a.inv", written);
 
             process.Output.Push(Frame(new { seq = 2, type = "event", @event = "exited" }));
             await runTask;

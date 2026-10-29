@@ -65,7 +65,7 @@ public interface ILanguageHostFactory
 }
 
 /// <summary>A registered language as the app offers it.</summary>
-/// <param name="Id">The registry key, also the <c>language:</c> value of a .rpad file.</param>
+/// <param name="Id">The registry key, also the <c>language:</c> value of a .inv file.</param>
 /// <param name="DisplayName">The name shown for it, such as "Visual Basic".</param>
 /// <param name="IconResourceKey">Its icon's resource key (see <see cref="EditorLanguageProfile"/>), or null.</param>
 public sealed record LanguageDescriptor(

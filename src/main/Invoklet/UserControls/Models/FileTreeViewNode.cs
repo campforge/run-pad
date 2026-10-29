@@ -30,7 +30,7 @@ public class FileTreeViewNode : ReactiveObject
 
     public bool IsFolder => SubNodes is not null;
 
-    // Peeked once from the .rpad front matter when this node is built (FileTreeViewModel.MapToNode)
+    // Peeked once from the .inv front matter when this node is built (FileTreeViewModel.MapToNode)
     // — null for folders. Used by the tree's per-language icon; a file's language
     // re-peeks the next time its node is rebuilt (rename/move creates a fresh node — see
     // FileTreeViewModel.MergeNodeList), not on every unrelated tree refresh, matching how DisplayName

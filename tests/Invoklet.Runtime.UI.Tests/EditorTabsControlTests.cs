@@ -30,7 +30,7 @@ public class EditorTabsControlTests
         var tmpDir = Directory.CreateTempSubdirectory("Invoklet-tabs-test").FullName;
         try
         {
-            var filePath = Path.Combine(tmpDir, "demo.rpad");
+            var filePath = Path.Combine(tmpDir, "demo.inv");
             File.WriteAllText(filePath, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
 
             var prefs = new Mock<IPreferencesService>();
@@ -95,7 +95,7 @@ public class EditorTabsControlTests
         var tmpDir = Directory.CreateTempSubdirectory("Invoklet-save-active-test").FullName;
         try
         {
-            var filePath = Path.Combine(tmpDir, "demo.rpad");
+            var filePath = Path.Combine(tmpDir, "demo.inv");
             File.WriteAllText(filePath, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
 
             var prefs = new Mock<IPreferencesService>();
@@ -175,7 +175,7 @@ public class EditorTabsControlTests
             fileSystem.Setup(f => f.Folder).Returns(tmpDir);
             fileSystem.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
 
-            var chosenPath = Path.Combine(tmpDir, "NewScript.rpad");
+            var chosenPath = Path.Combine(tmpDir, "NewScript.inv");
             var windowService = new Mock<IWindowService>();
             windowService.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), tmpDir))
                 .ReturnsAsync(chosenPath);
@@ -238,7 +238,7 @@ public class EditorTabsControlTests
         var tmpDir = Directory.CreateTempSubdirectory("Invoklet-tabs-kind-test").FullName;
         try
         {
-            var filePath = Path.Combine(tmpDir, "demo.rpad");
+            var filePath = Path.Combine(tmpDir, "demo.inv");
             File.WriteAllText(filePath, MdRunWriter.NewFile("void Main()\n{\n    \n}\n", "Demo", kind: MdRunKind.Program));
 
             var prefs = new Mock<IPreferencesService>();
@@ -376,7 +376,7 @@ public class EditorTabsControlTests
             var paths = new List<string>();
             for (var i = 0; i < tabCount; i++)
             {
-                var path = Path.Combine(tmpDir, $"Query {i}.rpad");
+                var path = Path.Combine(tmpDir, $"Query {i}.inv");
                 File.WriteAllText(path, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", $"Query {i}"));
                 paths.Add(path);
             }

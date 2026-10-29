@@ -26,7 +26,7 @@ public class SaveIfNeededFailureTests
         if (OperatingSystem.IsWindows()) return; // the Unix file-mode trick below doesn't apply
 
         var tmpDir = Directory.CreateTempSubdirectory("Invoklet-save-fail-test").FullName;
-        var filePath = Path.Combine(tmpDir, "demo.rpad");
+        var filePath = Path.Combine(tmpDir, "demo.inv");
         try
         {
             File.WriteAllText(filePath, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));

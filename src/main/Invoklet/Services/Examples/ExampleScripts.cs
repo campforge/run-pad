@@ -3,10 +3,10 @@ using Invoklet.Format.MdRun;
 
 namespace Invoklet.Services.Examples;
 
-/// <summary>A sample script shipped inside the application (Examples/**/*.rpad, embedded resources).</summary>
-/// <param name="Id">Its file name, e.g. "quick-start.rpad" — one open tab per example; unique across folders.</param>
+/// <summary>A sample script shipped inside the application (Examples/**/*.inv, embedded resources).</summary>
+/// <param name="Id">Its file name, e.g. "quick-start.inv" — one open tab per example; unique across folders.</param>
 /// <param name="Title">The document's first Markdown heading, else a name made from the file name.</param>
-/// <param name="Text">The whole .rpad document, front matter and Markdown included.</param>
+/// <param name="Text">The whole .inv document, front matter and Markdown included.</param>
 /// <param name="Folder">Its folder under Examples, e.g. "getting-started"; empty at the top.</param>
 public sealed record ExampleScript(string Id, string Title, string Text, MdRunLanguage Language, MdRunKind Kind, string Folder = "")
 {
@@ -31,9 +31,9 @@ public static class ExampleScripts
     // follows, by path.
     private static readonly string[] Order =
     [
-        "getting-started/quick-start.rpad", "getting-started/expression-kind.rpad", "getting-started/program-kind.rpad",
-        "output/products-overview.rpad", "output/live-output.rpad",
-        "debugging/debugging-loop.rpad",
+        "getting-started/quick-start.inv", "getting-started/expression-kind.inv", "getting-started/program-kind.inv",
+        "output/products-overview.inv", "output/live-output.inv",
+        "debugging/debugging-loop.inv",
     ];
 
     private static readonly Lazy<IReadOnlyList<ExampleScript>> Loaded = new(() => Load(typeof(ExampleScripts).Assembly));
@@ -44,7 +44,7 @@ public static class ExampleScripts
     {
         // The build keeps a subfolder in the name with the platform's separator, '/' or a backslash.
         var names = assembly.GetManifestResourceNames()
-            .Where(n => n.StartsWith(ResourcePrefix, StringComparison.Ordinal) && n.EndsWith(".rpad", StringComparison.Ordinal))
+            .Where(n => n.StartsWith(ResourcePrefix, StringComparison.Ordinal) && n.EndsWith(".inv", StringComparison.Ordinal))
             .Select(n => (Resource: n, Path: n[ResourcePrefix.Length..].Replace('\\', '/')))
             .OrderBy(n => Array.IndexOf(Order, n.Path) is var i and >= 0 ? i : int.MaxValue)
             .ThenBy(n => n.Path, StringComparer.Ordinal);
@@ -74,7 +74,7 @@ public static class ExampleScripts
         return result;
     }
 
-    // "# Quick start" → "Quick start"; without a heading, "quick-start.rpad" → "Quick start".
+    // "# Quick start" → "Quick start"; without a heading, "quick-start.inv" → "Quick start".
     internal static string TitleOf(string text, string id)
     {
         foreach (var line in text.Split('\n'))

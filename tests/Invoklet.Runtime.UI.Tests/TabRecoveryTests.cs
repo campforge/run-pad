@@ -66,7 +66,7 @@ public sealed class TabRecoveryTests : IDisposable
     [AvaloniaFact]
     public async Task DirtyNamedSnapshot_Should_KeepOriginalDiskBaseline_AndAskBeforeOverwritingExternalChanges()
     {
-        var path = Path.Combine(_root, "dirty.rpad");
+        var path = Path.Combine(_root, "dirty.inv");
         File.WriteAllText(path, MdRunWriter.NewFile("old", "test"));
         var (ctrl, vm) = Open(path);
         ctrl.State.Editor.Text = "unsaved";
@@ -86,7 +86,7 @@ public sealed class TabRecoveryTests : IDisposable
     [AvaloniaFact]
     public async Task UnknownRecoveredBaseline_Should_NotSilentlyAcceptTheCurrentFile()
     {
-        var path = Path.Combine(_root, "unknown.rpad");
+        var path = Path.Combine(_root, "unknown.inv");
         File.WriteAllText(path, MdRunWriter.NewFile("disk", "test"));
         var (ctrl, _) = Open();
         var frame = ctrl.CaptureRecovery() with { FilePath = path, BaselineKnown = false, IsDirty = true };
@@ -99,7 +99,7 @@ public sealed class TabRecoveryTests : IDisposable
     [AvaloniaFact]
     public void InvalidRawDocument_Should_RemainRawAndUnchanged()
     {
-        var path = Path.Combine(_root, "invalid.rpad");
+        var path = Path.Combine(_root, "invalid.inv");
         var raw = "---\nlanguage: [broken\n---\nraw\r\n${0}";
         File.WriteAllText(path, raw);
         var (ctrl, _) = Open(path);

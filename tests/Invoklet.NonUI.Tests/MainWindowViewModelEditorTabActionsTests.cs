@@ -67,7 +67,7 @@ public class MainWindowViewModelEditorTabActionsTests
         try
         {
             var (mainVm, _) = CreateViewModel(rootFolder);
-            var filePath = Path.Combine(rootFolder, "demo.rpad");
+            var filePath = Path.Combine(rootFolder, "demo.inv");
             File.WriteAllText(filePath, "content");
             mainVm.OpenTab(filePath);
             var tab = Assert.Single(mainVm.Tabs);

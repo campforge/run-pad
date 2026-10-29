@@ -37,7 +37,7 @@ public class RunSaveConflictTests : IDisposable
 
     public RunSaveConflictTests()
     {
-        _script = Path.Combine(_root, "query.rpad");
+        _script = Path.Combine(_root, "query.inv");
         File.WriteAllText(_script, MdRunWriter.NewFile("Console.WriteLine(\"original\");\n", "Demo"));
     }
 
@@ -346,7 +346,7 @@ public class RunSaveConflictTests : IDisposable
         {
             ChangeExternally();
             Answer(SaveConflictChoice.SaveAs);
-            var other = Path.Combine(Directory.CreateDirectory(Path.Combine(_root, "other")).FullName, "query.rpad");
+            var other = Path.Combine(Directory.CreateDirectory(Path.Combine(_root, "other")).FullName, "query.inv");
             _windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(other);
 
             await ctrl.RunAsync(debug: false, Sdk);
@@ -398,7 +398,7 @@ public class RunSaveConflictTests : IDisposable
             Assert.Equal(changed, File.ReadAllBytes(_script));
             Assert.True(vm.IsDirty);
             Assert.Equal(RunState.Idle, vm.RunState);
-            Assert.Contains("Cannot save 'query.rpad'", System.Net.WebUtility.HtmlDecode(ctrl.State.Output.Content));
+            Assert.Contains("Cannot save 'query.inv'", System.Net.WebUtility.HtmlDecode(ctrl.State.Output.Content));
         }
         finally { window.Close(); ctrl.Dispose(); }
     }

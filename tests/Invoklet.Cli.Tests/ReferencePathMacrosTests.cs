@@ -22,7 +22,7 @@ public class ReferencePathMacrosTests
         // Built via Path.Combine/GetDirectoryName rather than a hardcoded "/home/user/..." literal —
         // GetDirectoryName normalizes to the platform's own separator (backslashes on Windows), so a
         // forward-slash-only expected string here would fail on Windows CI while passing on Linux/Mac.
-        var currentQueryPath = Path.Combine("home", "user", "scripts", "query.rpad");
+        var currentQueryPath = Path.Combine("home", "user", "scripts", "query.inv");
         var expectedDir = Path.GetDirectoryName(currentQueryPath);
 
         var expanded = ReferencePathMacros.Expand("$(CurrentQueryPath)/Lib.dll", currentQueryPath);
@@ -33,7 +33,7 @@ public class ReferencePathMacrosTests
     [Fact]
     public void Expand_Should_LeaveReferenceUnchanged_WhenItHasNoMacros()
     {
-        var expanded = ReferencePathMacros.Expand("/absolute/path/Foo.dll", currentQueryPath: "/some/query.rpad");
+        var expanded = ReferencePathMacros.Expand("/absolute/path/Foo.dll", currentQueryPath: "/some/query.inv");
 
         Assert.Equal("/absolute/path/Foo.dll", expanded);
     }
@@ -41,7 +41,7 @@ public class ReferencePathMacrosTests
     [Fact]
     public void Expand_Should_ExpandMultipleMacrosInTheSameReference()
     {
-        var currentQueryPath = Path.Combine("home", "user", "scripts", "query.rpad");
+        var currentQueryPath = Path.Combine("home", "user", "scripts", "query.inv");
         var expectedDir = Path.GetDirectoryName(currentQueryPath);
 
         var expanded = ReferencePathMacros.Expand(

@@ -98,7 +98,7 @@ public class EditorTabLifecycleTests
         var tmpDir = Directory.CreateTempSubdirectory("Invoklet-dirty-test").FullName;
         try
         {
-            var filePath = Path.Combine(tmpDir, "demo.rpad");
+            var filePath = Path.Combine(tmpDir, "demo.inv");
             File.WriteAllText(filePath, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
             var (ctrl, vm) = CreateControl(filePath);
 
@@ -158,7 +158,7 @@ public class EditorTabLifecycleTests
             var tab = Assert.Single(mainVm.Tabs);
             Assert.Null(tab.FilePath);
 
-            var chosenPath = Path.Combine(rootFolder, "MyScript.rpad");
+            var chosenPath = Path.Combine(rootFolder, "MyScript.inv");
             windowService.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), rootFolder))
                 .ReturnsAsync(chosenPath);
 
@@ -213,7 +213,7 @@ public class EditorTabLifecycleTests
         var rootFolder = Directory.CreateTempSubdirectory("Invoklet-duplicate-test").FullName;
         try
         {
-            var original = Path.Combine(rootFolder, "Query 1.rpad");
+            var original = Path.Combine(rootFolder, "Query 1.inv");
             File.WriteAllText(original, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Query 1"));
 
             var (mainVm, _, _) = CreateMainVm(rootFolder);
@@ -223,7 +223,7 @@ public class EditorTabLifecycleTests
             var written = new List<string>();
             mainVm.DuplicateTab(tab, path => { File.WriteAllText(path, "dup"); written.Add(path); });
 
-            var expectedCopyPath = Path.Combine(rootFolder, "Query 1 copy.rpad");
+            var expectedCopyPath = Path.Combine(rootFolder, "Query 1 copy.inv");
             Assert.Equal([expectedCopyPath], written);
             Assert.True(File.Exists(expectedCopyPath));
             Assert.Contains(mainVm.Tabs, t => t.FilePath == expectedCopyPath);

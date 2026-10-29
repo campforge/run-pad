@@ -31,7 +31,7 @@ public class FileTreeViewHotkeysTests
         prefs.Setup(p => p.Keyboard).Returns(keyboard);
 
         var vm = new FileTreeViewModel(prefs.Object, new LanguageHostRegistry());
-        vm.Refresh([new FileSystemItem("a.rpad", false, "/root/a.rpad", null)]);
+        vm.Refresh([new FileSystemItem("a.inv", false, "/root/a.inv", null)]);
         var node = vm.Nodes[0];
 
         var view = new FileTreeView { DataContext = vm };

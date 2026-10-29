@@ -75,7 +75,7 @@ public class EditorTabsControlShowAllTabsTests
         var (editorTabs, mainVm, rootFolder) = CreateHarness();
         try
         {
-            var pathA = Path.Combine(rootFolder, "A.rpad");
+            var pathA = Path.Combine(rootFolder, "A.inv");
             File.WriteAllText(pathA, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "A"));
             mainVm.OpenTab(pathA);
             await TestWait.WhileAsync(() => mainVm.Tabs.Count < 2);

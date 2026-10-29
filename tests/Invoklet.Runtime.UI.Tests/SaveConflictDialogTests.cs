@@ -19,7 +19,7 @@ public class SaveConflictDialogTests
     {
         var owner = new Window();
         owner.Show();
-        var dialog = new SaveConflictDialog("demo.rpad");
+        var dialog = new SaveConflictDialog("demo.inv");
         var result = dialog.ShowDialog<SaveConflictChoice?>(owner);
         Dispatcher.UIThread.RunJobs();
         answer(dialog);
@@ -32,10 +32,10 @@ public class SaveConflictDialogTests
     [AvaloniaFact]
     public void TheDialog_Should_NameTheFile_AndMakeSaveAsTheDefault()
     {
-        var dialog = new SaveConflictDialog("demo.rpad");
+        var dialog = new SaveConflictDialog("demo.inv");
         var buttons = dialog.GetLogicalDescendants().OfType<Button>().ToDictionary(b => (string)b.Content!);
 
-        Assert.Contains("\"demo.rpad\" was changed by another program", dialog.FindControl<TextBlock>("MessageBlock")!.Text);
+        Assert.Contains("\"demo.inv\" was changed by another program", dialog.FindControl<TextBlock>("MessageBlock")!.Text);
         Assert.Equal(["Save As…", "Overwrite", "Cancel"], buttons.Keys);
         Assert.True(buttons["Save As…"].IsDefault);
         Assert.False(buttons["Overwrite"].IsDefault);

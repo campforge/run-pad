@@ -8,7 +8,7 @@ namespace Invoklet.Format.MdRun;
 public static partial class MdRunWriter
 {
     /// ToDo: figure out the stream handling — specifically, be able to grab the code stream directly, ignoring the headers
-    /// <summary>Serializes the document back to .rpad file content.</summary>
+    /// <summary>Serializes the document back to .inv file content.</summary>
     public static string Write(MdRunDocument doc) => Write(doc, OperatingSystem.IsWindows());
 
     /// <param name="windowsPaths">Whether <c>\</c> in a reference can only be a separator (see ReferencePath.Canonical).</param>
@@ -25,7 +25,7 @@ public static partial class MdRunWriter
         return $"---\n{yaml}\n---\n{doc.BodyBeforeCode}{code}{doc.BodyAfterCode}";
     }
 
-    // A new .rpad document around <code>: front matter for the language/kind, a title heading and
+    // A new .inv document around <code>: front matter for the language/kind, a title heading and
     // the run block. The code is whatever the caller wants the script to start with — the language
     // decides that (ILanguageHostFactory.CodeForKind), not the file format.
     public static string NewFile(

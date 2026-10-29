@@ -9,7 +9,7 @@ namespace Invoklet.Runtime.UI.Tests;
 
 // _openTabs used StringComparer.OrdinalIgnoreCase unconditionally, which is correct
 // for Windows'/macOS' default case-insensitive filesystems but wrong on Linux's case-sensitive one —
-// two genuinely different files differing only by case (Query1.rpad/query1.rpad) would collapse
+// two genuinely different files differing only by case (Query1.inv/query1.inv) would collapse
 // into a single dictionary entry there. Fixed with an OS-aware comparer.
 public class MainWindowViewModelOpenTabTests
 {
@@ -38,8 +38,8 @@ public class MainWindowViewModelOpenTabTests
             prefs: prefs.Object,
             languageRegistry: new LanguageHostRegistry());
 
-        vm.OpenTab("/tmp/Query1.rpad");
-        vm.OpenTab("/tmp/query1.rpad");
+        vm.OpenTab("/tmp/Query1.inv");
+        vm.OpenTab("/tmp/query1.inv");
 
         Assert.Equal(2, vm.Tabs.Count(t => t.FilePath is not null));
     }
@@ -62,9 +62,9 @@ public class MainWindowViewModelOpenTabTests
             prefs: prefs.Object,
             languageRegistry: new LanguageHostRegistry());
 
-        vm.OpenTab("/tmp/Query1.rpad");
+        vm.OpenTab("/tmp/Query1.inv");
         var firstTab = vm.ActiveTab;
-        vm.OpenTab("/tmp/Query1.rpad");
+        vm.OpenTab("/tmp/Query1.inv");
 
         Assert.Same(firstTab, vm.ActiveTab);
         Assert.Single(vm.Tabs, t => t.FilePath is not null);

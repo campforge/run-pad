@@ -9,7 +9,7 @@ using Xunit;
 namespace Invoklet.Runtime.UI.Tests;
 
 // File tree had no "create new file" command — only the deferred, disk-untouching
-// File → New RPad File menu (see MainWindowViewModelNewFileTests.cs). CreateFileAsync resolves the
+// File → New Invoklet File menu (see MainWindowViewModelNewFileTests.cs). CreateFileAsync resolves the
 // target directory the same way CreateFolderAsync does (see MainWindowViewModelCreateFolderTests.cs
 // for the three directory-resolution cases, not re-tested here to avoid duplication), delegates the
 // actual file creation to IFileSystemService.CreateNewFile, and — unlike "New Folder" — also opens
@@ -40,12 +40,12 @@ public class MainWindowViewModelCreateFileTests
     {
         var fileSystem = new Mock<IFileSystemService>();
         fileSystem.Setup(f => f.CreateNewFile("/root", MdRunLanguage.CSharp, MdRunKind.Statements, It.IsAny<string>()))
-            .Returns("/root/Query 1.rpad");
+            .Returns("/root/Query 1.inv");
         var vm = CreateViewModel(fileSystem);
 
         var result = await vm.CreateFileAsync(null, MdRunLanguage.CSharp, MdRunKind.Statements);
 
-        Assert.Equal("/root/Query 1.rpad", result);
+        Assert.Equal("/root/Query 1.inv", result);
         fileSystem.Verify(f => f.CreateNewFile("/root", MdRunLanguage.CSharp, MdRunKind.Statements, It.IsAny<string>()), Times.Once);
     }
 
@@ -58,13 +58,13 @@ public class MainWindowViewModelCreateFileTests
         {
             fileSystem.Setup(f => f.CreateNewFile(
                     "/tmp/Invoklet-createfile-test/Sub", MdRunLanguage.Vb, MdRunKind.Program, It.IsAny<string>()))
-                .Returns("/tmp/Invoklet-createfile-test/Sub/Query 1.rpad");
+                .Returns("/tmp/Invoklet-createfile-test/Sub/Query 1.inv");
             var vm = CreateViewModel(fileSystem);
 
             var result = await vm.CreateFileAsync(
                 "/tmp/Invoklet-createfile-test/Sub", MdRunLanguage.Vb, MdRunKind.Program);
 
-            Assert.Equal("/tmp/Invoklet-createfile-test/Sub/Query 1.rpad", result);
+            Assert.Equal("/tmp/Invoklet-createfile-test/Sub/Query 1.inv", result);
         }
         finally { Directory.Delete("/tmp/Invoklet-createfile-test", recursive: true); }
     }
@@ -74,7 +74,7 @@ public class MainWindowViewModelCreateFileTests
     {
         var fileSystem = new Mock<IFileSystemService>();
         fileSystem.Setup(f => f.CreateNewFile("/root", MdRunLanguage.Vb, MdRunKind.Expression, It.IsAny<string>()))
-            .Returns("/root/Query 1.rpad");
+            .Returns("/root/Query 1.inv");
         var vm = CreateViewModel(fileSystem);
 
         await vm.CreateFileAsync(null, MdRunLanguage.Vb, MdRunKind.Expression);
@@ -87,7 +87,7 @@ public class MainWindowViewModelCreateFileTests
     {
         var fileSystem = new Mock<IFileSystemService>();
         fileSystem.Setup(f => f.CreateNewFile("/root", MdRunLanguage.CSharp, MdRunKind.Statements, It.IsAny<string>()))
-            .Returns("/root/Query 1.rpad");
+            .Returns("/root/Query 1.inv");
         var vm = CreateViewModel(fileSystem);
 
         await vm.CreateFileAsync(null, MdRunLanguage.CSharp, MdRunKind.Statements);
@@ -100,11 +100,11 @@ public class MainWindowViewModelCreateFileTests
     {
         var fileSystem = new Mock<IFileSystemService>();
         fileSystem.Setup(f => f.CreateNewFile("/root", MdRunLanguage.CSharp, MdRunKind.Statements, It.IsAny<string>()))
-            .Returns("/root/Query 1.rpad");
+            .Returns("/root/Query 1.inv");
         var vm = CreateViewModel(fileSystem);
 
         await vm.CreateFileAsync(null, MdRunLanguage.CSharp, MdRunKind.Statements);
 
-        Assert.Equal(Path.GetFullPath("/root/Query 1.rpad"), vm.ActiveTab?.FilePath);
+        Assert.Equal(Path.GetFullPath("/root/Query 1.inv"), vm.ActiveTab?.FilePath);
     }
 }

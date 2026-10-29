@@ -16,7 +16,7 @@ namespace Invoklet.Languages.CSharp;
 /// IntelliSense — a real AST doesn't false-positive on a commented-out old signature, a "Main" inside
 /// a string literal, or a same-named member on some other local type. Parsed as raw top-level-statement
 /// text (not wrapped in the <see cref="MdRunKindTransform"/> class shell) — before compiling/analyzing,
-/// the user's own `.rpad` code is still exactly what they typed, and `Main` (however it's later
+/// the user's own `.inv` code is still exactly what they typed, and `Main` (however it's later
 /// compiled) is always written by the user as a bare local-function-shaped declaration, modifiers and
 /// all — the parser accepts that syntax even though the binder would reject some of it standing alone
 /// (e.g. `private` on a real local function is CS0106, a binder error, not a parse error), which is

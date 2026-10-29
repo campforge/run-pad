@@ -127,9 +127,9 @@ public class MainWindowChromeTests
     [
         "File",
         "File/New File",
-        "File/New RPad File",
-        "File/New RPad File/C#",
-        "File/New RPad File/Visual Basic",
+        "File/New Invoklet File",
+        "File/New Invoklet File/C#",
+        "File/New Invoklet File/Visual Basic",
         "File/Open...",
         "File/Recent Files",
         "File/Recent Files/Clear Recent Files",
@@ -481,7 +481,7 @@ public class MainWindowChromeTests
         var nativeFile = nativeRoot is null ? null : ((NativeMenuItem)nativeRoot.Items[0]).Menu;
         var nativeRecent = nativeFile?.Items.OfType<NativeMenuItem>().Single(i => i.Header == "Recent Files").Menu;
         var folder = Directory.CreateTempSubdirectory("Invoklet-recent-menu").FullName;
-        var path = Path.Combine(folder, "file_with_underscores.rpad");
+        var path = Path.Combine(folder, "file_with_underscores.inv");
         try
         {
             File.WriteAllText(path, Invoklet.Format.MdRun.MdRunWriter.NewFile("1.Dump();", "test"));

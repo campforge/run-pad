@@ -65,7 +65,7 @@ public class MainWindowViewModelCreateFolderTests
     [Fact]
     public async Task CreateFolderAsync_Should_CreateAlongsideTheSelectedFile_WhenAFileIsSelected()
     {
-        // Windows CI finding: "/root/query.rpad" is a POSIX-style absolute path with no drive
+        // Windows CI finding: "/root/query.inv" is a POSIX-style absolute path with no drive
         // letter — a test-only stand-in, not how a real Windows path looks (those always carry a
         // drive letter, e.g. "C:\Users\...", for which Path.GetDirectoryName works fine). On Windows
         // that leading "/" with no drive resolves differently enough that GetDirectoryName doesn't
@@ -78,9 +78,9 @@ public class MainWindowViewModelCreateFolderTests
         fileSystem.Setup(f => f.CreateNewFolder("/root")).Returns("/root/New Folder");
         var vm = CreateViewModel(fileSystem);
 
-        // "/root/query.rpad" doesn't need to exist on disk — Directory.Exists on it is false (it's
+        // "/root/query.inv" doesn't need to exist on disk — Directory.Exists on it is false (it's
         // not a directory), so the file branch (containing folder) is taken regardless.
-        var result = await vm.CreateFolderAsync("/root/query.rpad");
+        var result = await vm.CreateFolderAsync("/root/query.inv");
 
         Assert.Equal("/root/New Folder", result);
         fileSystem.Verify(f => f.CreateNewFolder("/root"), Times.Once);

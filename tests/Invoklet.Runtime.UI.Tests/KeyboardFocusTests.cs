@@ -58,7 +58,7 @@ public class KeyboardFocusTests
         prefs.Setup(p => p.Appearance).Returns(new AppearanceSettings());
         var fs = new Mock<IFileSystemService>();
         fs.Setup(f => f.Folder).Returns(root);
-        IReadOnlyList<FileSystemItem> tree = [new("Notes", true, Path.Combine(root, "Notes"), []), new("a.rpad", false, Path.Combine(root, "a.rpad"), null)];
+        IReadOnlyList<FileSystemItem> tree = [new("Notes", true, Path.Combine(root, "Notes"), []), new("a.inv", false, Path.Combine(root, "a.inv"), null)];
         fs.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>())).ReturnsAsync(tree);
         var themeService = new Mock<IThemeService>();
         themeService.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(

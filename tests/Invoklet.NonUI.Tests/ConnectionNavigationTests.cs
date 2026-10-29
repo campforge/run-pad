@@ -572,11 +572,11 @@ public sealed class SidebarStateTests
     {
         var changes = new List<(string, bool)>();
         var tree = SampleTreeNode.Build(
-            [Sample("a.rpad", "getting-started"), Sample("b.rpad", "output"), Sample("c.rpad", "getting-started"), Sample("top.rpad", "")],
+            [Sample("a.inv", "getting-started"), Sample("b.inv", "output"), Sample("c.inv", "getting-started"), Sample("top.inv", "")],
             ["output"], folder => changes.Add((folder.Id, folder.IsExpanded)));
 
-        Assert.Equal(["Getting started", "Output", "top.rpad"], tree.Select(n => n.Title));
-        Assert.Equal(["a.rpad", "c.rpad"], tree[0].Children!.Select(n => n.Id));
+        Assert.Equal(["Getting started", "Output", "top.inv"], tree.Select(n => n.Title));
+        Assert.Equal(["a.inv", "c.inv"], tree[0].Children!.Select(n => n.Id));
         Assert.True(tree[0].IsExpanded);
         Assert.False(tree[1].IsExpanded);
         Assert.False(tree[2].IsFolder);

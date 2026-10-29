@@ -37,12 +37,12 @@ public class FileTreeViewModelTests
     public void FindByPath_Should_FindATopLevelNode()
     {
         var vm = CreateViewModel();
-        vm.Refresh([new FileSystemItem("a.rpad", false, "/root/a.rpad", null)]);
+        vm.Refresh([new FileSystemItem("a.inv", false, "/root/a.inv", null)]);
 
-        var found = vm.FindByPath("/root/a.rpad");
+        var found = vm.FindByPath("/root/a.inv");
 
         Assert.NotNull(found);
-        Assert.Equal("/root/a.rpad", found!.FilePath);
+        Assert.Equal("/root/a.inv", found!.FilePath);
     }
 
     [Fact]
@@ -51,23 +51,23 @@ public class FileTreeViewModelTests
         var vm = CreateViewModel();
         vm.Refresh([
             new FileSystemItem("Sub", true, "/root/Sub", [
-                new FileSystemItem("b.rpad", false, "/root/Sub/b.rpad", null),
+                new FileSystemItem("b.inv", false, "/root/Sub/b.inv", null),
             ]),
         ]);
 
-        var found = vm.FindByPath("/root/Sub/b.rpad");
+        var found = vm.FindByPath("/root/Sub/b.inv");
 
         Assert.NotNull(found);
-        Assert.Equal("/root/Sub/b.rpad", found!.FilePath);
+        Assert.Equal("/root/Sub/b.inv", found!.FilePath);
     }
 
     [Fact]
     public void FindByPath_Should_ReturnNull_WhenThePathIsNotInTheTree()
     {
         var vm = CreateViewModel();
-        vm.Refresh([new FileSystemItem("a.rpad", false, "/root/a.rpad", null)]);
+        vm.Refresh([new FileSystemItem("a.inv", false, "/root/a.inv", null)]);
 
-        Assert.Null(vm.FindByPath("/root/missing.rpad"));
+        Assert.Null(vm.FindByPath("/root/missing.inv"));
     }
 
     // MapToNode peeks each file's language from its real front matter (not just from the
@@ -80,13 +80,13 @@ public class FileTreeViewModelTests
         {
             var sub = Path.Combine(root, "Sub");
             Directory.CreateDirectory(sub);
-            var file = Path.Combine(root, "a.rpad");
+            var file = Path.Combine(root, "a.inv");
             File.WriteAllText(file, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
 
             var vm = CreateViewModel();
             vm.Refresh([
                 new FileSystemItem("Sub", true, sub, []),
-                new FileSystemItem("a.rpad", false, file, null),
+                new FileSystemItem("a.inv", false, file, null),
             ]);
 
             Assert.True(vm.FindByPath(sub)!.IsFolder);
@@ -101,16 +101,16 @@ public class FileTreeViewModelTests
         var root = Directory.CreateTempSubdirectory("Invoklet-filetree-test").FullName;
         try
         {
-            var csharpFile = Path.Combine(root, "cs.rpad");
+            var csharpFile = Path.Combine(root, "cs.inv");
             File.WriteAllText(csharpFile, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "CSharp Demo"));
-            var vbFile = Path.Combine(root, "vb.rpad");
+            var vbFile = Path.Combine(root, "vb.inv");
             File.WriteAllText(vbFile,
                 "---\nversion: \"1.0\"\nlanguage: vb\ntargetSdk: net10.0\nkind: Statements\n---\n\n# VB Demo\n\n```vb run\nConsole.WriteLine(\"hi\")\n```\n");
 
             var vm = CreateViewModel();
             vm.Refresh([
-                new FileSystemItem("cs.rpad", false, csharpFile, null),
-                new FileSystemItem("vb.rpad", false, vbFile, null),
+                new FileSystemItem("cs.inv", false, csharpFile, null),
+                new FileSystemItem("vb.inv", false, vbFile, null),
             ]);
 
             // Both languages have a real Material Design icon today (C# gets its own
@@ -135,7 +135,7 @@ public class FileTreeViewModelTests
     [Fact]
     public void ShowGenericFileIcon_Should_BeTrue_WhenLanguageIconKeyIsNull()
     {
-        var node = new FileTreeViewNode("x.rpad", "/root/x.rpad", MdRunLanguage.Vb) { LanguageIconKey = null };
+        var node = new FileTreeViewNode("x.inv", "/root/x.inv", MdRunLanguage.Vb) { LanguageIconKey = null };
 
         Assert.True(node.ShowGenericFileIcon);
     }
@@ -153,7 +153,7 @@ public class FileTreeViewModelTests
         var root = Directory.CreateTempSubdirectory("Invoklet-filetree-test").FullName;
         try
         {
-            var vbFile = Path.Combine(root, "vb.rpad");
+            var vbFile = Path.Combine(root, "vb.inv");
             File.WriteAllText(vbFile,
                 "---\nversion: \"1.0\"\nlanguage: vb\ntargetSdk: net10.0\nkind: Statements\n---\n\n# VB Demo\n\n```vb run\nConsole.WriteLine(\"hi\")\n```\n");
 
@@ -163,7 +163,7 @@ public class FileTreeViewModelTests
             registry.Register(new CSharpLanguageHostFactory(NullLoggerFactory.Instance));
             var vm = new FileTreeViewModel(prefs.Object, registry);
 
-            vm.Refresh([new FileSystemItem("vb.rpad", false, vbFile, null)]);
+            vm.Refresh([new FileSystemItem("vb.inv", false, vbFile, null)]);
 
             var vbNode = vm.FindByPath(vbFile)!;
             Assert.Equal(MdRunLanguage.Vb, vbNode.Language);

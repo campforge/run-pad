@@ -81,7 +81,7 @@ public class ImportLinqFileTests
 
             await vm.ImportLinqFileAsync();
 
-            var expectedMdRunPath = Path.Combine(rootFolder, "MyQuery.rpad");
+            var expectedMdRunPath = Path.Combine(rootFolder, "MyQuery.inv");
             Assert.True(File.Exists(expectedMdRunPath));
             var tab = Assert.Single(vm.Tabs);
             Assert.Equal(expectedMdRunPath, tab.FilePath);
@@ -104,7 +104,7 @@ public class ImportLinqFileTests
         {
             var linqPath = Path.Combine(rootFolder, "MyQuery.linq");
             await File.WriteAllTextAsync(linqPath, ValidLinq, TestContext.Current.CancellationToken);
-            var existingMdRunPath = Path.Combine(rootFolder, "MyQuery.rpad");
+            var existingMdRunPath = Path.Combine(rootFolder, "MyQuery.inv");
             await File.WriteAllTextAsync(existingMdRunPath, "not touched", TestContext.Current.CancellationToken);
 
             var (vm, windowService) = CreateMainVm(rootFolder);
@@ -113,7 +113,7 @@ public class ImportLinqFileTests
             await vm.ImportLinqFileAsync();
 
             Assert.Equal("not touched", await File.ReadAllTextAsync(existingMdRunPath, TestContext.Current.CancellationToken));
-            var newMdRunPath = Path.Combine(rootFolder, "MyQuery 2.rpad");
+            var newMdRunPath = Path.Combine(rootFolder, "MyQuery 2.inv");
             Assert.True(File.Exists(newMdRunPath));
             var tab = Assert.Single(vm.Tabs);
             Assert.Equal(newMdRunPath, tab.FilePath);
@@ -138,7 +138,7 @@ public class ImportLinqFileTests
 
             windowService.Verify(w => w.ShowErrorAsync(It.IsAny<string>(), It.Is<string>(m => m.Contains("SQL"))), Times.Once);
             Assert.Empty(vm.Tabs);
-            Assert.False(File.Exists(Path.Combine(rootFolder, "MyQuery.rpad")));
+            Assert.False(File.Exists(Path.Combine(rootFolder, "MyQuery.inv")));
         }
         finally { Directory.Delete(rootFolder, recursive: true); }
     }

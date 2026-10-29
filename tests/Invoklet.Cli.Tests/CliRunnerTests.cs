@@ -72,7 +72,7 @@ public class CliRunnerTests
     [Fact]
     public async Task RunAsync_Should_UseTheGivenSdkProvider()
     {
-        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-services-{Guid.NewGuid():N}.rpad");
+        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-services-{Guid.NewGuid():N}.inv");
         try
         {
             await File.WriteAllTextAsync(path, "---\nlanguage: csharp\n---\n\n```csharp run\nConsole.WriteLine(1);\n```\n");
@@ -92,7 +92,7 @@ public class CliRunnerTests
     [Fact]
     public async Task RunAsync_Should_RunOnlyTheGivenLanguages()
     {
-        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-services-{Guid.NewGuid():N}.rpad");
+        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-services-{Guid.NewGuid():N}.inv");
         try
         {
             await File.WriteAllTextAsync(path, "---\nlanguage: vb\n---\n\n```vb run\nConsole.WriteLine(1)\n```\n");
@@ -114,7 +114,7 @@ public class CliRunnerTests
     [Fact]
     public async Task RunAsync_Should_KeepScriptStdoutExact_AndWarningsOffIt()
     {
-        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-output-{Guid.NewGuid():N}.rpad");
+        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-output-{Guid.NewGuid():N}.inv");
         try
         {
             await File.WriteAllTextAsync(path,
@@ -140,7 +140,7 @@ public class CliRunnerTests
     [Fact]
     public async Task CompileOnly_Should_SendWarningsAndErrorsToStderr_AndNeverRunScript()
     {
-        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-compile-only-{Guid.NewGuid():N}.rpad");
+        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-compile-only-{Guid.NewGuid():N}.inv");
         try
         {
             await File.WriteAllTextAsync(path,
@@ -176,12 +176,12 @@ public class CliRunnerTests
         var frontMatter = CreateFrontMatter();
         frontMatter.Arguments = [new() { Name = "value", Default = MdRunValue.Of("from file") }];
 
-        var request = CliRunner.BuildRequest(frontMatter, Platform, "/tmp/out", "/scripts/a.rpad", ["cli"]);
+        var request = CliRunner.BuildRequest(frontMatter, Platform, "/tmp/out", "/scripts/a.inv", ["cli"]);
 
         Assert.Same(Platform, request.Platform);
         Assert.Equal("/tmp/out", request.OutputDirectory);
         Assert.Equal("/tmp/out", request.WorkingDirectory);
-        Assert.Equal("/scripts/a.rpad", request.CurrentQueryPath);
+        Assert.Equal("/scripts/a.inv", request.CurrentQueryPath);
         Assert.Equal(MdRunKind.Program, request.Kind);
         Assert.Equal("13.0.3", request.Packages["Newtonsoft.Json"]);
         Assert.Equal(["System.Text"], request.Usings);
@@ -224,7 +224,7 @@ public class CliRunnerTests
         var folder = Directory.CreateTempSubdirectory("Invoklet-cli-refresh").FullName;
         try
         {
-            var path = Path.Combine(folder, "a.rpad");
+            var path = Path.Combine(folder, "a.inv");
             await File.WriteAllTextAsync(path, "---\nlanguage: csharp\nconnections:\n  - name: stock\n    driver: counting\n"
                 + "    params:\n      address: http://localhost:5000\n---\n\n```csharp run\n1.Dump();\n```\n");
             var driver = new CountingSchemaDriver();
@@ -319,7 +319,7 @@ public class CliRunnerTests
         try
         {
             File.WriteAllText(Path.Combine(dir, "Lib.dll"), "");
-            var currentQueryPath = Path.Combine(dir, "query.rpad");
+            var currentQueryPath = Path.Combine(dir, "query.inv");
             var frontMatter = new MdRunFrontMatter
             {
                 References = ["$(CurrentQueryPath)/Lib.dll", "$(CurrentQueryPath)/Shared.csproj"],
@@ -355,7 +355,7 @@ public class CliRunnerTests
     [Fact]
     public void BuildOptions_Should_SetCurrentQueryPath_OnTheOptionsObject()
     {
-        var currentQueryPath = Path.Combine("home", "user", "scripts", "query.rpad");
+        var currentQueryPath = Path.Combine("home", "user", "scripts", "query.inv");
 
         var options = BuildOptions(CreateFrontMatter(), Platform, "/tmp/out", RuntimeLib, currentQueryPath);
 
@@ -406,7 +406,7 @@ public class CliRunnerTests
         var stderr = new TestConsole();
 
         var exitCode = await CliRunner.RunAsync(
-            ["/no/such/file.rpad"], stdout, stderr, CancellationToken.None);
+            ["/no/such/file.inv"], stdout, stderr, CancellationToken.None);
 
         Assert.Equal(CliRunner.NotRunExitCode, exitCode);
         Assert.Contains("File not found", stderr.Output);
@@ -418,7 +418,7 @@ public class CliRunnerTests
         var path = Path.GetTempFileName();
         try
         {
-            await File.WriteAllTextAsync(path, "not a .rpad document at all");
+            await File.WriteAllTextAsync(path, "not a .inv document at all");
             var stdout = new TestConsole();
             var stderr = new TestConsole();
 
@@ -502,7 +502,7 @@ public class CliRunnerTests
     public async Task RunAsync_Should_ReturnTheScriptsExitCode(string code, int expected)
     {
         if (!new DotnetSdkProvider().Get().Any()) return; // no .NET SDK to compile with
-        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-exit-{Guid.NewGuid():N}.rpad");
+        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-exit-{Guid.NewGuid():N}.inv");
         try
         {
             await File.WriteAllTextAsync(path, $"---\nlanguage: csharp\nkind: Statements\n---\n\n```csharp run\n{code}\n```\n");
@@ -542,7 +542,7 @@ public class CliRunnerTests
     public async Task RunAsync_Should_PassTheArguments_ToTheScript(string language, string kind, string code)
     {
         if (!new DotnetSdkProvider().Get().Any()) return; // no .NET SDK to compile with
-        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-args-{Guid.NewGuid():N}.rpad");
+        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-args-{Guid.NewGuid():N}.inv");
         try
         {
             await File.WriteAllTextAsync(path,
@@ -572,7 +572,7 @@ public class CliRunnerTests
     public async Task RunAsync_Should_ApplyTheOptions(string[] options, string expectedOutput, int expectedExit)
     {
         if (!new DotnetSdkProvider().Get().Any()) return; // no .NET SDK to compile with
-        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-options-{Guid.NewGuid():N}.rpad");
+        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-options-{Guid.NewGuid():N}.inv");
         try
         {
             // As statements this doesn't compile (CS0201), as an expression it dumps 6.
@@ -601,7 +601,7 @@ public class CliRunnerTests
     public async Task RunAsync_Should_RunTheScript_OnlyForAValidSdk(string[] options, string? error)
     {
         if (!new DotnetSdkProvider().Get().Any()) return; // no .NET SDK to compile with
-        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-sdk-{Guid.NewGuid():N}.rpad");
+        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-sdk-{Guid.NewGuid():N}.inv");
         try
         {
             await File.WriteAllTextAsync(path, "---\nlanguage: csharp\nkind: Statements\n---\n\n```csharp run\nConsole.WriteLine(\"SCRIPT_EXECUTED\");\n```\n");
@@ -632,7 +632,7 @@ public class CliRunnerTests
     public async Task RunAsync_Should_ReportCompileErrors_WithCompileOnly()
     {
         if (!new DotnetSdkProvider().Get().Any()) return; // no .NET SDK to compile with
-        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-compile-{Guid.NewGuid():N}.rpad");
+        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-compile-{Guid.NewGuid():N}.inv");
         try
         {
             await File.WriteAllTextAsync(path, "---\nlanguage: csharp\n---\n\n```csharp run\nConsole.WriteLine(\"ran\");\nint x = \"no\";\n```\n");
@@ -673,7 +673,7 @@ public class CliRunnerTests
         var stdout = new TestConsole();
         var stderr = new TestConsole();
 
-        var exitCode = await CliRunner.RunAsync([option, "a.rpad"], stdout, stderr, CancellationToken.None);
+        var exitCode = await CliRunner.RunAsync([option, "a.inv"], stdout, stderr, CancellationToken.None);
 
         Assert.Equal(CliRunner.NotRunExitCode, exitCode);
         Assert.NotEmpty(stderr.Output);
@@ -733,7 +733,7 @@ public class CliRunnerTests
             var exitCode = await CliRunner.RunAsync(["convert", linqPath], stdout, stderr, CancellationToken.None);
 
             Assert.Equal(0, exitCode);
-            var expectedOutputPath = Path.Combine(dir, "MyQuery.rpad");
+            var expectedOutputPath = Path.Combine(dir, "MyQuery.inv");
             Assert.True(File.Exists(expectedOutputPath));
             Assert.Contains(expectedOutputPath, stdout.Output);
 
@@ -753,7 +753,7 @@ public class CliRunnerTests
         {
             var linqPath = Path.Combine(dir, "MyQuery.linq");
             await File.WriteAllTextAsync(linqPath, ValidLinq, CancellationToken.None);
-            var outputPath = Path.Combine(dir, "Somewhere.rpad");
+            var outputPath = Path.Combine(dir, "Somewhere.inv");
             await File.WriteAllTextAsync(outputPath, "will be overwritten", CancellationToken.None);
             var stdout = new TestConsole();
             var stderr = new TestConsole();
@@ -784,7 +784,7 @@ public class CliRunnerTests
 
             Assert.Equal(1, exitCode);
             Assert.Contains("SQL", stderr.Output);
-            Assert.False(File.Exists(Path.Combine(dir, "MyQuery.rpad")));
+            Assert.False(File.Exists(Path.Combine(dir, "MyQuery.inv")));
         }
         finally { Directory.Delete(dir, recursive: true); }
     }

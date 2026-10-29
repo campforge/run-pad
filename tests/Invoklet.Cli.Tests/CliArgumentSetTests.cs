@@ -68,7 +68,7 @@ public class CliArgumentSetTests
     // The arguments the run got, or the exit code and error when it didn't start.
     private static async Task<(IReadOnlyList<string>? Arguments, int? Exit, string Error)> RunAsync(string? selected, params string[] commandLine)
     {
-        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-sets-{Guid.NewGuid():N}.rpad");
+        var path = Path.Combine(Path.GetTempPath(), $"Invoklet-cli-sets-{Guid.NewGuid():N}.inv");
         await File.WriteAllTextAsync(path, Script.Replace("\r\n", "\n")
             .Replace("{SELECTED}", selected is null ? "" : $"selectedArgumentSet: {selected}\n"));
         try
@@ -155,7 +155,7 @@ public class CliArgumentSetTests
     [Fact]
     public void ArgsSet_Should_NeedAName()
     {
-        Assert.Equal("The option 'args-set' needs a value.", CliArguments.Parse(["a.rpad", "--args-set"]).Error);
-        Assert.Equal("smoke", CliArguments.Parse(["a.rpad", "--args-set", "smoke"]).ArgumentSet);
+        Assert.Equal("The option 'args-set' needs a value.", CliArguments.Parse(["a.inv", "--args-set"]).Error);
+        Assert.Equal("smoke", CliArguments.Parse(["a.inv", "--args-set", "smoke"]).ArgumentSet);
     }
 }
