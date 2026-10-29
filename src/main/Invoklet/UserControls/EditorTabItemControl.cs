@@ -963,6 +963,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _inlayHintRenderer = null;
         _ilHighlighting?.Dispose();
         _ilHighlighting = null;
+        State.Editor.Dispose();
         _selectedKindSub?.Dispose();
         _filePathSub?.Dispose();
         _selectedSdkSub?.Dispose();
@@ -2567,6 +2568,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             parts.Add($"{activeParameter.Name}: {activeParameter.Summary}");
         return parts.Count == 0 ? null : string.Join("\n\n", parts);
     }
+
+    // A script of this tab is running or being debugged: its control, its host and its debug session
+    // must stay alive until it ends.
+    internal bool HasRunningProcess => _runInProgress || State.RunningHost is not null || State.CurrentDebugCtx is not null;
 
     internal RecoveryTab CaptureRecovery() => new()
     {

@@ -9,6 +9,14 @@ Notable changes in each Invoklet release. Downloads are on the
 
 - Refine the application icon with a raised hammer, three sparks and shaded surfaces across
   windows, desktop packages and documentation.
+- Keep only the three most recently used tabs loaded in memory. The other tabs show just their
+  header and are built again when selected, with their caret, scroll position and breakpoints. A
+  tab that is running, was running while you were elsewhere, or has unsaved changes stays loaded.
+  A closed Markdown preview is released instead of kept hidden.
+
+### Fixed
+
+- Closing a tab or an editor window no longer leaves a background highlighting thread behind.
 
 ## [0.10.1] — 2026-10-29
 

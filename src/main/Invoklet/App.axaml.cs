@@ -238,6 +238,7 @@ public class App : Application
         services.AddSingleton<ILocalPackageCacheService, LocalPackageCacheService>();
         services.AddSingleton<IWindowService, WindowService>();
         services.AddSingleton<IBuildCacheService, BuildCacheService>();
+        services.AddSingleton<TabResidencyManager>();
         services.AddSingleton<IPrerequisiteService, PrerequisiteService>();
         services.AddSingleton<ISetupDownloader, SetupDownloader>();
         services.AddSingleton<ISetupProcessRunner, SetupProcessRunner>();
