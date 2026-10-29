@@ -122,7 +122,7 @@ public class DapSessionCurrentQueryPathTests
     }
 
     [Fact]
-    public async Task RunAsync_Should_OmitEnv_WhenCurrentQueryPathIsNull()
+    public async Task RunAsync_Should_OmitCurrentQueryPath_WhenItIsNull()
     {
         var process = new FakeChildProcess();
         var options = new DapSessionOptions(
@@ -143,7 +143,8 @@ public class DapSessionCurrentQueryPathTests
         var written = await WaitForWrittenRequestAsync(process.Input, "\"command\":\"launch\"");
 
         Assert.DoesNotContain("INVOKLET_CURRENT_QUERY_PATH", written);
-        Assert.DoesNotContain("\"env\"", written);
+        // Debug sessions always disable interactive input; only the optional query-path entry is omitted.
+        Assert.Contains("\"env\"", written);
 
         process.Output.Push(Frame(new { seq = 2, type = "event", @event = "exited" }));
         await runTask;
