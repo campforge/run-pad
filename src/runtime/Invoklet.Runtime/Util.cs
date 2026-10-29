@@ -437,6 +437,14 @@ public static class Util
     // store), duplicated rather than shared for the same reason as the data folder above.
     internal const string SecretsFileEnvVar = "INVOKLET_SECRETS_FILE";
 
+    // Set to 1 by Invoklet for a run whose input requests it answers (not under the debugger, nor the
+    // command line), mirroring ChildProcess.InputEnvVar.
+    internal const string InputEnvVar = "INVOKLET_INPUT";
+
+    // Secrets this run asked the user for: the store may have been encrypted by that very answer,
+    // with a key this process never got.
+    private static readonly Dictionary<string, string> AskedSecrets = new(StringComparer.OrdinalIgnoreCase);
+
     private sealed class SecretStoreFile
     {
         public int Version { get; set; }
@@ -449,8 +457,11 @@ public static class Util
     /// (Tools → Secret Store), so a password, token or key stays out of the script and its file.
     /// The store belongs to the user on this machine: on Windows it is encrypted for that user, on
     /// macOS and Linux with a key kept in the system keychain, which Invoklet passes to the script.
+    /// A secret the store doesn't have yet is asked for, masked, as LINQPad's <c>Util.GetPassword</c>
+    /// does, and Invoklet keeps the answer in the store for next time.
     /// </summary>
-    /// <exception cref="KeyNotFoundException">The store has no such secret.</exception>
+    /// <exception cref="KeyNotFoundException">The store has no such secret, and it couldn't be asked
+    /// for (under the debugger or the command line) or the run was stopped instead.</exception>
     /// <exception cref="InvalidDataException">The store can't be read here.</exception>
     /// <exception cref="InvalidOperationException">The store is encrypted with a keychain key and the
     /// script wasn't started by Invoklet or its command line, which pass that key.</exception>
@@ -462,7 +473,11 @@ public static class Util
             : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Invoklet", "secrets.json");
         var missing = new KeyNotFoundException(
             $"Invoklet's Secret Store has no secret named '{name}'. Add it in Tools → Secret Store ({path}).");
-        if (!File.Exists(path)) throw missing;
+        lock (AskedSecrets)
+        {
+            if (AskedSecrets.TryGetValue(name, out var asked)) return asked;
+        }
+        if (!File.Exists(path)) return AskForSecret(name) ?? throw missing;
 
         SecretStoreFile? store;
         try
@@ -478,7 +493,7 @@ public static class Util
 
         var entry = store.Secrets?.FirstOrDefault(s => string.Equals(s.Key, name, StringComparison.OrdinalIgnoreCase)) ?? default;
         var value = entry.Value;
-        if (value is null) throw missing;
+        if (value is null) return AskForSecret(name) ?? throw missing;
         switch (store.Protection)
         {
             case "None":
@@ -524,11 +539,25 @@ public static class Util
         return text is null ? default : (T)Convert.ChangeType(text, typeof(T), CultureInfo.InvariantCulture);
     }
 
-    private static string? ReadLineCore(string? prompt, bool isPassword)
+    // Only where Invoklet answers input; null when it can't be asked, or the run ended instead.
+    private static string? AskForSecret(string name)
+    {
+        if (Environment.GetEnvironmentVariable(InputEnvVar) != "1") return null;
+        var value = ReadLineCore(
+            $"The Secret Store has no secret named '{name}'. Enter it; Invoklet keeps it there for next time:",
+            isPassword: true, secret: name);
+        if (value is null) return null;
+        lock (AskedSecrets) AskedSecrets[name] = value;
+        return value;
+    }
+
+    private static string? ReadLineCore(string? prompt, bool isPassword, string? secret = null)
     {
         // Written by hand: the host (CompiledDotnetLanguageHostBase.ParseInputRequest) reads exactly these
-        // two properties, and this is the only JSON the runtime writes outside Util.Cache.
-        var json = "{\"Prompt\":" + JsonString(prompt) + ",\"IsPassword\":" + (isPassword ? "true" : "false") + "}";
+        // properties, and this is the only JSON the runtime writes outside Util.Cache. Secret names the
+        // secret Util.GetSecret asks for: the host keeps the answer in the Secret Store.
+        var json = "{\"Prompt\":" + JsonString(prompt) + ",\"IsPassword\":" + (isPassword ? "true" : "false")
+            + (secret is null ? "" : ",\"Secret\":" + JsonString(secret)) + "}";
         var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
         Console.WriteLine(InputRequestPrefixChar + encoded);
         return Console.In.ReadLine();

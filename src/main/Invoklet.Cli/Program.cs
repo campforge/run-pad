@@ -14,6 +14,8 @@ Console.CancelKeyPress += (_, e) =>
 // Util.GetSecret here and in the script reads an encrypted Secret Store with the key Invoklet keeps
 // in the system keychain.
 SecretKeys.ExportForScripts(SecretKeys.DefaultStorePath());
+// Nothing here answers a script's input requests yet: a missing secret is reported, not asked for.
+Environment.SetEnvironmentVariable(Invoklet.Build.Core.ProcessRunners.ChildProcess.InputEnvVar, "0");
 
 var stdout = AnsiConsole.Create(new AnsiConsoleSettings { Out = new AnsiConsoleOutput(Console.Out) });
 var stderr = AnsiConsole.Create(new AnsiConsoleSettings { Out = new AnsiConsoleOutput(Console.Error) });

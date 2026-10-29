@@ -111,6 +111,11 @@ public sealed class ChildProcess : IChildProcess
     internal const string ParentProcessIdEnvVar = "INVOKLET_PARENT_PID";
     internal const string ArgumentContractEnvVar = "INVOKLET_ARGUMENT_CONTRACT";
 
+    // Tells Util.GetSecret it may ask for a missing secret: this run's input requests are answered.
+    // A process that can't answer them (the command line) sets 0 in its own environment, which the
+    // script inherits. Mirrored by Invoklet.Runtime.Util.InputEnvVar.
+    public const string InputEnvVar = "INVOKLET_INPUT";
+
     /// <summary>Creates a process for running a compiled .NET assembly.</summary>
     /// <param name="arguments">The script's own command-line arguments, its <c>args</c>.</param>
     public static ChildProcess ForExecution(
@@ -136,6 +141,8 @@ public sealed class ChildProcess : IChildProcess
             startInfo.ArgumentList.Add(argument);
         if (currentQueryPath is not null)
             startInfo.Environment[CurrentQueryPathEnvVar] = currentQueryPath;
+        if (!startInfo.Environment.ContainsKey(InputEnvVar))
+            startInfo.Environment[InputEnvVar] = "1";
         if (argumentContractJson is not null)
             startInfo.Environment[ArgumentContractEnvVar] = argumentContractJson;
         startInfo.Environment[ParentProcessIdEnvVar] = parentPid;

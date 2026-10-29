@@ -429,6 +429,19 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
     public override async Task SendInputAsync(string text, CancellationToken cancellationToken)
     {
         if (_currentInputStream is not { } stream) return;
+        // The answer to a missing secret is kept before the script gets it, so it is there next time.
+        if (Interlocked.Exchange(ref _pendingSecret, null) is { } secret && SecretSaver is { } save)
+        {
+            try
+            {
+                await Task.Run(() => save(secret, text), cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // The script still gets its value; only keeping it for next time failed.
+                _loggerFactory.CreateLogger<CompiledDotnetLanguageHostBase>().LogWarning(ex, "Could not keep the secret '{Name}' in the Secret Store", secret);
+            }
+        }
         var bytes = Encoding.UTF8.GetBytes(text + "\n");
         await stream.WriteAsync(bytes, cancellationToken);
         await stream.FlushAsync(cancellationToken);
@@ -469,7 +482,8 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
                     _scriptListensForStop = true;
                     break;
                 default:
-                    (string? prompt, bool isPassword) = ParseInputRequest(payload);
+                    (string? prompt, bool isPassword, string? secret) = ParseInputRequest(payload);
+                    _pendingSecret = secret;
                     OnInputRequested(prompt, isPassword);
                     break;
             }
@@ -506,7 +520,10 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
         return !payload.IsEmpty && Convert.TryFromBase64Chars(payload, new byte[payload.Length], out _);
     }
 
-    private static (string? Prompt, bool IsPassword) ParseInputRequest(string base64)
+    // The secret the script is asking for (Util.GetSecret found none), to keep with the answer.
+    private string? _pendingSecret;
+
+    private static (string? Prompt, bool IsPassword, string? Secret) ParseInputRequest(string base64)
     {
         try
         {
@@ -517,11 +534,12 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
                 ? p.GetString()
                 : null;
             var isPassword = root.TryGetProperty("IsPassword", out var ip) && ip.ValueKind == JsonValueKind.True;
-            return (prompt, isPassword);
+            var secret = root.TryGetProperty("Secret", out var s) && s.ValueKind == JsonValueKind.String ? s.GetString() : null;
+            return (prompt, isPassword, secret);
         }
         catch (Exception)
         {
-            return (null, false);
+            return (null, false, null);
         }
     }
 
