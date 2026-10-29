@@ -20,7 +20,7 @@ const PAGE_SIZE = 2;
 
 function makeContext(overrides = {})
 {
-    return { repo: { owner: 'Campforge', repo: 'run-pad' }, sha: SHA, runId: RUN_ID, ...overrides };
+    return { repo: { owner: 'Tervforge', repo: 'run-pad' }, sha: SHA, runId: RUN_ID, ...overrides };
 }
 
 function makeCore()
@@ -248,8 +248,8 @@ test('absolutizeLinks points repository-relative links at the released commit', 
     const notes = '[roadmap](ROADMAP.md), [code](src/main/RunPad), [site](https://example.com), [top](#added)';
     assert.equal(
         helper.absolutizeLinks(notes, makeContext()),
-        '[roadmap](https://github.com/Campforge/run-pad/blob/abc123/ROADMAP.md), ' +
-        '[code](https://github.com/Campforge/run-pad/blob/abc123/src/main/RunPad), ' +
+        '[roadmap](https://github.com/Tervforge/invoklet/blob/abc123/ROADMAP.md), ' +
+        '[code](https://github.com/Tervforge/invoklet/blob/abc123/src/main/RunPad), ' +
         '[site](https://example.com), [top](#added)');
 });
 
@@ -290,7 +290,7 @@ test('happy path: draft created, all seven assets uploaded across jobs, then pub
     assert.equal(created.target_commitish, SHA);
     assert.equal(created.tag_name, TAG);
     assert.ok(created.body.startsWith(
-        '### Fixed\n\n- A bug, see [CONTRIBUTING](https://github.com/Campforge/run-pad/blob/abc123/CONTRIBUTING.md).'));
+        '### Fixed\n\n- A bug, see [CONTRIBUTING](https://github.com/Tervforge/invoklet/blob/abc123/CONTRIBUTING.md).'));
     assert.match(created.body, /source-sha=abc123 run-id=4242/);
 
     for (const names of PLATFORM_FILES)

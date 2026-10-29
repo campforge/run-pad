@@ -12,7 +12,7 @@ Write C# against the .NET SDK you already have, run it in a keystroke and explor
 `.Dump()`. Every script is a `.rpad` file — Markdown with a short YAML header and one runnable code
 block — so your notes live right next to the code.
 
-![RunPad main window](https://campforge.github.io/run-pad-docs/assets/screenshots/overview.png)
+![RunPad main window](https://tervforge.github.io/invoklet-docs/assets/screenshots/overview.png)
 
 ## Features
 
@@ -31,7 +31,7 @@ block — so your notes live right next to the code.
 
 ## Download
 
-Installers and portable builds are on the [releases page](https://github.com/campforge/run-pad/releases/latest):
+Installers and portable builds are on the [releases page](https://github.com/tervforge/invoklet/releases/latest):
 
 | OS | Package |
 | --- | --- |
@@ -40,14 +40,14 @@ Installers and portable builds are on the [releases page](https://github.com/cam
 | macOS | `RunPad-osx-arm64.dmg` (Apple Silicon) or `RunPad-osx-x64.dmg` (Intel) |
 
 RunPad needs the [.NET SDK](https://dotnet.microsoft.com/download) to compile scripts. The macOS build
-is not notarized yet — see the [installation guide](https://campforge.github.io/run-pad-docs/install/)
+is not notarized yet — see the [installation guide](https://tervforge.github.io/invoklet-docs/install/)
 for the first-launch steps on each OS.
 
 ## Documentation
 
-- [User guide](https://campforge.github.io/run-pad-docs/) — installation, quick start, editor,
+- [User guide](https://tervforge.github.io/invoklet-docs/) — installation, quick start, editor,
   debugging, results, packages, command line.
-- [Scripts and `.rpad` files](https://campforge.github.io/run-pad-docs/scripts/) — the script format.
+- [Scripts and `.rpad` files](https://tervforge.github.io/invoklet-docs/scripts/) — the script format.
 - [Changelog](CHANGELOG.md) — what changed in each release.
 - [Roadmap](ROADMAP.md) — what is planned next.
 
@@ -66,7 +66,7 @@ How to send changes, and the rules the code follows, are in [`CONTRIBUTING.md`](
 ## Contributing
 
 Bug reports, ideas and pull requests are welcome — please read [`CONTRIBUTING.md`](CONTRIBUTING.md)
-first. Report problems as [GitHub issues](https://github.com/campforge/run-pad/issues). Opening a
+first. Report problems as [GitHub issues](https://github.com/tervforge/invoklet/issues). Opening a
 pull request means you agree to the [Contributor License Agreement](CLA.md).
 
 ## AvaloniaEdit fork

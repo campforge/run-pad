@@ -77,7 +77,7 @@ not, under the terms of the GPL-3.0. In short, when you distribute it:
   - do not impose any further restrictions on the recipients' rights.
 
 You may charge a fee for distributing copies or for support, but not for the
-license itself. The name "RunPad" and the Campforge name and logo identify
+license itself. The name "RunPad" and the Tervforge name and logo identify
 the original project; a modified version should be clearly marked as such.
 
 
@@ -86,7 +86,7 @@ the original project; a modified version should be clearly marked as such.
 The complete source code of RunPad, including the code of every released
 version, is publicly available at:
 
-    https://github.com/campforge/run-pad
+    https://github.com/tervforge/invoklet
 
 Each release is built from the tagged commit of the same version in that
 repository, and its source code archive is attached to the release.
