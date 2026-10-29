@@ -9,6 +9,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Invoklet.NonUI.Tests" />
     <InternalsVisibleTo Include="Invoklet.Runtime.UI.Tests" />
+    <InternalsVisibleTo Include="Invoklet.IntegrationTests" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\core\Invoklet.Contracts\Invoklet.Contracts.csproj" />

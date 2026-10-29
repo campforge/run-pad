@@ -9,3 +9,4 @@ using Avalonia.Metadata;
 // deliberately plain-xunit, no Avalonia.Headless dependency); Invoklet.Runtime.UI.Tests already has
 // [AvaloniaFact]/headless infra for exactly this kind of test (see OutputHtmlViewTests).
 [assembly: InternalsVisibleTo("Invoklet.Runtime.UI.Tests")]
+[assembly: InternalsVisibleTo("Invoklet.IntegrationTests")]

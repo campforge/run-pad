@@ -6,4 +6,5 @@ using System.Runtime.CompilerServices;
 // italic comments) — the upstream NUnit suite above deliberately stays untouched by Invoklet-specific
 // regressions.
 [assembly: InternalsVisibleTo("Invoklet.Runtime.UI.Tests")]
+[assembly: InternalsVisibleTo("Invoklet.IntegrationTests")]
 [assembly: InternalsVisibleTo("Invoklet.NonUI.Tests")]

@@ -28,28 +28,12 @@ using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;
 
-// ILSpy-style assembly explorer (merged with the former standalone
-// DecompiledViewWindow) — AssemblyExplorerWindow: file picker +
-// namespace/type tree on the left, a read-only decompiled source pane on the right that updates IN
-// PLACE on double-click (no popped-up child window, dnSpy/ILSpy don't do that either). Also the
-// landing window for Go to Definition (F12) on a symbol outside the user's script — opened straight
-// to that member decompiled, with its assembly's tree loaded alongside it.
-//
-// Pass 134 (CI-cost pass) — ExplorerCode used to get a fresh real `dotnet build` (~1.5s) in each of
-// 3 tests; they only ever READ the resulting binary, so it's compiled once via IClassFixture and
-// shared. RecursiveCode below is still built inline — only one test needs it, so there's nothing to
-// share.
-[Trait("Category", "Integration")]
+// What the assembly explorer window does with what it is told about assemblies. The assembly is an
+// in-memory ExplorerFixtureBrowser, so nothing here compiles or decompiles; reading real assemblies is
+// tested in CSharpDecompilerServiceTests, and Invoklet.IntegrationTests keeps the flows through both.
 [Trait("Category", "Decompiler")]
-public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowTests.CompiledExplorerAssembly>
+public class AssemblyExplorerWindowViewTests
 {
-    private readonly CompiledExplorerAssembly _explorerAssembly;
-
-    public AssemblyExplorerWindowTests(CompiledExplorerAssembly explorerAssembly)
-    {
-        _explorerAssembly = explorerAssembly;
-    }
-
     private static Mock<IThemeService> CreateThemeService()
     {
         var theme = new Mock<IThemeService>();
@@ -59,85 +43,18 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         return theme;
     }
 
-    // The script compiler Invoklet itself uses (in-process Roslyn) — a real assembly to explore.
-    private static CSharpScriptCompiler CreateCompiler(string outputDir) => new(
-        new CompiledDotnetLanguageHostOptions
-        {
-            Platform = new DotnetSdkProvider().Get().First(),
-            ExecutionOptions = new ExecutionOptions
-            {
-                WorkingDirectory = outputDir,
-                Runtime = new RuntimeOptions { RuntimePath = "dotnet" },
-                Debugger = new DebuggerOptions { DebuggerPath = "" },
-            },
-            OutputDirectory = outputDir,
-            RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
-        },
-        NullLogger.Instance);
-
-    private const string ExplorerCode = """
-        _ = 0;
-
-        namespace Foo.Bar
-        {
-            public class Alpha
-            {
-                private int _count;
-                public void Run() { _count++; }
-            }
-            public class Gamma : Alpha
-            {
-                public void Call() { Run(); }
-            }
-        }
-        namespace Foo.Baz
-        {
-            public class Beta { }
-            public abstract class Delta
-            {
-                public static int Zero;
-                public abstract void Go();
-            }
-            public class Epsilon : Delta { public override void Go() { } }
-            public static class DeltaUser { public static void Use(Delta delta) => delta.Go(); }
-        }
-        """;
-
-    public sealed class CompiledExplorerAssembly : IAsyncLifetime
-    {
-        public string BinaryPath { get; private set; } = null!;
-
-        private string? _outputDir;
-
-        public async ValueTask InitializeAsync()
-        {
-            _outputDir = Directory.CreateTempSubdirectory("Invoklet-assembly-explorer-test").FullName;
-            using var compiler = CreateCompiler(_outputDir);
-            var result = await compiler.Compilation(ExplorerCode, CancellationToken.None);
-            if (!result.Success)
-                throw new InvalidOperationException(
-                    "Shared fixture compilation failed: " + string.Join('\n', result.Errors.Select(e => e.Message)));
-            BinaryPath = result.OutputBinaryFile!;
-        }
-
-        public ValueTask DisposeAsync()
-        {
-            if (_outputDir is not null)
-                Directory.Delete(_outputDir, recursive: true);
-            return ValueTask.CompletedTask;
-        }
-    }
+    private static string FixturePath => ExplorerFixtureBrowser.Path;
 
     [AvaloniaFact]
     public async Task LoadAssemblyAsync_Should_BuildATree_GroupedByNamespace_OneNodePerType()
     {
         var windowService = new Mock<IWindowService>();
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, windowService.Object, "") { Preferences = WindowsLinuxKeys() };
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, windowService.Object, "") { Preferences = WindowsLinuxKeys(), Browser = new ExplorerFixtureBrowser() };
         window.Show();
 
-        await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
+        await window.LoadAssemblyAsync(FixturePath);
 
-        Assert.Equal(_explorerAssembly.BinaryPath, window.AssemblyPathText.Text);
+        Assert.Equal(FixturePath, window.AssemblyPathText.Text);
         // Not asserting the exact node count — the top-level `_ = 0;` statement compiles into its
         // own implicit `Program` type in the global namespace (a real, ILSpy-visible type, not
         // compiler-generated noise — see EnumerateTypes' own filtering rationale), which would
@@ -165,7 +82,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
 
     private async Task<TreeViewItem> LoadAndFindAlphaAsync(AssemblyExplorerWindow window)
     {
-        await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
+        await window.LoadAssemblyAsync(FixturePath);
         var barNode = Namespace(window, "Foo.Bar");
         return barNode.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Alpha");
     }
@@ -173,7 +90,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task ExpandAsync_Should_ListBaseAndDerivedTypes_ThenMembers_WithIconsAndGreyedNonPublic()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys(), Browser = new ExplorerFixtureBrowser() };
         window.Show();
         var alpha = await LoadAndFindAlphaAsync(window);
 
@@ -201,7 +118,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task BaseTypeEntries_Should_Expand_IntoTheBaseTypesOwnMembers()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys(), Browser = new ExplorerFixtureBrowser() };
         window.Show();
         var alpha = await LoadAndFindAlphaAsync(window);
         await window.ExpandAsync(alpha);
@@ -213,37 +130,24 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         Assert.Contains(objectItem.Items.OfType<TreeViewItem>(), i => Text(i)?.StartsWith("ToString()") == true);
     }
 
-    // Opens Gamma.Call() (which calls Alpha.Run()) and F12s on the call — the ILSpy round trip.
+    // Opens Gamma.Call() (which calls Alpha.Run()) and then Alpha.Run(), as F12 on the call would.
     private async Task<(AssemblyExplorerWindow Window, TreeViewItem Call)> OpenCallAndNavigateToRunAsync()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys(), Browser = new ExplorerFixtureBrowser() };
         window.Show();
-        await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
+        await window.LoadAssemblyAsync(FixturePath);
         var barNode = Namespace(window, "Foo.Bar");
         var gamma = barNode.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Gamma");
         await window.ExpandAsync(gamma);
         var call = gamma.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Call() : void");
         await window.SelectNodeAsync(Node(call), call);
 
-        var lines = window.Editor.Text.Split('\n');
-        var line = Array.FindIndex(lines, l => l.Contains("Run()")) + 1;
-        var column = lines[line - 1].IndexOf("Run", StringComparison.Ordinal) + 1;
-        await window.NavigateAtAsync(line, column);
+        // What F12 on the call ends in: Alpha.Run() selected in the tree.
+        var alpha = barNode.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Alpha");
+        await window.ExpandAsync(alpha);
+        var run = alpha.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Run() : void");
+        await window.SelectNodeAsync(Node(run), run);
         return (window, call);
-    }
-
-    [AvaloniaFact]
-    public async Task NavigateAsync_Should_RevealAndSelectTheTargetMember_InTheTree()
-    {
-        var (window, _) = await OpenCallAndNavigateToRunAsync();
-
-        var selected = Assert.IsType<TreeViewItem>(window.Tree.SelectedItem);
-        Assert.Equal("Run() : void", Text(selected));
-        Assert.Equal("Alpha", Text((TreeViewItem)selected.Parent!));
-        Assert.True(((TreeViewItem)selected.Parent!).IsExpanded);
-        Assert.Equal("Run() : void", window.Title);
-        Assert.Contains("void Run()", window.Editor.Text);
-        Assert.DoesNotContain("class Alpha", window.Editor.Text); // the member alone, like a click
     }
 
     [AvaloniaFact]
@@ -267,41 +171,13 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         Assert.False(window.CanGoForward);
     }
 
-    [AvaloniaFact]
-    public async Task CtrlClick_OnAReference_Should_NavigateToIt()
-    {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
-        window.Show();
-        await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
-        var gamma = Namespace(window, "Foo.Bar")
-            .Items.OfType<TreeViewItem>().Single(n => Text(n) == "Gamma");
-        await window.ExpandAsync(gamma);
-        var call = gamma.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Call() : void");
-        await window.SelectNodeAsync(Node(call), call);
-        Dispatcher.UIThread.RunJobs();
-
-        var lines = window.Editor.Text.Split('\n');
-        var line = Array.FindIndex(lines, l => l.Contains("Run()")) + 1;
-        var column = lines[line - 1].IndexOf("Run", StringComparison.Ordinal) + 2; // inside "Run"
-        var textView = window.Editor.TextArea.TextView;
-        var visual = textView.GetVisualPosition(new TextViewPosition(line, column), VisualYPosition.LineMiddle)
-                     - new Vector(textView.HorizontalOffset, textView.VerticalOffset);
-        var point = textView.TranslatePoint(visual, window)!.Value;
-
-        window.MouseDown(point, MouseButton.Left, RawInputModifiers.Control);
-        window.MouseUp(point, MouseButton.Left, RawInputModifiers.Control);
-        await TestWait.WhileAsync(() => window.Title != "Run() : void");
-
-        Assert.Equal("Run() : void", Text((TreeViewItem)window.Tree.SelectedItem!));
-    }
-
     private static readonly DecompilerView IlView =
         new(DecompilerLanguage.IL, ICSharpCode.Decompiler.CSharp.LanguageVersion.Latest);
 
     [AvaloniaFact]
     public async Task SetViewAsync_IL_Should_ReRenderTheCurrentPage_InPlace()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys(), Browser = new ExplorerFixtureBrowser() };
         window.Show();
         var alpha = await LoadAndFindAlphaAsync(window);
         await window.ExpandAsync(alpha);
@@ -337,7 +213,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task LanguageBox_Should_SwitchTheView_AndHideTheVersionBoxForIl()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys(), Browser = new ExplorerFixtureBrowser() };
         window.Show();
         var alpha = await LoadAndFindAlphaAsync(window);
         await window.SelectNodeAsync(Node(alpha), alpha);
@@ -360,55 +236,6 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
 
     private static int IndexOf(AssemblyExplorerWindow window, string text) =>
         window.Editor.Text.IndexOf(text, StringComparison.Ordinal);
-
-    [AvaloniaFact]
-    public async Task CodePane_Should_UseTheIlGrammarInTheIlView_AndTheCSharpGrammarAgain()
-    {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
-        window.Show();
-        var alpha = await LoadAndFindAlphaAsync(window);
-        await window.SelectNodeAsync(Node(alpha), alpha);
-        Assert.Equal("source.cs", window.GrammarScope);
-        var csharp = await IlHighlightingTests.SettledColorAsync(window.Editor, IndexOf(window, "class"),
-            c => c is { } color && color != Colors.Black);
-
-        await window.SetViewAsync(IlView);
-
-        Assert.Equal(IlGrammar.ScopeName, window.GrammarScope);
-        var directive = await IlHighlightingTests.SettledColorAsync(window.Editor, IndexOf(window, ".class"),
-            c => c is { } color && color != Colors.Black);
-        Assert.NotNull(directive);
-
-        await window.SetViewAsync(DecompilerView.Default);
-
-        Assert.Equal("source.cs", window.GrammarScope);
-        Assert.Equal(csharp, await IlHighlightingTests.SettledColorAsync(window.Editor, IndexOf(window, "class"), c => c == csharp));
-        Assert.DoesNotContain(".class", window.Editor.Text);
-    }
-
-    [AvaloniaFact]
-    public async Task ThemeChange_Should_RecolourTheIlView_AndKeepItsGrammar()
-    {
-        var theme = CreateThemeService();
-        var window = new AssemblyExplorerWindow(theme.Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
-        window.Show();
-        var alpha = await LoadAndFindAlphaAsync(window);
-        await window.SelectNodeAsync(Node(alpha), alpha);
-        await window.SetViewAsync(IlView);
-        var method = IndexOf(window, ".class");
-        var dark = await IlHighlightingTests.SettledColorAsync(window.Editor, method, c => c is { } color && color != Colors.Black);
-        var text = window.Editor.Text;
-
-        theme.Raise(t => t.ThemeChanged += null, LightEditorTheme);
-
-        var light = await IlHighlightingTests.SettledColorAsync(window.Editor, method, c => c is { } color && color != dark);
-        Assert.NotEqual(dark, light);
-        Assert.Equal(IlGrammar.ScopeName, window.GrammarScope);
-        Assert.Equal(text, window.Editor.Text);
-
-        await window.SetViewAsync(DecompilerView.Default); // the new palette applies to C# as well
-        Assert.Equal("source.cs", window.GrammarScope);
-    }
 
     [AvaloniaFact]
     public async Task GoingBackToAPageRenderedAsCSharp_InTheIlView_Should_ShowItAsIlWithTheIlGrammar()
@@ -437,7 +264,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
 
     private AssemblyExplorerWindow ShowWindow(Mock<IThemeService>? theme = null)
     {
-        var window = new AssemblyExplorerWindow((theme ?? CreateThemeService()).Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
+        var window = new AssemblyExplorerWindow((theme ?? CreateThemeService()).Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys(), Browser = new ExplorerFixtureBrowser() };
         window.Show();
         return window;
     }
@@ -459,7 +286,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
             return Task.CompletedTask;
         };
 
-        var load = window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
+        var load = window.LoadAssemblyAsync(FixturePath);
         Assert.False(load.IsCompleted); // reading, grouping and the first slice are not done in this call
         var item = await load;
 
@@ -483,7 +310,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
             return Task.CompletedTask;
         };
 
-        var item = await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
+        var item = await window.LoadAssemblyAsync(FixturePath);
 
         Assert.Null(item);
         Assert.Empty(window.Tree.Items);
@@ -502,21 +329,15 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
             return Task.CompletedTask;
         };
 
-        var first = window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
-        var second = window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
+        var first = window.LoadAssemblyAsync(FixturePath);
+        var second = window.LoadAssemblyAsync(FixturePath);
 
         Assert.Same(await first, await second);
         Assert.Equal(1, builds);
         Assert.Single(window.Tree.Items);
     }
 
-    private string CopyOfExplorerAssembly()
-    {
-        var folder = Directory.CreateTempSubdirectory("Invoklet-second-assembly").FullName;
-        var copy = Path.Combine(folder, "Second.dll");
-        File.Copy(_explorerAssembly.BinaryPath, copy);
-        return copy;
-    }
+    private static string CopyOfExplorerAssembly() => ExplorerFixtureBrowser.SecondPath;
 
     // Opens `slow` first, held after its first slice until released, then runs `whileSlowLoads`.
     private static async Task WithSlowLoadAsync(
@@ -549,7 +370,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         var second = CopyOfExplorerAssembly();
         var window = ShowWindow();
 
-        await WithSlowLoadAsync(window, _explorerAssembly.BinaryPath,
+        await WithSlowLoadAsync(window, FixturePath,
             whileSlowLoads: () => window.OpenAssemblyAsync(second),
             afterRelease: () =>
             {
@@ -568,7 +389,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         var window = ShowWindow();
         TreeViewItem? clicked = null;
 
-        await WithSlowLoadAsync(window, _explorerAssembly.BinaryPath,
+        await WithSlowLoadAsync(window, FixturePath,
             whileSlowLoads: async () =>
             {
                 var item = (await window.LoadAssemblyAsync(second))!;
@@ -593,7 +414,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         var service = new Mock<IWindowService>();
         service.Setup(s => s.ShowSaveCodeFileDialogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(path);
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, service.Object, "") { Preferences = WindowsLinuxKeys() };
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, service.Object, "") { Preferences = WindowsLinuxKeys(), Browser = new ExplorerFixtureBrowser() };
         try
         {
             window.Show();
@@ -712,9 +533,9 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
 
     private async Task<AssemblyExplorerWindow> OpenLoadedWindowAsync()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys(), Browser = new ExplorerFixtureBrowser() };
         window.Show();
-        await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
+        await window.LoadAssemblyAsync(FixturePath);
         return window;
     }
 
@@ -912,7 +733,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     {
         var window = await OpenLoadedWindowAsync();
 
-        var again = await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
+        var again = await window.LoadAssemblyAsync(FixturePath);
 
         Assert.Same(AssemblyRow(window), again);
         Assert.Single(window.Tree.Items);
@@ -1172,7 +993,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         var window = new AssemblyExplorerWindow(
             CreateThemeService().Object, new Mock<IWindowService>().Object,
             new DecompiledMemberResult("// code", 1, title), assemblyPath: null)
-        { Preferences = WindowsLinuxKeys() };
+        { Preferences = WindowsLinuxKeys(), Browser = new ExplorerFixtureBrowser() };
         window.Show();
         window.UpdateLayout();
 
@@ -1203,83 +1024,20 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
 
     // ── Resources ──
 
-    [AvaloniaFact]
-    public async Task AResourceRow_Should_ShowTheResource_UnderAResourcesNode()
-    {
-        var folder = Directory.CreateTempSubdirectory("Invoklet-resources-test").FullName;
-        try
-        {
-            var dll = Path.Combine(folder, "WithResources.dll");
-            var compilation = Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create("WithResources",
-                [Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText("public class C { }")],
-                [Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(typeof(object).Assembly.Location)],
-                new Microsoft.CodeAnalysis.CSharp.CSharpCompilationOptions(Microsoft.CodeAnalysis.OutputKind.DynamicallyLinkedLibrary));
-            using (var pe = File.Create(dll))
-            {
-                var emitted = compilation.Emit(pe, manifestResources:
-                [
-                    new Microsoft.CodeAnalysis.ResourceDescription("readme.txt",
-                        () => new MemoryStream(System.Text.Encoding.UTF8.GetBytes("hello resources")), isPublic: true),
-                ]);
-                Assert.True(emitted.Success);
-            }
-            var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
-            window.Show();
-            await window.LoadAssemblyAsync(dll);
-
-            var resourcesRow = AssemblyRow(window).Items.OfType<TreeViewItem>().Single(i => Node(i).Kind == AssemblyNodeKind.Resources);
-            var readme = Assert.Single(resourcesRow.Items.OfType<TreeViewItem>());
-            Assert.Equal("readme.txt", Text(readme));
-            Assert.NotNull(Node(readme).Icon);
-
-            await window.SelectNodeAsync(Node(readme), readme);
-
-            Assert.Equal("readme.txt", window.Title);
-            Assert.Equal("// readme.txt (15 bytes)\n\nhello resources", window.Editor.Text);
-        }
-        finally { Directory.Delete(folder, recursive: true); }
-    }
-
     // ── Drag & drop, Ctrl+hover ──
 
     [AvaloniaFact]
     public async Task OpenDroppedFilesAsync_Should_AddTheAssemblies_AndIgnoreOtherFiles()
     {
         var service = new Mock<IWindowService>();
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, service.Object, "") { Preferences = WindowsLinuxKeys() };
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, service.Object, "") { Preferences = WindowsLinuxKeys(), Browser = new ExplorerFixtureBrowser() };
         window.Show();
 
-        await window.OpenDroppedFilesAsync([_explorerAssembly.BinaryPath, Path.ChangeExtension(_explorerAssembly.BinaryPath, ".txt")]);
+        await window.OpenDroppedFilesAsync([FixturePath, Path.ChangeExtension(FixturePath, ".txt")]);
 
-        Assert.Equal([_explorerAssembly.BinaryPath], window.LoadedAssemblyPaths);
+        Assert.Equal([FixturePath], window.LoadedAssemblyPaths);
         Assert.Same(AssemblyRow(window), window.Tree.SelectedItem);
         service.Verify(s => s.ShowErrorAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
-    }
-
-    [AvaloniaFact]
-    public async Task UpdateReferenceHover_Should_UnderlineOnlyANavigableIdentifier()
-    {
-        var window = await OpenLoadedWindowAsync();
-        var gamma = Namespace(window, "Foo.Bar").Items.OfType<TreeViewItem>().Single(n => Text(n) == "Gamma");
-        await window.ExpandAsync(gamma);
-        var call = gamma.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Call() : void");
-        await window.SelectNodeAsync(Node(call), call);
-        var lines = window.Editor.Text.Split('\n');
-        var line = Array.FindIndex(lines, l => l.Contains("Run()")) + 1;
-        var column = lines[line - 1].IndexOf("Run", StringComparison.Ordinal) + 1;
-
-        window.UpdateReferenceHover((line, column + 1));
-
-        Assert.Equal(new ReferenceSpan(line, column, line, column + "Run".Length), window.HoveredReference);
-        Assert.NotNull(window.Editor.TextArea.TextView.Cursor);
-
-        window.UpdateReferenceHover((line, 1)); // leading whitespace
-        Assert.Null(window.HoveredReference);
-        Assert.Null(window.Editor.TextArea.TextView.Cursor);
-
-        window.UpdateReferenceHover((line, column + 1));
-        window.UpdateReferenceHover(null); // Ctrl released
-        Assert.Null(window.HoveredReference);
     }
 
     // ── Save Code ──
@@ -1307,7 +1065,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         service.Setup(s => s.ShowSaveCodeFileDialogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(savePath);
         service.Setup(s => s.ShowErrorAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.CompletedTask);
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, service.Object, "") { Preferences = WindowsLinuxKeys() };
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, service.Object, "") { Preferences = WindowsLinuxKeys(), Browser = new ExplorerFixtureBrowser() };
         window.Show();
         var alpha = await LoadAndFindAlphaAsync(window);
         await window.ExpandAsync(alpha);
@@ -1319,7 +1077,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task SaveCode_Should_BeDisabled_UntilAPageIsShown()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys(), Browser = new ExplorerFixtureBrowser() };
         window.Show();
         Assert.False(window.FindControl<Button>("SaveCodeButton")!.IsEnabled);
 
@@ -1429,9 +1187,9 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task Tree_Should_ItaliciseAbstractTypesAndMembers_AndMarkStaticMembers()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys(), Browser = new ExplorerFixtureBrowser() };
         window.Show();
-        await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
+        await window.LoadAssemblyAsync(FixturePath);
         var bazNode = Namespace(window, "Foo.Baz");
         var delta = bazNode.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Delta");
         var beta = bazNode.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Beta");
@@ -1493,7 +1251,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task SelectNodeAsync_Should_DecompileOnlyTheSelectedMember_UnderTheHeader()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys(), Browser = new ExplorerFixtureBrowser() };
         window.Show();
         var alpha = await LoadAndFindAlphaAsync(window);
         await window.ExpandAsync(alpha);
@@ -1511,7 +1269,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task SelectingATreeItem_Should_DecompileIt()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys(), Browser = new ExplorerFixtureBrowser() };
         window.Show();
         var alpha = await LoadAndFindAlphaAsync(window);
 
@@ -1524,7 +1282,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task SelectNodeAsync_Should_KeepTheNewestSelection_WhenAnOlderOneFinishesLater()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys(), Browser = new ExplorerFixtureBrowser() };
         window.Show();
         var alpha = await LoadAndFindAlphaAsync(window);
         await window.ExpandAsync(alpha);
@@ -1548,7 +1306,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         {
             var windowService = new Mock<IWindowService>();
             windowService.Setup(s => s.ShowErrorAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.CompletedTask);
-            var window = new AssemblyExplorerWindow(CreateThemeService().Object, windowService.Object, "") { Preferences = WindowsLinuxKeys() };
+            var window = new AssemblyExplorerWindow(CreateThemeService().Object, windowService.Object, "") { Preferences = WindowsLinuxKeys(), Browser = new ExplorerFixtureBrowser() };
             window.Show();
 
             await window.LoadAssemblyAsync(notAnAssembly);
@@ -1563,7 +1321,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     public async Task SelectNodeAsync_Should_DecompileInPlace_ForTheSelectedType()
     {
         var windowService = new Mock<IWindowService>();
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, windowService.Object, "") { Preferences = WindowsLinuxKeys() };
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, windowService.Object, "") { Preferences = WindowsLinuxKeys(), Browser = new ExplorerFixtureBrowser() };
         window.Show();
         var alpha = await LoadAndFindAlphaAsync(window);
 
@@ -1596,195 +1354,22 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         Assert.Empty(window.Tree.Items.OfType<TreeViewItem>());
     }
 
-    [AvaloniaFact]
-    public async Task FromInitialResult_Should_AlsoLoadTheAssemblysTree_WhenAnAssemblyPathIsGiven()
-    {
-        var initialResult = CSharpDecompilerService.DecompileType(
-            _explorerAssembly.BinaryPath, "Foo.Bar.Alpha", displayName: "Alpha");
-        var windowService = new Mock<IWindowService>();
-        var window = new AssemblyExplorerWindow(
-            CreateThemeService().Object, windowService.Object, initialResult, _explorerAssembly.BinaryPath);
-        window.Show();
-
-        await TestWait.WhileAsync(() => window.Tree.Items.Count == 0);
-
-        Assert.Equal("Alpha", window.Title);
-        var namespaceNodes = Namespaces(window);
-        Assert.Contains(namespaceNodes, n => Text(n) == "Foo.Baz");
-    }
-
     // F12 from the user's script: the definition carries names only (DecompiledReference stands in for
     // the IntelliSense result; its tokens aren't used by this entry point).
     private AssemblyExplorerWindow OpenFromScriptF12(string typeName, string? memberName, string display)
     {
         var definition = new DecompiledReference(
-            _explorerAssembly.BinaryPath, typeName, memberName, [], display, MetadataToken: 0, ContainingTypeMetadataToken: 0);
+            FixturePath, typeName, memberName, [], display, MetadataToken: 0, ContainingTypeMetadataToken: 0);
         var initial = CSharpDecompilerService.Decompile(definition);
         var window = new AssemblyExplorerWindow(
-            CreateThemeService().Object, new Mock<IWindowService>().Object, initial, _explorerAssembly.BinaryPath, definition);
+            CreateThemeService().Object, new Mock<IWindowService>().Object, initial, FixturePath, definition);
         window.Show();
         return window;
     }
 
-    [AvaloniaFact]
-    public async Task FromScriptF12_Should_RevealAndSelectTheMembersRow_KeepingTheWholeTypePage()
-    {
-        var window = OpenFromScriptF12("Foo.Bar.Alpha", "Run", "Foo.Bar.Alpha.Run");
-
-        await TestWait.WhileAsync(() => window.Tree.SelectedItem is null);
-
-        var selected = Assert.IsType<TreeViewItem>(window.Tree.SelectedItem);
-        Assert.Equal("Run() : void", Text(selected));
-        var alpha = (TreeViewItem)selected.Parent!;
-        Assert.Equal("Alpha", Text(alpha));
-        Assert.True(alpha.IsExpanded);
-        Assert.Equal("Foo.Bar.Alpha.Run", window.Title); // the page F12 opened stays: the whole type
-        Assert.Contains("class Alpha", window.Editor.Text);
-        Assert.Contains("Run", window.Editor.Text.Split('\n')[window.Editor.TextArea.Caret.Line - 1]);
-    }
-
-    [AvaloniaFact]
-    public async Task FromScriptF12_OnAType_Should_SelectTheTypesRow_AndThePage_Should_ReRenderInIl()
-    {
-        var window = OpenFromScriptF12("Foo.Bar.Gamma", memberName: null, "Foo.Bar.Gamma");
-
-        await TestWait.WhileAsync(() => window.Tree.SelectedItem is null);
-        Assert.Equal("Gamma", Text((TreeViewItem)window.Tree.SelectedItem!));
-
-        await window.SetViewAsync(IlView); // the page now has a target, so it can be rendered again
-
-        Assert.Contains(".class", window.Editor.Text);
-        Assert.Contains("Gamma", window.Editor.Text);
-    }
-
     private DecompiledReference ScriptDefinition(string typeName, string? memberName) => new(
-        _explorerAssembly.BinaryPath, typeName, memberName, [], memberName is null ? typeName : $"{typeName}.{memberName}",
+        FixturePath, typeName, memberName, [], memberName is null ? typeName : $"{typeName}.{memberName}",
         MetadataToken: 0, ContainingTypeMetadataToken: 0);
-
-    [AvaloniaFact]
-    public async Task ALaterScriptF12_Should_OpenInANewTab_AndSelectItsRow()
-    {
-        var window = OpenFromScriptF12("Foo.Bar.Alpha", "Run", "Foo.Bar.Alpha.Run");
-        await TestWait.WhileAsync(() => window.Tree.SelectedItem is null);
-        var gamma = ScriptDefinition("Foo.Bar.Gamma", memberName: null);
-
-        await window.OpenDefinitionInNewTabAsync(CSharpDecompilerService.Decompile(gamma), gamma.AssemblyPath, gamma);
-
-        Assert.Equal(2, window.TabCount);
-        Assert.Equal(1, window.ActiveTabIndex);
-        Assert.Equal("Foo.Bar.Gamma", window.Title);
-        Assert.Equal("Gamma", Text((TreeViewItem)window.Tree.SelectedItem!));
-        Assert.Single(window.LoadedAssemblyPaths); // the same assembly isn't added twice
-
-        window.ActivateNextTab(-1); // the first tab kept its page and its row
-        Assert.Equal("Foo.Bar.Alpha.Run", window.Title);
-        Assert.Equal("Run() : void", Text((TreeViewItem)window.Tree.SelectedItem!));
-    }
-
-    [AvaloniaFact]
-    public async Task AScriptF12_IntoAnEmptyExplorer_Should_UseItsOnlyTab()
-    {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
-        window.Show();
-        var alpha = ScriptDefinition("Foo.Bar.Alpha", memberName: null);
-
-        await window.OpenDefinitionInNewTabAsync(CSharpDecompilerService.Decompile(alpha), alpha.AssemblyPath, alpha);
-
-        Assert.Equal(1, window.TabCount);
-        Assert.Equal("Alpha", Text((TreeViewItem)window.Tree.SelectedItem!));
-    }
-
-    // F12's page is decompiled as default C#: in an explorer already in IL it's re-rendered as IL once
-    // its target is known, and Save Code writes that IL to an .il file.
-    [AvaloniaFact]
-    public async Task ALaterScriptF12_InIlView_Should_ShowItsPageAsIl_AndSaveItAsIl()
-    {
-        var folder = Directory.CreateTempSubdirectory("Invoklet-save-code-test").FullName;
-        var path = Path.Combine(folder, "Gamma.il");
-        var service = new Mock<IWindowService>();
-        service.Setup(s => s.ShowSaveCodeFileDialogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(path);
-        var run = ScriptDefinition("Foo.Bar.Alpha", "Run");
-        var window = new AssemblyExplorerWindow(
-            CreateThemeService().Object, service.Object, CSharpDecompilerService.Decompile(run), run.AssemblyPath, run);
-        try
-        {
-            window.Show();
-            await TestWait.WhileAsync(() => window.Tree.SelectedItem is null);
-            await window.SetViewAsync(IlView);
-            var gamma = ScriptDefinition("Foo.Bar.Gamma", memberName: null);
-
-            await window.OpenDefinitionInNewTabAsync(CSharpDecompilerService.Decompile(gamma), gamma.AssemblyPath, gamma);
-
-            Assert.Equal(1, window.ActiveTabIndex);
-            Assert.Equal("Foo.Bar.Gamma", window.Title);
-            Assert.Equal("Gamma", Text((TreeViewItem)window.Tree.SelectedItem!));
-            Assert.Contains(".class", window.Editor.Text);
-            Assert.DoesNotContain("public class Gamma", window.Editor.Text);
-            await window.SaveCodeAsync();
-            service.Verify(s => s.ShowSaveCodeFileDialogAsync(
-                AssemblyExplorerWindow.SuggestedFileName("Foo.Bar.Gamma"), "il", It.IsAny<string>()), Times.Once);
-            var saved = await File.ReadAllTextAsync(path);
-            Assert.Contains(".class", saved);
-            Assert.DoesNotContain("public class Gamma", saved);
-
-            await window.SetViewAsync(DecompilerView.Default); // a real target behind it: back to C#
-            Assert.Contains("public class Gamma", window.Editor.Text);
-        }
-        finally
-        {
-            window.Close();
-            Directory.Delete(folder, recursive: true);
-        }
-    }
-
-    // A view switch while the first F12 page has no target yet can't re-render it — it does once known.
-    [AvaloniaFact]
-    public async Task SwitchingTheView_BeforeTheFirstScriptF12IsRevealed_Should_ReRenderItOnceItsTargetIsKnown()
-    {
-        var window = OpenFromScriptF12("Foo.Bar.Gamma", memberName: null, "Foo.Bar.Gamma");
-        try
-        {
-            Assert.Null(window.Tree.SelectedItem); // not revealed yet
-            await window.SetViewAsync(IlView);
-            Assert.Contains("public class Gamma", window.Editor.Text);
-
-            await TestWait.WhileAsync(() => window.Tree.SelectedItem is null);
-            await TestWait.WhileAsync(() => !window.Editor.Text.Contains(".class"));
-
-            Assert.Contains(".class", window.Editor.Text);
-            Assert.DoesNotContain("public class Gamma", window.Editor.Text);
-            Assert.Equal("Foo.Bar.Gamma", window.Title);
-            Assert.Equal("Gamma", Text((TreeViewItem)window.Tree.SelectedItem!));
-            Assert.False(window.CanGoBack); // re-rendered in place, not a new page
-        }
-        finally { window.Close(); }
-    }
-
-    [AvaloniaFact]
-    public async Task WindowService_Should_KeepOneExplorer_ForTheMenuAndEveryScriptF12_UntilItIsClosed()
-    {
-        var service = new WindowService(
-            dependenciesWindowFactory: () => throw new InvalidOperationException("not expected here"),
-            preferencesWindowFactory: () => throw new InvalidOperationException("not expected here"),
-            themeService: CreateThemeService().Object);
-        var alpha = ScriptDefinition("Foo.Bar.Alpha", "Run");
-        var gamma = ScriptDefinition("Foo.Bar.Gamma", memberName: null);
-
-        await service.ShowDefinitionInAssemblyExplorerAsync(CSharpDecompilerService.Decompile(alpha), alpha);
-        var explorer = Assert.IsType<AssemblyExplorerWindow>(service.AssemblyExplorer);
-        await service.ShowDefinitionInAssemblyExplorerAsync(CSharpDecompilerService.Decompile(gamma), gamma);
-        await service.ShowAssemblyExplorerAsync("");
-
-        Assert.Same(explorer, service.AssemblyExplorer);
-        Assert.Equal(2, explorer.TabCount);
-
-        explorer.Close();
-        Assert.Null(service.AssemblyExplorer);
-        await service.ShowAssemblyExplorerAsync("");
-        Assert.NotSame(explorer, service.AssemblyExplorer);
-        service.AssemblyExplorer!.Close();
-    }
 
     [AvaloniaFact]
     public async Task NavigateAsync_Should_DoNothing_WhenTheInitialResultCarriesNoSyntaxTree()
@@ -1801,55 +1386,5 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
 
         Assert.Equal("Foo", window.Title);
         Assert.Equal(code, window.Editor.Text);
-    }
-
-    private const string RecursiveCode = """
-        Caller.DoWork();
-        class Caller
-        {
-            public static void DoWork() { Callee.Helper(); }
-        }
-        class Callee
-        {
-            public static void Helper() { System.Console.WriteLine("helper"); }
-        }
-        """;
-
-    [AvaloniaFact]
-    // The window was opened with no tree (assemblyPath: null): like ILSpy, F12 adds the target's
-    // assembly to the tree, reveals the callee there and shows it on its own.
-    public async Task NavigateAsync_Should_LoadTheTargetsAssembly_AndOpenTheCallee_WhenCaretIsOnACallSite()
-    {
-        var outputDir = Directory.CreateTempSubdirectory("Invoklet-assembly-explorer-test").FullName;
-        try
-        {
-            using var compiler = CreateCompiler(outputDir);
-            var compilation = await compiler.Compilation(RecursiveCode, CancellationToken.None);
-            Assert.True(compilation.Success, string.Join('\n', compilation.Errors.Select(e => e.Message)));
-
-            var callerResult = CSharpDecompilerService.DecompileType(compilation.OutputBinaryFile!, "Caller");
-            var windowService = new Mock<IWindowService>();
-            var window = new AssemblyExplorerWindow(
-                CreateThemeService().Object, windowService.Object, callerResult, assemblyPath: null);
-            window.Show();
-
-            var callLine = window.Editor.Text.Split('\n').ToList().FindIndex(l => l.Contains("Helper")) + 1;
-            var callColumn = window.Editor.Text.Split('\n')[callLine - 1].IndexOf("Helper", StringComparison.Ordinal) + 1;
-            window.Editor.TextArea.Caret.Line = callLine;
-            window.Editor.TextArea.Caret.Column = callColumn;
-
-            Assert.Empty(window.LoadedAssemblyPaths);
-
-            await window.NavigateAsync();
-
-            Assert.Equal([compilation.OutputBinaryFile!], window.LoadedAssemblyPaths);
-            Assert.Equal("Helper() : void", window.Title);
-            Assert.Contains("// Callee", window.Editor.Text); // declaring-type header
-            Assert.Contains("Helper", window.Editor.Text.Split('\n')[window.Editor.TextArea.Caret.Line - 1]);
-            var selected = Assert.IsType<TreeViewItem>(window.Tree.SelectedItem);
-            Assert.Equal("Helper() : void", Text(selected));
-            Assert.Equal("Callee", Text((TreeViewItem)selected.Parent!));
-        }
-        finally { Directory.Delete(outputDir, recursive: true); }
     }
 }

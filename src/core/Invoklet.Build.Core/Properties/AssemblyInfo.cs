@@ -5,4 +5,5 @@ using System.Runtime.CompilerServices;
 // project of its own, so this project's own tests live directly in
 // Invoklet.Runtime.UI.Tests, same as several other internal-only-tested projects in this solution.
 [assembly: InternalsVisibleTo("Invoklet.Runtime.UI.Tests")]
+[assembly: InternalsVisibleTo("Invoklet.IntegrationTests")]
 [assembly: InternalsVisibleTo("Invoklet.NonUI.Tests")]
