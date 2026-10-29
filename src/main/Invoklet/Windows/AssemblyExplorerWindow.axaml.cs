@@ -125,6 +125,9 @@ public partial class AssemblyExplorerWindow : Window
     private bool IsCommandKey(Key key)
         => Keyboard.IsMac ? key is Key.LWin or Key.RWin : key is Key.LeftCtrl or Key.RightCtrl;
 
+    /// <summary>Where assemblies are read from; tests replace it with ready-made answers.</summary>
+    internal IAssemblyBrowser Browser { get; set; } = DotnetAssemblyBrowser.Instance;
+
     internal TreeView Tree => TypeTree;
     internal TextBlock AssemblyPathText => AssemblyPathBlock;
 
@@ -196,7 +199,7 @@ public partial class AssemblyExplorerWindow : Window
         DefinitionTokens? tokens;
         try
         {
-            tokens = await Task.Run(() => CSharpDecompilerService.ResolveDefinitionTokens(definition));
+            tokens = await Task.Run(() => Browser.ResolveDefinitionTokens(definition));
         }
         catch (Exception ex) when (ex is BadImageFormatException or IOException or UnauthorizedAccessException)
         {
@@ -433,6 +436,7 @@ public partial class AssemblyExplorerWindow : Window
             if (IsCommandKey(e.Key)) UpdateReferenceHover(null);
         }, RoutingStrategies.Tunnel, handledEventsToo: true);
         EditorHost.Content = editor;
+        Closed += (_, _) => editor.Dispose();
         ApplyKeyBindings();
 
         // Same reasoning as EditorTabItemControl's own onAttached dance: SetLanguage calls Redraw()
@@ -515,8 +519,8 @@ public partial class AssemblyExplorerWindow : Window
             {
                 (description, groups) = await Task.Run(() =>
                 {
-                    var assemblyDescription = CSharpDecompilerService.DescribeAssembly(assemblyPath);
-                    return (assemblyDescription, GroupByNamespace(CSharpDecompilerService.EnumerateTypes(assemblyPath)));
+                    var assemblyDescription = Browser.DescribeAssembly(assemblyPath);
+                    return (assemblyDescription, GroupByNamespace(Browser.EnumerateTypes(assemblyPath)));
                 }, cancellationToken);
             }
             catch (OperationCanceledException)
@@ -731,7 +735,7 @@ public partial class AssemblyExplorerWindow : Window
         AssemblyTypeContents contents;
         try
         {
-            contents = await Task.Run(() => CSharpDecompilerService.GetTypeContents(assemblyPath, type.FullTypeName));
+            contents = await Task.Run(() => Browser.GetTypeContents(assemblyPath, type.FullTypeName));
         }
         catch (Exception ex)
         {
@@ -793,7 +797,7 @@ public partial class AssemblyExplorerWindow : Window
             DecompiledMemberResult page;
             try
             {
-                page = await Task.Run(() => CSharpDecompilerService.DescribeResource(resourceAssembly, resource.Name));
+                page = await Task.Run(() => Browser.DescribeResource(resourceAssembly, resource.Name));
             }
             catch (Exception ex)
             {
@@ -923,7 +927,7 @@ public partial class AssemblyExplorerWindow : Window
         try
         {
             hits = await Task.Run(
-                () => CSharpDecompilerService.Analyze(
+                () => Browser.Analyze(
                     kind, assemblyPath, targetToken, paths, cts.Token, includeVirtualCalls),
                 cts.Token);
         }
@@ -997,7 +1001,7 @@ public partial class AssemblyExplorerWindow : Window
             if (!_searchIndexes.TryGetValue(a.Path, out var task))
             {
                 var path = a.Path;
-                task = Task.Run(() => CSharpDecompilerService.BuildSearchIndex(path));
+                task = Task.Run(() => Browser.BuildSearchIndex(path));
                 _searchIndexes[path] = task;
             }
             return (a.Path, Task: task);
@@ -1148,13 +1152,13 @@ public partial class AssemblyExplorerWindow : Window
         ApplyResult(result, result.Line, view);
     }
 
-    private static async Task<DecompiledMemberResult> RenderAsync(PageTarget target, DecompilerView view)
+    private async Task<DecompiledMemberResult> RenderAsync(PageTarget target, DecompilerView view)
     {
         try
         {
             return await Task.Run(() => view.Language == DecompilerLanguage.IL
-                ? IlDisassembler.DisassembleEntity(target.AssemblyPath, target.Token, target.Title)
-                : CSharpDecompilerService.DecompileEntity(
+                ? Browser.DisassembleEntity(target.AssemblyPath, target.Token, target.Title)
+                : Browser.DecompileEntity(
                     target.AssemblyPath, target.Token, target.Title, view.Version, target.FocusToken));
         }
         catch (Exception ex)

@@ -16,7 +16,7 @@ using static AvaloniaEdit.TextMate.TextMate;
 
 namespace Invoklet.Avalonia.CodeTextEditor;
 
-public class CodeTextEditor : TextEditor
+public class CodeTextEditor : TextEditor, IDisposable
 {
     public static readonly StyledProperty<bool> ShowBreakpointsProperty =
         AvaloniaProperty.Register<CodeTextEditor, bool>(nameof(ShowBreakpoints));
@@ -1332,6 +1332,14 @@ public class CodeTextEditor : TextEditor
             return false;
         SetLanguage(theme, fileExtension);
         return true;
+    }
+
+    // TextMate keeps a worker per installation until it is disposed, so an editor that is closed
+    // without this leaves one thread-pool thread behind for good.
+    public void Dispose()
+    {
+        _textMateInstallation?.Dispose();
+        _textMateInstallation = null;
     }
 
     public string SetLanguage(ThemeName theme, string languageExtension)
