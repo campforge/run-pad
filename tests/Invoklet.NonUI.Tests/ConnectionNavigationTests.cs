@@ -222,6 +222,27 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task RemovingFromTheScript_Should_DropTheConnection_AndItsBadge_ButKeepPackages()
+    {
+        var vm = await CreateAsync(Connection("billing"), Connection("orders"));
+        var frontMatter = new MdRunFrontMatter
+        {
+            Connections = [Connection("billing"), Connection("orders")],
+            Packages = new() { ["Example.Client"] = new Package("1.2.3") },
+        };
+        vm.SetAttached(frontMatter.Connections);
+        Assert.True(vm.Find("orders", isConnection: true)!.IsAttached);
+
+        Assert.True(vm.RemoveFromScript(frontMatter, "orders"));
+        Assert.Equal(["billing"], frontMatter.Connections.Select(c => c.Name));
+        Assert.False(vm.Find("orders", isConnection: true)!.IsAttached);
+        Assert.True(vm.Find("billing", isConnection: true)!.IsAttached);
+        Assert.True(frontMatter.Packages.ContainsKey("Example.Client"));
+
+        Assert.False(vm.RemoveFromScript(frontMatter, "orders")); // not in the script any more
+    }
+
+    [Fact]
     public async Task AddingToTheScript_Should_NotCommit_WhenDisposedWhilePackageConfirmationIsOpen()
     {
         var vm = await CreateAsync(new MdRunConnection { Name = "warehouse", Driver = "packaged" });

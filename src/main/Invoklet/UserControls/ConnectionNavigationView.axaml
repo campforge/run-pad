@@ -24,12 +24,6 @@
             </DockPanel>
         </Border>
 
-        <StackPanel x:Name="EmptyState" DockPanel.Dock="Top" IsVisible="{Binding IsEmpty}" Margin="12,4,8,8" Spacing="4">
-            <TextBlock Text="No connections yet." FontSize="12" Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
-            <Button x:Name="AddConnectionButton" Content="Add Connection…" Padding="8,2" FontSize="12"
-                    AutomationProperties.Name="Add connection" Click="ManageConnections_Click"/>
-        </StackPanel>
-
         <TreeView x:Name="ConnectionTree"
                   Classes="navigation transient-selection"
                   ItemsSource="{Binding Nodes}"

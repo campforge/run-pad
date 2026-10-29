@@ -617,6 +617,17 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject, IDisposable
     }
 
     /// <summary>Whether the connection can be offered to the active script: there is one, it doesn't use it yet, and this Invoklet has its driver.</summary>
+    /// <summary>
+    /// Takes the connection out of the script's front matter. The packages it brought stay, as
+    /// Dependencies' Remove from Script leaves them: the script's own code may use them too.
+    /// </summary>
+    public bool RemoveFromScript(MdRunFrontMatter frontMatter, string connectionName)
+    {
+        if (frontMatter.Connections.RemoveAll(c => c.Name == connectionName) == 0) return false;
+        SetAttached(frontMatter.Connections);
+        return true;
+    }
+
     public bool CanAddToScript(ConnectionNavigationNode node)
         => HasActiveScript && node is { IsConnection: true, IsAttached: false, IsDriverMissing: false };
 
