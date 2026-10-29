@@ -178,6 +178,7 @@ public sealed class EditorTabsEditorServicesTests : IDisposable
             Assert.True(csharp.Tokens[0].IsCancellationRequested);
             gate.Set();
             await TestWait.WhileAsync(() => csharp.Created.Count == 0);
+            await TestWait.WhileAsync(() => csharp.Created.Count == 0 || csharp.Created[0].Invocations.Count == 0);
             Dispatcher.UIThread.RunJobs();
 
             Assert.Null(tabs.ControlForTests(shell.Tabs[0]));
