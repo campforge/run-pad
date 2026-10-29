@@ -1,16 +1,16 @@
-using Invoklet.Services;
+using Invoklet.Services.Tabs;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;
 
-public class TabResidencyManagerTests
+public class RecentTabsResidencyPolicyTests
 {
     private sealed class Tab(string name)
     {
         public override string ToString() => name;
     }
 
-    private static List<Tab> Open(TabResidencyManager manager, int count)
+    private static List<Tab> Open(RecentTabsResidencyPolicy manager, int count)
     {
         var tabs = Enumerable.Range(1, count).Select(i => new Tab($"tab{i}")).ToList();
         foreach (var tab in tabs) manager.Touch(tab);
@@ -20,7 +20,7 @@ public class TabResidencyManagerTests
     [Fact]
     public void ColdTabs_Should_BeEveryTabButTheThreeUsedLast()
     {
-        var manager = new TabResidencyManager();
+        var manager = new RecentTabsResidencyPolicy();
         var tabs = Open(manager, 6);
 
         var cold = manager.ColdTabs(tabs, _ => true);
@@ -32,7 +32,7 @@ public class TabResidencyManagerTests
     [Fact]
     public void SelectingATab_Should_MakeItWarm_AndPushOutTheOldestWarmOne()
     {
-        var manager = new TabResidencyManager();
+        var manager = new RecentTabsResidencyPolicy();
         var tabs = Open(manager, 5); // tab1, tab2 cold
 
         manager.Touch(tabs[0]);
@@ -46,7 +46,7 @@ public class TabResidencyManagerTests
     [Fact]
     public void ATabThatCannotBeUnloaded_Should_StayOut_WithoutKeepingAnotherOneWarm()
     {
-        var manager = new TabResidencyManager();
+        var manager = new RecentTabsResidencyPolicy();
         var tabs = Open(manager, 5);
 
         var cold = manager.ColdTabs(tabs, tab => tab != tabs[0]);
@@ -57,7 +57,7 @@ public class TabResidencyManagerTests
     [Fact]
     public void ATabNeverUsed_Should_CountAsTheOldest()
     {
-        var manager = new TabResidencyManager();
+        var manager = new RecentTabsResidencyPolicy();
         var tabs = Open(manager, 3);
         var unknown = new Tab("never touched");
 
@@ -69,7 +69,7 @@ public class TabResidencyManagerTests
     [Fact]
     public void AForgottenTab_Should_NoLongerBeRemembered()
     {
-        var manager = new TabResidencyManager();
+        var manager = new RecentTabsResidencyPolicy();
         var tabs = Open(manager, 4);
 
         manager.Forget(tabs[0]);
@@ -80,7 +80,7 @@ public class TabResidencyManagerTests
     [Fact]
     public void FewTabs_Should_NeverBeCold()
     {
-        var manager = new TabResidencyManager();
+        var manager = new RecentTabsResidencyPolicy();
 
         Assert.Empty(manager.ColdTabs(Open(manager, 3), _ => true));
     }

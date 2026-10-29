@@ -22,6 +22,7 @@ using Invoklet.Services.Recovery;
 using Invoklet.Services.Scaling;
 using Invoklet.Services.Secrets;
 using Invoklet.Services.Setup;
+using Invoklet.Services.Tabs;
 using Invoklet.UserControls;
 using Invoklet.UserControls.Models;
 using Invoklet.Windows;
@@ -238,7 +239,8 @@ public class App : Application
         services.AddSingleton<ILocalPackageCacheService, LocalPackageCacheService>();
         services.AddSingleton<IWindowService, WindowService>();
         services.AddSingleton<IBuildCacheService, BuildCacheService>();
-        services.AddSingleton<TabResidencyManager>();
+        services.AddSingleton<IResidencyPolicy, RecentTabsResidencyPolicy>();
+        services.AddSingleton<TabLifecycleManager>();
         services.AddSingleton<IPrerequisiteService, PrerequisiteService>();
         services.AddSingleton<ISetupDownloader, SetupDownloader>();
         services.AddSingleton<ISetupProcessRunner, SetupProcessRunner>();
