@@ -1,14 +1,14 @@
 // Copyright (c) 2014 AlphaSierraPapa for the SharpDevelop Team
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this
 // software and associated documentation files (the "Software"), to deal in the Software
 // without restriction, including without limitation the rights to use, copy, modify, merge,
 // publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons
 // to whom the Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all copies or
 // substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
 // PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
@@ -517,7 +517,7 @@ public class CompletionList : TemplatedControl
         return -1;
     }
 
-    // RunPad: CamelHumps. The query is split over the words of the name, in order and without
+    // Invoklet: CamelHumps. The query is split over the words of the name, in order and without
     // skipping one: each part matches the start of the next word, any case ("ArgEnv" and "ae" match
     // "ArgumentsEnvironment", "SBu" matches "StringBuilder"), and the query may stop before the last
     // word ("CQ" matches "CodeQualityAnalysis"). A word starts at the first character, at an

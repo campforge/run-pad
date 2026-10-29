@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Invoklet
+Comment=C# scratchpad/scripting IDE for .rpad files
+Exec=Invoklet %f
+Icon=invoklet
+Categories=Development;IDE;
+Terminal=false
+MimeType=text/x-rpad;

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The contract between Invoklet and its per-OS desktop integrations (Invoklet.Desktop.Linux,
+       .MacOS, .Windows). Referenced on every OS; each integration only by its own OS's build. -->
+  <PropertyGroup>
+    <RootNamespace>Invoklet.Desktop</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+  </ItemGroup>
+</Project>

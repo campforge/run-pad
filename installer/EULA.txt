@@ -1,28 +1,28 @@
-RunPad - End-User License Agreement
+Invoklet - End-User License Agreement
 
 Copyright (C) 2026 Vadim S (hobobyte)
 
-Please read this agreement before installing or using RunPad.
+Please read this agreement before installing or using Invoklet.
 
 
 1. License
 
-RunPad is free and open-source software, distributed under the GNU General
+Invoklet is free and open-source software, distributed under the GNU General
 Public License, version 3 (GPL-3.0). The full text of the license is in the
 LICENSE.txt file installed next to the application and at
 <https://www.gnu.org/licenses/gpl-3.0.html>.
 
 This agreement summarizes the terms that apply to you; the GPL-3.0 is the
-license that actually governs RunPad. Nothing in this agreement limits or
+license that actually governs Invoklet. Nothing in this agreement limits or
 takes away any right the GPL-3.0 gives you. If the two ever disagree, the
 GPL-3.0 prevails.
 
-One part of RunPad is licensed differently: the RunPad.Runtime library
-(RunPad.Runtime.dll), which your scripts are compiled against and which is
+One part of Invoklet is licensed differently: the Invoklet.Runtime library
+(Invoklet.Runtime.dll), which your scripts are compiled against and which is
 copied next to them, is licensed under the MIT License. Its text is in the
-RunPad.Runtime.LICENSE.txt file installed next to the application.
+Invoklet.Runtime.LICENSE.txt file installed next to the application.
 
-RunPad includes third-party components that are distributed under their own
+Invoklet includes third-party components that are distributed under their own
 open-source licenses; those licenses apply to the respective components. They
 are listed, with their license texts, in the THIRD-PARTY-NOTICES.txt file
 installed next to the application.
@@ -36,7 +36,7 @@ FITNESS FOR A PARTICULAR PURPOSE. THE ENTIRE RISK AS TO THE QUALITY AND
 PERFORMANCE OF RUNPAD IS WITH YOU. SHOULD RUNPAD PROVE DEFECTIVE, YOU ASSUME
 THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
 
-RunPad compiles and runs code that you write or open, downloads packages you
+Invoklet compiles and runs code that you write or open, downloads packages you
 reference, and reads and writes files on your computer. Only open documents
 and run code from sources you trust, and keep backups of important data.
 
@@ -55,19 +55,19 @@ THE POSSIBILITY OF SUCH DAMAGES.
 
 4. Acceptance
 
-By installing or using RunPad you confirm that you have read this agreement
+By installing or using Invoklet you confirm that you have read this agreement
 and accept the disclaimer of warranty (section 2) and the limitation of
 liability (section 3). If you do not accept them, do not install or use
-RunPad.
+Invoklet.
 
-You do not need to accept the GPL-3.0 to install and run RunPad. The GPL-3.0
+You do not need to accept the GPL-3.0 to install and run Invoklet. The GPL-3.0
 only sets the conditions for copying, modifying and distributing it
 (section 5).
 
 
 5. Distribution
 
-RunPad is free of charge. You may copy and distribute RunPad, modified or
+Invoklet is free of charge. You may copy and distribute Invoklet, modified or
 not, under the terms of the GPL-3.0. In short, when you distribute it:
 
   - keep the copyright notices and this license information intact;
@@ -77,13 +77,13 @@ not, under the terms of the GPL-3.0. In short, when you distribute it:
   - do not impose any further restrictions on the recipients' rights.
 
 You may charge a fee for distributing copies or for support, but not for the
-license itself. The name "RunPad" and the Tervforge name and logo identify
+license itself. The name "Invoklet" and the Tervforge name and logo identify
 the original project; a modified version should be clearly marked as such.
 
 
 6. Source code
 
-The complete source code of RunPad, including the code of every released
+The complete source code of Invoklet, including the code of every released
 version, is publicly available at:
 
     https://github.com/tervforge/invoklet
@@ -92,10 +92,10 @@ Each release is built from the tagged commit of the same version in that
 repository, and its source code archive is attached to the release.
 
 Your own work is yours: documents, scripts and programs that you write with
-RunPad are not covered by RunPad's license merely because you created, edited
-or ran them in RunPad, and you are not required to publish their source code.
-Programs compiled by RunPad only use the MIT-licensed RunPad.Runtime library,
+Invoklet are not covered by Invoklet's license merely because you created, edited
+or ran them in Invoklet, and you are not required to publish their source code.
+Programs compiled by Invoklet only use the MIT-licensed Invoklet.Runtime library,
 so you may distribute them under any license, including a closed-source one;
-when you distribute RunPad.Runtime.dll with them, include its copyright and
-MIT license notice. The GPL-3.0 still applies to the rest of RunPad's code if
+when you distribute Invoklet.Runtime.dll with them, include its copyright and
+MIT license notice. The GPL-3.0 still applies to the rest of Invoklet's code if
 you copy it into your own programs.

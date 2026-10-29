@@ -20,7 +20,7 @@ const PAGE_SIZE = 2;
 
 function makeContext(overrides = {})
 {
-    return { repo: { owner: 'Tervforge', repo: 'run-pad' }, sha: SHA, runId: RUN_ID, ...overrides };
+    return { repo: { owner: 'Tervforge', repo: 'invoklet' }, sha: SHA, runId: RUN_ID, ...overrides };
 }
 
 function makeCore()
@@ -169,7 +169,7 @@ function ownedDraftFields(context = makeContext())
 
 function makeFiles(names, contents = 'payload')
 {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'runpad draft release '));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'invoklet draft release '));
     return names.map((name) =>
     {
         const file = path.join(dir, name);
@@ -184,9 +184,9 @@ function callNames(state)
 }
 
 const PLATFORM_FILES = [
-    ['RunPad-win-x64.zip', 'RunPad-win-x64.msi'],
-    ['RunPad-linux-x64.tar.gz', 'RunPad-x86_64.AppImage', `runpad_${VERSION}_amd64.deb`],
-    ['RunPad-osx-x64.dmg', 'RunPad-osx-arm64.dmg'],
+    ['Invoklet-win-x64.zip', 'Invoklet-win-x64.msi'],
+    ['Invoklet-linux-x64.tar.gz', 'Invoklet-x86_64.AppImage', `invoklet_${VERSION}_amd64.deb`],
+    ['Invoklet-osx-x64.dmg', 'Invoklet-osx-arm64.dmg'],
 ];
 
 const WORKFLOW = path.join(__dirname, '../workflows/dotnet-desktop.yml');
@@ -199,10 +199,10 @@ function workflowUploadFiles(workflowText, version)
             (file[1] ?? file[2]).replace('${version}', version)));
 }
 
-test('readVersion parses RunPad.csproj without grep -P', () =>
+test('readVersion parses Invoklet.csproj without grep -P', () =>
 {
     assert.equal(helper.readVersion('<Project>\r\n  <PropertyGroup>\r\n    <Version>0.3.0</Version>\r\n'), '0.3.0');
-    assert.equal(helper.readVersionFromFile(path.join(__dirname, '../../src/main/RunPad/RunPad.csproj')).length > 0, true);
+    assert.equal(helper.readVersionFromFile(path.join(__dirname, '../../src/main/Invoklet/Invoklet.csproj')).length > 0, true);
     assert.throws(() => helper.readVersion('<Project />'), /No <Version>/);
     assert.throws(() => helper.readVersion('<Version>1.0; rm -rf</Version>'), /Unexpected <Version>/);
 });
@@ -236,20 +236,20 @@ test('readReleaseNotes joins wrapped lines, but not list items, headings or code
     ].join('\n'));
 });
 
-test('CHANGELOG.md describes the version in RunPad.csproj', () =>
+test('CHANGELOG.md describes the version in Invoklet.csproj', () =>
 {
     const root = path.join(__dirname, '../..');
-    const version = helper.readVersionFromFile(path.join(root, 'src/main/RunPad/RunPad.csproj'));
+    const version = helper.readVersionFromFile(path.join(root, 'src/main/Invoklet/Invoklet.csproj'));
     assert.ok(helper.readReleaseNotesFromFile(path.join(root, 'CHANGELOG.md'), version).length > 0);
 });
 
 test('absolutizeLinks points repository-relative links at the released commit', () =>
 {
-    const notes = '[roadmap](ROADMAP.md), [code](src/main/RunPad), [site](https://example.com), [top](#added)';
+    const notes = '[roadmap](ROADMAP.md), [code](src/main/Invoklet), [site](https://example.com), [top](#added)';
     assert.equal(
         helper.absolutizeLinks(notes, makeContext()),
         '[roadmap](https://github.com/Tervforge/invoklet/blob/abc123/ROADMAP.md), ' +
-        '[code](https://github.com/Tervforge/invoklet/blob/abc123/src/main/RunPad), ' +
+        '[code](https://github.com/Tervforge/invoklet/blob/abc123/src/main/Invoklet), ' +
         '[site](https://example.com), [top](#added)');
 });
 
@@ -268,11 +268,11 @@ test('workflow uploads exactly the expected manifest, with macOS shipped as two 
     for (const arch of ['x64', 'arm64'])
     {
         assert.ok(
-            workflow.includes(`run: bash scripts/make-macos-dmg.sh RunPad-osx-${arch}/RunPad.app RunPad-osx-${arch}.dmg`),
+            workflow.includes(`run: bash scripts/make-macos-dmg.sh Invoklet-osx-${arch}/Invoklet.app Invoklet-osx-${arch}.dmg`),
             `bundle DMG step for osx-${arch}`);
-        assert.ok(workflow.includes(`run: bash scripts/make-macos-app-bundle.sh publish/osx-${arch} RunPad-osx-${arch}`));
+        assert.ok(workflow.includes(`run: bash scripts/make-macos-app-bundle.sh publish/osx-${arch} Invoklet-osx-${arch}`));
     }
-    assert.ok(!/tar -czf RunPad-osx/.test(workflow), 'no macOS tar.gz archive step');
+    assert.ok(!/tar -czf Invoklet-osx/.test(workflow), 'no macOS tar.gz archive step');
     assert.ok(workflow.indexOf('Bundle .app (osx-arm64)') < workflow.indexOf('Bundle DMG (osx-x64)'));
     assert.ok(workflow.indexOf('Bundle DMG (osx-arm64)') < workflow.indexOf('Upload to draft release (macOS)'));
 });
@@ -363,12 +363,12 @@ test('uploadAssets on retry replaces only same-name assets of the owned draft, a
     const owned = mock.addRelease(ownedDraftFields(context));
     const otherDraft = mock.addRelease({ ...ownedDraftFields(makeContext({ runId: 1 })), tag_name: 'v9.9.9' });
     // Five assets → three pages; the Linux ones sit on pages 1 and 3.
-    const oldTar = mock.addAsset(owned.id, { name: 'RunPad-linux-x64.tar.gz', size: 3 });
-    const winZip = mock.addAsset(owned.id, { name: 'RunPad-win-x64.zip' });
-    const winMsi = mock.addAsset(owned.id, { name: 'RunPad-win-x64.msi' });
-    const macDmg = mock.addAsset(owned.id, { name: 'RunPad-osx-x64.dmg' });
-    const oldAppImage = mock.addAsset(owned.id, { name: 'RunPad-x86_64.AppImage', state: 'starter', size: 0 });
-    const foreign = mock.addAsset(otherDraft.id, { name: 'RunPad-linux-x64.tar.gz' });
+    const oldTar = mock.addAsset(owned.id, { name: 'Invoklet-linux-x64.tar.gz', size: 3 });
+    const winZip = mock.addAsset(owned.id, { name: 'Invoklet-win-x64.zip' });
+    const winMsi = mock.addAsset(owned.id, { name: 'Invoklet-win-x64.msi' });
+    const macDmg = mock.addAsset(owned.id, { name: 'Invoklet-osx-x64.dmg' });
+    const oldAppImage = mock.addAsset(owned.id, { name: 'Invoklet-x86_64.AppImage', state: 'starter', size: 0 });
+    const foreign = mock.addAsset(otherDraft.id, { name: 'Invoklet-linux-x64.tar.gz' });
 
     await helper.uploadAssets({
         github: mock.github, context, core: makeCore(), releaseId: owned.id, version: VERSION, files: makeFiles(PLATFORM_FILES[1]),
@@ -419,7 +419,7 @@ test('uploadAssets rejects missing or empty files and invalid ids before any mut
     const context = makeContext();
     const mock = makeGithub();
     const owned = mock.addRelease(ownedDraftFields(context));
-    const [empty] = makeFiles(['RunPad-win-x64.zip'], '');
+    const [empty] = makeFiles(['Invoklet-win-x64.zip'], '');
 
     await assert.rejects(
         helper.uploadAssets({ github: mock.github, context, core: makeCore(), releaseId: owned.id, version: VERSION, files: [empty] }),
@@ -427,7 +427,7 @@ test('uploadAssets rejects missing or empty files and invalid ids before any mut
     await assert.rejects(
         helper.uploadAssets({
             github: mock.github, context, core: makeCore(), releaseId: owned.id, version: VERSION,
-            files: [path.join(os.tmpdir(), 'runpad-no-such-file.zip')],
+            files: [path.join(os.tmpdir(), 'invoklet-no-such-file.zip')],
         }),
         /does not exist/);
     await assert.rejects(
@@ -457,10 +457,10 @@ test('publishDraft does not publish with missing, empty, unfinished, duplicated 
     const context = makeContext();
     const expected = helper.expectedAssetNames(VERSION);
     const cases = [
-        { name: 'missing', assets: expected.slice(1).map((name) => ({ name })), error: /missing: RunPad-win-x64.zip/ },
-        { name: 'empty', assets: expected.map((name, index) => ({ name, size: index === 3 ? 0 : 10 })), error: /not uploaded or empty: RunPad-x86_64.AppImage/ },
+        { name: 'missing', assets: expected.slice(1).map((name) => ({ name })), error: /missing: Invoklet-win-x64.zip/ },
+        { name: 'empty', assets: expected.map((name, index) => ({ name, size: index === 3 ? 0 : 10 })), error: /not uploaded or empty: Invoklet-x86_64.AppImage/ },
         { name: 'unfinished', assets: expected.map((name, index) => ({ name, state: index === 0 ? 'starter' : 'uploaded' })), error: /not uploaded or empty/ },
-        { name: 'duplicated', assets: [...expected, expected[2]].map((name) => ({ name })), error: /duplicated: RunPad-linux-x64.tar.gz/ },
+        { name: 'duplicated', assets: [...expected, expected[2]].map((name) => ({ name })), error: /duplicated: Invoklet-linux-x64.tar.gz/ },
         { name: 'unexpected', assets: [...expected, 'extra.txt'].map((name) => ({ name })), error: /unexpected: extra.txt/ },
         { name: 'nothing uploaded', assets: [], error: /missing/ },
     ];
@@ -531,7 +531,7 @@ test('API failures propagate instead of being swallowed', async () =>
     {
         const mock = makeGithub();
         const owned = mock.addRelease(ownedDraftFields(context));
-        mock.addAsset(owned.id, { name: 'RunPad-win-x64.zip' });
+        mock.addAsset(owned.id, { name: 'Invoklet-win-x64.zip' });
         mock.state.fail[method] = httpError(502, `${method} exploded`);
         await assert.rejects(
             helper.uploadAssets({

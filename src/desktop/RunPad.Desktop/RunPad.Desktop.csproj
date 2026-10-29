@@ -1,7 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <!-- The contract between RunPad and its per-OS desktop integrations (RunPad.Desktop.Linux,
-       .MacOS, .Windows). Referenced on every OS; each integration only by its own OS's build. -->
-  <ItemGroup>
-    <PackageReference Include="Avalonia" />
-  </ItemGroup>
-</Project>

@@ -1,4 +1,4 @@
-# MarkView.Avalonia (RunPad fork)
+# MarkView.Avalonia (Invoklet fork)
 
 This folder and [`../MarkView.Avalonia.SyntaxHighlighting`](../MarkView.Avalonia.SyntaxHighlighting)
 are a fork of [MarkView.Avalonia](https://github.com/Kryptos-FR/MarkView.Avalonia) and
@@ -9,13 +9,13 @@ TextMate highlighting for code blocks.
   MarkView.Avalonia.SyntaxHighlighting 12.3.0 NuGet packages. The optional Math, Mermaid and Svg
   extensions are not included.
 - **License:** MIT, the upstream license — see [`LICENSE.md`](LICENSE.md) (Copyright (c) 2026 Nicolas
-  Musset) and the copyright headers kept in the source files. This license, not RunPad's GPL-3.0,
+  Musset) and the copyright headers kept in the source files. This license, not Invoklet's GPL-3.0,
   applies to the fork's original code.
-- **Why a fork:** RunPad's Markdown preview of a script needs changes to the control itself, such as
-  mapping rendered blocks back to source lines so the preview can scroll with the editor. RunPad
+- **Why a fork:** Invoklet's Markdown preview of a script needs changes to the control itself, such as
+  mapping rendered blocks back to source lines so the preview can scroll with the editor. Invoklet
   references both projects directly instead of the NuGet packages.
-- **What RunPad changed:** the project files (RunPad's central package versions, no NuGet packaging
-  or lock files), CRLF line endings and RunPad's formatting rules, the fork's new path in one
+- **What Invoklet changed:** the project files (Invoklet's central package versions, no NuGet packaging
+  or lock files), CRLF line endings and Invoklet's formatting rules, the fork's new path in one
   test that reads the theme file from disk, and the source line of each rendered block
   (`AvaloniaRenderer.SourceBlocks`, `MarkdownViewer.GetSourceLineAtTop`/`ScrollToSourceLine` and
   its `ScrollChanged` event), which lets the preview scroll with the editor, and lazy code blocks
@@ -34,7 +34,7 @@ TextMate highlighting for code blocks.
 
 ## Working on the fork
 
-- Prefer putting RunPad behavior in RunPad's own projects; change the fork only when the control
+- Prefer putting Invoklet behavior in Invoklet's own projects; change the fork only when the control
   itself has to change.
 - Keep upstream's style and the existing license and copyright headers.
-- A fix that is not RunPad-specific is worth offering upstream as well.
+- A fix that is not Invoklet-specific is worth offering upstream as well.
