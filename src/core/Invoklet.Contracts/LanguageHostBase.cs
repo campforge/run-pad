@@ -48,6 +48,12 @@ public abstract class LanguageHostBase : ILanguageHost
 
     public abstract Task SendInputAsync(string text, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Keeps a secret the script asked the user for (<c>Util.GetSecret</c> with no such secret yet),
+    /// by name and value, before the answer reaches the script. Null: answers aren't kept.
+    /// </summary>
+    public Action<string, string>? SecretSaver { get; set; }
+
     // --- Debug: virtual, throws if capability not declared ---
 
     public virtual Task RunDebugAsync(

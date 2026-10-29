@@ -19,6 +19,31 @@ public static class SecretStoreExtensions
     }
 }
 
+public static class SecretStorePut
+{
+    /// <summary>
+    /// Adds a secret, or replaces the value of one of that name in any case where it stands. Saved
+    /// again on the newer store when another window saved first.
+    /// </summary>
+    public static void Put(this ISecretStore store, string name, string value)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            var snapshot = store.LoadSnapshot();
+            var secrets = snapshot.Secrets.ToList();
+            var index = secrets.FindIndex(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (index >= 0) secrets[index] = secrets[index] with { Value = value };
+            else secrets.Add(new Secret(name, value));
+            try
+            {
+                store.Save(secrets, snapshot.Version);
+                return;
+            }
+            catch (SecretStoreConflictException) when (attempt < 3) { }
+        }
+    }
+}
+
 /// <summary>Secrets and the exact file generation they were read from; null means no file existed.</summary>
 public sealed record SecretStoreSnapshot(IReadOnlyList<Secret> Secrets, string? Version);
 

@@ -248,7 +248,9 @@ public class App : Application
         services.AddSingleton<ILanguageHostRegistry>(sp =>
         {
             ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-            LanguageHostRegistry registry = new();
+            // A secret a script asked the user for (Util.GetSecret) is kept in the Secret Store.
+            var secrets = sp.GetRequiredService<ISecretStore>();
+            LanguageHostRegistry registry = new() { SecretSaver = secrets.Put };
             var runtimeReferences = sp.GetRequiredService<IRuntimeReferenceLocator>();
             registry.Register(new CSharpLanguageHostFactory(loggerFactory, runtimeReferences));
             registry.Register(new VbLanguageHostFactory(loggerFactory, runtimeReferences));

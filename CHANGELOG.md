@@ -23,6 +23,9 @@ Notable changes in each Invoklet release. Downloads are on the
   encrypted when Invoklet starts. Without a Secret Service on Linux they stay plain text, and the
   Secret Store window says so. A script reads an encrypted store only when Invoklet or the
   command-line runner starts it.
+- `Util.GetSecret` asks for a secret the Secret Store doesn't have yet, masked, in the input bar,
+  as LINQPad's `Util.GetPassword` does, and Invoklet keeps the answer in the store. Under the
+  debugger and in the command-line runner a missing secret still raises `KeyNotFoundException`.
 
 ### Fixed
 

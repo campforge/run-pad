@@ -91,9 +91,40 @@ public class CompiledDotnetLanguageHostInputTests
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
-    private static string BuildSentinelLine(string? prompt, bool isPassword)
+    // Gives its text, then never reaches EOF: the run stays in flight, as a script waiting for an answer.
+    private sealed class TextThenBlockingStream(string text) : Stream
     {
-        var json = $$"""{"Prompt":{{(prompt is null ? "null" : $"\"{prompt}\"")}},"IsPassword":{{(isPassword ? "true" : "false")}}}""";
+        private readonly MemoryStream _text = new(Encoding.UTF8.GetBytes(text));
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            var read = _text.Read(buffer.Span);
+            if (read > 0) return read;
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return 0;
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override void Flush() => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    private static string BuildSentinelLine(string? prompt, bool isPassword, string? secret = null)
+    {
+        var json = $$"""{"Prompt":{{(prompt is null ? "null" : $"\"{prompt}\"")}},"IsPassword":{{(isPassword ? "true" : "false")}}{{(secret is null ? "" : $",\"Secret\":\"{secret}\"")}}}""";
         var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
         return '\x1f' + encoded;
     }
@@ -181,6 +212,41 @@ public class CompiledDotnetLanguageHostInputTests
             await host.SendInputAsync("Alice", TestContext.Current.CancellationToken);
 
             Assert.Equal("Alice\n", Encoding.UTF8.GetString(process.InputStream.ToArray()));
+        }
+        finally
+        {
+            await host.TerminateAsync(TestContext.Current.CancellationToken);
+            Directory.Delete(outputDir, recursive: true);
+        }
+    }
+
+    // Util.GetSecret found no such secret and asked for it: the answer is kept in the Secret Store
+    // (through SecretSaver) before the script gets it; an ordinary ReadLine answer is not.
+    [Theory]
+    [InlineData("api-token", true)]
+    [InlineData(null, false)]
+    public async Task AnAnsweredSecretRequest_Should_BeKept_BeforeTheScriptGetsIt(string? secret, bool kept)
+    {
+        var line = BuildSentinelLine("Enter it:", isPassword: true, secret) + "\n";
+        var process = new FakeChildProcess(new TextThenBlockingStream(line));
+        var (host, outputDir) = CreateHost(process);
+        var saved = new List<(string Name, string Value, string StdinAtSave)>();
+        host.SecretSaver = (name, value) => saved.Add((name, value, Encoding.UTF8.GetString(process.InputStream.ToArray())));
+        var asked = new TaskCompletionSource();
+        host.InputRequested += (_, _) => asked.TrySetResult();
+        try
+        {
+            _ = host.RunAsync("int x = 1;", (_, _) => { }, TestContext.Current.CancellationToken);
+            await asked.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+            await host.SendInputAsync("t0k3n", TestContext.Current.CancellationToken);
+
+            Assert.Equal("t0k3n\n", Encoding.UTF8.GetString(process.InputStream.ToArray()));
+            if (kept) Assert.Equal(("api-token", "t0k3n", ""), Assert.Single(saved)); // kept first
+            else Assert.Empty(saved);
+
+            await host.SendInputAsync("again", TestContext.Current.CancellationToken);
+            Assert.Equal(kept ? 1 : 0, saved.Count); // one answer per request
         }
         finally
         {

@@ -959,7 +959,10 @@ public sealed class DapSession : IDapSession
         var environment = new Dictionary<string, string>();
         if (_currentQueryPath is not null) environment[CurrentQueryPathEnvVar] = _currentQueryPath;
         if (_argumentContractJson is not null) environment["INVOKLET_ARGUMENT_CONTRACT"] = _argumentContractJson;
-        return environment.Count == 0 ? null : environment;
+        // Nothing answers input under the debugger: Util.GetSecret reports a missing secret instead
+        // of waiting for an answer.
+        environment[ChildProcess.InputEnvVar] = "0";
+        return environment;
     }
 
     private void ThrowIfFatalResponseFailed(JsonElement root)

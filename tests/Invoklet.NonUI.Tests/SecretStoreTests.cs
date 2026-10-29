@@ -312,6 +312,19 @@ public sealed class SecretStoreTests : IDisposable
         Assert.Equal("initial", vm.Secrets[0].Value);
     }
 
+    // A secret a script asked the user for: added at the end, or the value replaced where it stands.
+    [Fact]
+    public void Put_Should_AddANewSecret_OrReplaceTheValueInPlace()
+    {
+        var store = new FileSecretStore(StorePath);
+        store.Save([new Secret("Orders-DB", "old"), new Secret("zeta", "z")], null);
+
+        store.Put("orders-db", "new");
+        store.Put("api-token", "t0k3n");
+
+        Assert.Equal([new Secret("Orders-DB", "new"), new Secret("zeta", "z"), new Secret("api-token", "t0k3n")], store.Load());
+    }
+
     // ── Encryption with a keychain key (macOS, Linux) ──────────────────────────
 
     // A keychain in memory: tests never touch the real one.
