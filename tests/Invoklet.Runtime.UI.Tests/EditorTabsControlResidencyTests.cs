@@ -13,6 +13,7 @@ using Invoklet.UserControls.Models;
 using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
+using static AvaloniaEdit.TextMate.TextMate;
 
 namespace Invoklet.Runtime.UI.Tests;
 
@@ -207,6 +208,29 @@ public class EditorTabsControlResidencyTests
             await SelectAsync(tabs, vm, first);
 
             Assert.True(tabs.IsLoadedForTests(first)); // not an empty tab with only its header
+        }
+        finally { tabs.Dispose(); Directory.Delete(folder, true); }
+    }
+
+    [AvaloniaFact]
+    public async Task OnlyTheTabShown_Should_ColourItsText()
+    {
+        var (tabs, vm, folder) = CreateHarness();
+        try
+        {
+            await TestWait.WhileAsync(() => vm.Tabs.Count == 0 || !tabs.IsLoadedForTests(vm.Tabs[0]));
+            await AddTabAsync(tabs, vm);
+            var (first, second) = (vm.Tabs[0], vm.Tabs[1]);
+            Installation Highlighting(EditorTabItemViewModel tab) => tabs.ControlForTests(tab)!.State.Editor.TextMateInstallation!;
+            await TestWait.WhileAsync(() => tabs.ControlForTests(second)!.State.Editor.TextMateInstallation is null);
+
+            Assert.True(Highlighting(first).IsFrozen);
+            Assert.False(Highlighting(second).IsFrozen);
+
+            await SelectAsync(tabs, vm, first);
+
+            Assert.False(Highlighting(first).IsFrozen);
+            Assert.True(Highlighting(second).IsFrozen);
         }
         finally { tabs.Dispose(); Directory.Delete(folder, true); }
     }

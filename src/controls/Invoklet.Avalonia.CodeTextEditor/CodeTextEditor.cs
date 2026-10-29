@@ -1342,6 +1342,12 @@ public class CodeTextEditor : TextEditor, IDisposable
         _textMateInstallation = null;
     }
 
+    /// <summary>Stops colouring work while the editor is not in use; what is coloured stays. See
+    /// <see cref="ResumeHighlighting"/>.</summary>
+    public void FreezeHighlighting() => _textMateInstallation?.Freeze();
+
+    public void ResumeHighlighting() => _textMateInstallation?.Resume();
+
     public string SetLanguage(ThemeName theme, string languageExtension)
     {
         _registryOptions = new RegistryOptions(theme);

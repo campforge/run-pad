@@ -75,5 +75,9 @@ public sealed class IlHighlighting : IDisposable
 
     internal TextMate.Installation Installation => _installation;
 
+    public void Freeze() => _installation.Freeze();
+
+    public void Resume() => _installation.Resume();
+
     public void Dispose() => _installation.Dispose();
 }

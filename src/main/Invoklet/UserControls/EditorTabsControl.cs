@@ -193,6 +193,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
                 if (ReferenceEquals(_vm?.ActiveTab, vm))
                     fileTabControl.SelectedItem = tab;
                 UnloadColdTabs();
+                SyncHighlighting();
                 SignalWorkspaceShownIfDone();
             }
         }
@@ -251,6 +252,14 @@ public partial class EditorTabsControl : UserControl, IDisposable
         _unseenResults.Remove(vm);
         if (entry.Tab is not null && entry.Control is null) _ = LoadAsync(vm);
         else UnloadColdTabs();
+        SyncHighlighting();
+    }
+
+    // Only the tab shown colours its text.
+    private void SyncHighlighting()
+    {
+        foreach (var (tabVm, (_, ctrl)) in _tabs)
+            ctrl?.SetHighlightingActive(ReferenceEquals(tabVm, _vm?.ActiveTab));
     }
 
     // ── Tab residency ──────────────────────────────────────────────────────────
@@ -346,6 +355,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         {
             _loading.Remove(vm);
             UnloadColdTabs();
+            SyncHighlighting();
         }
     }
 
