@@ -255,19 +255,21 @@ public class EditorTabItemControlPreviewTests
     }
 
     [AvaloniaFact]
-    public void AHiddenPreview_Should_NotFollowTheText()
+    public void AClosedPreview_Should_BeReleased_AndBuiltAgainWithTheCurrentText()
     {
         var (ctrl, vm) = CreateControl();
         vm.TogglePreviewToSide();
+        Assert.NotNull(ctrl.PreviewForTests);
         vm.TogglePreviewToSide();
-        var before = ctrl.PreviewForTests!.Markdown;
+
+        Assert.Null(ctrl.PreviewForTests); // not kept hidden
 
         ctrl.State.Editor.Text = "var hidden = 1;";
         vm.SelectedKind = nameof(MdRunKind.Expression);
+        Assert.Null(ctrl.PreviewForTests);
 
-        Assert.Equal(before, ctrl.PreviewForTests.Markdown);
         vm.TogglePreviewToSide();
-        Assert.Contains("var hidden = 1;", ctrl.PreviewForTests.Markdown);
+        Assert.Contains("var hidden = 1;", ctrl.PreviewForTests!.Markdown);
         ctrl.Dispose();
     }
 

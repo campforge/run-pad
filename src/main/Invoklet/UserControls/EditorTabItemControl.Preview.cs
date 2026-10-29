@@ -70,6 +70,14 @@ public partial class EditorsTabItemControl
         EditorHost.IsVisible = mode != ScriptPreviewMode.Full;
         PreviewSplitter.IsVisible = mode == ScriptPreviewMode.Side;
         PreviewHost.IsVisible = shown;
+        // A closed preview is not kept hidden: the viewer and the document it rendered are released,
+        // and the next time it is shown a new one is built.
+        if (!shown && _preview is not null)
+        {
+            _preview.ScrollChanged -= OnPreviewScrolled;
+            PreviewHost.Content = null;
+            _preview = null;
+        }
 
         if (previewLine is { } line)
         {
