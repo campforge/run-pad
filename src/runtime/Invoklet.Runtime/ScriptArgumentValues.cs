@@ -32,7 +32,7 @@ internal sealed class ScriptArgumentValues : DynamicObject
 
     public static ScriptArgumentValues Load()
     {
-        var json = Environment.GetEnvironmentVariable("Invoklet_ARGUMENT_CONTRACT");
+        var json = Environment.GetEnvironmentVariable("INVOKLET_ARGUMENT_CONTRACT");
         if (string.IsNullOrWhiteSpace(json)) return new(new Dictionary<string, object?>(StringComparer.Ordinal));
         var serializer = Type.GetType("System.Text.Json.JsonSerializer, System.Text.Json", throwOnError: false)
             ?? throw new FormatException("The argument contract requires System.Text.Json.");

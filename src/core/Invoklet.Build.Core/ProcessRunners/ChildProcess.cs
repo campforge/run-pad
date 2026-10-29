@@ -103,13 +103,13 @@ public sealed class ChildProcess : IChildProcess
     // Environment.GetEnvironmentVariable — mirrors this same key name, duplicated rather than shared
     // (Invoklet.Runtime is netstandard2.0 and has no reference to this assembly), same precedent as
     // CompiledDotnetLanguageHostBase's RsPrefix/InputRequestPrefix mirroring Invoklet.Runtime.Util's.
-    internal const string CurrentQueryPathEnvVar = "Invoklet_CURRENT_QUERY_PATH";
+    internal const string CurrentQueryPathEnvVar = "INVOKLET_CURRENT_QUERY_PATH";
 
-    // Same reasoning: the script reads these, never its `args`. Invoklet_CANCEL_FILE is mirrored by
+    // Same reasoning: the script reads these, never its `args`. INVOKLET_CANCEL_FILE is mirrored by
     // Invoklet.Runtime.Util.CancelFileEnvVar (see RequestStop).
-    internal const string CancelFileEnvVar = "Invoklet_CANCEL_FILE";
-    internal const string ParentProcessIdEnvVar = "Invoklet_PARENT_PID";
-    internal const string ArgumentContractEnvVar = "Invoklet_ARGUMENT_CONTRACT";
+    internal const string CancelFileEnvVar = "INVOKLET_CANCEL_FILE";
+    internal const string ParentProcessIdEnvVar = "INVOKLET_PARENT_PID";
+    internal const string ArgumentContractEnvVar = "INVOKLET_ARGUMENT_CONTRACT";
 
     /// <summary>Creates a process for running a compiled .NET assembly.</summary>
     /// <param name="arguments">The script's own command-line arguments, its <c>args</c>.</param>

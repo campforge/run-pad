@@ -16,7 +16,7 @@ using Xunit;
 namespace Invoklet.NonUI.Tests;
 
 // A script's connections become a Connections class with a client per connection: compiled with the
-// script, and known to the editor before any run. Invoklet_SECRETS_FILE is set here, so these share
+// script, and known to the editor before any run. INVOKLET_SECRETS_FILE is set here, so these share
 // the real-build collection with the other tests that set it.
 [Collection(RealBuildTestCollection.Name)]
 public sealed class ConnectionClientTests : IDisposable
@@ -42,7 +42,7 @@ public sealed class ConnectionClientTests : IDisposable
             ["headers"] = MdRunValue.Map(
             [
                 new("Authorization", MdRunValue.Of("Bearer ${secret:billing-token}")),
-                new("X-Tenant", MdRunValue.Of("${env:Invoklet_TEST_TENANT}-\"q\"")),
+                new("X-Tenant", MdRunValue.Of("${env:INVOKLET_TEST_TENANT}-\"q\"")),
             ]),
             ["timeout"] = MdRunValue.Of("12.5"),
         },
@@ -56,7 +56,7 @@ public sealed class ConnectionClientTests : IDisposable
         Assert.Contains("public static BillingApiClient BillingApi => __billingApi ??= new BillingApiClient();", generated.Source);
         Assert.Contains("public sealed class BillingApiClient : global::System.Net.Http.HttpClient", generated.Source);
         Assert.Contains("\"Bearer \" + global::Util.GetSecret(\"billing-token\")", generated.Source);
-        Assert.Contains("global::System.Environment.GetEnvironmentVariable(\"Invoklet_TEST_TENANT\")", generated.Source);
+        Assert.Contains("global::System.Environment.GetEnvironmentVariable(\"INVOKLET_TEST_TENANT\")", generated.Source);
         Assert.Contains("\"-\\\"q\\\"\"", generated.Source);
         Assert.DoesNotContain("${", generated.Source);
     }
@@ -175,7 +175,7 @@ public sealed class ConnectionClientTests : IDisposable
         new FileSecretStore(secretsFile).Save([new Secret("billing-token", "t0k")], null);
         var previousSecrets = Environment.GetEnvironmentVariable(FileSecretStore.FileEnvVar);
         Environment.SetEnvironmentVariable(FileSecretStore.FileEnvVar, secretsFile);
-        Environment.SetEnvironmentVariable("Invoklet_TEST_TENANT", "acme");
+        Environment.SetEnvironmentVariable("INVOKLET_TEST_TENANT", "acme");
         try
         {
             var outputDir = Path.Combine(_folder, "build");
@@ -207,7 +207,7 @@ public sealed class ConnectionClientTests : IDisposable
         finally
         {
             Environment.SetEnvironmentVariable(FileSecretStore.FileEnvVar, previousSecrets);
-            Environment.SetEnvironmentVariable("Invoklet_TEST_TENANT", null);
+            Environment.SetEnvironmentVariable("INVOKLET_TEST_TENANT", null);
         }
     }
 

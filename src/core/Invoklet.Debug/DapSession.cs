@@ -106,7 +106,7 @@ public sealed class DapSession : IDapSession
     // Invoklet.Runtime.Util.CurrentQueryPathEnvVar; duplicated, not shared (this assembly has no
     // reference to either — same precedent as RsPrefix/InputRequestPrefix mirroring across the same
     // process boundary elsewhere in the DAP/runtime split).
-    private const string CurrentQueryPathEnvVar = "Invoklet_CURRENT_QUERY_PATH";
+    private const string CurrentQueryPathEnvVar = "INVOKLET_CURRENT_QUERY_PATH";
     private readonly string? _argumentContractJson;
 
     // Serializes writes to stdin so PauseAsync from the UI thread can't interleave.
@@ -958,7 +958,7 @@ public sealed class DapSession : IDapSession
     {
         var environment = new Dictionary<string, string>();
         if (_currentQueryPath is not null) environment[CurrentQueryPathEnvVar] = _currentQueryPath;
-        if (_argumentContractJson is not null) environment["Invoklet_ARGUMENT_CONTRACT"] = _argumentContractJson;
+        if (_argumentContractJson is not null) environment["INVOKLET_ARGUMENT_CONTRACT"] = _argumentContractJson;
         return environment.Count == 0 ? null : environment;
     }
 

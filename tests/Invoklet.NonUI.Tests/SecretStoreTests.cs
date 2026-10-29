@@ -15,7 +15,7 @@ using Xunit;
 namespace Invoklet.NonUI.Tests;
 
 // The store Invoklet writes and the script's Util.GetSecret reads: one file, two implementations of
-// its format, so each test that matters goes through both. The tests that point Invoklet_SECRETS_FILE
+// its format, so each test that matters goes through both. The tests that point INVOKLET_SECRETS_FILE
 // at a temporary store live in this one class, which xunit runs sequentially; it shares the real-build
 // collection because one test runs a script, which inherits that variable.
 [Collection(RealBuildTestCollection.Name)]

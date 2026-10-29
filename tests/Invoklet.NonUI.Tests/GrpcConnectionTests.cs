@@ -31,7 +31,7 @@ namespace Invoklet.NonUI.Tests;
 
 // A gRPC connection reads the server's services through server reflection, has protoc write their
 // classes, and gives the script a client per service that sends the connection's metadata. The
-// server here is a real one on a loopback port. Invoklet_SECRETS_FILE is set here, so these share the
+// server here is a real one on a loopback port. INVOKLET_SECRETS_FILE is set here, so these share the
 // real-build collection with the other tests that set it.
 [Collection(RealBuildTestCollection.Name)]
 public sealed class GrpcConnectionTests : IAsyncLifetime

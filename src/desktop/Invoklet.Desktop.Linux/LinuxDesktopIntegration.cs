@@ -15,7 +15,7 @@ public sealed class LinuxDesktopIntegration : IDesktopIntegration
         Id = "linux.nativeWayland",
         Title = "Native Wayland window",
         Description = "Invoklet draws its own window frames on Wayland. Turn off if a window misbehaves to use "
-            + "XWayland and the system frame. Invoklet_WAYLAND=0 also turns it off, for when Invoklet cannot start.",
+            + "XWayland and the system frame. INVOKLET_WAYLAND=0 also turns it off, for when Invoklet cannot start.",
         DefaultValue = true,
         RequiresRestart = true,
         IsAvailable = () => NativeWayland.IsAvailable,
@@ -40,7 +40,7 @@ public sealed class LinuxDesktopIntegration : IDesktopIntegration
     {
         KdeWindowRule.UpdateIfInstalled();
         if (NativeWayland.IsAvailable
-            && Environment.GetEnvironmentVariable("Invoklet_WAYLAND") is not "0"
+            && Environment.GetEnvironmentVariable("INVOKLET_WAYLAND") is not "0"
             && settings.Get(NativeWaylandSetting))
         {
             MainWindowFrame = WindowFrame.DrawnFrame;
