@@ -1,3 +1,4 @@
+using Invoklet.Build.Core.Secrets;
 using Invoklet.Cli;
 using Spectre.Console;
 
@@ -9,6 +10,10 @@ Console.CancelKeyPress += (_, e) =>
     e.Cancel = true;
     cts.Cancel();
 };
+
+// Util.GetSecret here and in the script reads an encrypted Secret Store with the key Invoklet keeps
+// in the system keychain.
+SecretKeys.ExportForScripts(SecretKeys.DefaultStorePath());
 
 var stdout = AnsiConsole.Create(new AnsiConsoleSettings { Out = new AnsiConsoleOutput(Console.Out) });
 var stderr = AnsiConsole.Create(new AnsiConsoleSettings { Out = new AnsiConsoleOutput(Console.Error) });

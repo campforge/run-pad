@@ -91,6 +91,10 @@ public sealed class SecretStoreWindowViewModel : ViewModelBase
 
     public bool HasLoadError => LoadError is not null;
 
+    /// <summary>Why the values aren't encrypted on this machine (no system keychain), when they aren't.</summary>
+    public string? StoreWarning => _store.Warning;
+    public bool HasStoreWarning => StoreWarning is not null;
+
     public string? ValidationError
     {
         get;
@@ -160,6 +164,8 @@ public sealed class SecretStoreWindowViewModel : ViewModelBase
                     "The secret store changed in another window. Reopen it before saving. Your edits have not been written.",
                 SecretStoreBusyException =>
                     "The secret store is in use by another Invoklet window or a running script. Try again in a moment. Your edits are still here.",
+                // Our own wording and the keychain's error: no secret value in it.
+                Invoklet.Build.Core.Secrets.SecretKeyUnavailableException => ex.Message + " Your edits are still here.",
                 _ => "Could not save the secret store. Check access and available disk space, then try again. Your edits are still here.",
             };
             return false;

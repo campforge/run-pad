@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.Text.Json.Nodes;
+using System.Security.Cryptography;
 using Invoklet.Build.Core.Models;
+using Invoklet.Build.Core.Secrets;
 using Invoklet.Contracts.Models;
 using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
@@ -308,6 +310,122 @@ public sealed class SecretStoreTests : IDisposable
         Assert.False(File.Exists(StorePath));
         Assert.Contains("changed in another window", vm.SaveError);
         Assert.Equal("initial", vm.Secrets[0].Value);
+    }
+
+    // ── Encryption with a keychain key (macOS, Linux) ──────────────────────────
+
+    // A keychain in memory: tests never touch the real one.
+    private sealed class FakeKeychain : ISecretKeySource
+    {
+        public byte[]? Key { get; set; }
+        public bool Unavailable { get; init; }
+
+        public byte[]? Find() => Unavailable ? throw new SecretKeyUnavailableException("No keychain here.") : Key;
+
+        public byte[] GetOrCreate() => Find() ?? (Key = RandomNumberGenerator.GetBytes(32));
+    }
+
+    [Fact]
+    public void AStoreWithAKeychain_Should_EncryptEveryValue_AndLoadThemBack()
+    {
+        Secret[] secrets = [new("db", "plain-secret-value"), new("Empty", "")];
+        WithKeyExport(() =>
+        {
+            var store = new FileSecretStore(StorePath, new FakeKeychain());
+            store.Save(secrets, store.LoadSnapshot().Version);
+
+            var json = JsonNode.Parse(File.ReadAllText(StorePath))!;
+            Assert.Equal(SecretKeys.Protection, json["Protection"]!.GetValue<string>());
+            Assert.DoesNotContain("plain-secret-value", File.ReadAllText(StorePath));
+            Assert.Equal(secrets, store.Load());
+            Assert.Null(store.Warning);
+        });
+    }
+
+    [Fact]
+    public void GetSecret_Should_DecryptWithTheKeyInvokletPasses_AndAskForInvokletWithoutIt()
+    {
+        WithKeyExport(() => WithStore(StorePath, () =>
+        {
+            var store = new FileSecretStore(StorePath, new FakeKeychain());
+            store.Save([new Secret("Orders-DB", "p@ss wörd")], null); // exports the key, as Invoklet does
+
+            Assert.Equal("p@ss wörd", Util.GetSecret("orders-db"));
+
+            Environment.SetEnvironmentVariable(SecretKeys.EnvVar, null); // a script started some other way
+            var error = Assert.Throws<InvalidOperationException>(() => Util.GetSecret("orders-db"));
+            Assert.Contains("run the script from Invoklet", error.Message);
+
+            Environment.SetEnvironmentVariable(SecretKeys.EnvVar, Convert.ToBase64String(new byte[32])); // another key
+            Assert.Throws<InvalidDataException>(() => Util.GetSecret("orders-db"));
+        }));
+    }
+
+    [Fact]
+    public void AnEncryptedValue_Should_NotDecrypt_UnderAnotherName_OrChanged()
+    {
+        var key = RandomNumberGenerator.GetBytes(32);
+        var value = SecretKeys.Encrypt(key, "db", "secret");
+        Assert.Equal("secret", SecretKeys.Decrypt(key, "db", value));
+        Assert.Throws<CryptographicException>(() => SecretKeys.Decrypt(key, "other", value));
+        Assert.Throws<CryptographicException>(() => SecretKeys.Decrypt(RandomNumberGenerator.GetBytes(32), "db", value));
+        var bytes = Convert.FromBase64String(value);
+        bytes[20] ^= 1;
+        Assert.Throws<CryptographicException>(() => SecretKeys.Decrypt(key, "db", Convert.ToBase64String(bytes)));
+    }
+
+    [Fact]
+    public void APlainStore_Should_BeEncrypted_WhenPreparedForScripts()
+    {
+        SaveSecrets([new Secret("db", "plain-secret-value")]); // no keychain: as an older Invoklet left it
+        WithKeyExport(() =>
+        {
+            var store = new FileSecretStore(StorePath, new FakeKeychain());
+            store.PrepareForScripts();
+
+            Assert.True(SecretKeys.IsEncrypted(StorePath));
+            Assert.DoesNotContain("plain-secret-value", File.ReadAllText(StorePath));
+            Assert.Equal([new Secret("db", "plain-secret-value")], store.Load());
+            Assert.NotNull(Environment.GetEnvironmentVariable(SecretKeys.EnvVar));
+        });
+    }
+
+    [Fact]
+    public void WithoutAKeychain_Should_SaveUnencrypted_AndSaySo()
+    {
+        var store = new FileSecretStore(StorePath, new FakeKeychain { Unavailable = true });
+        store.PrepareForScripts();
+        Assert.Contains("unencrypted", store.Warning);
+
+        store.Save([new Secret("db", "value")], null);
+        Assert.False(SecretKeys.IsEncrypted(StorePath));
+        Assert.Equal([new Secret("db", "value")], store.Load());
+        Assert.Contains("No keychain here.", store.Warning);
+    }
+
+    [Fact]
+    public void AnEncryptedStore_Should_NotBeOverwritten_WhenItsKeyIsGone()
+    {
+        WithKeyExport(() =>
+        {
+            var keychain = new FakeKeychain();
+            var store = new FileSecretStore(StorePath, keychain);
+            var version = store.Save([new Secret("db", "value")], null);
+            var saved = File.ReadAllText(StorePath);
+
+            keychain.Key = null; // removed from the keychain, or another machine's store
+            Assert.Throws<InvalidDataException>(() => store.Load());
+            Assert.Throws<SecretKeyUnavailableException>(() => store.Save([new Secret("db", "new")], version));
+            Assert.Equal(saved, File.ReadAllText(StorePath));
+        });
+    }
+
+    // Saving with a key exports it to this process, as Invoklet does for its scripts; put back after.
+    private static void WithKeyExport(Action test)
+    {
+        var previous = Environment.GetEnvironmentVariable(SecretKeys.EnvVar);
+        try { test(); }
+        finally { Environment.SetEnvironmentVariable(SecretKeys.EnvVar, previous); }
     }
 
     private static void WithStore(string path, Action test)

@@ -303,6 +303,10 @@ public class App : Application
 
         var provider = services.BuildServiceProvider();
 
+        // Before any script runs: the Secret Store's key goes to the scripts this process starts, and
+        // a store still in plain text is encrypted. The keychain may ask the user to unlock it first.
+        if (provider.GetRequiredService<ISecretStore>() is FileSecretStore secretStore) secretStore.PrepareForScripts();
+
         // ToDo: split this out into a dedicated app warmup service
         // Each language prepares its editor services in the background so the first tab's completion is fast.
         _ = Task.Run(() => provider.GetRequiredService<ILanguageHostRegistry>().WarmUpIntelliSense());

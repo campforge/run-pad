@@ -18,6 +18,11 @@ Notable changes in each Invoklet release. Downloads are on the
   use `Invoklet.Runtime` instead.
 - **Breaking change:** environment variables use the `INVOKLET_` prefix: `RUNPAD_SECRETS_FILE` is
   now `INVOKLET_SECRETS_FILE` and `RUNPAD_WAYLAND` is `INVOKLET_WAYLAND`.
+- On macOS and Linux the Secret Store's values are encrypted with a key kept in the macOS Keychain or
+  the Linux Secret Service, as they already were with DPAPI on Windows; a plain-text store is
+  encrypted when Invoklet starts. Without a Secret Service on Linux they stay plain text, and the
+  Secret Store window says so. A script reads an encrypted store only when Invoklet or the
+  command-line runner starts it.
 
 ### Fixed
 
