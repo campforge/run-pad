@@ -14,7 +14,7 @@ namespace Invoklet.Runtime.UI.Tests;
 // real script compiler (through CSharpLanguageHost) → real DapSession → real netcoredbg, with
 // the output directory reached through a symlinked ancestor (like /var → /private/var for the
 // default temp directory), a Program-kind script (non-zero line offset) and Stop while paused.
-// Opt-in: needs a netcoredbg executable in Invoklet_TEST_NETCOREDBG (never downloaded or installed
+// Opt-in: needs a netcoredbg executable in INVOKLET_TEST_NETCOREDBG (never downloaded or installed
 // by the test); skipped otherwise. Category=RealBuild like every other real-build test.
 [Trait("Category", "RealBuild")]
 [Collection(RealBuildTestCollection.Name)]
@@ -22,7 +22,7 @@ namespace Invoklet.Runtime.UI.Tests;
 [Trait("Category", "Debugger")]
 public class RealNetcoredbgDebugTests : IDisposable
 {
-    private const string NetcoredbgEnvVar = "Invoklet_TEST_NETCOREDBG";
+    private const string NetcoredbgEnvVar = "INVOKLET_TEST_NETCOREDBG";
 
     // User lines 1-based; the breakpoint is on `x++;` (line 4).
     private const string Code = """

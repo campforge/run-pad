@@ -24,7 +24,7 @@ public static class Util
     // separate assembly this one (netstandard2.0, referenced by the compiled SCRIPT's own project,
     // not by Invoklet itself) has no reference to — duplicated literal, not shared, same precedent as
     // InputRequestPrefixChar/RsPrefix mirroring across the same process boundary.
-    internal const string CurrentQueryPathEnvVar = "Invoklet_CURRENT_QUERY_PATH";
+    internal const string CurrentQueryPathEnvVar = "INVOKLET_CURRENT_QUERY_PATH";
 
     /// <summary>
     /// The full path to the running script's own <c>.inv</c> file, or <see langword="null"/> if it's
@@ -37,7 +37,7 @@ public static class Util
     // Mirror ChildProcess.CancelFileEnvVar/CompiledDotnetLanguageHostBase.CancelListeningPrefix: Invoklet
     // creates this file when the user presses Stop, and learns that the script listens for it from a
     // stdout line starting with CancelListeningPrefixChar.
-    internal const string CancelFileEnvVar = "Invoklet_CANCEL_FILE";
+    internal const string CancelFileEnvVar = "INVOKLET_CANCEL_FILE";
     internal const char CancelListeningPrefixChar = '\x1d'; // ASCII Group Separator
     private static readonly TimeSpan CancelPollInterval = TimeSpan.FromMilliseconds(100);
     private static readonly object CancellationLock = new();
@@ -435,7 +435,7 @@ public static class Util
 
     // Mirrors FileSecretStore.FileEnvVar and its file format (Invoklet's main app, which writes the
     // store), duplicated rather than shared for the same reason as the data folder above.
-    internal const string SecretsFileEnvVar = "Invoklet_SECRETS_FILE";
+    internal const string SecretsFileEnvVar = "INVOKLET_SECRETS_FILE";
 
     private sealed class SecretStoreFile
     {

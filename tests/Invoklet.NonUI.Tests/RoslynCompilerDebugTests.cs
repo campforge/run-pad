@@ -13,14 +13,14 @@ namespace Invoklet.Runtime.UI.Tests;
 // The hard requirement of the switch to in-process Roslyn:
 // netcoredbg must debug Roslyn-built scripts. Expectations match what the same scenarios gave with the
 // old MSBuild builds (verified side by side before MSBuild was removed). Real DapSession + real
-// netcoredbg; opt-in via Invoklet_TEST_NETCOREDBG like RealNetcoredbgDebugTests.
+// netcoredbg; opt-in via INVOKLET_TEST_NETCOREDBG like RealNetcoredbgDebugTests.
 [Trait("Category", "RealBuild")]
 [Collection(RealBuildTestCollection.Name)]
 [Trait("Category", "Integration")]
 [Trait("Category", "RealBuild")]
 public class RoslynCompilerDebugTests : IDisposable
 {
-    private const string NetcoredbgEnvVar = "Invoklet_TEST_NETCOREDBG";
+    private const string NetcoredbgEnvVar = "INVOKLET_TEST_NETCOREDBG";
 
     private const string ProgramCode = """
         void Main()

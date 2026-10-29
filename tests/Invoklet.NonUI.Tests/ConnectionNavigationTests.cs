@@ -511,12 +511,12 @@ public sealed class ConnectionStatusTests : IDisposable
         var (vm, _) = Create(
             Http("known", "Bearer ${secret:token}"),
             Http("unknown", "Bearer ${secret:nope}"),
-            Http("variable", "Bearer ${env:Invoklet_TEST_SURELY_UNSET_VARIABLE}"));
+            Http("variable", "Bearer ${env:INVOKLET_TEST_SURELY_UNSET_VARIABLE}"));
         await vm.RefreshAsync();
 
         Assert.Equal(ConnectionRowState.Ready, vm.Find("known", isConnection: true)!.Status.State);
         Assert.Equal("The Secret Store has no secret named 'nope'. Add it in Tools → Secret Store.", vm.Find("unknown", isConnection: true)!.Problem);
-        Assert.Equal("The environment variable 'Invoklet_TEST_SURELY_UNSET_VARIABLE' is not set.", vm.Find("variable", isConnection: true)!.Problem);
+        Assert.Equal("The environment variable 'INVOKLET_TEST_SURELY_UNSET_VARIABLE' is not set.", vm.Find("variable", isConnection: true)!.Problem);
     }
 
     [Fact]

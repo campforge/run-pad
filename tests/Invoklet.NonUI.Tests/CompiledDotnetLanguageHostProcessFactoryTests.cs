@@ -270,7 +270,7 @@ public class CompiledDotnetLanguageHostProcessFactoryTests
             process.Output.Push(Frame(new { seq = 1, type = "response", request_seq = 1, command = "initialize", success = true }));
             var written = await WaitForWrittenRequestAsync(process.Input, "\"command\":\"launch\"");
 
-            Assert.Contains("Invoklet_CURRENT_QUERY_PATH", written);
+            Assert.Contains("INVOKLET_CURRENT_QUERY_PATH", written);
             Assert.Contains("/root/a.inv", written);
 
             process.Output.Push(Frame(new { seq = 2, type = "event", @event = "exited" }));

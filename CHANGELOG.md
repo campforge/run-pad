@@ -16,6 +16,8 @@ Notable changes in each Invoklet release. Downloads are on the
   now use the Invoklet name. Existing settings, recovery sessions and secrets are not automatically
   migrated from the former RunPad folders. Scripts that explicitly reference `RunPad.Runtime` must
   use `Invoklet.Runtime` instead.
+- **Breaking change:** environment variables use the `INVOKLET_` prefix: `RUNPAD_SECRETS_FILE` is
+  now `INVOKLET_SECRETS_FILE` and `RUNPAD_WAYLAND` is `INVOKLET_WAYLAND`.
 
 ### Fixed
 

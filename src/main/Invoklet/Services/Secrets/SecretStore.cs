@@ -51,7 +51,7 @@ public interface ISecretStore
 /// The store as one JSON file, by default <c>secrets.json</c> in Invoklet's data folder. On Windows each
 /// value is encrypted with DPAPI for the current user, as LINQPad's password manager does; on macOS
 /// and Linux the values are plain text in a file only its owner can read, like <c>~/.pgpass</c>.
-/// <c>Invoklet_SECRETS_FILE</c> points Invoklet and its scripts at another file.
+/// <c>INVOKLET_SECRETS_FILE</c> points Invoklet and its scripts at another file.
 /// </summary>
 /// <remarks>
 /// Invoklet.Runtime reads this file itself for <c>Util.GetSecret</c> (its own copy of the format, as
@@ -60,7 +60,7 @@ public interface ISecretStore
 public sealed class FileSecretStore : ISecretStore
 {
     /// <summary>Also read by <c>Util.GetSecret</c> in the script's process.</summary>
-    public const string FileEnvVar = "Invoklet_SECRETS_FILE";
+    public const string FileEnvVar = "INVOKLET_SECRETS_FILE";
 
     private const int FormatVersion = 1;
     private const string Dpapi = "DPAPI";

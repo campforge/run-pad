@@ -114,7 +114,7 @@ public class DapSessionCurrentQueryPathTests
         process.Output.Push(Frame(new { seq = 1, type = "response", request_seq = 1, command = "initialize", success = true }));
         var written = await WaitForWrittenRequestAsync(process.Input, "\"command\":\"launch\"");
 
-        Assert.Contains("Invoklet_CURRENT_QUERY_PATH", written);
+        Assert.Contains("INVOKLET_CURRENT_QUERY_PATH", written);
         Assert.Contains("/root/a.inv", written);
 
         process.Output.Push(Frame(new { seq = 2, type = "event", @event = "exited" }));
@@ -142,7 +142,7 @@ public class DapSessionCurrentQueryPathTests
         process.Output.Push(Frame(new { seq = 1, type = "response", request_seq = 1, command = "initialize", success = true }));
         var written = await WaitForWrittenRequestAsync(process.Input, "\"command\":\"launch\"");
 
-        Assert.DoesNotContain("Invoklet_CURRENT_QUERY_PATH", written);
+        Assert.DoesNotContain("INVOKLET_CURRENT_QUERY_PATH", written);
         Assert.DoesNotContain("\"env\"", written);
 
         process.Output.Push(Frame(new { seq = 2, type = "event", @event = "exited" }));
@@ -167,7 +167,7 @@ public class DapSessionCurrentQueryPathTests
         var body = written[(written.IndexOf("\r\n\r\n", start, StringComparison.Ordinal) + 4)..];
         using var json = JsonDocument.Parse(body);
         var launch = json.RootElement.GetProperty("arguments");
-        Assert.Equal(contract, launch.GetProperty("env").GetProperty("Invoklet_ARGUMENT_CONTRACT").GetString());
+        Assert.Equal(contract, launch.GetProperty("env").GetProperty("INVOKLET_ARGUMENT_CONTRACT").GetString());
         Assert.Equal(["--value", "3"], launch.GetProperty("args").EnumerateArray().Select(a => a.GetString()));
         process.Output.Push(Frame(new { seq = 2, type = "event", @event = "exited" }));
         await runTask;
