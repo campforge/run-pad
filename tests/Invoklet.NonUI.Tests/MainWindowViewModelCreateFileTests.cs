@@ -1,5 +1,5 @@
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.Windows.Models;
@@ -39,14 +39,14 @@ public class MainWindowViewModelCreateFileTests
     public async Task CreateFileAsync_Should_UseTheRoot_WhenNothingIsSelected()
     {
         var fileSystem = new Mock<IFileSystemService>();
-        fileSystem.Setup(f => f.CreateNewFile("/root", RpadLanguage.CSharp, RpadKind.Statements, It.IsAny<string>()))
+        fileSystem.Setup(f => f.CreateNewFile("/root", MdRunLanguage.CSharp, MdRunKind.Statements, It.IsAny<string>()))
             .Returns("/root/Query 1.rpad");
         var vm = CreateViewModel(fileSystem);
 
-        var result = await vm.CreateFileAsync(null, RpadLanguage.CSharp, RpadKind.Statements);
+        var result = await vm.CreateFileAsync(null, MdRunLanguage.CSharp, MdRunKind.Statements);
 
         Assert.Equal("/root/Query 1.rpad", result);
-        fileSystem.Verify(f => f.CreateNewFile("/root", RpadLanguage.CSharp, RpadKind.Statements, It.IsAny<string>()), Times.Once);
+        fileSystem.Verify(f => f.CreateNewFile("/root", MdRunLanguage.CSharp, MdRunKind.Statements, It.IsAny<string>()), Times.Once);
     }
 
     [Fact]
@@ -57,12 +57,12 @@ public class MainWindowViewModelCreateFileTests
         try
         {
             fileSystem.Setup(f => f.CreateNewFile(
-                    "/tmp/Invoklet-createfile-test/Sub", RpadLanguage.Vb, RpadKind.Program, It.IsAny<string>()))
+                    "/tmp/Invoklet-createfile-test/Sub", MdRunLanguage.Vb, MdRunKind.Program, It.IsAny<string>()))
                 .Returns("/tmp/Invoklet-createfile-test/Sub/Query 1.rpad");
             var vm = CreateViewModel(fileSystem);
 
             var result = await vm.CreateFileAsync(
-                "/tmp/Invoklet-createfile-test/Sub", RpadLanguage.Vb, RpadKind.Program);
+                "/tmp/Invoklet-createfile-test/Sub", MdRunLanguage.Vb, MdRunKind.Program);
 
             Assert.Equal("/tmp/Invoklet-createfile-test/Sub/Query 1.rpad", result);
         }
@@ -73,24 +73,24 @@ public class MainWindowViewModelCreateFileTests
     public async Task CreateFileAsync_Should_PassTheRequestedLanguageAndKind_ThroughToTheFileSystemService()
     {
         var fileSystem = new Mock<IFileSystemService>();
-        fileSystem.Setup(f => f.CreateNewFile("/root", RpadLanguage.Vb, RpadKind.Expression, It.IsAny<string>()))
+        fileSystem.Setup(f => f.CreateNewFile("/root", MdRunLanguage.Vb, MdRunKind.Expression, It.IsAny<string>()))
             .Returns("/root/Query 1.rpad");
         var vm = CreateViewModel(fileSystem);
 
-        await vm.CreateFileAsync(null, RpadLanguage.Vb, RpadKind.Expression);
+        await vm.CreateFileAsync(null, MdRunLanguage.Vb, MdRunKind.Expression);
 
-        fileSystem.Verify(f => f.CreateNewFile("/root", RpadLanguage.Vb, RpadKind.Expression, It.IsAny<string>()), Times.Once);
+        fileSystem.Verify(f => f.CreateNewFile("/root", MdRunLanguage.Vb, MdRunKind.Expression, It.IsAny<string>()), Times.Once);
     }
 
     [Fact]
     public async Task CreateFileAsync_Should_RefreshTheTree_AfterCreating()
     {
         var fileSystem = new Mock<IFileSystemService>();
-        fileSystem.Setup(f => f.CreateNewFile("/root", RpadLanguage.CSharp, RpadKind.Statements, It.IsAny<string>()))
+        fileSystem.Setup(f => f.CreateNewFile("/root", MdRunLanguage.CSharp, MdRunKind.Statements, It.IsAny<string>()))
             .Returns("/root/Query 1.rpad");
         var vm = CreateViewModel(fileSystem);
 
-        await vm.CreateFileAsync(null, RpadLanguage.CSharp, RpadKind.Statements);
+        await vm.CreateFileAsync(null, MdRunLanguage.CSharp, MdRunKind.Statements);
 
         fileSystem.Verify(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
     }
@@ -99,11 +99,11 @@ public class MainWindowViewModelCreateFileTests
     public async Task CreateFileAsync_Should_OpenTheNewFile_AsTheActiveTab()
     {
         var fileSystem = new Mock<IFileSystemService>();
-        fileSystem.Setup(f => f.CreateNewFile("/root", RpadLanguage.CSharp, RpadKind.Statements, It.IsAny<string>()))
+        fileSystem.Setup(f => f.CreateNewFile("/root", MdRunLanguage.CSharp, MdRunKind.Statements, It.IsAny<string>()))
             .Returns("/root/Query 1.rpad");
         var vm = CreateViewModel(fileSystem);
 
-        await vm.CreateFileAsync(null, RpadLanguage.CSharp, RpadKind.Statements);
+        await vm.CreateFileAsync(null, MdRunLanguage.CSharp, MdRunKind.Statements);
 
         Assert.Equal(Path.GetFullPath("/root/Query 1.rpad"), vm.ActiveTab?.FilePath);
     }

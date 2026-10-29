@@ -1,8 +1,8 @@
-namespace Invoklet.Format.RPad;
+namespace Invoklet.Format.MdRun;
 
-public sealed class RpadDocument
+public sealed class MdRunDocument
 {
-    public required RpadFrontMatter FrontMatter { get; init; }
+    public required MdRunFrontMatter FrontMatter { get; init; }
 
     /// <summary>Code from the run block — the only part the user edits.</summary>
     public string RunCode { get; set; } = "";
@@ -12,9 +12,9 @@ public sealed class RpadDocument
     // Everything in the markdown body from the closing ``` onwards
     internal string BodyAfterCode { get; init; } = "";
     /// <summary>A detached copy for local recovery, without serializing or normalizing the document.</summary>
-    public RpadDocumentSnapshot CaptureSnapshot() => new(CloneMetadata(FrontMatter), RunCode, BodyBeforeCode, BodyAfterCode);
+    public MdRunDocumentSnapshot CaptureSnapshot() => new(CloneMetadata(FrontMatter), RunCode, BodyBeforeCode, BodyAfterCode);
 
-    public static RpadDocument FromSnapshot(RpadDocumentSnapshot snapshot) => new()
+    public static MdRunDocument FromSnapshot(MdRunDocumentSnapshot snapshot) => new()
     {
         FrontMatter = CloneMetadata(snapshot.FrontMatter),
         RunCode = snapshot.RunCode,
@@ -22,7 +22,7 @@ public sealed class RpadDocument
         BodyAfterCode = snapshot.BodyAfterCode,
     };
 
-    private static RpadFrontMatter CloneMetadata(RpadFrontMatter source) => new()
+    private static MdRunFrontMatter CloneMetadata(MdRunFrontMatter source) => new()
     {
         Id = source.Id,
         Version = source.Version,
@@ -37,7 +37,7 @@ public sealed class RpadDocument
             s => s.Value.ToDictionary(v => v.Key, v => v.Value.Clone(), StringComparer.Ordinal), StringComparer.Ordinal),
         SelectedArgumentSet = source.SelectedArgumentSet,
         AllowUnsafe = source.AllowUnsafe,
-        Connections = [.. source.Connections.Select(c => new RpadConnection
+        Connections = [.. source.Connections.Select(c => new MdRunConnection
         {
             Name = c.Name,
             Driver = c.Driver,
@@ -48,4 +48,4 @@ public sealed class RpadDocument
     };
 }
 
-public sealed record RpadDocumentSnapshot(RpadFrontMatter FrontMatter, string RunCode, string BodyBeforeCode, string BodyAfterCode);
+public sealed record MdRunDocumentSnapshot(MdRunFrontMatter FrontMatter, string RunCode, string BodyBeforeCode, string BodyAfterCode);

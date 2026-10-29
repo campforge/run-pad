@@ -5,7 +5,7 @@ using Avalonia.Threading;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -38,7 +38,7 @@ public class RunSaveConflictTests : IDisposable
     public RunSaveConflictTests()
     {
         _script = Path.Combine(_root, "query.rpad");
-        File.WriteAllText(_script, RpadWriter.NewFile("Console.WriteLine(\"original\");\n", "Demo"));
+        File.WriteAllText(_script, MdRunWriter.NewFile("Console.WriteLine(\"original\");\n", "Demo"));
     }
 
     public void Dispose()
@@ -82,7 +82,7 @@ public class RunSaveConflictTests : IDisposable
         buildCache.Setup(b => b.EnsureOutputDirectory(It.IsAny<string>(), It.IsAny<string>()))
             .Returns(() => Directory.CreateDirectory(Path.Combine(_root, "build")).FullName);
 
-        var vm = new EditorTabItemViewModel(_script, [Sdk], prefs.Object, shell, RpadLanguage.CSharp, RpadKind.Statements);
+        var vm = new EditorTabItemViewModel(_script, [Sdk], prefs.Object, shell, MdRunLanguage.CSharp, MdRunKind.Statements);
         var ctrl = new EditorsTabItemControl(vm, theme.Object, _windows.Object, registry.Object, prefs.Object,
             intelliSense: null, buildCache.Object);
         var window = new Window { Content = ctrl };
@@ -99,7 +99,7 @@ public class RunSaveConflictTests : IDisposable
         try
         {
             ctrl.State.Editor.Text = "throw new Exception();\n42.Dump();\nthrow new Exception();";
-            ctrl.State.RpadDocument!.FrontMatter.Arguments = [new() { Name = "value", Default = RpadValue.Of("argument") }];
+            ctrl.State.MdRunDocument!.FrontMatter.Arguments = [new() { Name = "value", Default = MdRunValue.Of("argument") }];
             ctrl.State.Editor.Select(ctrl.State.Editor.Text.IndexOf("42.Dump", StringComparison.Ordinal), 10);
             await ctrl.RunSelectionAsync(Sdk);
             var script = Assert.Single(_scripts);
@@ -194,13 +194,13 @@ public class RunSaveConflictTests : IDisposable
         var (ctrl, _, window) = Open();
         try
         {
-            ctrl.State.RpadDocument!.FrontMatter.Kind = RpadKind.Program;
+            ctrl.State.MdRunDocument!.FrontMatter.Kind = MdRunKind.Program;
             ctrl.State.Editor.Text = "void Main()\n{\n    Console.WriteLine(1);\n    Console.WriteLine(2);\n}\n";
             ctrl.State.Editor.Select(ctrl.State.Editor.Text.IndexOf("Console.WriteLine(2);", StringComparison.Ordinal), 21);
             await ctrl.RunSelectionAsync(Sdk);
-            Assert.Equal(RpadKind.Statements, Assert.Single(_runs).Kind);
+            Assert.Equal(MdRunKind.Statements, Assert.Single(_runs).Kind);
             Assert.Equal("Console.WriteLine(2);", Assert.Single(_scripts).Trim());
-            Assert.Equal(RpadKind.Program, ctrl.State.RpadDocument.FrontMatter.Kind); // the script keeps its own kind
+            Assert.Equal(MdRunKind.Program, ctrl.State.MdRunDocument.FrontMatter.Kind); // the script keeps its own kind
         }
         finally { window.Close(); ctrl.Dispose(); }
     }
@@ -211,7 +211,7 @@ public class RunSaveConflictTests : IDisposable
         var (ctrl, _, window) = Open();
         try
         {
-            ctrl.State.RpadDocument!.FrontMatter.Kind = RpadKind.Expression;
+            ctrl.State.MdRunDocument!.FrontMatter.Kind = MdRunKind.Expression;
             ctrl.State.Editor.Select(0, 5);
             await ctrl.RunSelectionAsync(Sdk);
             Assert.Empty(_runs);
@@ -259,12 +259,12 @@ public class RunSaveConflictTests : IDisposable
         finally { window.Close(); ctrl.Dispose(); }
     }
 
-    private void ChangeExternally() => File.WriteAllText(_script, RpadWriter.NewFile(External + "\n", "Demo"));
+    private void ChangeExternally() => File.WriteAllText(_script, MdRunWriter.NewFile(External + "\n", "Demo"));
 
     private void Answer(SaveConflictChoice choice) =>
         _windows.Setup(w => w.ShowSaveConflictDialogAsync(It.IsAny<string>())).ReturnsAsync(choice);
 
-    private static string? CodeIn(string path) => RpadParser.TryParse(File.ReadAllText(path))?.RunCode.Trim();
+    private static string? CodeIn(string path) => MdRunParser.TryParse(File.ReadAllText(path))?.RunCode.Trim();
 
     [AvaloniaTheory]
     [InlineData(false)]

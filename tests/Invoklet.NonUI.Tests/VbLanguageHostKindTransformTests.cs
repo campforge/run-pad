@@ -1,6 +1,6 @@
 using Invoklet.Build.Core.Models;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.VB;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -15,7 +15,7 @@ namespace Invoklet.Runtime.UI.Tests;
 // `Async Function Main() As Task` natively without any host changes.
 public class VbLanguageHostKindTransformTests
 {
-    private static VbLanguageHost CreateHost(RpadKind kind, out string outputDir, IReadOnlyList<string>? usings = null)
+    private static VbLanguageHost CreateHost(MdRunKind kind, out string outputDir, IReadOnlyList<string>? usings = null)
     {
         outputDir = Path.Combine(Path.GetTempPath(), "Invoklet-tests-" + Guid.NewGuid());
         var options = new CompiledDotnetLanguageHostOptions
@@ -36,10 +36,10 @@ public class VbLanguageHostKindTransformTests
     }
 
     [Theory]
-    [InlineData(RpadKind.Statements, "Dim x = 1", "Module Program\nSub Main(args As String())\nDim x = 1\nEnd Sub\nEnd Module\n")]
-    [InlineData(RpadKind.Program, "Module Program\nSub Main()\nEnd Sub\nEnd Module", "Module Program\nSub Main()\nEnd Sub\nEnd Module")]
-    [InlineData(RpadKind.Expression, "1 + 1", "(\n1 + 1\n).Dump()\n")]
-    public void ApplyKindTransform_Should_ProduceExpectedText(RpadKind kind, string code, string expected)
+    [InlineData(MdRunKind.Statements, "Dim x = 1", "Module Program\nSub Main(args As String())\nDim x = 1\nEnd Sub\nEnd Module\n")]
+    [InlineData(MdRunKind.Program, "Module Program\nSub Main()\nEnd Sub\nEnd Module", "Module Program\nSub Main()\nEnd Sub\nEnd Module")]
+    [InlineData(MdRunKind.Expression, "1 + 1", "(\n1 + 1\n).Dump()\n")]
+    public void ApplyKindTransform_Should_ProduceExpectedText(MdRunKind kind, string code, string expected)
     {
         var host = CreateHost(kind, out var outputDir);
         try
@@ -57,7 +57,7 @@ public class VbLanguageHostKindTransformTests
     public void ApplyKindTransform_Should_PassThroughAsyncFunctionMain_Unchanged_InProgramKind()
     {
         const string code = "Module Program\nAsync Function Main() As Task\nAwait Task.Delay(1)\nEnd Function\nEnd Module";
-        var host = CreateHost(RpadKind.Program, out var outputDir);
+        var host = CreateHost(MdRunKind.Program, out var outputDir);
         try
         {
             Assert.Equal(code, host.ApplyKindTransform(code));
@@ -66,10 +66,10 @@ public class VbLanguageHostKindTransformTests
     }
 
     [Theory]
-    [InlineData(RpadKind.Statements, 2)]
-    [InlineData(RpadKind.Program, 0)]
-    [InlineData(RpadKind.Expression, 1)]
-    public void CalcKindOffset_Should_MatchLinesActuallyInsertedByApplyKindTransform(RpadKind kind, int expectedOffset)
+    [InlineData(MdRunKind.Statements, 2)]
+    [InlineData(MdRunKind.Program, 0)]
+    [InlineData(MdRunKind.Expression, 1)]
+    public void CalcKindOffset_Should_MatchLinesActuallyInsertedByApplyKindTransform(MdRunKind kind, int expectedOffset)
     {
         var host = CreateHost(kind, out var outputDir);
         try
@@ -83,10 +83,10 @@ public class VbLanguageHostKindTransformTests
     // the user's own code in the transformed text must equal CalcKindOffset() — the actual invariant
     // DapSession relies on, not two independently-hardcoded numbers that could drift together.
     [Theory]
-    [InlineData(RpadKind.Statements)]
-    [InlineData(RpadKind.Program)]
-    [InlineData(RpadKind.Expression)]
-    public void CalcKindOffset_Should_EqualNewlinesInsertedBeforeUserCodeByApplyKindTransform(RpadKind kind)
+    [InlineData(MdRunKind.Statements)]
+    [InlineData(MdRunKind.Program)]
+    [InlineData(MdRunKind.Expression)]
+    public void CalcKindOffset_Should_EqualNewlinesInsertedBeforeUserCodeByApplyKindTransform(MdRunKind kind)
     {
         const string code = "FIRST_USER_LINE";
         var host = CreateHost(kind, out var outputDir);
@@ -103,10 +103,10 @@ public class VbLanguageHostKindTransformTests
     }
 
     [Theory]
-    [InlineData(RpadKind.Statements, 2)]
-    [InlineData(RpadKind.Program, 0)]
-    [InlineData(RpadKind.Expression, 1)]
-    public void CalcKindOffset_Should_IncludeFrontMatterUsingsCount(RpadKind kind, int kindOnlyOffset)
+    [InlineData(MdRunKind.Statements, 2)]
+    [InlineData(MdRunKind.Program, 0)]
+    [InlineData(MdRunKind.Expression, 1)]
+    public void CalcKindOffset_Should_IncludeFrontMatterUsingsCount(MdRunKind kind, int kindOnlyOffset)
     {
         IReadOnlyList<string> usings = ["System.Text", "System.Linq"];
         var host = CreateHost(kind, out var outputDir, usings);

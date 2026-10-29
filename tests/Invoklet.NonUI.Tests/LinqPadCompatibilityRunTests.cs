@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using Invoklet.Build.Core.Models;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
@@ -37,7 +37,7 @@ public class LinqPadCompatibilityRunTests
 
     private sealed record Run(RunResult Result, string Output, string Errors, string Dumps);
 
-    private static async Task<Run> RunAsync(RpadKind kind, string code, IReadOnlyList<string>? args = null, bool allowUnsafe = false,
+    private static async Task<Run> RunAsync(MdRunKind kind, string code, IReadOnlyList<string>? args = null, bool allowUnsafe = false,
         string? outputDirectory = null, IReadOnlyList<string>? usings = null)
     {
         var outputDir = outputDirectory ?? Directory.CreateTempSubdirectory("Invoklet-linqpad-compat").FullName;
@@ -111,7 +111,7 @@ public class LinqPadCompatibilityRunTests
     public async Task UnsafeCode_WithTheSettingOn_Should_CompileAndRun()
     {
         if (NoSdk) return;
-        var run = await RunAsync(RpadKind.Program, StructSizes, allowUnsafe: true);
+        var run = await RunAsync(MdRunKind.Program, StructSizes, allowUnsafe: true);
         Assert.True(run.Result.Succeeded, run.Errors);
         Assert.Equal("8", run.Output.Split('\n').Last(l => !l.Contains("warning", StringComparison.Ordinal)));
         Assert.Contains(">16<", run.Dumps);
@@ -122,7 +122,7 @@ public class LinqPadCompatibilityRunTests
     public async Task UnsafeCode_WithTheSettingOff_Should_FailWithCS0227()
     {
         if (NoSdk) return;
-        var run = await RunAsync(RpadKind.Program, StructSizes);
+        var run = await RunAsync(MdRunKind.Program, StructSizes);
         Assert.Equal(RunOutcome.CompilationFailed, run.Result.Outcome);
         Assert.Contains("CS0227", run.Errors);
         Assert.Empty(run.Dumps);
@@ -136,8 +136,8 @@ public class LinqPadCompatibilityRunTests
         var outputDir = Directory.CreateTempSubdirectory("Invoklet-linqpad-unsafe-cache").FullName;
         try
         {
-            Assert.True((await RunAsync(RpadKind.Program, StructSizes, allowUnsafe: true, outputDirectory: outputDir)).Result.Succeeded);
-            var off = await RunAsync(RpadKind.Program, StructSizes, allowUnsafe: false, outputDirectory: outputDir);
+            Assert.True((await RunAsync(MdRunKind.Program, StructSizes, allowUnsafe: true, outputDirectory: outputDir)).Result.Succeeded);
+            var off = await RunAsync(MdRunKind.Program, StructSizes, allowUnsafe: false, outputDirectory: outputDir);
             Assert.Equal(RunOutcome.CompilationFailed, off.Result.Outcome);
             Assert.Contains("CS0227", off.Errors);
         }
@@ -169,7 +169,7 @@ public class LinqPadCompatibilityRunTests
                 }
             }
             """;
-        var run = await RunAsync(RpadKind.Program, code);
+        var run = await RunAsync(MdRunKind.Program, code);
         Assert.True(run.Result.Succeeded, run.Errors);
         Assert.Equal("360\n1200", run.Output);
     }
@@ -198,7 +198,7 @@ public class LinqPadCompatibilityRunTests
                 }
             }
             """;
-        var run = await RunAsync(RpadKind.Program, code);
+        var run = await RunAsync(MdRunKind.Program, code);
         Assert.True(run.Result.Succeeded, run.Errors);
         Assert.Equal("360\n7", run.Output);
     }
@@ -221,7 +221,7 @@ public class LinqPadCompatibilityRunTests
                 }
             }
             """;
-        var run = await RunAsync(RpadKind.Program, code, ["one", "two"]);
+        var run = await RunAsync(MdRunKind.Program, code, ["one", "two"]);
         Assert.Equal(RunOutcome.Exited, run.Result.Outcome);
         Assert.Equal(42, run.Result.ExitCode);
         Assert.Equal("one|two", run.Output);
@@ -236,7 +236,7 @@ public class LinqPadCompatibilityRunTests
             class A { static void Main() => Console.WriteLine("A ran"); }
             class B { static void Main() => Console.WriteLine("B ran"); }
             """;
-        var run = await RunAsync(RpadKind.Program, code);
+        var run = await RunAsync(MdRunKind.Program, code);
         Assert.Equal(RunOutcome.CompilationFailed, run.Result.Outcome);
         Assert.Contains("CS0017", run.Errors);
         Assert.DoesNotContain("ran", run.Output);
@@ -250,7 +250,7 @@ public class LinqPadCompatibilityRunTests
     public async Task AProgramWithoutAnyMain_Should_FailToCompile(string code)
     {
         if (NoSdk) return;
-        var run = await RunAsync(RpadKind.Program, code);
+        var run = await RunAsync(MdRunKind.Program, code);
         Assert.Equal(RunOutcome.CompilationFailed, run.Result.Outcome);
         Assert.Contains("CS5001", run.Errors);
         Assert.DoesNotContain("ran", run.Output);
@@ -267,7 +267,7 @@ public class LinqPadCompatibilityRunTests
 
             class Program { static void Main() => Console.WriteLine("class main"); }
             """;
-        var run = await RunAsync(RpadKind.Program, code);
+        var run = await RunAsync(MdRunKind.Program, code);
         Assert.Equal(RunOutcome.CompilationFailed, run.Result.Outcome);
         Assert.DoesNotContain("stray\n", run.Output + "\n");
         Assert.DoesNotContain("class main", run.Output.Replace("'Program.Main()'", ""));
@@ -289,7 +289,7 @@ public class LinqPadCompatibilityRunTests
 
             private int Times(int n) => start * n;
             """;
-        var run = await RunAsync(RpadKind.Program, code, ["a", "b", "c"]);
+        var run = await RunAsync(MdRunKind.Program, code, ["a", "b", "c"]);
         Assert.Equal(3, run.Result.ExitCode);
         Assert.Equal("360", run.Output);
     }
@@ -309,7 +309,7 @@ public class LinqPadCompatibilityRunTests
                 Main([]);
             }
             """;
-        var run = await RunAsync(RpadKind.Program, code);
+        var run = await RunAsync(MdRunKind.Program, code);
         Assert.True(run.Result.Succeeded, run.Errors);
         Assert.Equal("top-level main", run.Output);
     }
@@ -327,7 +327,7 @@ public class LinqPadCompatibilityRunTests
     public async Task AnEmptyStatementsScript_Should_SucceedWithoutOutput(string code)
     {
         if (NoSdk) return;
-        var run = await RunAsync(RpadKind.Statements, code);
+        var run = await RunAsync(MdRunKind.Statements, code);
         Assert.True(run.Result.Succeeded, run.Errors + run.Output);
         Assert.DoesNotContain("CS5001", run.Output + run.Errors);
         Assert.DoesNotContain("excluded", run.Output);
@@ -345,7 +345,7 @@ public class LinqPadCompatibilityRunTests
     public async Task CodeThatOnlyLooksEmpty_Should_StillFail(string code, string expected)
     {
         if (NoSdk) return;
-        var run = await RunAsync(RpadKind.Statements, code);
+        var run = await RunAsync(MdRunKind.Statements, code);
         Assert.Equal(RunOutcome.CompilationFailed, run.Result.Outcome);
         Assert.Contains(expected, run.Errors);
         Assert.DoesNotContain("CS8803", run.Errors);
@@ -359,7 +359,7 @@ public class LinqPadCompatibilityRunTests
     {
         if (NoSdk) return;
         const string code = "#if DEBUG\nvoid Main() { Console.WriteLine(\"EXPECTED-MAIN\"); }\n#endif\n";
-        var run = await RunAsync(RpadKind.Program, code);
+        var run = await RunAsync(MdRunKind.Program, code);
         Assert.True(run.Result.Succeeded, run.Errors);
         Assert.Equal("EXPECTED-MAIN", run.Output);
     }
@@ -369,12 +369,12 @@ public class LinqPadCompatibilityRunTests
     {
         if (NoSdk) return;
         const string member = "#if DEBUG\nvoid Main(string[] args) => Console.WriteLine(\"member:\" + args.Length);\n#else\nclass Program { static void Main() => Console.WriteLine(\"classic\"); }\n#endif\n";
-        var run = await RunAsync(RpadKind.Program, member, ["a", "b"]);
+        var run = await RunAsync(MdRunKind.Program, member, ["a", "b"]);
         Assert.True(run.Result.Succeeded, run.Errors);
         Assert.Equal("member:2", run.Output);
 
         const string classic = "#if !DEBUG\nvoid Main() => Console.WriteLine(\"member\");\n#else\nclass Program\n{\n    static async Task<int> Main(string[] args)\n    {\n        await Task.Yield();\n        Console.WriteLine(\"classic:\" + args[0]);\n        return 5;\n    }\n}\n#endif\n";
-        var classicRun = await RunAsync(RpadKind.Program, classic, ["x"]);
+        var classicRun = await RunAsync(MdRunKind.Program, classic, ["x"]);
         Assert.Equal(5, classicRun.Result.ExitCode);
         Assert.Equal("classic:x", classicRun.Output);
     }
@@ -385,7 +385,7 @@ public class LinqPadCompatibilityRunTests
     {
         if (NoSdk) return;
         const string code = "#if TRACE\nasync Task<int> Main(string[] args)\n{\n    await Task.Yield();\n    Console.WriteLine(\"trace:\" + args.Length);\n    return 7;\n}\n#else\nvoid Main() => Console.WriteLine(\"other\");\n#endif\n";
-        var run = await RunAsync(RpadKind.Program, code, ["1", "2", "3"]);
+        var run = await RunAsync(MdRunKind.Program, code, ["1", "2", "3"]);
         Assert.Equal(7, run.Result.ExitCode);
         Assert.Equal("trace:3", run.Output);
     }
@@ -395,7 +395,7 @@ public class LinqPadCompatibilityRunTests
     {
         if (NoSdk) return;
         const string code = "#if NET8_0_OR_GREATER\nint Main() { Console.WriteLine(\"framework\"); return 4; }\n#endif\n";
-        var run = await RunAsync(RpadKind.Program, code);
+        var run = await RunAsync(MdRunKind.Program, code);
         Assert.Equal(4, run.Result.ExitCode);
         Assert.Equal("framework", run.Output);
     }
@@ -406,7 +406,7 @@ public class LinqPadCompatibilityRunTests
     {
         if (NoSdk) return;
         const string code = "#if NEVER_DEFINED\nvoid Main() => Console.WriteLine(\"excluded\");\n#endif\n";
-        var run = await RunAsync(RpadKind.Program, code);
+        var run = await RunAsync(MdRunKind.Program, code);
         Assert.Equal(RunOutcome.CompilationFailed, run.Result.Outcome);
         Assert.Contains("CS5001", run.Errors);
         Assert.DoesNotContain("excluded\n", run.Output + "\n");
@@ -415,7 +415,7 @@ public class LinqPadCompatibilityRunTests
     public async Task ExtensionClasses_Should_RunOutsideTheMemberProgramWrapper()
     {
         if (NoSdk) return;
-        var run = await RunAsync(RpadKind.Program, """
+        var run = await RunAsync(MdRunKind.Program, """
             void Main()
             {
                 Console.WriteLine(21.Twice());
@@ -447,7 +447,7 @@ public class LinqPadCompatibilityRunTests
     public async Task ExtensionClasses_Should_LeaveOtherTypesNestedWithAccessToTheScript()
     {
         if (NoSdk) return;
-        var run = await RunAsync(RpadKind.Program, """
+        var run = await RunAsync(MdRunKind.Program, """
             void Main() { new Doubler().Run(); }
             static int Twice(int x) => x * 2;
             class Doubler { public void Run() => Console.WriteLine(Twice(4).Squared()); }
@@ -463,7 +463,7 @@ public class LinqPadCompatibilityRunTests
     public async Task ExtensionClasses_Should_UseNestedTypesAndMembers_ThatAreInternal()
     {
         if (NoSdk) return;
-        var run = await RunAsync(RpadKind.Program, """
+        var run = await RunAsync(MdRunKind.Program, """
             void Main() => Console.WriteLine(new Point(3, 4).Length());
             internal static int Scale = 10;
             internal record Point(int X, int Y);
@@ -472,7 +472,7 @@ public class LinqPadCompatibilityRunTests
         Assert.True(run.Result.Succeeded, run.Errors);
         Assert.EndsWith("250", run.Output);
 
-        var hidden = await RunAsync(RpadKind.Program, """
+        var hidden = await RunAsync(MdRunKind.Program, """
             void Main() => Console.WriteLine(new Point(3, 4).Length());
             record Point(int X, int Y);
             static class PointExtensions { public static int Length(this Point p) => p.X + p.Y; }
@@ -484,7 +484,7 @@ public class LinqPadCompatibilityRunTests
     public async Task ExtensionAwaiter_Should_BeAwaitedByAsyncMain()
     {
         if (NoSdk) return;
-        var run = await RunAsync(RpadKind.Program, """
+        var run = await RunAsync(MdRunKind.Program, """
             #if DEBUG
             async Task<int> Main(string[] args)
             {
@@ -507,7 +507,7 @@ public class LinqPadCompatibilityRunTests
     public async Task ExtensionClassesInsideNamespaces_Should_RemainAtNamespaceScope()
     {
         if (NoSdk) return;
-        var run = await RunAsync(RpadKind.Program, """
+        var run = await RunAsync(MdRunKind.Program, """
             void Main() { Console.WriteLine(Tools.Runner.Compute()); }
             namespace Tools
             {
@@ -523,7 +523,7 @@ public class LinqPadCompatibilityRunTests
     public async Task CSharp14ExtensionBlocks_Should_RemainAtNamespaceScope()
     {
         if (NoSdk) return;
-        var run = await RunAsync(RpadKind.Program, """
+        var run = await RunAsync(MdRunKind.Program, """
             void Main() { Console.WriteLine(4.Twice()); }
             static class Extensions
             {

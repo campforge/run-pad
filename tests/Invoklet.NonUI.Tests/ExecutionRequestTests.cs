@@ -1,6 +1,6 @@
 using Invoklet.Contracts;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.VB;
@@ -28,14 +28,14 @@ public sealed class ExecutionRequestTests : IDisposable
 
     public void Dispose() => Directory.Delete(_root, recursive: true);
 
-    private static RpadFrontMatter FrontMatter() => new()
+    private static MdRunFrontMatter FrontMatter() => new()
     {
-        Language = RpadLanguage.Vb,
-        Kind = RpadKind.Program,
+        Language = MdRunLanguage.Vb,
+        Kind = MdRunKind.Program,
         Packages = new Dictionary<string, Package> { ["Newtonsoft.Json"] = new("13.0.3") },
         Namespaces = ["System.Text"],
         References = ["lib/Greeter.dll", "$(CurrentQueryPath)/lib/Greeter.dll", "Some.Project.csproj"],
-        Arguments = [new() { Name = "value", Default = RpadValue.Of("from file") }],
+        Arguments = [new() { Name = "value", Default = MdRunValue.Of("from file") }],
         AllowUnsafe = true,
     };
 
@@ -47,7 +47,7 @@ public sealed class ExecutionRequestTests : IDisposable
     {
         var request = ExecutionRequest.For(FrontMatter(), _script);
 
-        Assert.Equal(RpadKind.Program, request.Kind);
+        Assert.Equal(MdRunKind.Program, request.Kind);
         Assert.Equal("13.0.3", request.Packages["Newtonsoft.Json"]);
         Assert.Equal(["System.Text"], request.Usings);
         Assert.Equal(["lib/Greeter.dll", "$(CurrentQueryPath)/lib/Greeter.dll", "Some.Project.csproj"], request.References);
@@ -64,7 +64,7 @@ public sealed class ExecutionRequestTests : IDisposable
     {
         var request = ExecutionRequest.For(null, null);
 
-        Assert.Equal(RpadKind.Statements, request.Kind);
+        Assert.Equal(MdRunKind.Statements, request.Kind);
         Assert.Empty(request.Packages);
         Assert.Empty(request.Usings);
         Assert.Empty(request.References);
@@ -78,43 +78,43 @@ public sealed class ExecutionRequestTests : IDisposable
     [Fact]
     public void TypedArguments_Should_UseTheSameSetAndOverridesAsRawArguments()
     {
-        var fm = new RpadFrontMatter
+        var fm = new MdRunFrontMatter
         {
-            Arguments = [new() { Name = "value", Type = RpadArgumentType.Int }],
+            Arguments = [new() { Name = "value", Type = MdRunArgumentType.Int }],
             SelectedArgumentSet = "dev",
             ArgumentSets = new()
             {
-                ["dev"] = new() { ["value"] = RpadValue.Of("3") },
-                ["prod"] = new() { ["value"] = RpadValue.Of("7") },
+                ["dev"] = new() { ["value"] = MdRunValue.Of("3") },
+                ["prod"] = new() { ["value"] = MdRunValue.Of("7") },
                 ["empty"] = new(),
             },
         };
         var selected = ExecutionRequest.For(fm, null, argumentSet: "prod");
         Assert.Equal(["--value", "7"], selected.Arguments);
-        var contract = RpadArgumentContract.FromJson(selected.ArgumentContractJson);
+        var contract = MdRunArgumentContract.FromJson(selected.ArgumentContractJson);
         Assert.Equal(["7"], contract.Members.Single().Values);
 
         var overridden = ExecutionRequest.For(fm, null, ["--value", "9"]);
-        Assert.Equal(["9"], RpadArgumentContract.FromJson(overridden.ArgumentContractJson).Members.Single().Values);
+        Assert.Equal(["9"], MdRunArgumentContract.FromJson(overridden.ArgumentContractJson).Members.Single().Values);
         var empty = ExecutionRequest.For(fm, null, argumentSet: "empty");
-        Assert.Equal(contract.GenerateCSharpFacade(), RpadArgumentContract.FromJson(empty.ArgumentContractJson).GenerateCSharpFacade());
-        Assert.Equal(contract.GenerateVisualBasicFacade(), RpadArgumentContract.FromJson(empty.ArgumentContractJson).GenerateVisualBasicFacade());
+        Assert.Equal(contract.GenerateCSharpFacade(), MdRunArgumentContract.FromJson(empty.ArgumentContractJson).GenerateCSharpFacade());
+        Assert.Equal(contract.GenerateVisualBasicFacade(), MdRunArgumentContract.FromJson(empty.ArgumentContractJson).GenerateVisualBasicFacade());
     }
 
     [Fact]
     public void TypedArguments_Should_PreserveAllListItemsAndEmptyStrings()
     {
-        var fm = new RpadFrontMatter
+        var fm = new MdRunFrontMatter
         {
-            Arguments = [new() { Name = "tags", Type = RpadArgumentType.StringList }],
+            Arguments = [new() { Name = "tags", Type = MdRunArgumentType.StringList }],
         };
         var request = ExecutionRequest.For(fm, null, ["--tags", "", "--tags", "two words"]);
-        Assert.Equal(["", "two words"], RpadArgumentContract.FromJson(request.ArgumentContractJson).Members.Single().Values);
+        Assert.Equal(["", "two words"], MdRunArgumentContract.FromJson(request.ArgumentContractJson).Members.Single().Values);
 
-        fm.Arguments[0].Default = RpadValue.List([RpadValue.Of("default")]);
-        fm.ArgumentSets["empty"] = new() { ["tags"] = RpadValue.List([]) };
+        fm.Arguments[0].Default = MdRunValue.List([MdRunValue.Of("default")]);
+        fm.ArgumentSets["empty"] = new() { ["tags"] = MdRunValue.List([]) };
         var empty = ExecutionRequest.For(fm, null, argumentSet: "empty");
-        Assert.Empty(RpadArgumentContract.FromJson(empty.ArgumentContractJson).Members.Single().Values);
+        Assert.Empty(MdRunArgumentContract.FromJson(empty.ArgumentContractJson).Members.Single().Values);
     }
 
     // The backend resolves the references exactly as ReferencePathResolver does (relative to the
@@ -138,7 +138,7 @@ public sealed class ExecutionRequestTests : IDisposable
         Assert.Equal("/opt/dotnet/dotnet", options.ExecutionOptions.Runtime.RuntimePath);
         Assert.Equal("/opt/netcoredbg", options.ExecutionOptions.Debugger.DebuggerPath);
         Assert.Equal("/runtime/Invoklet.Runtime.dll", options.RuntimeLibPath);
-        Assert.Equal(RpadKind.Program, options.Kind);
+        Assert.Equal(MdRunKind.Program, options.Kind);
         Assert.Equal("13.0.3", options.Packages["Newtonsoft.Json"]);
         Assert.Equal(["System.Text"], options.Usings);
         Assert.Equal(["--value", "from file"], options.Arguments);
@@ -247,7 +247,7 @@ public sealed class ExecutionRequestTests : IDisposable
     [Fact]
     public void AReferenceBasePath_Should_AnchorTheReferences_WithoutBecomingTheQueryPath()
     {
-        var frontMatter = new RpadFrontMatter { References = ["lib/Greeter.dll", "$(CurrentQueryPath)/lib/Greeter.dll"] };
+        var frontMatter = new MdRunFrontMatter { References = ["lib/Greeter.dll", "$(CurrentQueryPath)/lib/Greeter.dll"] };
         var request = ExecutionRequest.For(frontMatter, null) with
         {
             Platform = Sdk,

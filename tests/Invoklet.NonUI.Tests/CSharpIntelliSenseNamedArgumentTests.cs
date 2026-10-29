@@ -1,5 +1,5 @@
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -21,7 +21,7 @@ public class CSharpIntelliSenseNamedArgumentTests
         var referenceService = new CSharpReferenceService();
         var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
         var service = new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-        service.UpdateKind(RpadKind.Statements);
+        service.UpdateKind(MdRunKind.Statements);
         return service;
     }
 

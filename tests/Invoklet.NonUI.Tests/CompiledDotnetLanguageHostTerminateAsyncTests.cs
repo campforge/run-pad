@@ -1,7 +1,7 @@
 using Invoklet.Build.Core.Models;
 using Invoklet.Build.Core.ProcessRunners;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Compiler;
@@ -91,7 +91,7 @@ public class CompiledDotnetLanguageHostTerminateAsyncTests
             },
             OutputDirectory = outputDir,
             RuntimeLibPath = "Invoklet.Runtime.dll",
-            Kind = RpadKind.Statements,
+            Kind = MdRunKind.Statements,
         };
 
         var compiler = new FakeCompiler(new ProcessCompilerResult("out.dll", true, [], []));

@@ -1,7 +1,7 @@
 using System.Text;
 using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Spectre.Console;
 
 namespace Invoklet.Cli;
@@ -65,7 +65,7 @@ public static class CliRunner
         }
 
         var raw = await File.ReadAllTextAsync(filePath, cancellationToken);
-        var parsed = RpadParser.Parse(raw);
+        var parsed = MdRunParser.Parse(raw);
         if (!parsed.IsSuccess)
         {
             stderr.WriteLine($"Failed to parse '{filePath}' as a .rpad document: {parsed.Error}");
@@ -82,7 +82,7 @@ public static class CliRunner
         if (cli.TargetSdk is { } targetSdk) document.FrontMatter.TargetSdk = targetSdk;
 
         // The same choice as the window's: given arguments, else --args-set, the selected set or defaults.
-        var arguments = RpadArguments.Resolve(document.FrontMatter, cli.ScriptArguments, cli.ArgumentSet);
+        var arguments = MdRunArguments.Resolve(document.FrontMatter, cli.ScriptArguments, cli.ArgumentSet);
         if (arguments.Error is { } argumentsError)
         {
             stderr.WriteLine(argumentsError);
@@ -239,7 +239,7 @@ public static class CliRunner
             ? Path.GetFullPath(args[2])
             : Path.Combine(Path.GetDirectoryName(linqPath)!, Path.GetFileNameWithoutExtension(linqPath) + ".rpad");
 
-        RpadDocument document;
+        MdRunDocument document;
         try
         {
             var linqText = await File.ReadAllTextAsync(linqPath, cancellationToken);
@@ -251,7 +251,7 @@ public static class CliRunner
             return 1;
         }
 
-        await File.WriteAllTextAsync(outputPath, RpadWriter.Write(document), cancellationToken);
+        await File.WriteAllTextAsync(outputPath, MdRunWriter.Write(document), cancellationToken);
         stdout.WriteLine($"Wrote {outputPath}");
         return 0;
     }
@@ -262,7 +262,7 @@ public static class CliRunner
     // temporary build folder; the PATH's dotnet runs it, and there is no debugger on this path
     // (ILanguageHost.RunAsync, not RunDebugAsync).
     internal static ExecutionRequest BuildRequest(
-        RpadFrontMatter frontMatter, DotnetSdk platform, string outputDirectory,
+        MdRunFrontMatter frontMatter, DotnetSdk platform, string outputDirectory,
         string? currentQueryPath = null, IReadOnlyList<string>? arguments = null, ConnectionDriverRegistry? connectionDrivers = null,
         ConnectionSchemaCache? connectionSchemas = null, string? argumentSet = null)
         => ExecutionRequest.For(frontMatter, currentQueryPath, arguments, argumentSet) with

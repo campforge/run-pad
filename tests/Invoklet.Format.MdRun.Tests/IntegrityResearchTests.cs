@@ -1,7 +1,7 @@
 using System.Text;
 using Xunit;
 
-namespace Invoklet.Format.RPad.Tests;
+namespace Invoklet.Format.MdRun.Tests;
 
 public class IntegrityResearchTests
 {
@@ -20,11 +20,11 @@ public class IntegrityResearchTests
                 + (code.Length == 0 ? "" : code + nl) + "```" + nl + "After é" + nl;
             var header = "---" + nl + "language: csharp" + nl + "---" + nl;
             File.WriteAllText(path, header + body, new UTF8Encoding(bom));
-            var parsed = RpadParser.Parse(File.ReadAllText(path));
+            var parsed = MdRunParser.Parse(File.ReadAllText(path));
             Assert.NotNull(parsed.Document);
-            var serialized = RpadWriter.Write(parsed.Document);
+            var serialized = MdRunWriter.Write(parsed.Document);
             Assert.EndsWith(body, serialized, StringComparison.Ordinal);
-            Assert.Equal(code.Length == 0 ? "" : code + nl, RpadParser.TryParse(serialized)!.RunCode);
+            Assert.Equal(code.Length == 0 ? "" : code + nl, MdRunParser.TryParse(serialized)!.RunCode);
         }
         finally { Directory.Delete(root, true); }
     }
@@ -40,10 +40,10 @@ public class IntegrityResearchTests
     {
         var source = "---\nlanguage: csharp\nreferences:\n  - '" + reference.Replace("'", "''")
             + "'\n---\n```csharp run\n1.Dump();\n```\n";
-        var doc = RpadParser.TryParse(source);
+        var doc = MdRunParser.TryParse(source);
         Assert.NotNull(doc);
         Assert.Equal(reference, Assert.Single(doc.FrontMatter.References!));
-        var result = RpadParser.Parse(RpadWriter.Write(doc));
+        var result = MdRunParser.Parse(MdRunWriter.Write(doc));
         Assert.NotNull(result.Document);
         Assert.Equal(reference, Assert.Single(result.Document.FrontMatter.References!));
     }

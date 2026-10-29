@@ -5,7 +5,7 @@ using Avalonia.VisualTree;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -87,7 +87,7 @@ public class EditorTabsControlTabActionsWiringTests
         try
         {
             var original = Path.Combine(rootFolder, "Query 1.rpad");
-            File.WriteAllText(original, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Query 1"));
+            File.WriteAllText(original, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Query 1"));
             mainVm.OpenTab(original);
             await GetSoleControlAsync(editorTabs);
             var tab = Assert.Single(mainVm.Tabs);
@@ -111,7 +111,7 @@ public class EditorTabsControlTabActionsWiringTests
         try
         {
             var filePath = Path.Combine(rootFolder, "demo.rpad");
-            File.WriteAllText(filePath, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
+            File.WriteAllText(filePath, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
             mainVm.OpenTab(filePath);
             await GetSoleControlAsync(editorTabs);
             var tab = Assert.Single(mainVm.Tabs);

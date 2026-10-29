@@ -62,7 +62,7 @@ public sealed class EditorLanguageProfile
     // correct for C#'s { }-delimited blocks.
     public Func<string, IReadOnlyList<(int Start, int End)>>? FoldingRegionsProvider { get; init; }
 
-    // Used to be a `switch` on RpadLanguage hardcoded in FileTreeViewNode.LanguageIconKey
+    // Used to be a `switch` on MdRunLanguage hardcoded in FileTreeViewNode.LanguageIconKey
     // (main UI project) — same class of problem as FoldingRegionsProvider above, same fix: the
     // language plugin names its own icon instead of the UI layer knowing about every language by name.
     // A resource key into src/main/Invoklet/Resources/Icons.axaml (StreamGeometry, resolved at bind time

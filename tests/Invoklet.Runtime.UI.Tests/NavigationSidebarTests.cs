@@ -16,7 +16,7 @@ using Invoklet.Contracts;
 using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Desktop.MacOS;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Connections;
@@ -76,11 +76,11 @@ public sealed class NavigationSidebarTests : IDisposable
         var drivers = new ConnectionDriverRegistry();
         drivers.Register(new HttpConnectionDriver());
         var store = new FileConnectionStore(Path.Combine(_dataFolder, "connections.json"));
-        RpadConnection Http(string name) => new()
+        MdRunConnection Http(string name) => new()
         {
             Name = name,
             Driver = "http",
-            Params = new(StringComparer.Ordinal) { ["baseAddress"] = RpadValue.Of($"https://{name}.test/") },
+            Params = new(StringComparer.Ordinal) { ["baseAddress"] = MdRunValue.Of($"https://{name}.test/") },
         };
         // One list per test: a second window of the same test reads it rather than writing it again,
         // which the store would refuse as a conflicting save.
@@ -451,7 +451,7 @@ public sealed class NavigationSidebarTests : IDisposable
         Assert.Same(example, tab.Example);
         Assert.True(tab.IsDirty);
         Assert.Null(tab.FilePath);
-        Assert.Equal(RpadParser.TryParse(original)!.RunCode, editor.Text);
+        Assert.Equal(MdRunParser.TryParse(original)!.RunCode, editor.Text);
         Assert.Empty(Directory.EnumerateFileSystemEntries(_folder)); // nothing written, nothing run
 
         var count = vm.Tabs.Count;

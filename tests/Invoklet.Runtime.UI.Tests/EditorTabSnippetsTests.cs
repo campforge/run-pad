@@ -6,7 +6,7 @@ using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.VB;
 using Invoklet.Services;
@@ -30,7 +30,7 @@ public class EditorTabSnippetsTests
     [AvaloniaFact]
     public async Task Editor_Should_GetCSharpSnippets_When_TabLanguageIsCSharp()
     {
-        var ctrl = await OpenTabAsync(RpadLanguage.CSharp);
+        var ctrl = await OpenTabAsync(MdRunLanguage.CSharp);
         var snippets = ctrl.State.Editor.Snippets;
 
         Assert.NotEmpty(snippets);
@@ -44,7 +44,7 @@ public class EditorTabSnippetsTests
     {
         // VbLanguageHostFactory defines no snippets yet — a VB tab must not silently inherit the
         // hardcoded C# ones (the bug this refactor fixes).
-        var ctrl = await OpenTabAsync(RpadLanguage.Vb);
+        var ctrl = await OpenTabAsync(MdRunLanguage.Vb);
 
         Assert.Empty(ctrl.State.Editor.Snippets);
     }
@@ -56,7 +56,7 @@ public class EditorTabSnippetsTests
     [AvaloniaFact]
     public async Task Editor_Should_GetCSharpEditorProfile_When_TabLanguageIsCSharp()
     {
-        var ctrl = await OpenTabAsync(RpadLanguage.CSharp);
+        var ctrl = await OpenTabAsync(MdRunLanguage.CSharp);
         var editor = ctrl.State.Editor;
 
         Assert.Contains('<', editor.ContextualTriggers); // generic type arguments, e.g. "List<"
@@ -73,7 +73,7 @@ public class EditorTabSnippetsTests
     [AvaloniaFact]
     public async Task Editor_Should_GetVbEditorProfile_When_TabLanguageIsVb()
     {
-        var ctrl = await OpenTabAsync(RpadLanguage.Vb);
+        var ctrl = await OpenTabAsync(MdRunLanguage.Vb);
         var editor = ctrl.State.Editor;
 
         // VB has no bare '<' generics trigger (uses "Of") and no brace-delimited blocks — a VB tab
@@ -102,7 +102,7 @@ public class EditorTabSnippetsTests
     [AvaloniaFact]
     public async Task Editor_Should_UseBraceFoldingStrategy_When_TabLanguageIsCSharp()
     {
-        var ctrl = await OpenTabAsync(RpadLanguage.CSharp);
+        var ctrl = await OpenTabAsync(MdRunLanguage.CSharp);
 
         Assert.IsType<BraceFoldingStrategy>(ctrl.State.Editor.FoldingStrategy);
     }
@@ -110,7 +110,7 @@ public class EditorTabSnippetsTests
     [AvaloniaFact]
     public async Task Editor_Should_UseDelegateFoldingStrategy_When_TabLanguageIsVb()
     {
-        var ctrl = await OpenTabAsync(RpadLanguage.Vb);
+        var ctrl = await OpenTabAsync(MdRunLanguage.Vb);
         var editor = ctrl.State.Editor;
 
         Assert.IsType<DelegateFoldingStrategy>(editor.FoldingStrategy);
@@ -127,7 +127,7 @@ public class EditorTabSnippetsTests
         Assert.Equal(3, editor.Document.GetLineByOffset(folding.EndOffset).LineNumber);
     }
 
-    private static async Task<EditorsTabItemControl> OpenTabAsync(RpadLanguage language)
+    private static async Task<EditorsTabItemControl> OpenTabAsync(MdRunLanguage language)
     {
         var tmpDir = Directory.CreateTempSubdirectory("Invoklet-snippets-test").FullName;
         try
@@ -135,7 +135,7 @@ public class EditorTabSnippetsTests
             var filePath = Path.Combine(tmpDir, "demo.rpad");
             // NewFile emits the matching ```{language} run fence — retargeting a parsed C# document's
             // language would leave a C# fence the parser (rightly) rejects for VB.
-            File.WriteAllText(filePath, RpadWriter.NewFile(language == RpadLanguage.Vb ? "Console.WriteLine(\"Hello, RPad!\")\n" : "Console.WriteLine(\"Hello, RPad!\");\n", "Demo", language: language));
+            File.WriteAllText(filePath, MdRunWriter.NewFile(language == MdRunLanguage.Vb ? "Console.WriteLine(\"Hello, RPad!\")\n" : "Console.WriteLine(\"Hello, RPad!\");\n", "Demo", language: language));
 
             var prefs = new Mock<IPreferencesService>();
             prefs.Setup(p => p.Layout).Returns(new LayoutSettings());

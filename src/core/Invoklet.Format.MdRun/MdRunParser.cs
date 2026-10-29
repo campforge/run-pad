@@ -3,26 +3,26 @@ using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
-namespace Invoklet.Format.RPad;
+namespace Invoklet.Format.MdRun;
 
 /// ToDo: figure out the stream handling — specifically, be able to grab the code stream directly, ignoring the headers
-public static class RpadParser
+public static class MdRunParser
 {
     private static readonly IDeserializer _yamlDeserializer = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .IgnoreUnmatchedProperties()
         .WithTypeConverter(new TargetSdkYamlConverter())
         .WithTypeConverter(new PackageYamlConverter())
-        .WithTypeConverter(new StrictEnumYamlConverter<RpadKind>(lowercase: false))
-        .WithTypeConverter(new StrictEnumYamlConverter<RpadLanguage>(lowercase: true))
+        .WithTypeConverter(new StrictEnumYamlConverter<MdRunKind>(lowercase: false))
+        .WithTypeConverter(new StrictEnumYamlConverter<MdRunLanguage>(lowercase: true))
         .WithTypeConverter(new ConnectionYamlConverter())
         .WithTypeConverter(new ArgumentYamlConverter())
         .WithTypeConverter(new ValueYamlConverter())
         .WithTypeConverter(new NullableGuidYamlConverter())
         .Build();
 
-    // The front matter's own keys, as RpadWriter writes them; any other top-level key is kept
-    // verbatim in RpadFrontMatter.UnknownEntries.
+    // The front matter's own keys, as MdRunWriter writes them; any other top-level key is kept
+    // verbatim in MdRunFrontMatter.UnknownEntries.
     // The retired args key is discarded on save rather than preserved as unknown metadata.
     private static readonly HashSet<string> KnownKeys = new(StringComparer.Ordinal)
     {
@@ -34,37 +34,37 @@ public static class RpadParser
     /// Parses an .rpad file. Returns null if the content isn't a valid .rpad document — see
     /// <see cref="Parse"/> for the reason.
     /// </summary>
-    public static RpadDocument? TryParse(string content) => Parse(content).Document;
+    public static MdRunDocument? TryParse(string content) => Parse(content).Document;
 
     /// <summary>
     /// Parses an .rpad file, reporting why it isn't a valid document instead of guessing: missing
     /// front matter, malformed YAML (e.g. an unknown <c>kind:</c>) and a missing run block for the
     /// declared language are all errors. Absent/empty optional values still fall back to defaults.
     /// </summary>
-    public static RpadParseResult Parse(string content)
+    public static MdRunParseResult Parse(string content)
     {
         // Delimiter lines must be exactly "---" (trailing whitespace allowed) — "---garbage" is neither
         // an opening nor a closing delimiter.
         var firstNl = content.IndexOf('\n');
         if (firstNl < 0 || !IsFrontMatterDelimiter(LineAt(content, 0)))
-            return RpadParseResult.Failure("The file does not start with a '---' YAML front matter line.");
+            return MdRunParseResult.Failure("The file does not start with a '---' YAML front matter line.");
         var searchFrom = firstNl + 1;
 
         var fmEnd = FindLine(content, searchFrom, IsFrontMatterDelimiter);
         if (fmEnd < 0)
-            return RpadParseResult.Failure("The YAML front matter is not closed by a '---' line.");
+            return MdRunParseResult.Failure("The YAML front matter is not closed by a '---' line.");
 
         var originalYaml = content[searchFrom..fmEnd];
         var afterFm = SkipLine(content, fmEnd);
         var markdownBody = content[afterFm..];
 
-        RpadFrontMatter fm;
+        MdRunFrontMatter fm;
         try
         {
             var yamlText = WithoutAliases(originalYaml);
             // Empty (or comment-only) YAML deserializes to null — every field is optional, so that's
             // just "all defaults", not an error.
-            fm = _yamlDeserializer.Deserialize<RpadFrontMatter?>(yamlText) ?? new RpadFrontMatter();
+            fm = _yamlDeserializer.Deserialize<MdRunFrontMatter?>(yamlText) ?? new MdRunFrontMatter();
             // YamlDotNet overwrites defaulted properties with an explicit YAML null (e.g.
             // "references:" with no value) — restore the default in that case. TargetSdk/Package
             // converters below already map an empty scalar to TargetSdk.Default/Package.Default
@@ -79,36 +79,36 @@ public static class RpadParser
             fm.Arguments ??= [];
             // "smoke:" with nothing after it is a set that gives no values, like "smoke: {}".
             fm.ArgumentSets = (fm.ArgumentSets ?? []).ToDictionary(s => s.Key,
-                s => new Dictionary<string, RpadValue>(s.Value ?? [], StringComparer.Ordinal), StringComparer.Ordinal);
+                s => new Dictionary<string, MdRunValue>(s.Value ?? [], StringComparer.Ordinal), StringComparer.Ordinal);
             if (string.IsNullOrEmpty(fm.SelectedArgumentSet)) fm.SelectedArgumentSet = null;
             fm.Connections ??= [];
             fm.UnknownEntries = UnknownEntries(yamlText);
             if (RepeatedArgumentSet(yamlText) is { } repeated)
-                return RpadParseResult.Failure($"Invalid YAML front matter: {repeated}.");
-            if (fm.Kind == RpadKind.Unknown) fm.Kind = RpadKind.Statements;
-            if (fm.Language == RpadLanguage.Unknown) fm.Language = RpadLanguage.CSharp;
+                return MdRunParseResult.Failure($"Invalid YAML front matter: {repeated}.");
+            if (fm.Kind == MdRunKind.Unknown) fm.Kind = MdRunKind.Statements;
+            if (fm.Language == MdRunLanguage.Unknown) fm.Language = MdRunLanguage.CSharp;
         }
         catch (YamlException ex)
         {
-            // Never fall back to a fresh RpadFrontMatter here — that silently swapped the
+            // Never fall back to a fresh MdRunFrontMatter here — that silently swapped the
             // declared language/kind/packages/references for defaults, which a later save then
             // persisted. The YAML starts on the file's second line, hence the +1. The innermost
             // exception carries the plain reason (YamlDotNet prefixes its own message with marks).
             Exception inner = ex;
             while (inner.InnerException is not null) inner = inner.InnerException;
             var detail = inner.Message;
-            return RpadParseResult.Failure(
+            return MdRunParseResult.Failure(
                 $"Invalid YAML front matter (line {ex.Start.Line + 1}): {detail}");
         }
         catch (Exception ex)
         {
-            return RpadParseResult.Failure($"Invalid YAML front matter: {ex.Message}");
+            return MdRunParseResult.Failure($"Invalid YAML front matter: {ex.Message}");
         }
 
         var languageId = fm.Language.ToLanguageId();
         var openIdx = FindLine(markdownBody, 0, line => IsRunFence(line, languageId));
         if (openIdx < 0)
-            return RpadParseResult.Failure($"No '```{languageId} run' code block found.");
+            return MdRunParseResult.Failure($"No '```{languageId} run' code block found.");
 
         var codeStart = SkipLine(markdownBody, openIdx);
         // Checks the line at codeStart too — an empty block's closing fence sits right
@@ -117,7 +117,7 @@ public static class RpadParser
 
         if (closeStart < 0)
         {
-            return RpadParseResult.Success(new RpadDocument
+            return MdRunParseResult.Success(new MdRunDocument
             {
                 FrontMatter = fm,
                 RunCode = markdownBody[codeStart..],
@@ -126,7 +126,7 @@ public static class RpadParser
             });
         }
 
-        return RpadParseResult.Success(new RpadDocument
+        return MdRunParseResult.Success(new MdRunDocument
         {
             FrontMatter = fm,
             RunCode = markdownBody[codeStart..closeStart],   // includes trailing \n; "" for an empty block
@@ -137,7 +137,7 @@ public static class RpadParser
 
     // The front matter with every alias replaced by a copy of the node its anchor names, and no
     // anchors left; the text itself when it has no alias. Without this, an unknown entry's alias of an
-    // anchor on a known key would point at nothing once RpadWriter rewrites that key from the model,
+    // anchor on a known key would point at nothing once MdRunWriter rewrites that key from the model,
     // and the deserializer, which skips unknown keys, never sees an anchor declared in one, so a known
     // key's alias of it fails to load. A front matter with aliases loses its comments this way.
     private static string WithoutAliases(string yaml)
@@ -359,9 +359,9 @@ public static class RpadParser
 }
 
 // Kind/Language: only a declared, non-Unknown member name is accepted (case-insensitively —
-// `language: csharp` vs RpadLanguage.CSharp). YamlDotNet's own enum binding also accepted numbers
+// `language: csharp` vs MdRunLanguage.CSharp). YamlDotNet's own enum binding also accepted numbers
 // ("99" → an undefined value, "0"/"Unknown" → silently Statements/CSharp later); those are now errors.
-// An empty/null value yields Unknown, which RpadParser.Parse then replaces with the real default.
+// An empty/null value yields Unknown, which MdRunParser.Parse then replaces with the real default.
 internal sealed class StrictEnumYamlConverter<TEnum>(bool lowercase) : IYamlTypeConverter
     where TEnum : struct, Enum
 {
@@ -380,7 +380,7 @@ internal sealed class StrictEnumYamlConverter<TEnum>(bool lowercase) : IYamlType
                 return member;
 
         var expected = string.Join(", ", supported.Select(Display));
-        var message = $"Unsupported {typeof(TEnum).Name[4..].ToLowerInvariant()} '{value}'; expected one of: {expected}.";
+        var message = $"Unsupported {typeof(TEnum).Name[5..].ToLowerInvariant()} '{value}'; expected one of: {expected}.";
         throw new YamlException(scalar.Start, scalar.End, message, new FormatException(message));
     }
 
@@ -408,14 +408,14 @@ internal sealed class TargetSdkYamlConverter : IYamlTypeConverter
 // in Extra. Every scalar is read as text, so "30" and "true" stay what the file says.
 internal sealed class ConnectionYamlConverter : IYamlTypeConverter
 {
-    public bool Accepts(Type type) => type == typeof(RpadConnection);
+    public bool Accepts(Type type) => type == typeof(MdRunConnection);
 
     public object ReadYaml(IParser parser, Type type, ObjectDeserializer rootDeserializer)
     {
         var start = parser.Current!.Start;
         if (!parser.TryConsume<MappingStart>(out _))
             throw new YamlException(start, start, "A connection must be a mapping with name, driver and params.");
-        var connection = new RpadConnection();
+        var connection = new MdRunConnection();
         while (!parser.TryConsume<MappingEnd>(out _))
         {
             var key = parser.Consume<Scalar>().Value;
@@ -437,44 +437,44 @@ internal sealed class ConnectionYamlConverter : IYamlTypeConverter
 
     private static YamlException NotText(string key, Mark at) => new(at, at, $"A connection's {key} must be text.");
 
-    internal static RpadValue ReadValue(IParser parser)
+    internal static MdRunValue ReadValue(IParser parser)
     {
-        if (parser.TryConsume<Scalar>(out var scalar)) return RpadValue.Of(scalar.Value);
+        if (parser.TryConsume<Scalar>(out var scalar)) return MdRunValue.Of(scalar.Value);
         if (parser.TryConsume<SequenceStart>(out _))
         {
-            var items = new List<RpadValue>();
+            var items = new List<MdRunValue>();
             while (!parser.TryConsume<SequenceEnd>(out _)) items.Add(ReadValue(parser));
-            return RpadValue.List(items);
+            return MdRunValue.List(items);
         }
         if (parser.TryConsume<MappingStart>(out _))
         {
-            var fields = new Dictionary<string, RpadValue>(StringComparer.Ordinal);
+            var fields = new Dictionary<string, MdRunValue>(StringComparer.Ordinal);
             while (!parser.TryConsume<MappingEnd>(out _))
             {
                 var key = parser.Consume<Scalar>().Value;
                 fields[key] = ReadValue(parser);
             }
-            return new RpadValue { Fields = fields };
+            return new MdRunValue { Fields = fields };
         }
         var at = parser.Current!.Start;
         throw new YamlException(at, at, "Anchors and aliases are not supported in connections.");
     }
 
     public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
-        => throw new NotSupportedException("RpadWriter writes connections.");
+        => throw new NotSupportedException("MdRunWriter writes connections.");
 }
 
 // One declared argument: name, type, default and, for an enum, its values.
 internal sealed class ArgumentYamlConverter : IYamlTypeConverter
 {
-    public bool Accepts(Type type) => type == typeof(RpadArgument);
+    public bool Accepts(Type type) => type == typeof(MdRunArgument);
 
     public object ReadYaml(IParser parser, Type type, ObjectDeserializer rootDeserializer)
     {
         var start = parser.Current!.Start;
         if (!parser.TryConsume<MappingStart>(out _))
             throw new YamlException(start, start, "An argument must be a mapping with name and type.");
-        var argument = new RpadArgument();
+        var argument = new MdRunArgument();
         while (!parser.TryConsume<MappingEnd>(out _))
         {
             var key = parser.Consume<Scalar>().Value;
@@ -483,7 +483,7 @@ internal sealed class ArgumentYamlConverter : IYamlTypeConverter
             {
                 case "name": argument.Name = value.Text ?? throw new YamlException(start, start, "An argument's name must be text."); break;
                 case "type":
-                    argument.Type = value.Text is { } name && RpadArgument.ParseType(name) is { } parsed ? parsed
+                    argument.Type = value.Text is { } name && MdRunArgument.ParseType(name) is { } parsed ? parsed
                         : throw new YamlException(start, start,
                             $"Unknown argument type '{value.Text}'. Use string, int, bool, double, decimal, datetime, timespan, string[] or enum.");
                     break;
@@ -496,18 +496,18 @@ internal sealed class ArgumentYamlConverter : IYamlTypeConverter
     }
 
     public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
-        => throw new NotSupportedException("RpadWriter writes arguments.");
+        => throw new NotSupportedException("MdRunWriter writes arguments.");
 }
 
 // A set's value for an argument: text or a list of text, as in connections.
 internal sealed class ValueYamlConverter : IYamlTypeConverter
 {
-    public bool Accepts(Type type) => type == typeof(RpadValue);
+    public bool Accepts(Type type) => type == typeof(MdRunValue);
 
     public object ReadYaml(IParser parser, Type type, ObjectDeserializer rootDeserializer) => ConnectionYamlConverter.ReadValue(parser);
 
     public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
-        => throw new NotSupportedException("RpadWriter writes values.");
+        => throw new NotSupportedException("MdRunWriter writes values.");
 }
 
 internal sealed class PackageYamlConverter : IYamlTypeConverter

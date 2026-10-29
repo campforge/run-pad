@@ -6,7 +6,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -52,7 +52,7 @@ public class EditorTabPackageReferencesTests
 
         var intelliSense = new Mock<IIntelliSenseService>().ForwardingExecutionContext();
         var vm = new EditorTabItemViewModel(
-            null, [Sdk], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
+            null, [Sdk], prefs.Object, new Mock<IEditorTabActions>().Object, MdRunLanguage.CSharp, MdRunKind.Statements);
         var ctrl = new EditorsTabItemControl(vm, theme.Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
             intelliSense.Object, new Mock<IBuildCacheService>().Object);
         new Window { Content = ctrl }.Show();

@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Invoklet.Languages.CSharp;
 
-// RpadKind.Program used to glue a bare "Main();"/"await Main();" call directly in front
+// MdRunKind.Program used to glue a bare "Main();"/"await Main();" call directly in front
 // of the user's own code, leaving everything (Main, and whatever else the user wrote alongside it) as
 // C# top-level statements. That only worked for scripts containing nothing but Main itself — LINQPad-
 // style scripts (field(s) + Main + helper methods, the norm for this kind, not the exception) hit two
@@ -41,7 +41,7 @@ namespace Invoklet.Languages.CSharp;
 // correctly (from its own point of view) flagged the user's Main as an unused local function (CS8321);
 // without mirroring the suffix, the live document would contain a permanently-open class declaration,
 // breaking parsing/binding for the rest of the file.
-internal static class RpadKindTransform
+internal static class MdRunKindTransform
 {
     // Double-underscore prefix to keep a collision with a user-declared member of the same name
     // astronomically unlikely — neither identifier is ever shown to the user (they exist only in the

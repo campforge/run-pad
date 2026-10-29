@@ -1,6 +1,6 @@
 using System.Reactive.Linq;
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
@@ -35,7 +35,7 @@ public class DependenciesWindowViewModelDetailsTests
         var sources = new Mock<INuGetSourceStore>();
         sources.Setup(s => s.Load()).Returns([new NuGetSource("nuget.org", "https://api.nuget.org/v3/index.json")]);
         var vm = new DependenciesWindowViewModel(search.Object, cache.Object, sources.Object, TimeSpan.Zero);
-        vm.SetFrontMatter(new RpadFrontMatter());
+        vm.SetFrontMatter(new MdRunFrontMatter());
         return (vm, search);
     }
 

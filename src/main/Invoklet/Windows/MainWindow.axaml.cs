@@ -9,7 +9,7 @@ using Avalonia.Media;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
 using Invoklet.Desktop;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services.Desktop;
 using Invoklet.Services.Preferences;
 using Invoklet.UserControls;
@@ -176,7 +176,7 @@ public sealed partial class MainWindow : Window, IDisposable, IStartupWindow
         var tabs = _editorTabs;
         return new()
         {
-            [KeyCommands.NewFile] = vm.NewRpadFileWithDefaults,
+            [KeyCommands.NewFile] = vm.NewMdRunFileWithDefaults,
             [KeyCommands.OpenFile] = () => vm.OpenFileCommand.Execute().Subscribe(),
             [KeyCommands.Save] = tabs.SaveActive,
             [KeyCommands.SaveAs] = tabs.SaveAsActive,
@@ -383,7 +383,7 @@ public sealed partial class MainWindow : Window, IDisposable, IStartupWindow
                 new MainMenuGroup("New _RPad File",
                 [
                     .. vm.NewFileLanguages.Select(l => new MainMenuCommand(
-                        l.DisplayName, ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(l.Language)))),
+                        l.DisplayName, ReactiveCommand.CreateFromTask(() => NewMdRunFileWithKindAsync(l.Language)))),
                 ]),
                 new MainMenuCommand("_Open...", vm.OpenFileCommand, _prefs.Keyboard.GestureFor(KeyCommands.OpenFile), KeyCommands.OpenFile),
                 CreateRecentFilesMenu(),
@@ -547,13 +547,13 @@ public sealed partial class MainWindow : Window, IDisposable, IStartupWindow
 
     // ── Menu handlers ─────────────────────────────────────────────────────────
 
-    private async Task NewRpadFileWithKindAsync(RpadLanguage language)
+    private async Task NewMdRunFileWithKindAsync(MdRunLanguage language)
     {
         if (GetViewModel().IsRestoringWorkspace) return;
-        var kind = await new NewFileKindDialog().ShowDialog<RpadKind?>(this);
+        var kind = await new NewFileKindDialog().ShowDialog<MdRunKind?>(this);
         if (kind is null) return; // cancelled
 
-        GetViewModel().NewRpadFile(language, kind.Value);
+        GetViewModel().NewMdRunFile(language, kind.Value);
     }
 
     // ── Samples ───────────────────────────────────────────────────────────────
@@ -652,7 +652,7 @@ public sealed partial class MainWindow : Window, IDisposable, IStartupWindow
 
     private async void FileTree_CreateFile(object? sender, FileTreeCreateFileEventArgs e)
     {
-        var kind = await new NewFileKindDialog().ShowDialog<RpadKind?>(this);
+        var kind = await new NewFileKindDialog().ShowDialog<MdRunKind?>(this);
         if (kind is null) return; // cancelled
 
         var newPath = await GetViewModel().CreateFileAsync(e.ParentPath, e.Language, kind.Value);

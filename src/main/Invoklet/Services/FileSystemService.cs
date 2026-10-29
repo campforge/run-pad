@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Microsoft.Extensions.Logging;
 
 namespace Invoklet.Services;
@@ -15,7 +15,7 @@ public interface IFileSystemService : IDisposable
     /// large/network/cloud-synced folders).
     /// </summary>
     Task<IReadOnlyList<FileSystemItem>> GetFilesTreeAsync(CancellationToken ct = default);
-    string CreateNewFile(string parentDir, RpadLanguage language, RpadKind kind, string code);
+    string CreateNewFile(string parentDir, MdRunLanguage language, MdRunKind kind, string code);
     string CreateNewFolder(string parentDir);
     void StartWatcher();
     void StopWatcher();
@@ -164,9 +164,9 @@ public sealed class FileSystemService : IFileSystemService
     // File tree's "New File" — same "probe for a free name" pattern as CreateNewFolder,
     // but for a .rpad file, written into the caller-resolved target directory instead of always the
     // workspace root (the caller — MainWindowViewModel.CreateFileAsync — resolves that the same way
-    // CreateFolderAsync does). Written with RpadWriter.NewFile around the caller's <code> (the
+    // CreateFolderAsync does). Written with MdRunWriter.NewFile around the caller's <code> (the
     // language's template for the kind), so the file is a well-formed .rpad document at once.
-    public string CreateNewFile(string parentDir, RpadLanguage language, RpadKind kind, string code)
+    public string CreateNewFile(string parentDir, MdRunLanguage language, MdRunKind kind, string code)
     {
         int i = 1;
         string path;
@@ -175,7 +175,7 @@ public sealed class FileSystemService : IFileSystemService
             path = Path.Combine(parentDir, $"Query {i++}{FileExtension}");
         } while (File.Exists(path) || Directory.Exists(path));
 
-        File.WriteAllText(path, RpadWriter.NewFile(
+        File.WriteAllText(path, MdRunWriter.NewFile(
             code, title: Path.GetFileNameWithoutExtension(path), language: language, kind: kind));
         return path;
     }

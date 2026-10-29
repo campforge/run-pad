@@ -1,6 +1,6 @@
 using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 
 namespace Invoklet.Services;
 
@@ -8,7 +8,7 @@ namespace Invoklet.Services;
 public static class ExecutionRequestBuilder
 {
     public static ExecutionRequest Build(
-        RpadFrontMatter? frontMatter,
+        MdRunFrontMatter? frontMatter,
         string? filePath,
         GeneratedConnections? connections,
         string? referenceBasePath,

@@ -7,7 +7,7 @@ using Avalonia.VisualTree;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -54,7 +54,7 @@ public class MainWindowHotkeysTests
         var buildCache = new Mock<IBuildCacheService>();
         var intelliSense = new Mock<IIntelliSenseService>();
         var windowService = new Mock<IWindowService>();
-        windowService.Setup(w => w.ShowDependenciesAsync(It.IsAny<IObservable<Invoklet.Format.RPad.RpadFrontMatter?>?>(), It.IsAny<IObservable<string?>?>()))
+        windowService.Setup(w => w.ShowDependenciesAsync(It.IsAny<IObservable<Invoklet.Format.MdRun.MdRunFrontMatter?>?>(), It.IsAny<IObservable<string?>?>()))
             .Returns(Task.CompletedTask);
         // Ctrl+W's close path asks this whenever the active tab is untitled+dirty (EditorTabsControl.
         // RequestCloseTabAsync) — an unstubbed loose mock defaults an unconfigured Task<enum> call to
@@ -112,7 +112,7 @@ public class MainWindowHotkeysTests
 
         window.KeyPress(Key.F4, RawInputModifiers.None, PhysicalKey.F4, null);
 
-        windowService.Verify(w => w.ShowDependenciesAsync(It.IsAny<IObservable<Invoklet.Format.RPad.RpadFrontMatter?>?>(), It.IsAny<IObservable<string?>?>()), Times.Once);
+        windowService.Verify(w => w.ShowDependenciesAsync(It.IsAny<IObservable<Invoklet.Format.MdRun.MdRunFrontMatter?>?>(), It.IsAny<IObservable<string?>?>()), Times.Once);
     }
 
     [AvaloniaFact]
@@ -122,7 +122,7 @@ public class MainWindowHotkeysTests
 
         window.KeyPress(Key.F4, RawInputModifiers.None, PhysicalKey.F4, null);
 
-        windowService.Verify(w => w.ShowDependenciesAsync(It.IsAny<IObservable<Invoklet.Format.RPad.RpadFrontMatter?>?>(), It.IsAny<IObservable<string?>?>()), Times.Never);
+        windowService.Verify(w => w.ShowDependenciesAsync(It.IsAny<IObservable<Invoklet.Format.MdRun.MdRunFrontMatter?>?>(), It.IsAny<IObservable<string?>?>()), Times.Never);
     }
 
     [AvaloniaFact]
@@ -132,7 +132,7 @@ public class MainWindowHotkeysTests
 
         window.KeyPress(Key.X, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.X, null);
 
-        windowService.Verify(w => w.ShowDependenciesAsync(It.IsAny<IObservable<Invoklet.Format.RPad.RpadFrontMatter?>?>(), It.IsAny<IObservable<string?>?>()), Times.Once);
+        windowService.Verify(w => w.ShowDependenciesAsync(It.IsAny<IObservable<Invoklet.Format.MdRun.MdRunFrontMatter?>?>(), It.IsAny<IObservable<string?>?>()), Times.Once);
     }
 
     [AvaloniaFact]
@@ -291,9 +291,9 @@ public class MainWindowHotkeysTests
     }
 
     // Confirms Ctrl+N reads its language/kind from EditorSettings (MainWindowViewModel.
-    // NewRpadFileWithDefaults) instead of hardcoding NewRpadFile's own CSharp/Statements defaults —
+    // NewMdRunFileWithDefaults) instead of hardcoding NewMdRunFile's own CSharp/Statements defaults —
     // CreateMainWindow's own EditorSettings() stub is replaced with an explicit one here so this is
-    // actually exercised end to end, not just true by coincidence with NewRpadFile's own defaults.
+    // actually exercised end to end, not just true by coincidence with NewMdRunFile's own defaults.
     [AvaloniaFact]
     public void PressingCtrlN_Should_CreateTheNewTab_WithTheConfiguredLanguageAndKind()
     {
@@ -303,8 +303,8 @@ public class MainWindowHotkeysTests
         prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings { IsMac = false });
         prefs.Setup(p => p.Editor).Returns(new EditorSettings
         {
-            NewFileLanguage = RpadLanguage.Vb,
-            NewFileKind = RpadKind.Program,
+            NewFileLanguage = MdRunLanguage.Vb,
+            NewFileKind = MdRunKind.Program,
         });
         prefs.Setup(p => p.CSharp).Returns(new CSharpLanguageSettings());
 
@@ -334,8 +334,8 @@ public class MainWindowHotkeysTests
 
         window.KeyPress(Key.N, RawInputModifiers.Control, PhysicalKey.N, null);
 
-        var newTab = Assert.Single(mainVm.Tabs, t => t.FilePath is null && t.NewFileLanguage == RpadLanguage.Vb);
-        Assert.Equal(RpadKind.Program, newTab.NewFileKind);
+        var newTab = Assert.Single(mainVm.Tabs, t => t.FilePath is null && t.NewFileLanguage == MdRunLanguage.Vb);
+        Assert.Equal(MdRunKind.Program, newTab.NewFileKind);
     }
 
     [AvaloniaFact]

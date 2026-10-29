@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 using System.Text;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Compiler;
 using Microsoft.CodeAnalysis;
@@ -43,7 +43,7 @@ public sealed class VbScriptCompiler(CompiledDotnetLanguageHostOptions options, 
     protected override string GeneratedSource(ScriptTarget target) =>
         $"<Assembly: Global.System.Runtime.Versioning.TargetFrameworkAttribute(\".NETCoreApp,Version=v{target.Major}.{target.Minor}\", " +
         $"FrameworkDisplayName:=\".NET {target.Major}.{target.Minor}\")>\n" +
-        RpadArgumentContract.FromJson(Options.ArgumentContractJson).GenerateVisualBasicFacade();
+        MdRunArgumentContract.FromJson(Options.ArgumentContractJson).GenerateVisualBasicFacade();
 
     protected override SyntaxTree TransformScriptTree(SyntaxTree tree)
         => new ArgumentAccessRewriter().Visit(tree.GetRoot()) is { } root

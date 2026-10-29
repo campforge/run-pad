@@ -1,6 +1,6 @@
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 
 namespace Invoklet.Contracts;
 
@@ -44,7 +44,7 @@ public interface ILanguageHostFactory
     // when the code should stay as it is (it already fits the kind, or the language has no template).
     // <indent> is one level of the editor's indentation (a tab, or its width in spaces): the template's
     // own lines use it; the script's lines keep theirs.
-    string? CodeForKind(string code, RpadKind kind, string indent = "    ") => null;
+    string? CodeForKind(string code, MdRunKind kind, string indent = "    ") => null;
 
     // Editor intelligence (completion, diagnostics, quick fixes...) for one open document, or null when
     // the language has none. Every call creates a new, stateful service that the caller owns and
@@ -86,7 +86,7 @@ public interface ILanguageHostRegistry
     IReadOnlyDictionary<string, string> GetSnippets(string language);
     EditorLanguageProfile GetEditorProfile(string language);
     string GetDisplayName(string language);
-    string? GetCodeForKind(string language, string code, RpadKind kind, string indent = "    ");
+    string? GetCodeForKind(string language, string code, MdRunKind kind, string indent = "    ");
 
     // See ILanguageHostFactory.CreateIntelliSense; null for a language that isn't registered.
     IIntelliSenseService? CreateIntelliSense(string language, CancellationToken cancellationToken);

@@ -8,7 +8,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Windows;
 using Invoklet.Windows.Models;
@@ -28,12 +28,12 @@ public class DependenciesArgumentsLayoutTests
         Application.Current!.Styles.Add(theme);
         var vm = new DependenciesWindowViewModel(new Mock<IPackageSearchService>().Object,
             new Mock<ILocalPackageCacheService>().Object, new Mock<INuGetSourceStore>().Object);
-        vm.Arguments.Load(new RpadFrontMatter
+        vm.Arguments.Load(new MdRunFrontMatter
         {
             Arguments =
             [
-                new() { Name = "verbose", Type = RpadArgumentType.Bool },
-                new() { Name = "environment", Type = RpadArgumentType.Enum, Default = RpadValue.Of("test"), Values = ["dev", "test", "prod"] },
+                new() { Name = "verbose", Type = MdRunArgumentType.Bool },
+                new() { Name = "environment", Type = MdRunArgumentType.Enum, Default = MdRunValue.Of("test"), Values = ["dev", "test", "prod"] },
             ],
         });
         var window = new DependenciesWindow(vm) { Width = 1000, Height = 700, RequestedThemeVariant = InvokletThemeVariants.InvokletMidnight };

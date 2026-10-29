@@ -7,7 +7,7 @@ using Invoklet.Contracts;
 using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -114,7 +114,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
             _workspaceShown.TrySetResult();
     }
 
-    // Dependencies window copies its draft into the active tab's RpadFrontMatter only on OK.
+    // Dependencies window copies its draft into the active tab's MdRunFrontMatter only on OK.
     // On close: if that changed anything, push the new packages/imports into that tab's own
     // IntelliSense instance and flush to disk immediately so the change survives an app
     // close/crash instead of waiting for the next Run or tab close.
@@ -567,10 +567,10 @@ public partial class EditorTabsControl : UserControl, IDisposable
         var owner = TopLevel.GetTopLevel(this) as Window;
         if (owner is null) return;
 
-        var kind = await new Windows.NewFileKindDialog().ShowDialog<RpadKind?>(owner);
+        var kind = await new Windows.NewFileKindDialog().ShowDialog<MdRunKind?>(owner);
         if (kind is null) return; // cancelled
 
-        _vm.NewRpadFile(kind: kind.Value);
+        _vm.NewMdRunFile(kind: kind.Value);
     }
 
     // ── IDisposable ────────────────────────────────────────────────────────────
@@ -621,8 +621,8 @@ public partial class EditorTabsControl : UserControl, IDisposable
     {
         var language = vm.RestoredRecovery is { } recovered
             ? recovered.Document?.FrontMatter.Language
-            : vm.FilePath is null ? vm.NewFileLanguage : RpadFilePeek.PeekDocumentLanguage(vm.FilePath);
-        if (_registry is not { } registry || language is not { } known || known == RpadLanguage.Unknown) return null;
+            : vm.FilePath is null ? vm.NewFileLanguage : MdRunFilePeek.PeekDocumentLanguage(vm.FilePath);
+        if (_registry is not { } registry || language is not { } known || known == MdRunLanguage.Unknown) return null;
         var id = known.ToLanguageId();
         try
         {

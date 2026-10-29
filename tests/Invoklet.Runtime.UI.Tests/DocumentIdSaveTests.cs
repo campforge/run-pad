@@ -4,7 +4,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -44,7 +44,7 @@ public class DocumentIdSaveTests
         return (ctrl, vm, host);
     }
 
-    private static Guid? IdIn(string path) => RpadParser.TryParse(File.ReadAllText(path))?.FrontMatter.Id;
+    private static Guid? IdIn(string path) => MdRunParser.TryParse(File.ReadAllText(path))?.FrontMatter.Id;
 
     private static void InTemporaryFolder(Action<string> test)
     {
@@ -75,7 +75,7 @@ public class DocumentIdSaveTests
     public void Duplicate_Should_GetItsOwnId_AndLeaveTheOriginalsAlone() => InTemporaryFolder(dir =>
     {
         var path = Path.Combine(dir, "a.rpad");
-        File.WriteAllText(path, RpadWriter.NewFile("1.Dump();\n"));
+        File.WriteAllText(path, MdRunWriter.NewFile("1.Dump();\n"));
         var original = IdIn(path);
         var copy = Path.Combine(dir, "a copy.rpad");
         var (ctrl, vm, host) = Open(path);
@@ -95,7 +95,7 @@ public class DocumentIdSaveTests
     public void SaveAs_Should_MoveTheTabToTheNewId() => InTemporaryFolder(dir =>
     {
         var path = Path.Combine(dir, "a.rpad");
-        File.WriteAllText(path, RpadWriter.NewFile("1.Dump();\n"));
+        File.WriteAllText(path, MdRunWriter.NewFile("1.Dump();\n"));
         var original = IdIn(path);
         var moved = Path.Combine(dir, "b.rpad");
         var (ctrl, vm, host) = Open(path);

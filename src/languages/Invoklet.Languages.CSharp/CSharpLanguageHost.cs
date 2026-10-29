@@ -1,5 +1,5 @@
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp.Compiler;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Compiler;
@@ -51,15 +51,15 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
             .Select(node => node switch
             {
                 BaseTypeDeclarationSyntax type
-                    when type.Identifier.ValueText == RpadKindTransform.ProgramWrapperClassName => type.Identifier,
+                    when type.Identifier.ValueText == MdRunKindTransform.ProgramWrapperClassName => type.Identifier,
                 DelegateDeclarationSyntax @delegate
-                    when @delegate.Identifier.ValueText == RpadKindTransform.ProgramWrapperClassName => @delegate.Identifier,
+                    when @delegate.Identifier.ValueText == MdRunKindTransform.ProgramWrapperClassName => @delegate.Identifier,
                 _ => default,
             })
             .Where(identifier => identifier.RawKind != 0)
             .ToList();
 
-        if (Options.Kind == RpadKind.Program)
+        if (Options.Kind == MdRunKind.Program)
         {
             foreach (var member in root.Members)
             {
@@ -78,7 +78,7 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
                     _ => [],
                 };
                 reserved.AddRange(identifiers.Where(identifier =>
-                    identifier.ValueText == RpadKindTransform.TrampolineMethodName));
+                    identifier.ValueText == MdRunKindTransform.TrampolineMethodName));
             }
         }
 
@@ -99,9 +99,9 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
 
     public override string ApplyKindTransform(string code) => Options.Kind switch
     {
-        RpadKind.Expression => $"(\n{code.TrimEnd()}\n).Dump();\n",
-        RpadKind.Program => $"{RpadKindTransform.ProgramPrefixFor(code, ParseOptions())}{ProgramBodyProjection.Create(code, ParseOptions()).Text}{RpadKindTransform.ProgramSuffixFor(code, ParseOptions())}",
-        _ => RpadKindTransform.StatementsFor(code, ParseOptions()),
+        MdRunKind.Expression => $"(\n{code.TrimEnd()}\n).Dump();\n",
+        MdRunKind.Program => $"{MdRunKindTransform.ProgramPrefixFor(code, ParseOptions())}{ProgramBodyProjection.Create(code, ParseOptions()).Text}{MdRunKindTransform.ProgramSuffixFor(code, ParseOptions())}",
+        _ => MdRunKindTransform.StatementsFor(code, ParseOptions()),
     };
 
     // Program with hoisted leading using/extern-alias directives: the generated file starts with the
@@ -112,7 +112,7 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
     protected override (int Line, int Column)? MapToUserPosition(string userCode, int line, int column)
     {
         var parseOptions = ParseOptions();
-        if (Options.Kind != RpadKind.Program || ProgramEntryPointDetector.IsCompiledAsWritten(userCode, parseOptions))
+        if (Options.Kind != MdRunKind.Program || ProgramEntryPointDetector.IsCompiledAsWritten(userCode, parseOptions))
             return base.MapToUserPosition(userCode, line, column);
         var projection = ProgramBodyProjection.Create(userCode, parseOptions);
         if (projection.LeadingDirectives.Length != 0)
@@ -146,20 +146,20 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
     //
     // The kind-transform component must match ApplyKindTransform exactly so DapSession can map a
     // breakpoint set on the user-visible line to the right line in the actually-compiled
-    // (transformed) source. Program's prefix (see RpadKindTransform.ProgramPrefixFor), when there is
+    // (transformed) source. Program's prefix (see MdRunKindTransform.ProgramPrefixFor), when there is
     // one (a program compiled as written has none), inserts 2 new lines before the user's own first
     // line (the call statement itself has no trailing newline — glued onto the same physical line as
     // the wrapper class's own header — but the class header and its opening brace each occupy their
     // own line, regardless of which call variant was actually picked), plus one more line for each
     // embedded newline in any leading using/extern-alias directives the projection hoisted ahead of
-    // the call statement (ProgramBodyProjection.LeadingDirectives; see RpadKindTransform.ProgramLineOffset).
+    // the call statement (ProgramBodyProjection.LeadingDirectives; see MdRunKindTransform.ProgramLineOffset).
     // ApplyKindTransform's own suffix (the class's closing brace) comes AFTER the user's code and so
     // never affects this offset.
     // A Program compiled as written (no top-level statements) gets no prefix at all.
     public override int CalcKindOffset(string code) => Options.Usings.Count + (Options.Kind switch
     {
-        RpadKind.Expression => 1,
-        RpadKind.Program => RpadKindTransform.ProgramLineOffset(code, ParseOptions()),
+        MdRunKind.Expression => 1,
+        MdRunKind.Program => MdRunKindTransform.ProgramLineOffset(code, ParseOptions()),
         _ => 0,
     });
 }

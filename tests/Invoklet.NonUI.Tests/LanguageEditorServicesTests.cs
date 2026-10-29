@@ -1,6 +1,6 @@
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Languages.DotnetCommon;
@@ -138,21 +138,21 @@ public sealed class LanguageEditorServicesTests : IDisposable
     {
         Assert.Equal(
             [
-                new NewFileLanguageChoice(RpadLanguage.CSharp, "C#", "Icon.LanguageCSharp"),
-                new NewFileLanguageChoice(RpadLanguage.Vb, "Visual Basic", "Icon.LanguageVb"),
+                new NewFileLanguageChoice(MdRunLanguage.CSharp, "C#", "Icon.LanguageCSharp"),
+                new NewFileLanguageChoice(MdRunLanguage.Vb, "Visual Basic", "Icon.LanguageVb"),
             ],
             NewFileLanguageChoice.From(RealRegistry()));
 
         var withUnknown = Registry(new FakeLanguage("fs", "F#"), new FakeLanguage("vb", "Visual Basic"));
-        Assert.Equal([RpadLanguage.Vb], NewFileLanguageChoice.From(withUnknown).Select(c => c.Language));
+        Assert.Equal([MdRunLanguage.Vb], NewFileLanguageChoice.From(withUnknown).Select(c => c.Language));
     }
 
     [Theory]
-    [InlineData("csharp", RpadLanguage.CSharp)]
-    [InlineData("VB", RpadLanguage.Vb)]
-    public void ALanguageId_Should_NameItsFormatValue(string id, RpadLanguage expected)
+    [InlineData("csharp", MdRunLanguage.CSharp)]
+    [InlineData("VB", MdRunLanguage.Vb)]
+    public void ALanguageId_Should_NameItsFormatValue(string id, MdRunLanguage expected)
     {
-        Assert.True(RpadLanguageExtensions.TryFromLanguageId(id, out var language));
+        Assert.True(MdRunLanguageExtensions.TryFromLanguageId(id, out var language));
         Assert.Equal(expected, language);
     }
 
@@ -162,6 +162,6 @@ public sealed class LanguageEditorServicesTests : IDisposable
     [InlineData("")]
     public void AnIdWithoutAFormatValue_Should_NameNone(string id)
     {
-        Assert.False(RpadLanguageExtensions.TryFromLanguageId(id, out _));
+        Assert.False(MdRunLanguageExtensions.TryFromLanguageId(id, out _));
     }
 }

@@ -7,7 +7,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Services;
@@ -79,7 +79,7 @@ public class EditorTabSdkChangeAnalysisTests
             new InterfaceTheme("Test", ThemeVariant.Dark, true),
             new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
         var vm = new EditorTabItemViewModel(
-            null, [Current, Older], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
+            null, [Current, Older], prefs.Object, new Mock<IEditorTabActions>().Object, MdRunLanguage.CSharp, MdRunKind.Statements);
         var ctrl = new EditorsTabItemControl(vm, theme.Object, new Mock<IWindowService>().Object, new Mock<ILanguageHostRegistry>().Object,
             prefs.Object, intelliSense, new Mock<IBuildCacheService>().Object);
         new Window { Content = ctrl }.Show();

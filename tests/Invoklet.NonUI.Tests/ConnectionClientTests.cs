@@ -3,7 +3,7 @@ using Invoklet.Connectors.Http;
 using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Languages.DotnetCommon;
@@ -32,26 +32,26 @@ public sealed class ConnectionClientTests : IDisposable
         return registry;
     }
 
-    private static RpadConnection Billing(string address = "https://billing.example/api/") => new()
+    private static MdRunConnection Billing(string address = "https://billing.example/api/") => new()
     {
         Name = "billing-api",
         Driver = "http",
         Params = new(StringComparer.Ordinal)
         {
-            ["baseAddress"] = RpadValue.Of(address),
-            ["headers"] = RpadValue.Map(
+            ["baseAddress"] = MdRunValue.Of(address),
+            ["headers"] = MdRunValue.Map(
             [
-                new("Authorization", RpadValue.Of("Bearer ${secret:billing-token}")),
-                new("X-Tenant", RpadValue.Of("${env:Invoklet_TEST_TENANT}-\"q\"")),
+                new("Authorization", MdRunValue.Of("Bearer ${secret:billing-token}")),
+                new("X-Tenant", MdRunValue.Of("${env:Invoklet_TEST_TENANT}-\"q\"")),
             ]),
-            ["timeout"] = RpadValue.Of("12.5"),
+            ["timeout"] = MdRunValue.Of("12.5"),
         },
     };
 
     [Fact]
     public void TheGeneratedCode_Should_ReadSecretsAndVariablesOnlyWhenRun()
     {
-        var generated = GeneratedConnections.For([Billing()], RpadLanguage.CSharp, [], Drivers())!;
+        var generated = GeneratedConnections.For([Billing()], MdRunLanguage.CSharp, [], Drivers())!;
         Assert.Empty(generated.Errors);
         Assert.Contains("public static BillingApiClient BillingApi => __billingApi ??= new BillingApiClient();", generated.Source);
         Assert.Contains("public sealed class BillingApiClient : global::System.Net.Http.HttpClient", generated.Source);
@@ -64,18 +64,18 @@ public sealed class ConnectionClientTests : IDisposable
     [Fact]
     public void ProblemsWithConnections_Should_BeBuildErrors_ThatKeepTheValidOnes()
     {
-        var missingAddress = new RpadConnection { Name = "broken", Driver = "http" };
-        var unknown = new RpadConnection { Name = "warehouse", Driver = "snowflake" };
-        var generated = GeneratedConnections.For([Billing(), missingAddress, unknown], RpadLanguage.CSharp, [], Drivers())!;
+        var missingAddress = new MdRunConnection { Name = "broken", Driver = "http" };
+        var unknown = new MdRunConnection { Name = "warehouse", Driver = "snowflake" };
+        var generated = GeneratedConnections.For([Billing(), missingAddress, unknown], MdRunLanguage.CSharp, [], Drivers())!;
         Assert.Equal(
             ["Connection 'broken': The base address is missing.", "Connection 'warehouse': this Invoklet has no 'snowflake' driver."],
             generated.Errors);
         Assert.Contains("BillingApi", generated.Source);
         Assert.DoesNotContain("Broken", generated.Source);
 
-        Assert.Null(GeneratedConnections.For([], RpadLanguage.CSharp, [], Drivers()));
+        Assert.Null(GeneratedConnections.For([], MdRunLanguage.CSharp, [], Drivers()));
         Assert.Equal(["Connections can be used in C# scripts only, for now."],
-            GeneratedConnections.For([Billing()], RpadLanguage.Vb, [], Drivers())!.Errors);
+            GeneratedConnections.For([Billing()], MdRunLanguage.Vb, [], Drivers())!.Errors);
     }
 
     private sealed class SqlLikeDriver : IConnectionDriver
@@ -85,10 +85,10 @@ public sealed class ConnectionClientTests : IDisposable
         public ConnectionCategory Category => ConnectionCategory.Database;
         public IReadOnlyList<ConnectionParam> Params { get; } = [];
         public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string> { ["Microsoft.Data.Sqlite"] = "9.0.0" };
-        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
-        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+        public IReadOnlyList<string> Validate(MdRunConnection connection) => [];
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken) =>
             Task.FromResult(new ConnectionTestResult(true, ""));
-        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) =>
+        public ConnectionClientCode CreateClient(MdRunConnection connection, ConnectionCodeContext context) =>
             new($"public sealed class {context.ClassName} {{ internal {context.ClassName}() {{ }} }}");
     }
 
@@ -98,10 +98,10 @@ public sealed class ConnectionClientTests : IDisposable
     {
         var drivers = Drivers();
         drivers.Register(new SqlLikeDriver());
-        var local = new RpadConnection { Name = "local", Driver = "sqlish" };
+        var local = new MdRunConnection { Name = "local", Driver = "sqlish" };
         Assert.Equal(["Connection 'local' needs the NuGet package Microsoft.Data.Sqlite: add it in Dependencies → Packages."],
-            GeneratedConnections.For([local], RpadLanguage.CSharp, [], drivers)!.Errors);
-        Assert.Empty(GeneratedConnections.For([local], RpadLanguage.CSharp, ["microsoft.data.sqlite"], drivers)!.Errors);
+            GeneratedConnections.For([local], MdRunLanguage.CSharp, [], drivers)!.Errors);
+        Assert.Empty(GeneratedConnections.For([local], MdRunLanguage.CSharp, ["microsoft.data.sqlite"], drivers)!.Errors);
     }
 
     // The editor knows Connections.BillingApi, an HttpClient, as soon as the script lists it.
@@ -113,7 +113,7 @@ public sealed class ConnectionClientTests : IDisposable
             referenceService.GetDefault().Append(referenceService.GetExtensionReference()), NullLogger<CSharpIntelliSenseService>.Instance);
         service.UpdateExecutionContext(new ExecutionRequest
         {
-            Connections = GeneratedConnections.For([Billing()], RpadLanguage.CSharp, [], Drivers()),
+            Connections = GeneratedConnections.For([Billing()], MdRunLanguage.CSharp, [], Drivers()),
         });
 
         const string code = "var text = await Connections.BillingApi.GetStr";
@@ -147,7 +147,7 @@ public sealed class ConnectionClientTests : IDisposable
             + "    void Print() => System.Console.WriteLine(_count);\n}\n";
         service.UpdateExecutionContext(new ExecutionRequest
         {
-            Connections = GeneratedConnections.For([Billing()], RpadLanguage.CSharp, [], Drivers())! with
+            Connections = GeneratedConnections.For([Billing()], MdRunLanguage.CSharp, [], Drivers())! with
             {
                 Files = [new GeneratedSourceFile("Stock.cs", schemaFile)],
             },
@@ -184,7 +184,7 @@ public sealed class ConnectionClientTests : IDisposable
             {
                 Platform = new DotnetSdkProvider().Get().First(),
                 OutputDirectory = outputDir,
-                Connections = GeneratedConnections.For([Billing()], RpadLanguage.CSharp, [], Drivers()),
+                Connections = GeneratedConnections.For([Billing()], MdRunLanguage.CSharp, [], Drivers()),
             }, new CSharpReferenceService().GetExtensionReference());
             await using var host = new CSharpLanguageHost(options, NullLoggerFactory.Instance);
             var output = new ConcurrentQueue<string>();
@@ -222,7 +222,7 @@ public sealed class ConnectionClientTests : IDisposable
         {
             Platform = new DotnetSdkProvider().Get().First(),
             OutputDirectory = outputDir,
-            Connections = GeneratedConnections.For([new RpadConnection { Name = "broken", Driver = "http" }], RpadLanguage.CSharp, [], Drivers()),
+            Connections = GeneratedConnections.For([new MdRunConnection { Name = "broken", Driver = "http" }], MdRunLanguage.CSharp, [], Drivers()),
         }, new CSharpReferenceService().GetExtensionReference());
         await using var host = new CSharpLanguageHost(options, NullLoggerFactory.Instance);
         var errors = new ConcurrentQueue<string>();

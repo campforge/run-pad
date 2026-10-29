@@ -5,7 +5,7 @@ using Invoklet.Build.Core.ProcessRunners;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Models;
 using Invoklet.Debug;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.DotnetCommon.Adapters;
 using Invoklet.Languages.DotnetCommon.Compiler;
 using Microsoft.Extensions.Logging;
@@ -83,7 +83,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
         Path.Combine(_options.OutputDirectory, _options.OutputName + ProjectProfile.SourceFileExtension);
 
     /// <summary>
-    /// Rewrites the user's code per <see cref="RpadKind"/> before compiling — public (not just
+    /// Rewrites the user's code per <see cref="MdRunKind"/> before compiling — public (not just
     /// protected) so it stays directly unit-testable against a concrete host the way it always was,
     /// without requiring a test-only subclass. Must match <see cref="CalcKindOffset"/> exactly: the
     /// prefix this inserts is what DapSession maps a user-visible breakpoint line onto in the
@@ -208,7 +208,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
 
     // The lines the kind transform keeps from the user's code: Expression drops trailing whitespace.
     private int UserLineCount(string userCode) =>
-        1 + (Options.Kind == RpadKind.Expression ? userCode.TrimEnd() : userCode).Count(c => c == '\n');
+        1 + (Options.Kind == MdRunKind.Expression ? userCode.TrimEnd() : userCode).Count(c => c == '\n');
 
     // ── Run ──────────────────────────────────────────────────────────────────
 

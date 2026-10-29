@@ -1,7 +1,7 @@
 using Invoklet.Contracts;
 using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
 using Spectre.Console.Testing;
@@ -19,15 +19,15 @@ public class CliRunnerTests
 
     // The options the runner's request gets from the .NET backend: what its run is built with.
     private static ILanguageHostOptions BuildOptions(
-        RpadFrontMatter frontMatter, DotnetSdk platform, string outputDirectory, string runtimeLibPath,
+        MdRunFrontMatter frontMatter, DotnetSdk platform, string outputDirectory, string runtimeLibPath,
         string? currentQueryPath = null, IReadOnlyList<string>? arguments = null)
         => CompiledDotnetLanguageHostOptions.From(
             CliRunner.BuildRequest(frontMatter, platform, outputDirectory, currentQueryPath, arguments), runtimeLibPath);
 
-    private static RpadFrontMatter CreateFrontMatter(RpadLanguage language = RpadLanguage.CSharp) => new()
+    private static MdRunFrontMatter CreateFrontMatter(MdRunLanguage language = MdRunLanguage.CSharp) => new()
     {
         Language = language,
-        Kind = RpadKind.Program,
+        Kind = MdRunKind.Program,
         Packages = new Dictionary<string, Package> { ["Newtonsoft.Json"] = new("13.0.3") },
         Namespaces = ["System.Text"],
         References = ["Some.Native.dll", "Some.Project.csproj", "Some.Vb.vbproj"],
@@ -45,7 +45,7 @@ public class CliRunnerTests
         var csharpOptions = Assert.IsType<CompiledDotnetLanguageHostOptions>(options);
         Assert.Equal(Platform, csharpOptions.Platform);
         Assert.Equal("/tmp/out", csharpOptions.OutputDirectory);
-        Assert.Equal(RpadKind.Program, csharpOptions.Kind);
+        Assert.Equal(MdRunKind.Program, csharpOptions.Kind);
         Assert.Equal("13.0.3", csharpOptions.Packages["Newtonsoft.Json"]);
         Assert.Equal(["System.Text"], csharpOptions.Usings);
         // No script path: a relative reference has no folder to be relative to.
@@ -59,11 +59,11 @@ public class CliRunnerTests
     [Fact]
     public void BuildOptions_Should_ReturnExpectedOptions_ForVb()
     {
-        var options = BuildOptions(CreateFrontMatter(RpadLanguage.Vb), Platform, "/tmp/out", RuntimeLib);
+        var options = BuildOptions(CreateFrontMatter(MdRunLanguage.Vb), Platform, "/tmp/out", RuntimeLib);
 
         var vbOptions = Assert.IsType<CompiledDotnetLanguageHostOptions>(options);
         Assert.Equal(Platform, vbOptions.Platform);
-        Assert.Equal(RpadKind.Program, vbOptions.Kind);
+        Assert.Equal(MdRunKind.Program, vbOptions.Kind);
         Assert.Equal(RuntimeLib, vbOptions.RuntimeLibPath);
     }
 
@@ -174,7 +174,7 @@ public class CliRunnerTests
     public void BuildRequest_Should_CarryTheScriptsMetadata_AsWritten()
     {
         var frontMatter = CreateFrontMatter();
-        frontMatter.Arguments = [new() { Name = "value", Default = RpadValue.Of("from file") }];
+        frontMatter.Arguments = [new() { Name = "value", Default = MdRunValue.Of("from file") }];
 
         var request = CliRunner.BuildRequest(frontMatter, Platform, "/tmp/out", "/scripts/a.rpad", ["cli"]);
 
@@ -182,7 +182,7 @@ public class CliRunnerTests
         Assert.Equal("/tmp/out", request.OutputDirectory);
         Assert.Equal("/tmp/out", request.WorkingDirectory);
         Assert.Equal("/scripts/a.rpad", request.CurrentQueryPath);
-        Assert.Equal(RpadKind.Program, request.Kind);
+        Assert.Equal(MdRunKind.Program, request.Kind);
         Assert.Equal("13.0.3", request.Packages["Newtonsoft.Json"]);
         Assert.Equal(["System.Text"], request.Usings);
         Assert.Equal(["Some.Native.dll", "Some.Project.csproj", "Some.Vb.vbproj"], request.References);
@@ -255,11 +255,11 @@ public class CliRunnerTests
         public ConnectionCategory Category => ConnectionCategory.Grpc;
         public IReadOnlyList<ConnectionParam> Params => [];
         public IReadOnlyDictionary<string, string> Packages => new Dictionary<string, string>();
-        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
-        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+        public IReadOnlyList<string> Validate(MdRunConnection connection) => [];
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken) =>
             Task.FromResult(new ConnectionTestResult(true, ""));
-        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) => new("");
-        public Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
+        public ConnectionClientCode CreateClient(MdRunConnection connection, ConnectionCodeContext context) => new("");
+        public Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, ConnectionTools tools,
             CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref Fetches);
@@ -299,7 +299,7 @@ public class CliRunnerTests
     [Fact]
     public void BuildOptions_Should_DefaultToEmptyCollections_WhenFrontMatterHasNone()
     {
-        var frontMatter = new RpadFrontMatter(); // Namespaces/References both null by default
+        var frontMatter = new MdRunFrontMatter(); // Namespaces/References both null by default
 
         var options = BuildOptions(frontMatter, Platform, "/tmp/out", RuntimeLib);
 
@@ -320,7 +320,7 @@ public class CliRunnerTests
         {
             File.WriteAllText(Path.Combine(dir, "Lib.dll"), "");
             var currentQueryPath = Path.Combine(dir, "query.rpad");
-            var frontMatter = new RpadFrontMatter
+            var frontMatter = new MdRunFrontMatter
             {
                 References = ["$(CurrentQueryPath)/Lib.dll", "$(CurrentQueryPath)/Shared.csproj"],
             };
@@ -339,7 +339,7 @@ public class CliRunnerTests
     [Fact]
     public void BuildOptions_Should_ReportTheCurrentQueryPathMacro_WhenNoFilePathGiven()
     {
-        var frontMatter = new RpadFrontMatter { References = ["$(CurrentQueryPath)/Lib.dll"] };
+        var frontMatter = new MdRunFrontMatter { References = ["$(CurrentQueryPath)/Lib.dll"] };
 
         var options = BuildOptions(frontMatter, Platform, "/tmp/out", RuntimeLib);
 
@@ -375,7 +375,7 @@ public class CliRunnerTests
     [Fact]
     public void BuildOptions_Should_ExpandRuntimeDirectoryAndMyDocumentsMacros_InReferences()
     {
-        var frontMatter = new RpadFrontMatter { References = ["$(RuntimeDirectory)/System.dll"] };
+        var frontMatter = new MdRunFrontMatter { References = ["$(RuntimeDirectory)/System.dll"] };
 
         var options = BuildOptions(frontMatter, Platform, "/tmp/out", RuntimeLib);
 
@@ -413,7 +413,7 @@ public class CliRunnerTests
     }
 
     [Fact]
-    public async Task RunAsync_Should_ReturnError_WhenFileIsNotAValidRpadDocument()
+    public async Task RunAsync_Should_ReturnError_WhenFileIsNotAValidMdRunDocument()
     {
         var path = Path.GetTempFileName();
         try
@@ -456,7 +456,7 @@ public class CliRunnerTests
         finally { File.Delete(path); }
     }
 
-    // `kind: 99` used to parse as an undefined RpadKind and run.
+    // `kind: 99` used to parse as an undefined MdRunKind and run.
     [Theory]
     [InlineData("kind: 99", "Unsupported kind '99'")]
     [InlineData("kind: Unknown", "Unsupported kind 'Unknown'")]
@@ -520,7 +520,7 @@ public class CliRunnerTests
     public void BuildOptions_Should_UseTheFrontMatterArgs_UnlessTheCommandLineGivesSome()
     {
         var frontMatter = CreateFrontMatter();
-        frontMatter.Arguments = [new() { Name = "value", Default = RpadValue.Of("from file") }];
+        frontMatter.Arguments = [new() { Name = "value", Default = MdRunValue.Of("from file") }];
 
         var fromFile = Assert.IsType<CompiledDotnetLanguageHostOptions>(
             BuildOptions(frontMatter, Platform, Path.GetTempPath(), RuntimeLib));
@@ -715,7 +715,7 @@ public class CliRunnerTests
     }
 
     [Fact]
-    public async Task ConvertLinqAsync_Should_WriteASiblingRpad_WhenNoOutputPathGiven()
+    public async Task ConvertLinqAsync_Should_WriteASiblingMdRun_WhenNoOutputPathGiven()
     {
         var dir = Directory.CreateTempSubdirectory("Invoklet-cli-convert-test").FullName;
         try
@@ -737,9 +737,9 @@ public class CliRunnerTests
             Assert.True(File.Exists(expectedOutputPath));
             Assert.Contains(expectedOutputPath, stdout.Output);
 
-            var parsed = RpadParser.TryParse(await File.ReadAllTextAsync(expectedOutputPath, CancellationToken.None));
+            var parsed = MdRunParser.TryParse(await File.ReadAllTextAsync(expectedOutputPath, CancellationToken.None));
             Assert.NotNull(parsed);
-            Assert.Equal(RpadKind.Statements, parsed!.FrontMatter.Kind);
+            Assert.Equal(MdRunKind.Statements, parsed!.FrontMatter.Kind);
             Assert.Contains("Newtonsoft.Json", parsed.FrontMatter.Packages.Keys);
         }
         finally { Directory.Delete(dir, recursive: true); }
@@ -764,7 +764,7 @@ public class CliRunnerTests
             Assert.Equal(0, exitCode);
             var written = await File.ReadAllTextAsync(outputPath, CancellationToken.None);
             Assert.DoesNotContain("will be overwritten", written);
-            Assert.NotNull(RpadParser.TryParse(written));
+            Assert.NotNull(MdRunParser.TryParse(written));
         }
         finally { Directory.Delete(dir, recursive: true); }
     }

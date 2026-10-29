@@ -4,7 +4,7 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
@@ -28,16 +28,16 @@ namespace Invoklet.Runtime.UI.Tests;
 public class DependenciesRealTabIntegrationTests
 {
     [AvaloniaFact]
-    public async Task DependenciesWindow_Should_ShowExistingPackagesAndSearchResults_When_OpenedForAnAlreadyLoadedRpadFile()
+    public async Task DependenciesWindow_Should_ShowExistingPackagesAndSearchResults_When_OpenedForAnAlreadyLoadedMdRunFile()
     {
         // Arrange
         var tmpDir = Directory.CreateTempSubdirectory("Invoklet-deps-it").FullName;
         try
         {
             var filePath = Path.Combine(tmpDir, "demo.rpad");
-            var doc = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
+            var doc = MdRunParser.TryParse(MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
             doc.FrontMatter.Packages["Existing.Package"] = new Package("1.2.3");
-            File.WriteAllText(filePath, RpadWriter.Write(doc));
+            File.WriteAllText(filePath, MdRunWriter.Write(doc));
 
             var prefs = new Mock<IPreferencesService>();
             prefs.Setup(p => p.Layout).Returns(new LayoutSettings());

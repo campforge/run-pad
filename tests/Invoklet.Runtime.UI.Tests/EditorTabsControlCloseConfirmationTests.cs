@@ -5,7 +5,7 @@ using Avalonia.VisualTree;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -239,7 +239,7 @@ public class EditorTabsControlCloseConfirmationTests
         try
         {
             var filePath = Path.Combine(rootFolder, "demo.rpad");
-            File.WriteAllText(filePath, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
+            File.WriteAllText(filePath, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
             mainVm.OpenTab(filePath);
             await TestWait.WhileAsync(() => mainVm.ActiveTab?.FrontMatter is null);
             var tab = mainVm.Tabs.Single(t => t.FilePath == filePath);
@@ -383,7 +383,7 @@ public class EditorTabsControlCloseConfirmationTests
             var firstCtrl = await GetSoleControlAsync(editorTabs);
             firstCtrl.State.Editor.Text = "Console.WriteLine(1);";
 
-            mainVm.NewRpadFile();
+            mainVm.NewMdRunFile();
             EditorsTabItemControl? secondCtrl = null;
             for (var i = 0; i < 100 && secondCtrl is null; i++)
             {
@@ -434,7 +434,7 @@ public class EditorTabsControlCloseConfirmationTests
         var filePath = Path.Combine(rootFolder, "demo.rpad");
         try
         {
-            File.WriteAllText(filePath, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
+            File.WriteAllText(filePath, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
             var (tab, ctrl) = await OpenNamedTabAsync(editorTabs, mainVm, filePath);
             ctrl.State.Editor.Text = "Console.WriteLine(2);";
             File.SetUnixFileMode(filePath, UnixFileMode.UserRead);
@@ -467,10 +467,10 @@ public class EditorTabsControlCloseConfirmationTests
         try
         {
             var filePath = Path.Combine(rootFolder, "demo.rpad");
-            File.WriteAllText(filePath, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
+            File.WriteAllText(filePath, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
             var (tab, ctrl) = await OpenNamedTabAsync(editorTabs, mainVm, filePath);
             ctrl.State.Editor.Text = "Console.WriteLine(3);";
-            mainVm.NewRpadFile(); // makes the named tab inactive
+            mainVm.NewMdRunFile(); // makes the named tab inactive
             Assert.NotSame(tab, mainVm.ActiveTab);
             Assert.True(editorTabs.HasUnsavedTabs());
 
@@ -494,10 +494,10 @@ public class EditorTabsControlCloseConfirmationTests
         var filePath = Path.Combine(rootFolder, "demo.rpad");
         try
         {
-            File.WriteAllText(filePath, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
+            File.WriteAllText(filePath, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
             var (tab, ctrl) = await OpenNamedTabAsync(editorTabs, mainVm, filePath);
             ctrl.State.Editor.Text = "Console.WriteLine(4);";
-            mainVm.NewRpadFile();
+            mainVm.NewMdRunFile();
             File.SetUnixFileMode(filePath, UnixFileMode.UserRead);
             windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
                 .ReturnsAsync(UnsavedChangesResult.Cancel);

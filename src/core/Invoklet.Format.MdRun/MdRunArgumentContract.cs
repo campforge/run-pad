@@ -1,15 +1,15 @@
 using System.Text.Json;
 
-namespace Invoklet.Format.RPad;
+namespace Invoklet.Format.MdRun;
 
 /// <summary>The immutable, language-neutral argument contract handed to a script host.</summary>
-public sealed record RpadArgumentContract(IReadOnlyList<RpadArgumentContractMember> Members)
+public sealed record MdRunArgumentContract(IReadOnlyList<MdRunArgumentContractMember> Members)
 {
-    public static RpadArgumentContract Empty { get; } = new([]);
+    public static MdRunArgumentContract Empty { get; } = new([]);
 
     /// <summary>Builds a contract from the selected set. Invalid metadata returns an empty contract
     /// and all diagnostics, so opening the document never depends on successful conversion.</summary>
-    public static RpadArgumentContract Build(RpadFrontMatter? frontMatter, out IReadOnlyList<string> errors,
+    public static MdRunArgumentContract Build(MdRunFrontMatter? frontMatter, out IReadOnlyList<string> errors,
         IReadOnlyList<string>? arguments = null, string? argumentSet = null)
     {
         if (frontMatter is null)
@@ -18,14 +18,14 @@ public sealed record RpadArgumentContract(IReadOnlyList<RpadArgumentContractMemb
             return Empty;
         }
 
-        var problems = new List<string>(RpadArguments.ValidateSchema(frontMatter));
-        var resolved = RpadArguments.Resolve(frontMatter, arguments, argumentSet);
+        var problems = new List<string>(MdRunArguments.ValidateSchema(frontMatter));
+        var resolved = MdRunArguments.Resolve(frontMatter, arguments, argumentSet);
         if (resolved.Error is { } error) problems.Add(error);
         var overrides = NamedOverrides(arguments, frontMatter.Arguments);
-        Dictionary<string, RpadValue>? selected = null;
+        Dictionary<string, MdRunValue>? selected = null;
         if (arguments is null && (argumentSet ?? frontMatter.SelectedArgumentSet) is { } selectedName)
             frontMatter.ArgumentSets.TryGetValue(selectedName, out selected);
-        var members = new List<RpadArgumentContractMember>();
+        var members = new List<MdRunArgumentContractMember>();
         foreach (var declaration in frontMatter.Arguments)
         {
             var value = selected is not null && selected.TryGetValue(declaration.Name, out var selectedValue)
@@ -37,11 +37,11 @@ public sealed record RpadArgumentContract(IReadOnlyList<RpadArgumentContractMemb
                 continue;
             }
 
-            members.Add(new RpadArgumentContractMember(
+            members.Add(new MdRunArgumentContractMember(
                 declaration.Name,
-                RpadArgument.TypeName(declaration.Type),
-                value is null ? [] : RpadArgument.Items(value).ToArray(),
-                declaration.Type == RpadArgumentType.Enum ? declaration.Values : [],
+                MdRunArgument.TypeName(declaration.Type),
+                value is null ? [] : MdRunArgument.Items(value).ToArray(),
+                declaration.Type == MdRunArgumentType.Enum ? declaration.Values : [],
                 IsNullable: declaration.Default is null));
         }
 
@@ -49,11 +49,11 @@ public sealed record RpadArgumentContract(IReadOnlyList<RpadArgumentContractMemb
         return problems.Count == 0 ? new(members) : Empty;
     }
 
-    private static Dictionary<string, RpadValue> NamedOverrides(
-        IReadOnlyList<string>? args, IReadOnlyList<RpadArgument> declarations)
+    private static Dictionary<string, MdRunValue> NamedOverrides(
+        IReadOnlyList<string>? args, IReadOnlyList<MdRunArgument> declarations)
     {
         var names = declarations.Select(d => d.Name).ToHashSet(StringComparer.Ordinal);
-        var values = new Dictionary<string, RpadValue>(StringComparer.Ordinal);
+        var values = new Dictionary<string, MdRunValue>(StringComparer.Ordinal);
         if (args is null) return values;
         for (var i = 0; i < args.Count; i++)
         {
@@ -63,13 +63,13 @@ public sealed record RpadArgumentContract(IReadOnlyList<RpadArgumentContractMemb
             if (!names.Contains(name) || i + 1 >= args.Count || args[i + 1].StartsWith("--", StringComparison.Ordinal))
                 continue;
             var item = args[++i];
-            if (declarations.Any(d => d.Name == name && d.Type == RpadArgumentType.StringList))
+            if (declarations.Any(d => d.Name == name && d.Type == MdRunArgumentType.StringList))
             {
-                var items = values.TryGetValue(name, out var previous) ? RpadArgument.Items(previous).ToList() : [];
+                var items = values.TryGetValue(name, out var previous) ? MdRunArgument.Items(previous).ToList() : [];
                 items.Add(item);
-                values[name] = new RpadValue { Items = items.Select(RpadValue.Of).ToList() };
+                values[name] = new MdRunValue { Items = items.Select(MdRunValue.Of).ToList() };
             }
-            else values[name] = RpadValue.Of(item);
+            else values[name] = MdRunValue.Of(item);
         }
         return values;
     }
@@ -78,10 +78,10 @@ public sealed record RpadArgumentContract(IReadOnlyList<RpadArgumentContractMemb
     /// values already selected for this run.</summary>
     public string ToJson() => JsonSerializer.Serialize(this);
 
-    public static RpadArgumentContract FromJson(string? json)
+    public static MdRunArgumentContract FromJson(string? json)
     {
         if (string.IsNullOrWhiteSpace(json)) return Empty;
-        try { return JsonSerializer.Deserialize<RpadArgumentContract>(json) ?? Empty; }
+        try { return JsonSerializer.Deserialize<MdRunArgumentContract>(json) ?? Empty; }
         catch (JsonException) { return Empty; }
     }
 
@@ -114,7 +114,7 @@ public sealed record RpadArgumentContract(IReadOnlyList<RpadArgumentContractMemb
         {
             builder.Append("internal enum ").Append(member.EnumTypeName).Append("\n{\n");
             for (var i = 0; i < member.EnumValues.Count; i++)
-                builder.Append("    @").Append(RpadArgumentContractMember.EnumMemberName(member.EnumValues[i]))
+                builder.Append("    @").Append(MdRunArgumentContractMember.EnumMemberName(member.EnumValues[i]))
                     .Append(" = ").Append(i).Append(",\n");
             builder.Append("}\n");
         }
@@ -145,7 +145,7 @@ public sealed record RpadArgumentContract(IReadOnlyList<RpadArgumentContractMemb
         {
             builder.Append("Friend Enum ").Append(member.EnumTypeName).Append('\n');
             for (var i = 0; i < member.EnumValues.Count; i++)
-                builder.Append("    [").Append(RpadArgumentContractMember.EnumMemberName(member.EnumValues[i]))
+                builder.Append("    [").Append(MdRunArgumentContractMember.EnumMemberName(member.EnumValues[i]))
                     .Append("] = ").Append(i).Append('\n');
             builder.Append("End Enum\n");
         }
@@ -181,7 +181,7 @@ public sealed record RpadArgumentContract(IReadOnlyList<RpadArgumentContractMemb
     };
 }
 
-public sealed record RpadArgumentContractMember(
+public sealed record MdRunArgumentContractMember(
     string Name,
     string Type,
     IReadOnlyList<string> Values,

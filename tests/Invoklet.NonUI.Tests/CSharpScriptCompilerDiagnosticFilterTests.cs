@@ -25,15 +25,15 @@ public class CSharpScriptCompilerDiagnosticFilterTests
 
     private static Diagnostic[] Cs7022DiagnosticsFor(string code) => DiagnosticsFor(code, "CS7022");
 
-    // Exactly RpadKindTransform's own shape: a top-level call statement glued in front of the wrapper
+    // Exactly MdRunKindTransform's own shape: a top-level call statement glued in front of the wrapper
     // class, a static Main inside it, calling the trampoline that actually invokes it.
     [Fact]
     public void IsSyntheticWrapperEntryPointWarning_Should_BeTrue_ForAStaticMainInsideTheGeneratedWrapperClass()
     {
         var code = $$"""
-            {{RpadKindTransform.ProgramWrapperClassName}}.__InvokletRun(args);
+            {{MdRunKindTransform.ProgramWrapperClassName}}.__InvokletRun(args);
 
-            class {{RpadKindTransform.ProgramWrapperClassName}}
+            class {{MdRunKindTransform.ProgramWrapperClassName}}
             {
                 static void Main()
                 {
@@ -69,7 +69,7 @@ public class CSharpScriptCompilerDiagnosticFilterTests
 
     // Same shape as Invoklet's own wrapper, but under a different class name: a user script could, in
     // principle, declare its own class with a static Main of its own, with no connection to the
-    // generated wrapper RpadKindTransform produces. Confirms the check keys on the exact wrapper class
+    // generated wrapper MdRunKindTransform produces. Confirms the check keys on the exact wrapper class
     // name, not merely "any class containing a static Main that conflicts with top-level code".
     [Fact]
     public void IsSyntheticWrapperEntryPointWarning_Should_BeFalse_ForAStaticMainInsideADifferentlyNamedClass()
@@ -98,7 +98,7 @@ public class CSharpScriptCompilerDiagnosticFilterTests
         var code = $$"""
             System.Console.WriteLine("top-level");
 
-            class {{RpadKindTransform.ProgramWrapperClassName}}
+            class {{MdRunKindTransform.ProgramWrapperClassName}}
             {
                 static void Main()
                 {
@@ -114,9 +114,9 @@ public class CSharpScriptCompilerDiagnosticFilterTests
     public void IsSyntheticWrapperEntryPointWarning_Should_BeFalse_ForADifferentDiagnosticId()
     {
         var code = $$"""
-            {{RpadKindTransform.ProgramWrapperClassName}}.__InvokletRun(args);
+            {{MdRunKindTransform.ProgramWrapperClassName}}.__InvokletRun(args);
 
-            class {{RpadKindTransform.ProgramWrapperClassName}}
+            class {{MdRunKindTransform.ProgramWrapperClassName}}
             {
                 static void Main()
                 {

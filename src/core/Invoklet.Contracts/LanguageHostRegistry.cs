@@ -1,6 +1,6 @@
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 
 namespace Invoklet.Contracts;
 
@@ -48,7 +48,7 @@ public sealed class LanguageHostRegistry : ILanguageHostRegistry
         GetFactory(language).DisplayName;
 
     // Null for a language that isn't registered, as for one without a template.
-    public string? GetCodeForKind(string language, string code, RpadKind kind, string indent = "    ") =>
+    public string? GetCodeForKind(string language, string code, MdRunKind kind, string indent = "    ") =>
         _factories.TryGetValue(language, out var factory) ? factory.CodeForKind(code, kind, indent) : null;
 
     public IIntelliSenseService? CreateIntelliSense(string language, CancellationToken cancellationToken) =>

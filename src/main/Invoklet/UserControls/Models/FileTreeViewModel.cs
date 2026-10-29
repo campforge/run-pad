@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
 
@@ -47,14 +47,14 @@ public class FileTreeViewModel
     // EditorTabsControl already uses to pick an IntelliSense factory — not re-peeked on every later
     // refresh for nodes MergeNodeList preserves, only when a node is freshly built (initial load, or
     // a path that's new/renamed/moved). No longer static — needs _languages to resolve
-    // the node's icon key off the owning ILanguageHostFactory instead of switching on RpadLanguage.
+    // the node's icon key off the owning ILanguageHostFactory instead of switching on MdRunLanguage.
     private FileTreeViewNode MapToNode(FileSystemItem fsi) => fsi.IsDirectory
         ? new FileTreeViewNode(fsi.Name, fsi.FilePath, new ObservableCollection<FileTreeViewNode>((fsi.Children ?? []).Select(MapToNode)))
         : MapFileNode(fsi);
 
     private FileTreeViewNode MapFileNode(FileSystemItem fsi)
     {
-        var language = RpadFilePeek.PeekLanguage(fsi.FilePath);
+        var language = MdRunFilePeek.PeekLanguage(fsi.FilePath);
         var iconKey = language is { } lang && _languages.IsRegistered(lang.ToLanguageId())
             ? _languages.GetEditorProfile(lang.ToLanguageId()).IconResourceKey
             : null;

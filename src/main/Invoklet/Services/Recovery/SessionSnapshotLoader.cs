@@ -1,5 +1,5 @@
 using System.Text;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.UserControls.Models;
 
 namespace Invoklet.Services.Recovery;
@@ -26,7 +26,7 @@ public sealed class DiskSessionSnapshotLoader : ISessionSnapshotLoader
             var bytes = File.ReadAllBytes(tab.FilePath);
             using var reader = new StreamReader(new MemoryStream(bytes), Encoding.UTF8, true);
             var text = reader.ReadToEnd();
-            var parsed = RpadParser.Parse(text);
+            var parsed = MdRunParser.Parse(text);
             return tab with
             {
                 EditorText = parsed.Document?.RunCode ?? text,

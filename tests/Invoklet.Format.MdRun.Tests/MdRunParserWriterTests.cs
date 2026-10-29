@@ -1,29 +1,29 @@
 using Xunit;
 
-namespace Invoklet.Format.RPad.Tests;
+namespace Invoklet.Format.MdRun.Tests;
 
-public class RpadParserWriterTests
+public class MdRunParserWriterTests
 {
     // ── Round-trip ────────────────────────────────────────────────────────────
 
     [Theory]
-    [InlineData(RpadKind.Statements)]
-    [InlineData(RpadKind.Program)]
-    [InlineData(RpadKind.Expression)]
-    public void Write_ThenParse_RoundTripsKind(RpadKind kind)
+    [InlineData(MdRunKind.Statements)]
+    [InlineData(MdRunKind.Program)]
+    [InlineData(MdRunKind.Expression)]
+    public void Write_ThenParse_RoundTripsKind(MdRunKind kind)
     {
-        var doc = new RpadDocument
+        var doc = new MdRunDocument
         {
-            FrontMatter = new RpadFrontMatter { TargetSdk = new TargetSdk("net", "8.0"), Kind = kind },
+            FrontMatter = new MdRunFrontMatter { TargetSdk = new TargetSdk("net", "8.0"), Kind = kind },
             RunCode = "Console.WriteLine(1);\n",
         };
 
-        var text = RpadWriter.Write(doc);
-        var parsed = RpadParser.TryParse(text);
+        var text = MdRunWriter.Write(doc);
+        var parsed = MdRunParser.TryParse(text);
 
         Assert.NotNull(parsed);
         Assert.Equal(kind, parsed!.FrontMatter.Kind);
-        Assert.Equal(RpadLanguage.CSharp, parsed.FrontMatter.Language);
+        Assert.Equal(MdRunLanguage.CSharp, parsed.FrontMatter.Language);
         Assert.Equal("8.0", parsed.FrontMatter.TargetSdk.Version);
         Assert.Equal("net", parsed.FrontMatter.TargetSdk.Name);
         // A document built in code has no Markdown body — Write must still fence the code.
@@ -33,9 +33,9 @@ public class RpadParserWriterTests
     [Fact]
     public void Write_ThenParse_RoundTripsNamespacesPackagesReferences()
     {
-        var doc = new RpadDocument
+        var doc = new MdRunDocument
         {
-            FrontMatter = new RpadFrontMatter
+            FrontMatter = new MdRunFrontMatter
             {
                 Namespaces = ["System.Text", "System.Linq"],
                 Packages = new Dictionary<string, Package> { ["Dapper"] = new("2.1.66") },
@@ -44,7 +44,7 @@ public class RpadParserWriterTests
             RunCode = "1.Dump();\n",
         };
 
-        var parsed = RpadParser.TryParse(RpadWriter.Write(doc));
+        var parsed = MdRunParser.TryParse(MdRunWriter.Write(doc));
 
         Assert.NotNull(parsed);
         Assert.Equal(["System.Text", "System.Linq"], parsed!.FrontMatter.Namespaces);
@@ -55,17 +55,17 @@ public class RpadParserWriterTests
     [Fact]
     public void Write_ThenParse_RoundTripsDeclaredArgumentDefaults()
     {
-        var doc = new RpadDocument
+        var doc = new MdRunDocument
         {
-            FrontMatter = new RpadFrontMatter
+            FrontMatter = new MdRunFrontMatter
             {
-                Arguments = [new() { Name = "values", Type = RpadArgumentType.StringList,
-                    Default = RpadValue.List(new[] { "plain", "with space", "--flag", "quote\"d", "# not a comment" }.Select(RpadValue.Of)) }],
+                Arguments = [new() { Name = "values", Type = MdRunArgumentType.StringList,
+                    Default = MdRunValue.List(new[] { "plain", "with space", "--flag", "quote\"d", "# not a comment" }.Select(MdRunValue.Of)) }],
             },
             RunCode = "args.Dump();\n",
         };
 
-        var parsed = RpadParser.TryParse(RpadWriter.Write(doc));
+        var parsed = MdRunParser.TryParse(MdRunWriter.Write(doc));
 
         Assert.Equal(["plain", "with space", "--flag", "quote\"d", "# not a comment"], parsed!.FrontMatter.Arguments.Single().Default!.Items!.Select(i => i.Text));
     }
@@ -73,11 +73,11 @@ public class RpadParserWriterTests
     [Fact]
     public void TryParse_RetiredArgs_DoesNotSupplyArguments_AndWriteRemovesTheKey()
     {
-        var parsed = RpadParser.TryParse("---\nlanguage: csharp\nargs:\n  - ignored\n---\n\n```csharp run\n1.Dump();\n```\n");
+        var parsed = MdRunParser.TryParse("---\nlanguage: csharp\nargs:\n  - ignored\n---\n\n```csharp run\n1.Dump();\n```\n");
 
         Assert.Empty(parsed!.FrontMatter.Arguments);
-        Assert.Empty(RpadArguments.Resolve(parsed.FrontMatter).Arguments);
-        Assert.DoesNotContain("args:", RpadWriter.Write(parsed));
+        Assert.Empty(MdRunArguments.Resolve(parsed.FrontMatter).Arguments);
+        Assert.DoesNotContain("args:", MdRunWriter.Write(parsed));
     }
 
     [Fact]
@@ -109,11 +109,11 @@ public class RpadParserWriterTests
             ```
             """;
 
-        var parsed = RpadParser.TryParse(content);
+        var parsed = MdRunParser.TryParse(content);
 
         Assert.NotNull(parsed);
-        Assert.Equal(RpadKind.Statements, parsed!.FrontMatter.Kind);
-        Assert.Equal(RpadLanguage.CSharp, parsed.FrontMatter.Language);
+        Assert.Equal(MdRunKind.Statements, parsed!.FrontMatter.Kind);
+        Assert.Equal(MdRunLanguage.CSharp, parsed.FrontMatter.Language);
         Assert.Equal(TargetSdk.Default, parsed.FrontMatter.TargetSdk);
         Assert.Equal("2.1.66", parsed.FrontMatter.Packages["Dapper"].Version);
         Assert.Equal(["../Shared/Shared.csproj"], parsed.FrontMatter.References);
@@ -123,14 +123,14 @@ public class RpadParserWriterTests
     // ── NewFile ───────────────────────────────────────────────────────────────
 
     [Theory]
-    [InlineData(RpadKind.Statements)]
-    [InlineData(RpadKind.Program)]
-    [InlineData(RpadKind.Expression)]
-    public void NewFile_ThenParse_ProducesRequestedKind(RpadKind kind)
+    [InlineData(MdRunKind.Statements)]
+    [InlineData(MdRunKind.Program)]
+    [InlineData(MdRunKind.Expression)]
+    public void NewFile_ThenParse_ProducesRequestedKind(MdRunKind kind)
     {
-        var text = RpadWriter.NewFile("var x = 1;\n", "Untitled", "net10.0", kind);
+        var text = MdRunWriter.NewFile("var x = 1;\n", "Untitled", "net10.0", kind);
 
-        var parsed = RpadParser.TryParse(text);
+        var parsed = MdRunParser.TryParse(text);
 
         Assert.NotNull(parsed);
         Assert.Equal(kind, parsed!.FrontMatter.Kind);
@@ -138,20 +138,20 @@ public class RpadParserWriterTests
 
     // A brand-new, never-saved Statements tab starts with genuinely empty code. An empty code
     // block glues the closing fence onto the same line as the (empty) code instead of its own line —
-    // RpadParser.FindClosingFence requires a closing fence to start its own line, so without
-    // RpadWriter.NewFile normalizing a trailing newline the same way Write() already does for
+    // MdRunParser.FindClosingFence requires a closing fence to start its own line, so without
+    // MdRunWriter.NewFile normalizing a trailing newline the same way Write() already does for
     // RunCode, this used to parse back with a mangled RunCode containing the literal closing-fence
     // text and an unclosed fence in BodyAfterCode — i.e. genuinely invalid Markdown once saved back
-    // out via RpadWriter.Write, not just a cosmetic parsing quirk.
+    // out via MdRunWriter.Write, not just a cosmetic parsing quirk.
     [Theory]
-    [InlineData(RpadKind.Statements)]
-    [InlineData(RpadKind.Program)]
-    [InlineData(RpadKind.Expression)]
-    public void NewFile_WithEmptyCodeOverride_ThenParse_RoundTripsCleanlyThroughWrite(RpadKind kind)
+    [InlineData(MdRunKind.Statements)]
+    [InlineData(MdRunKind.Program)]
+    [InlineData(MdRunKind.Expression)]
+    public void NewFile_WithEmptyCodeOverride_ThenParse_RoundTripsCleanlyThroughWrite(MdRunKind kind)
     {
-        var text = RpadWriter.NewFile("", "Untitled", "net10.0", kind);
+        var text = MdRunWriter.NewFile("", "Untitled", "net10.0", kind);
 
-        var parsed = RpadParser.TryParse(text);
+        var parsed = MdRunParser.TryParse(text);
         Assert.NotNull(parsed);
         Assert.Equal(kind, parsed!.FrontMatter.Kind);
         Assert.DoesNotContain('`', parsed.RunCode);
@@ -161,8 +161,8 @@ public class RpadParserWriterTests
         // in the editor first, so simulate that explicitly rather than relying on the parsed
         // (possibly already-empty) RunCode.
         parsed.RunCode = "";
-        var written = RpadWriter.Write(parsed);
-        var reparsed = RpadParser.TryParse(written);
+        var written = MdRunWriter.Write(parsed);
+        var reparsed = MdRunParser.TryParse(written);
 
         Assert.NotNull(reparsed);
         Assert.Equal(kind, reparsed!.FrontMatter.Kind);
@@ -172,8 +172,8 @@ public class RpadParserWriterTests
         // guards against the closing fence silently getting swallowed into RunCode on one pass (the
         // bug this test targets), which would only show up as corruption one save later, not on the
         // first save alone.
-        var written2 = RpadWriter.Write(reparsed);
-        var reparsed2 = RpadParser.TryParse(written2);
+        var written2 = MdRunWriter.Write(reparsed);
+        var reparsed2 = MdRunParser.TryParse(written2);
         Assert.NotNull(reparsed2);
         Assert.Equal(kind, reparsed2!.FrontMatter.Kind);
         Assert.DoesNotContain('`', reparsed2.RunCode);
@@ -183,25 +183,25 @@ public class RpadParserWriterTests
     // regardless of caller intent, so a new .vb file could only be made by hand-editing an existing
     // C# file's front matter afterward.
     [Theory]
-    [InlineData(RpadKind.Statements)]
-    [InlineData(RpadKind.Program)]
-    [InlineData(RpadKind.Expression)]
-    public void NewFile_WithVbLanguage_ThenParse_ProducesVbLanguageAndFence(RpadKind kind)
+    [InlineData(MdRunKind.Statements)]
+    [InlineData(MdRunKind.Program)]
+    [InlineData(MdRunKind.Expression)]
+    public void NewFile_WithVbLanguage_ThenParse_ProducesVbLanguageAndFence(MdRunKind kind)
     {
-        var text = RpadWriter.NewFile("Dim x = 1\n", "Untitled", "net10.0", kind, RpadLanguage.Vb);
+        var text = MdRunWriter.NewFile("Dim x = 1\n", "Untitled", "net10.0", kind, MdRunLanguage.Vb);
 
         Assert.Contains("```vb run", text);
-        var parsed = RpadParser.TryParse(text);
+        var parsed = MdRunParser.TryParse(text);
 
         Assert.NotNull(parsed);
-        Assert.Equal(RpadLanguage.Vb, parsed!.FrontMatter.Language);
+        Assert.Equal(MdRunLanguage.Vb, parsed!.FrontMatter.Language);
         Assert.Equal(kind, parsed.FrontMatter.Kind);
     }
 
     [Fact]
     public void NewFile_DefaultsToCSharp()
     {
-        var text = RpadWriter.NewFile("var x = 1;\n");
+        var text = MdRunWriter.NewFile("var x = 1;\n");
 
         Assert.Contains("language: csharp", text);
         Assert.Contains("```csharp run", text);
@@ -215,11 +215,11 @@ public class RpadParserWriterTests
     [InlineData("no trailing newline")]
     public void NewFile_Should_PutTheGivenCodeInTheRunBlock(string code)
     {
-        var parsed = RpadParser.TryParse(RpadWriter.NewFile(code, "Demo", kind: RpadKind.Program));
+        var parsed = MdRunParser.TryParse(MdRunWriter.NewFile(code, "Demo", kind: MdRunKind.Program));
 
         Assert.NotNull(parsed);
         Assert.Equal(code.TrimEnd('\n') + "\n", parsed!.RunCode);
-        Assert.Equal(RpadKind.Program, parsed.FrontMatter.Kind);
+        Assert.Equal(MdRunKind.Program, parsed.FrontMatter.Kind);
     }
 
     // ── Malformed / missing values ────────────────────────────────────────────
@@ -230,10 +230,10 @@ public class RpadParserWriterTests
         const string content =
             "---\nversion: 1\nlanguage: csharp\ntargetSdk: net10.0\nkind:\n---\n\n```csharp run\n1.Dump();\n```\n";
 
-        var parsed = RpadParser.TryParse(content);
+        var parsed = MdRunParser.TryParse(content);
 
         Assert.NotNull(parsed);
-        Assert.Equal(RpadKind.Statements, parsed!.FrontMatter.Kind);
+        Assert.Equal(MdRunKind.Statements, parsed!.FrontMatter.Kind);
     }
 
     // An unparseable value used to reset the *whole* front matter to defaults (C#, no
@@ -244,13 +244,13 @@ public class RpadParserWriterTests
         const string content =
             "---\nversion: 1\nlanguage: csharp\ntargetSdk: net10.0\nkind: NotARealKind\npackages:\n  Dapper: 2.1.66\n---\n\n```csharp run\n1.Dump();\n```\n";
 
-        var result = RpadParser.Parse(content);
+        var result = MdRunParser.Parse(content);
 
         Assert.False(result.IsSuccess);
         Assert.Null(result.Document);
         Assert.Contains("Invalid YAML front matter (line 5)", result.Error);
         Assert.Contains("NotARealKind", result.Error);
-        Assert.Null(RpadParser.TryParse(content));
+        Assert.Null(MdRunParser.TryParse(content));
     }
 
     [Fact]
@@ -259,7 +259,7 @@ public class RpadParserWriterTests
         const string content =
             "---\nversion: 1.0\nlanguage: vb\ntargetSdk: net10.0\nkind: nonsense\npackages:\n  Newtonsoft.Json: 13.0.3\nreferences:\n  - ../Shared/Shared.vbproj\n---\n\n# VB\n\n```vb run\nConsole.WriteLine(1)\n```\n";
 
-        var result = RpadParser.Parse(content);
+        var result = MdRunParser.Parse(content);
 
         Assert.False(result.IsSuccess);
         Assert.Contains("nonsense", result.Error);
@@ -275,14 +275,14 @@ public class RpadParserWriterTests
     [InlineData("---\nlanguage: csharp\n---\n\n# Notes only\n", "No '```csharp run' code block")]
     public void Parse_InvalidDocument_ReportsDiagnostic(string content, string expectedError)
     {
-        var result = RpadParser.Parse(content);
+        var result = MdRunParser.Parse(content);
 
         Assert.False(result.IsSuccess);
         Assert.Contains(expectedError, result.Error);
     }
 
     // YamlDotNet's enum binding accepted numbers and the placeholder member,
-    // so `kind: 99` parsed as an undefined RpadKind and `kind: Unknown`/`0` silently became Statements.
+    // so `kind: 99` parsed as an undefined MdRunKind and `kind: Unknown`/`0` silently became Statements.
     [Theory]
     [InlineData("kind: 99", "Unsupported kind '99'")]
     [InlineData("kind: 0", "Unsupported kind '0'")]
@@ -300,7 +300,7 @@ public class RpadParserWriterTests
     {
         var content = $"---\nversion: 1.0\n{line}\n---\n\n```csharp run\n1.Dump();\n```\n";
 
-        var result = RpadParser.Parse(content);
+        var result = MdRunParser.Parse(content);
 
         Assert.False(result.IsSuccess);
         Assert.Contains(expectedError, result.Error);
@@ -308,27 +308,27 @@ public class RpadParserWriterTests
     }
 
     [Theory]
-    [InlineData("kind:", RpadKind.Statements)]
-    [InlineData("kind: ~", RpadKind.Statements)]
-    [InlineData("kind: null", RpadKind.Statements)]
-    [InlineData("kind: ''", RpadKind.Statements)]
-    [InlineData("kind: Program", RpadKind.Program)]
-    [InlineData("kind: expression", RpadKind.Expression)]
-    public void Parse_EmptyOrDeclaredKind_IsAccepted(string line, RpadKind expected)
+    [InlineData("kind:", MdRunKind.Statements)]
+    [InlineData("kind: ~", MdRunKind.Statements)]
+    [InlineData("kind: null", MdRunKind.Statements)]
+    [InlineData("kind: ''", MdRunKind.Statements)]
+    [InlineData("kind: Program", MdRunKind.Program)]
+    [InlineData("kind: expression", MdRunKind.Expression)]
+    public void Parse_EmptyOrDeclaredKind_IsAccepted(string line, MdRunKind expected)
     {
-        var result = RpadParser.Parse($"---\n{line}\n---\n\n```csharp run\n1.Dump();\n```\n");
+        var result = MdRunParser.Parse($"---\n{line}\n---\n\n```csharp run\n1.Dump();\n```\n");
 
         Assert.True(result.IsSuccess, result.Error);
         Assert.Equal(expected, result.Document.FrontMatter.Kind);
     }
 
     [Theory]
-    [InlineData("language: ~", RpadLanguage.CSharp, "csharp")]
-    [InlineData("language: csharp", RpadLanguage.CSharp, "csharp")]
-    [InlineData("language: VB", RpadLanguage.Vb, "vb")]
-    public void Parse_EmptyOrDeclaredLanguage_IsAccepted(string line, RpadLanguage expected, string fence)
+    [InlineData("language: ~", MdRunLanguage.CSharp, "csharp")]
+    [InlineData("language: csharp", MdRunLanguage.CSharp, "csharp")]
+    [InlineData("language: VB", MdRunLanguage.Vb, "vb")]
+    public void Parse_EmptyOrDeclaredLanguage_IsAccepted(string line, MdRunLanguage expected, string fence)
     {
-        var result = RpadParser.Parse($"---\n{line}\n---\n\n```{fence} run\n1\n```\n");
+        var result = MdRunParser.Parse($"---\n{line}\n---\n\n```{fence} run\n1\n```\n");
 
         Assert.True(result.IsSuccess, result.Error);
         Assert.Equal(expected, result.Document.FrontMatter.Language);
@@ -350,11 +350,11 @@ public class RpadParserWriterTests
     [InlineData("---\n---\n\n ```csharp run\n1\n```\n", "No '```csharp run' code block")]
     public void Parse_MalformedDelimiterLine_ReportsErrorInsteadOfGuessing(string content, string expectedError)
     {
-        var result = RpadParser.Parse(content);
+        var result = MdRunParser.Parse(content);
 
         Assert.False(result.IsSuccess);
         Assert.Contains(expectedError, result.Error);
-        Assert.Null(RpadParser.TryParse(content));
+        Assert.Null(MdRunParser.TryParse(content));
     }
 
     [Theory]
@@ -364,13 +364,13 @@ public class RpadParserWriterTests
     [InlineData("---\nkind: Program\n---\n\n```csharp\trun\n1.Dump();\n```\nAFTER\n")]
     public void Parse_DelimitersWithTrailingWhitespace_AreAccepted(string content)
     {
-        var result = RpadParser.Parse(content);
+        var result = MdRunParser.Parse(content);
 
         Assert.True(result.IsSuccess, result.Error);
-        Assert.Equal(RpadKind.Program, result.Document.FrontMatter.Kind);
+        Assert.Equal(MdRunKind.Program, result.Document.FrontMatter.Kind);
         Assert.StartsWith("1.Dump();", result.Document.RunCode);
         Assert.DoesNotContain("`", result.Document.RunCode);
-        Assert.EndsWith("AFTER" + (content.Contains('\r') ? "\r\n" : "\n"), RpadWriter.Write(result.Document));
+        Assert.EndsWith("AFTER" + (content.Contains('\r') ? "\r\n" : "\n"), MdRunWriter.Write(result.Document));
     }
 
     // A near-miss run line earlier in the Markdown stays Markdown; the real run block is used.
@@ -379,11 +379,11 @@ public class RpadParserWriterTests
     {
         const string content = CanonicalFm + "\n```csharp runner\nnot this\n```\n\n```csharp run\n1.Dump();\n```\n";
 
-        var parsed = RpadParser.TryParse(content);
+        var parsed = MdRunParser.TryParse(content);
 
         Assert.NotNull(parsed);
         Assert.Equal("1.Dump();\n", parsed!.RunCode);
-        Assert.Equal(content, RpadWriter.Write(parsed));
+        Assert.Equal(content, MdRunWriter.Write(parsed));
     }
 
     [Theory]
@@ -394,11 +394,11 @@ public class RpadParserWriterTests
     {
         var content = CanonicalFm + "```csharp run\na();\n" + tail;
 
-        var parsed = RpadParser.TryParse(content);
+        var parsed = MdRunParser.TryParse(content);
 
         Assert.NotNull(parsed);
         Assert.Equal(expectedCode, parsed!.RunCode);
-        Assert.Equal(content, RpadWriter.Write(parsed));
+        Assert.Equal(content, MdRunWriter.Write(parsed));
     }
 
     [Theory]
@@ -407,13 +407,13 @@ public class RpadParserWriterTests
     [InlineData("---\n# only a comment\n---\n\n```csharp run\n1.Dump();\n```\n")]
     public void Parse_EmptyFrontMatter_UsesDefaults(string content)
     {
-        var result = RpadParser.Parse(content);
+        var result = MdRunParser.Parse(content);
 
         Assert.True(result.IsSuccess, result.Error);
         var fm = result.Document.FrontMatter;
         Assert.Equal("1.0", fm.Version);
-        Assert.Equal(RpadLanguage.CSharp, fm.Language);
-        Assert.Equal(RpadKind.Statements, fm.Kind);
+        Assert.Equal(MdRunLanguage.CSharp, fm.Language);
+        Assert.Equal(MdRunKind.Statements, fm.Kind);
         Assert.Equal(TargetSdk.Default, fm.TargetSdk);
         Assert.Empty(fm.Packages);
         Assert.StartsWith("1.Dump();", result.Document.RunCode);
@@ -425,13 +425,13 @@ public class RpadParserWriterTests
         const string content =
             "---\nversion:\nlanguage:\ntargetSdk:\nkind:\npackages:\nreferences:\nnamespaces:\n---\n\n```csharp run\n1.Dump();\n```\n";
 
-        var result = RpadParser.Parse(content);
+        var result = MdRunParser.Parse(content);
 
         Assert.True(result.IsSuccess, result.Error);
         var fm = result.Document.FrontMatter;
         Assert.Equal("1.0", fm.Version);
-        Assert.Equal(RpadLanguage.CSharp, fm.Language);
-        Assert.Equal(RpadKind.Statements, fm.Kind);
+        Assert.Equal(MdRunLanguage.CSharp, fm.Language);
+        Assert.Equal(MdRunKind.Statements, fm.Kind);
         Assert.Equal(TargetSdk.Default, fm.TargetSdk);
         Assert.Empty(fm.Packages);
         Assert.Empty(fm.References!);
@@ -440,7 +440,7 @@ public class RpadParserWriterTests
 
     // ── Empty code block / fence detection ──────────────────────
 
-    // Same front matter RpadWriter emits, so Write(Parse(x)) == x is a meaningful byte-for-byte check.
+    // Same front matter MdRunWriter emits, so Write(Parse(x)) == x is a meaningful byte-for-byte check.
     private const string CanonicalFm = "---\nversion: 1.0\nlanguage: csharp\ntargetSdk: latest\nkind: Statements\n---\n";
 
     [Theory]
@@ -450,11 +450,11 @@ public class RpadParserWriterTests
     [InlineData(CanonicalFm + "\r\n# Title\r\n\r\n```csharp run\r\n```\r\nAFTER\r\n")] // CRLF body
     public void Parse_EmptyBlockClosedImmediately_HasEmptyCodeAndRoundTripsExactly(string content)
     {
-        var parsed = RpadParser.TryParse(content);
+        var parsed = MdRunParser.TryParse(content);
 
         Assert.NotNull(parsed);
         Assert.Equal("", parsed!.RunCode);
-        Assert.Equal(content, RpadWriter.Write(parsed));
+        Assert.Equal(content, MdRunWriter.Write(parsed));
     }
 
     [Theory]
@@ -463,24 +463,24 @@ public class RpadParserWriterTests
     [InlineData(CanonicalFm + "```csharp run\n1.Dump();\n```", "1.Dump();\n")]
     public void Parse_CodeBlockWithSurroundingMarkdown_RoundTripsExactly(string content, string expectedCode)
     {
-        var parsed = RpadParser.TryParse(content);
+        var parsed = MdRunParser.TryParse(content);
 
         Assert.NotNull(parsed);
         Assert.Equal(expectedCode, parsed!.RunCode);
-        Assert.Equal(content, RpadWriter.Write(parsed));
+        Assert.Equal(content, MdRunWriter.Write(parsed));
     }
 
     [Fact]
     public void Write_EmptyRunCode_DoesNotIntroduceABlankCodeLine()
     {
         const string content = CanonicalFm + "\n```csharp run\nold code\n```\nAFTER\n";
-        var parsed = RpadParser.TryParse(content)!;
+        var parsed = MdRunParser.TryParse(content)!;
 
         parsed.RunCode = "";
-        var written = RpadWriter.Write(parsed);
+        var written = MdRunWriter.Write(parsed);
 
         Assert.Equal(CanonicalFm + "\n```csharp run\n```\nAFTER\n", written);
-        Assert.Equal("", RpadParser.TryParse(written)!.RunCode);
+        Assert.Equal("", MdRunParser.TryParse(written)!.RunCode);
     }
 
     [Fact]
@@ -489,7 +489,7 @@ public class RpadParserWriterTests
         const string content =
             "---\nversion: 1\nlanguage: csharp\ntargetSdk:\nkind: Statements\n---\n\n```csharp run\n1.Dump();\n```\n";
 
-        var parsed = RpadParser.TryParse(content);
+        var parsed = MdRunParser.TryParse(content);
 
         Assert.NotNull(parsed);
         Assert.Equal(TargetSdk.Default, parsed!.FrontMatter.TargetSdk);
@@ -500,23 +500,23 @@ public class RpadParserWriterTests
     public void AllowUnsafe_Should_RoundTrip_AndStayAbsentWhenOff()
     {
         const string existing = "---\nversion: 1.0\nlanguage: csharp\ntargetSdk: latest\nkind: Program\n---\n\n```csharp run\nvoid Main() { }\n```\n";
-        var parsed = RpadParser.TryParse(existing)!;
+        var parsed = MdRunParser.TryParse(existing)!;
         Assert.False(parsed.FrontMatter.AllowUnsafe);
-        Assert.Equal(existing, RpadWriter.Write(parsed));
+        Assert.Equal(existing, MdRunWriter.Write(parsed));
 
         parsed.FrontMatter.AllowUnsafe = true;
-        var written = RpadWriter.Write(parsed);
+        var written = MdRunWriter.Write(parsed);
         Assert.Contains("\nallowUnsafe: true\n", written);
-        Assert.True(RpadParser.TryParse(written)!.FrontMatter.AllowUnsafe);
-        Assert.False(RpadParser.TryParse(written.Replace("allowUnsafe: true", "allowUnsafe: false"))!.FrontMatter.AllowUnsafe);
+        Assert.True(MdRunParser.TryParse(written)!.FrontMatter.AllowUnsafe);
+        Assert.False(MdRunParser.TryParse(written.Replace("allowUnsafe: true", "allowUnsafe: false"))!.FrontMatter.AllowUnsafe);
     }
 
     // Recovery snapshots, Save As and Duplicate all go through the document's copy of its metadata.
     [Fact]
     public void AllowUnsafe_Should_SurviveASnapshot()
     {
-        var doc = new RpadDocument { FrontMatter = new RpadFrontMatter { AllowUnsafe = true }, RunCode = "1.Dump();\n" };
+        var doc = new MdRunDocument { FrontMatter = new MdRunFrontMatter { AllowUnsafe = true }, RunCode = "1.Dump();\n" };
 
-        Assert.True(RpadDocument.FromSnapshot(doc.CaptureSnapshot()).FrontMatter.AllowUnsafe);
+        Assert.True(MdRunDocument.FromSnapshot(doc.CaptureSnapshot()).FrontMatter.AllowUnsafe);
     }
 }

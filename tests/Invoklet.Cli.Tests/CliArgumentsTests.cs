@@ -1,4 +1,4 @@
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Xunit;
 
 namespace Invoklet.Cli.Tests;
@@ -23,12 +23,12 @@ public class CliArgumentsTests
     }
 
     [Theory]
-    [InlineData(new[] { "-lang=e", "a.rpad" }, RpadKind.Expression, null)]
-    [InlineData(new[] { "-lang=Program", "a.rpad" }, RpadKind.Program, null)]
-    [InlineData(new[] { "-lang=VBStatements", "a.rpad" }, RpadKind.Statements, RpadLanguage.Vb)]
-    [InlineData(new[] { "--kind", "program", "a.rpad" }, RpadKind.Program, null)]
-    [InlineData(new[] { "a.rpad", "-k", "s" }, RpadKind.Statements, null)]
-    public void Parse_Should_ReadTheKind_InEitherStyle(string[] args, RpadKind kind, RpadLanguage? language)
+    [InlineData(new[] { "-lang=e", "a.rpad" }, MdRunKind.Expression, null)]
+    [InlineData(new[] { "-lang=Program", "a.rpad" }, MdRunKind.Program, null)]
+    [InlineData(new[] { "-lang=VBStatements", "a.rpad" }, MdRunKind.Statements, MdRunLanguage.Vb)]
+    [InlineData(new[] { "--kind", "program", "a.rpad" }, MdRunKind.Program, null)]
+    [InlineData(new[] { "a.rpad", "-k", "s" }, MdRunKind.Statements, null)]
+    public void Parse_Should_ReadTheKind_InEitherStyle(string[] args, MdRunKind kind, MdRunLanguage? language)
     {
         var cli = CliArguments.Parse(args);
 

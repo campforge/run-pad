@@ -1,5 +1,5 @@
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.VB;
 using Invoklet.Services;
@@ -81,7 +81,7 @@ public class FileTreeViewModelTests
             var sub = Path.Combine(root, "Sub");
             Directory.CreateDirectory(sub);
             var file = Path.Combine(root, "a.rpad");
-            File.WriteAllText(file, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
+            File.WriteAllText(file, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
 
             var vm = CreateViewModel();
             vm.Refresh([
@@ -102,7 +102,7 @@ public class FileTreeViewModelTests
         try
         {
             var csharpFile = Path.Combine(root, "cs.rpad");
-            File.WriteAllText(csharpFile, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "CSharp Demo"));
+            File.WriteAllText(csharpFile, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "CSharp Demo"));
             var vbFile = Path.Combine(root, "vb.rpad");
             File.WriteAllText(vbFile,
                 "---\nversion: \"1.0\"\nlanguage: vb\ntargetSdk: net10.0\nkind: Statements\n---\n\n# VB Demo\n\n```vb run\nConsole.WriteLine(\"hi\")\n```\n");
@@ -118,12 +118,12 @@ public class FileTreeViewModelTests
             // since Material Design Icons has no per-language VB icon at all) — neither falls back
             // to the tree's generic file icon.
             var csNode = vm.FindByPath(csharpFile)!;
-            Assert.Equal(RpadLanguage.CSharp, csNode.Language);
+            Assert.Equal(MdRunLanguage.CSharp, csNode.Language);
             Assert.Equal("Icon.LanguageCSharp", csNode.LanguageIconKey);
             Assert.False(csNode.ShowGenericFileIcon);
 
             var vbNode = vm.FindByPath(vbFile)!;
-            Assert.Equal(RpadLanguage.Vb, vbNode.Language);
+            Assert.Equal(MdRunLanguage.Vb, vbNode.Language);
             Assert.Equal("Icon.LanguageVb", vbNode.LanguageIconKey);
             Assert.False(vbNode.ShowGenericFileIcon);
         }
@@ -135,18 +135,18 @@ public class FileTreeViewModelTests
     [Fact]
     public void ShowGenericFileIcon_Should_BeTrue_WhenLanguageIconKeyIsNull()
     {
-        var node = new FileTreeViewNode("x.rpad", "/root/x.rpad", RpadLanguage.Vb) { LanguageIconKey = null };
+        var node = new FileTreeViewNode("x.rpad", "/root/x.rpad", MdRunLanguage.Vb) { LanguageIconKey = null };
 
         Assert.True(node.ShowGenericFileIcon);
     }
 
     // MapFileNode's actual fallback — a language whose id isn't registered in
-    // ILanguageHostRegistry at all (any future RpadLanguage with no ILanguageHostFactory yet) — falls
+    // ILanguageHostRegistry at all (any future MdRunLanguage with no ILanguageHostFactory yet) — falls
     // back to the generic file icon instead of throwing (GetEditorProfile throws for an unregistered
     // id, hence the IsRegistered guard in FileTreeViewModel.MapFileNode). Registers only C# here to
-    // simulate "vb" being such a language, rather than inventing an impossible RpadLanguage value —
-    // RpadParser.TryParse already normalizes RpadLanguage.Unknown to CSharp before this code ever
-    // sees it (RpadParser.cs:54), so Unknown itself can't reach MapFileNode from a real file.
+    // simulate "vb" being such a language, rather than inventing an impossible MdRunLanguage value —
+    // MdRunParser.TryParse already normalizes MdRunLanguage.Unknown to CSharp before this code ever
+    // sees it (MdRunParser.cs:54), so Unknown itself can't reach MapFileNode from a real file.
     [Fact]
     public void Refresh_Should_FallBackToGenericIcon_ForALanguageNotRegisteredInTheRegistry()
     {
@@ -166,7 +166,7 @@ public class FileTreeViewModelTests
             vm.Refresh([new FileSystemItem("vb.rpad", false, vbFile, null)]);
 
             var vbNode = vm.FindByPath(vbFile)!;
-            Assert.Equal(RpadLanguage.Vb, vbNode.Language);
+            Assert.Equal(MdRunLanguage.Vb, vbNode.Language);
             Assert.Null(vbNode.LanguageIconKey);
             Assert.True(vbNode.ShowGenericFileIcon);
         }

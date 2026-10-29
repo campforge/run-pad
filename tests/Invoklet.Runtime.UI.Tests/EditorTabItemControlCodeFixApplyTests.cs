@@ -5,7 +5,7 @@ using Avalonia.Styling;
 using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Services;
@@ -27,7 +27,7 @@ namespace Invoklet.Runtime.UI.Tests;
 // CodeFixMargin menu-item wiring (same idiom as CodeFixMarginTests.cs's own click test) rather than
 // simulating the click by calling internal methods directly. The "add using" fix this test drives
 // lands in FrontMatter.Namespaces, not the visible editor text — every Invoklet tab (even a brand-new
-// untitled one, see NewRpadFile) is a real .rpad document, and usings are project-level metadata
+// untitled one, see NewMdRunFile) is a real .rpad document, and usings are project-level metadata
 // there (docs/ImplementationPlanRPad.md), not text inserted into the script itself.
 [Trait("Category", "Integration")]
 [Trait("Category", "Roslyn")]
@@ -65,7 +65,7 @@ public class EditorTabItemControlCodeFixApplyTests
     {
         var prefs = MakePrefs();
         var vm = new EditorTabItemViewModel(
-            null, [], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
+            null, [], prefs.Object, new Mock<IEditorTabActions>().Object, MdRunLanguage.CSharp, MdRunKind.Statements);
         var registry = new Mock<ILanguageHostRegistry>();
         var buildCache = new Mock<IBuildCacheService>();
         using var intelliSense = CreateRealIntelliSense();
@@ -100,15 +100,15 @@ public class EditorTabItemControlCodeFixApplyTests
         var item = margin.BuildMenuItem(entry);
         item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
 
-        // A new untitled tab still gets a real RpadDocument (every Invoklet script is a .rpad document
-        // — see NewRpadFile), so this "add using" fix's namespace goes to FrontMatter.Namespaces
+        // A new untitled tab still gets a real MdRunDocument (every Invoklet script is a .rpad document
+        // — see NewMdRunFile), so this "add using" fix's namespace goes to FrontMatter.Namespaces
         // (docs/ImplementationPlanRPad.md — usings are project-level metadata), NOT into the visible
         // editor text (which is why the raw text is never expected to change here at all).
         // FrontMatter.Namespaces is already a real (if empty) list from tab creation onward — poll
         // for the NAMESPACE showing up, not merely for the list itself becoming non-null.
         await TestWait.WhileAsync(() =>
-            ctrl.State.RpadDocument?.FrontMatter.Namespaces?.Contains("System.Text.RegularExpressions") != true);
-        var namespaces = ctrl.State.RpadDocument?.FrontMatter.Namespaces;
+            ctrl.State.MdRunDocument?.FrontMatter.Namespaces?.Contains("System.Text.RegularExpressions") != true);
+        var namespaces = ctrl.State.MdRunDocument?.FrontMatter.Namespaces;
 
         Assert.NotNull(namespaces);
         Assert.Contains("System.Text.RegularExpressions", namespaces);

@@ -6,7 +6,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -135,7 +135,7 @@ public class InvalidDocumentHeadlessTests
             var (tab, ctrl) = await OpenAsync(h, WriteMalformed(h));
 
             Assert.Equal(MalformedVb, ctrl.State.Editor.Text);
-            Assert.Null(ctrl.State.RpadDocument);
+            Assert.Null(ctrl.State.MdRunDocument);
             Assert.Null(tab.FrontMatter);
             Assert.Contains("nonsense", ctrl.State.DocumentParseError);
             Assert.Equal("Invalid document", ctrl.State.ExecStatusText);
@@ -188,7 +188,7 @@ public class InvalidDocumentHeadlessTests
         finally { Cleanup(h); }
     }
 
-    // A numeric kind used to parse as an undefined RpadKind and run.
+    // A numeric kind used to parse as an undefined MdRunKind and run.
     [AvaloniaFact]
     public async Task Run_OnANumericUndeclaredKind_Should_BeRefused_AndKeepTheFile()
     {
@@ -234,7 +234,7 @@ public class InvalidDocumentHeadlessTests
 
             Assert.Null(reopenedCtrl.State.DocumentParseError);
             var fm = reopened.FrontMatter!;
-            Assert.Equal(RpadLanguage.Vb, fm.Language);
+            Assert.Equal(MdRunLanguage.Vb, fm.Language);
             Assert.Equal("13.0.3", fm.Packages["Newtonsoft.Json"].Version);
             Assert.Equal(["../Shared/Shared.vbproj"], fm.References);
             Assert.Equal("Console.WriteLine(1)\n", reopenedCtrl.State.Editor.Text);

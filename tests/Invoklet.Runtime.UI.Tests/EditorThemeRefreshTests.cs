@@ -8,7 +8,7 @@ using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -46,7 +46,7 @@ public class EditorThemeRefreshTests : IDisposable
     private string Script(string name)
     {
         var path = Path.Combine(_root, name);
-        File.WriteAllText(path, RpadWriter.NewFile(Code, name));
+        File.WriteAllText(path, MdRunWriter.NewFile(Code, name));
         return path;
     }
 

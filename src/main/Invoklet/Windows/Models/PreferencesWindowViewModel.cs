@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Desktop;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.Desktop;
 using Invoklet.Services.Preferences;
@@ -412,18 +412,18 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     // Live user request: File > New RPad File always asked for a language+kind via
     // NewFileKindDialog, even for someone who creates the same combination every time. These are the
     // defaults Ctrl+N/File > New File use to skip that dialog (MainWindowViewModel.
-    // NewRpadFileWithDefaults) — plain enum values, same ComboBox.ToString() display NewFileKindDialog
-    // itself already uses for RpadKind, not worth a converter for. The languages are the registered ones.
-    public IReadOnlyList<RpadLanguage> AvailableNewFileLanguages { get; }
-    public static RpadKind[] AvailableNewFileKinds { get; } = [RpadKind.Statements, RpadKind.Program, RpadKind.Expression];
+    // NewMdRunFileWithDefaults) — plain enum values, same ComboBox.ToString() display NewFileKindDialog
+    // itself already uses for MdRunKind, not worth a converter for. The languages are the registered ones.
+    public IReadOnlyList<MdRunLanguage> AvailableNewFileLanguages { get; }
+    public static MdRunKind[] AvailableNewFileKinds { get; } = [MdRunKind.Statements, MdRunKind.Program, MdRunKind.Expression];
 
-    public RpadLanguage NewFileLanguage
+    public MdRunLanguage NewFileLanguage
     {
         get => _prefs.Editor.NewFileLanguage;
         set => SetPref(_prefs.Editor.NewFileLanguage, value, v => _prefs.Editor.NewFileLanguage = v);
     }
 
-    public RpadKind NewFileKind
+    public MdRunKind NewFileKind
     {
         get => _prefs.Editor.NewFileKind;
         set => SetPref(_prefs.Editor.NewFileKind, value, v => _prefs.Editor.NewFileKind = v);

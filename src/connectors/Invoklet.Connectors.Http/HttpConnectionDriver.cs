@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Text;
 using Invoklet.Contracts.Connections;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 
 namespace Invoklet.Connectors.Http;
 
@@ -50,7 +50,7 @@ public sealed class HttpConnectionDriver : IConnectionDriver
             Advanced: true),
     ];
 
-    public IReadOnlyList<string> Validate(RpadConnection connection)
+    public IReadOnlyList<string> Validate(MdRunConnection connection)
     {
         var errors = new List<string>();
         var parameters = connection.Params;
@@ -77,7 +77,7 @@ public sealed class HttpConnectionDriver : IConnectionDriver
         return errors;
     }
 
-    public async Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken)
+    public async Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken)
     {
         if (!resolvedParams.TryGetValue(BaseAddress, out var addressValue) || addressValue.Text is not { } address || !IsHttpAddress(address))
             return new ConnectionTestResult(false, "The base address is not an http:// or https:// address.");
@@ -118,7 +118,7 @@ public sealed class HttpConnectionDriver : IConnectionDriver
 
     // An HttpClient with the base address, headers and timeout set, so the script calls
     // Connections.Billing.GetStringAsync("invoices") and the like.
-    public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context)
+    public ConnectionClientCode CreateClient(MdRunConnection connection, ConnectionCodeContext context)
     {
         var parameters = connection.Params;
         var address = parameters[BaseAddress].Text!;
@@ -138,7 +138,7 @@ public sealed class HttpConnectionDriver : IConnectionDriver
         return new ConnectionClientCode(sb.ToString());
     }
 
-    private static bool HasPlaceholder(string text) => RpadPlaceholders.Parse(text).Parts.Any(p => p.Kind != RpadPlaceholders.Kind.Text);
+    private static bool HasPlaceholder(string text) => MdRunPlaceholders.Parse(text).Parts.Any(p => p.Kind != MdRunPlaceholders.Kind.Text);
 
     private static bool IsHttpAddress(string text) =>
         Uri.TryCreate(text, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);

@@ -1,4 +1,4 @@
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Services.Preferences;
@@ -57,7 +57,7 @@ public class IndentationFormattingTests
         Assert.Equal(16, settings.IndentationSize);
     }
 
-    private static CSharpIntelliSenseService WithReferences(RpadKind kind, bool tabs, int width)
+    private static CSharpIntelliSenseService WithReferences(MdRunKind kind, bool tabs, int width)
     {
         var references = new CSharpReferenceService();
         var service = new CSharpIntelliSenseService(
@@ -89,7 +89,7 @@ public class IndentationFormattingTests
     [InlineData(false, 2, "  ")]
     public async Task CodeActions_Should_IndentWithTheSelectedIndentation(bool tabs, int width, string indent)
     {
-        using var service = WithReferences(RpadKind.Statements, tabs, width);
+        using var service = WithReferences(MdRunKind.Statements, tabs, width);
         var code = $"if (true)\n{{\n{indent}Console.WriteLine(DateTime.Now);\n}}\n";
 
         var result = await RefactorAsync(service, code, "Introduce local for 'DateTime.Now'");
@@ -100,7 +100,7 @@ public class IndentationFormattingTests
     [Fact]
     public async Task CodeActions_InTheProgramKind_Should_IndentWithTheSelectedIndentation()
     {
-        using var service = WithReferences(RpadKind.Program, tabs: false, width: 2);
+        using var service = WithReferences(MdRunKind.Program, tabs: false, width: 2);
         const string code = "void Main()\n{\n  if (true)\n  {\n    Console.WriteLine(DateTime.Now);\n  }\n}\n";
 
         var result = await RefactorAsync(service, code, "Introduce local for 'DateTime.Now'");
@@ -112,7 +112,7 @@ public class IndentationFormattingTests
     [Fact]
     public async Task WrapExpression_Should_ContinueWithTheSelectedIndentation()
     {
-        using var service = WithReferences(RpadKind.Statements, tabs: true, width: 4);
+        using var service = WithReferences(MdRunKind.Statements, tabs: true, width: 4);
         const string code = "if (true)\n{\n\tConsole.WriteLine(DateTime.Now.Year > 2000 && DateTime.Now.Month > 1);\n}\n";
 
         var result = await RefactorAsync(service, code, "Wrap expression");
@@ -123,7 +123,7 @@ public class IndentationFormattingTests
     [Fact]
     public async Task CodeActions_Should_FollowALiveIndentationChange()
     {
-        using var service = WithReferences(RpadKind.Statements, tabs: false, width: 4);
+        using var service = WithReferences(MdRunKind.Statements, tabs: false, width: 4);
         service.UpdateIndentation(true, 4);
         const string code = "if (true)\n{\n\tConsole.WriteLine(DateTime.Now);\n}\n";
 

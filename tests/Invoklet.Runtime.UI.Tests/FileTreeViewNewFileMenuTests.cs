@@ -4,7 +4,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml.Styling;
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.VB;
 using Invoklet.Services.Preferences;
@@ -48,10 +48,10 @@ public class FileTreeViewNewFileMenuTests
             Assert.Equal(["C#", "Visual Basic"], items.Select(i => i.Header as string));
             Assert.All(items, i => Assert.IsType<PathIcon>(i.Icon));
 
-            var created = new List<RpadLanguage>();
+            var created = new List<MdRunLanguage>();
             view.CreateFile += (_, e) => created.Add(e.Language);
             foreach (var item in items) item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
-            Assert.Equal([RpadLanguage.CSharp, RpadLanguage.Vb], created);
+            Assert.Equal([MdRunLanguage.CSharp, MdRunLanguage.Vb], created);
         }
         finally
         {

@@ -1,7 +1,7 @@
 using Invoklet.Build.Core.Models;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 
 namespace Invoklet.Languages.DotnetCommon;
 
@@ -44,7 +44,7 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
     /// <summary>NuGet.Config the in-process package restore uses (Invoklet's own source list); null = the user's NuGet settings.</summary>
     public string? NuGetConfigFile { get; init; }
 
-    public RpadKind Kind { get; init; }
+    public MdRunKind Kind { get; init; }
 
     /// <summary>Compile with unsafe code allowed (C# /unsafe); languages without unsafe code ignore it.</summary>
     public bool AllowUnsafe { get; init; }

@@ -3,7 +3,7 @@ using System.Reactive.Threading.Tasks;
 using System.Text.Json;
 using Avalonia.Headless.XUnit;
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.Windows.Models;
@@ -37,7 +37,7 @@ public sealed class OpenScriptTests : IDisposable
     private string Script(string name)
     {
         var path = Path.Combine(_root, name + ".rpad");
-        File.WriteAllText(path, RpadWriter.NewFile("1.Dump();", name));
+        File.WriteAllText(path, MdRunWriter.NewFile("1.Dump();", name));
         return path;
     }
 

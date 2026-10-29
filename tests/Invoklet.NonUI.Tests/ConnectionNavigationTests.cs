@@ -1,6 +1,6 @@
 using Invoklet.Connectors.Http;
 using Invoklet.Contracts.Connections;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services.Connections;
 using Invoklet.Services.Examples;
 using Invoklet.Services.Secrets;
@@ -134,11 +134,11 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
 
     public void Dispose() => Directory.Delete(_folder, recursive: true);
 
-    private static RpadConnection Connection(string name, string driver = "http") => new()
+    private static MdRunConnection Connection(string name, string driver = "http") => new()
     {
         Name = name,
         Driver = driver,
-        Params = driver == "http" ? new(StringComparer.Ordinal) { ["baseAddress"] = RpadValue.Of($"https://{name}.test/") } : new(StringComparer.Ordinal),
+        Params = driver == "http" ? new(StringComparer.Ordinal) { ["baseAddress"] = MdRunValue.Of($"https://{name}.test/") } : new(StringComparer.Ordinal),
     };
 
     private sealed class PackagedDriver : IConnectionDriver
@@ -148,13 +148,13 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
         public ConnectionCategory Category => ConnectionCategory.Database;
         public IReadOnlyList<ConnectionParam> Params { get; } = [];
         public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string> { ["Example.Client"] = "1.2.3" };
-        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
-        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+        public IReadOnlyList<string> Validate(MdRunConnection connection) => [];
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken) =>
             Task.FromResult(new ConnectionTestResult(true, ""));
-        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) => new("");
+        public ConnectionClientCode CreateClient(MdRunConnection connection, ConnectionCodeContext context) => new("");
     }
 
-    private async Task<ConnectionNavigationViewModel> CreateAsync(params RpadConnection[] connections)
+    private async Task<ConnectionNavigationViewModel> CreateAsync(params MdRunConnection[] connections)
     {
         var store = new FileConnectionStore(ConnectionsPath);
         store.Save(connections, null);
@@ -173,7 +173,7 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
         var apis = model.Create("APIs");
         model.MoveConnection("broken", apis.Id);
         new FileConnectionGroupingStore(ConnectionsPath).Save(model.Snapshot());
-        var broken = new RpadConnection { Name = "broken", Driver = "http" }; // no base address
+        var broken = new MdRunConnection { Name = "broken", Driver = "http" }; // no base address
 
         var vm = await CreateAsync(broken, Connection("fine"), Connection("warehouse", "snowflake"));
 
@@ -193,8 +193,8 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
     [Fact]
     public async Task AddingToTheScript_Should_WriteTheConnection_AndAskOnlyAboutPackages()
     {
-        var vm = await CreateAsync(Connection("billing"), Connection("orders"), new RpadConnection { Name = "warehouse", Driver = "packaged" });
-        var frontMatter = new RpadFrontMatter { Connections = [Connection("orders")] };
+        var vm = await CreateAsync(Connection("billing"), Connection("orders"), new MdRunConnection { Name = "warehouse", Driver = "packaged" });
+        var frontMatter = new MdRunFrontMatter { Connections = [Connection("orders")] };
         var asked = new List<string>();
         var answer = false;
         Task<bool> Confirm(string message) { asked.Add(message); return Task.FromResult(answer); }
@@ -224,8 +224,8 @@ public sealed class ConnectionNavigationViewModelTests : IDisposable
     [Fact]
     public async Task AddingToTheScript_Should_NotCommit_WhenDisposedWhilePackageConfirmationIsOpen()
     {
-        var vm = await CreateAsync(new RpadConnection { Name = "warehouse", Driver = "packaged" });
-        var frontMatter = new RpadFrontMatter { Connections = [Connection("existing")] };
+        var vm = await CreateAsync(new MdRunConnection { Name = "warehouse", Driver = "packaged" });
+        var frontMatter = new MdRunFrontMatter { Connections = [Connection("existing")] };
         var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var decision = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -441,11 +441,11 @@ public sealed class ConnectionStatusTests : IDisposable
         public ConnectionCategory Category => ConnectionCategory.Database;
         public IReadOnlyList<ConnectionParam> Params => [];
         public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string>();
-        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
-        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+        public IReadOnlyList<string> Validate(MdRunConnection connection) => [];
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken) =>
             Task.FromResult(new ConnectionTestResult(true, ""));
-        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) => new("");
-        public Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
+        public ConnectionClientCode CreateClient(MdRunConnection connection, ConnectionCodeContext context) => new("");
+        public Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, ConnectionTools tools,
             CancellationToken cancellationToken)
         {
             FetchStarted.TrySetResult(true);
@@ -453,7 +453,7 @@ public sealed class ConnectionStatusTests : IDisposable
         }
     }
 
-    private (ConnectionNavigationViewModel Vm, ContractDriver Driver) Create(params RpadConnection[] connections)
+    private (ConnectionNavigationViewModel Vm, ContractDriver Driver) Create(params MdRunConnection[] connections)
     {
         var store = new FileConnectionStore(Path.Combine(_folder, "connections.json"));
         store.Save(connections, null);
@@ -467,14 +467,14 @@ public sealed class ConnectionStatusTests : IDisposable
         return (new ConnectionNavigationViewModel(store, drivers, secrets: secrets, schemas: schemas), driver);
     }
 
-    private static RpadConnection Http(string name, string authorization) => new()
+    private static MdRunConnection Http(string name, string authorization) => new()
     {
         Name = name,
         Driver = "http",
         Params = new(StringComparer.Ordinal)
         {
-            ["baseAddress"] = RpadValue.Of("https://example.test/"),
-            ["headers"] = RpadValue.Map([new("Authorization", RpadValue.Of(authorization))]),
+            ["baseAddress"] = MdRunValue.Of("https://example.test/"),
+            ["headers"] = MdRunValue.Map([new("Authorization", MdRunValue.Of(authorization))]),
         },
     };
 
@@ -501,7 +501,7 @@ public sealed class ConnectionStatusTests : IDisposable
     [Fact]
     public async Task TheContractsState_Should_FollowItsReads_LoadingProblemReadyAndOutOfDate()
     {
-        var (vm, driver) = Create(new RpadConnection { Name = "orders", Driver = "contract" });
+        var (vm, driver) = Create(new MdRunConnection { Name = "orders", Driver = "contract" });
         await vm.RefreshAsync();
         var row = () => vm.Find("orders", isConnection: true)!;
         Assert.Equal(ConnectionRowState.Ready, row().Status.State);
@@ -531,7 +531,7 @@ public sealed class ConnectionStatusTests : IDisposable
     [Fact]
     public async Task RefreshAll_Should_ReadTheListAndEveryContractAgain()
     {
-        var (vm, driver) = Create(new RpadConnection { Name = "orders", Driver = "contract" }, Http("known", "Bearer ${secret:token}"));
+        var (vm, driver) = Create(new MdRunConnection { Name = "orders", Driver = "contract" }, Http("known", "Bearer ${secret:token}"));
         await vm.RefreshAsync();
         driver.Next.SetException(new InvalidOperationException("Unreachable."));
         await vm.RefreshAllAsync();
@@ -543,7 +543,7 @@ public sealed class ConnectionStatusTests : IDisposable
     [Fact]
     public async Task ANewConnectionRefresh_ShouldCancelThePreviousOne_WithoutLosingTheCurrentOperation()
     {
-        var (vm, driver) = Create(new RpadConnection { Name = "orders", Driver = "contract" });
+        var (vm, driver) = Create(new MdRunConnection { Name = "orders", Driver = "contract" });
         await vm.RefreshAsync();
         var row = vm.Find("orders", isConnection: true)!;
 
@@ -565,7 +565,7 @@ public sealed class ConnectionStatusTests : IDisposable
 
 public sealed class SidebarStateTests
 {
-    private static ExampleScript Sample(string id, string folder) => new(id, id, "", RpadLanguage.CSharp, RpadKind.Statements, folder);
+    private static ExampleScript Sample(string id, string folder) => new(id, id, "", MdRunLanguage.CSharp, MdRunKind.Statements, folder);
 
     [Fact]
     public void TheSamplesTree_Should_KeepTheBundledOrder_AndStartWithKeptFoldersFolded()
@@ -593,7 +593,7 @@ public sealed class SidebarStateTests
         try
         {
             var store = new FileConnectionStore(Path.Combine(folder, "connections.json"));
-            store.Save([new RpadConnection { Name = "billing", Driver = "http" }], null);
+            store.Save([new MdRunConnection { Name = "billing", Driver = "http" }], null);
             var first = new ConnectionNavigationViewModel(store);
             await first.RefreshAsync();
             var group = first.CreateGroup(null, "APIs")!;

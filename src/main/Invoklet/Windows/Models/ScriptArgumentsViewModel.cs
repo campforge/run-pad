@@ -1,29 +1,29 @@
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Text.Json;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using ReactiveUI;
 
 namespace Invoklet.Windows.Models;
 
 // A type an argument can have, as the type list shows it.
-public sealed record ArgumentTypeOption(RpadArgumentType Type)
+public sealed record ArgumentTypeOption(MdRunArgumentType Type)
 {
-    public string Label => RpadArgument.TypeName(Type);
+    public string Label => MdRunArgument.TypeName(Type);
 }
 
 // One declared argument being edited: a row of name, type, default and (for an enum) its values.
 public sealed class ArgumentRowViewModel : ReactiveObject
 {
-    public static IReadOnlyList<ArgumentTypeOption> Types { get; } = [.. Enum.GetValues<RpadArgumentType>().Select(t => new ArgumentTypeOption(t))];
+    public static IReadOnlyList<ArgumentTypeOption> Types { get; } = [.. Enum.GetValues<MdRunArgumentType>().Select(t => new ArgumentTypeOption(t))];
 
     private string _name;
     private ArgumentTypeOption _type;
     private string _defaultText;
     private string _valuesText;
-    private readonly RpadValue? _originalDefault;
+    private readonly MdRunValue? _originalDefault;
 
-    internal ArgumentRowViewModel(RpadArgument argument, Action<ArgumentRowViewModel> remove)
+    internal ArgumentRowViewModel(MdRunArgument argument, Action<ArgumentRowViewModel> remove)
     {
         _name = argument.Name;
         _type = Types.First(t => t.Type == argument.Type);
@@ -86,12 +86,12 @@ public sealed class ArgumentRowViewModel : ReactiveObject
     public IReadOnlyList<string> EnumValues =>
         [.. _valuesText.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)];
 
-    public bool IsEnum => _type.Type == RpadArgumentType.Enum;
-    public bool IsList => _type.Type == RpadArgumentType.StringList;
+    public bool IsEnum => _type.Type == MdRunArgumentType.Enum;
+    public bool IsList => _type.Type == MdRunArgumentType.StringList;
 
     public ReactiveCommand<Unit, Unit> RemoveCommand { get; }
 
-    internal RpadArgument ToArgument() => new()
+    internal MdRunArgument ToArgument() => new()
     {
         Name = _name.Trim(),
         Type = _type.Type,
@@ -100,16 +100,16 @@ public sealed class ArgumentRowViewModel : ReactiveObject
     };
 
     // A value as the editor shows it: text as it is, a list one item per line.
-    internal static string ValueText(RpadValue value) =>
-        value.Items is { } items ? RpadArgumentLines.Format([.. items.Select(i => i.Text ?? "")]) : value.Text ?? "";
+    internal static string ValueText(MdRunValue value) =>
+        value.Items is { } items ? MdRunArgumentLines.Format([.. items.Select(i => i.Text ?? "")]) : value.Text ?? "";
 
     // The value the text means: none when empty, a list of its lines for a list argument. The loaded
     // value is kept while its text is unchanged, so an item with a line break survives a save.
-    internal static RpadValue? ValueOf(string text, bool list, RpadValue? original)
+    internal static MdRunValue? ValueOf(string text, bool list, MdRunValue? original)
     {
         if (original is not null && ValueText(original) == text) return original;
         if (text.Length == 0) return null;
-        return list ? RpadValue.List(RpadArgumentLines.Parse(text).Select(RpadValue.Of)) : RpadValue.Of(text);
+        return list ? MdRunValue.List(MdRunArgumentLines.Parse(text).Select(MdRunValue.Of)) : MdRunValue.Of(text);
     }
 
     private void Set<T>(ref T field, T value)
@@ -152,13 +152,13 @@ public sealed class ArgumentSetValueViewModel : ReactiveObject
         get
         {
             if (string.IsNullOrWhiteSpace(Text)) return null;
-            var declaration = new RpadArgument
+            var declaration = new MdRunArgument
             {
                 Name = Argument.Name,
                 Type = Argument.Type.Type,
                 Values = [.. Argument.EnumValues],
             };
-            return declaration.Check(RpadValue.Of(Text));
+            return declaration.Check(MdRunValue.Of(Text));
         }
     }
 
@@ -169,7 +169,7 @@ public sealed class ArgumentSetValueViewModel : ReactiveObject
 public sealed class ArgumentSetItemViewModel : ReactiveObject
 {
     private string _name;
-    private readonly Dictionary<ArgumentRowViewModel, (string Text, RpadValue? Original)> _values = [];
+    private readonly Dictionary<ArgumentRowViewModel, (string Text, MdRunValue? Original)> _values = [];
     private IReadOnlyList<ArgumentSetValueViewModel> _rows = [];
 
     internal ArgumentSetItemViewModel(string name) => _name = name;
@@ -195,9 +195,9 @@ public sealed class ArgumentSetItemViewModel : ReactiveObject
     }
 
     // Values for names that aren't declared (a hand-edited file): not shown, kept as they are.
-    internal Dictionary<string, RpadValue> Undeclared { get; } = new(StringComparer.Ordinal);
+    internal Dictionary<string, MdRunValue> Undeclared { get; } = new(StringComparer.Ordinal);
 
-    internal void Load(ArgumentRowViewModel argument, RpadValue value) => _values[argument] = (ArgumentRowViewModel.ValueText(value), value);
+    internal void Load(ArgumentRowViewModel argument, MdRunValue value) => _values[argument] = (ArgumentRowViewModel.ValueText(value), value);
 
     internal string TextFor(ArgumentRowViewModel argument) => _values.TryGetValue(argument, out var v) ? v.Text : "";
 
@@ -209,9 +209,9 @@ public sealed class ArgumentSetItemViewModel : ReactiveObject
 
     internal void ShowRows(IEnumerable<ArgumentRowViewModel> arguments) => Values = [.. arguments.Select(a => new ArgumentSetValueViewModel(this, a))];
 
-    internal Dictionary<string, RpadValue> ToValues(IEnumerable<ArgumentRowViewModel> arguments)
+    internal Dictionary<string, MdRunValue> ToValues(IEnumerable<ArgumentRowViewModel> arguments)
     {
-        var values = new Dictionary<string, RpadValue>(Undeclared, StringComparer.Ordinal);
+        var values = new Dictionary<string, MdRunValue>(Undeclared, StringComparer.Ordinal);
         foreach (var argument in arguments)
             if (_values.TryGetValue(argument, out var v) && ArgumentRowViewModel.ValueOf(v.Text, argument.IsList, v.Original) is { } value)
                 values[argument.Name.Trim()] = value;
@@ -229,7 +229,7 @@ public sealed record ArgumentRunChoice(ArgumentSetItemViewModel? Set)
 // runs use. Edits are a draft, applied with the dialog's other changes (ApplyTo).
 public sealed class ScriptArgumentsViewModel : ReactiveObject
 {
-    private RpadFrontMatter? _original;
+    private MdRunFrontMatter? _original;
     private ArgumentSetItemViewModel? _selectedSet;
     private ArgumentRunChoice? _runChoice;
     private IReadOnlyList<ArgumentRunChoice> _runChoices = [];
@@ -308,7 +308,7 @@ public sealed class ScriptArgumentsViewModel : ReactiveObject
     public ReactiveCommand<Unit, Unit> AddSetCommand { get; }
     public ReactiveCommand<Unit, Unit> RemoveSetCommand { get; }
 
-    internal void Load(RpadFrontMatter? fm)
+    internal void Load(MdRunFrontMatter? fm)
     {
         _loading = true;
         _original = fm;
@@ -337,7 +337,7 @@ public sealed class ScriptArgumentsViewModel : ReactiveObject
 
     internal bool HasChanges => _original is { } fm && Json(Draft()) != Json(fm);
 
-    internal void ApplyTo(RpadFrontMatter fm)
+    internal void ApplyTo(MdRunFrontMatter fm)
     {
         var draft = Draft();
         fm.Arguments = draft.Arguments;
@@ -346,7 +346,7 @@ public sealed class ScriptArgumentsViewModel : ReactiveObject
     }
 
     // The draft as front matter, with only what this tab edits.
-    private RpadFrontMatter Draft() => new()
+    private MdRunFrontMatter Draft() => new()
     {
         Arguments = [.. Arguments.Select(a => a.ToArgument())],
         ArgumentSets = SetsByName(),
@@ -354,14 +354,14 @@ public sealed class ScriptArgumentsViewModel : ReactiveObject
     };
 
     // A repeated name (while one is being typed) keeps the first set; the repeat is a blocking error.
-    private Dictionary<string, Dictionary<string, RpadValue>> SetsByName()
+    private Dictionary<string, Dictionary<string, MdRunValue>> SetsByName()
     {
-        var sets = new Dictionary<string, Dictionary<string, RpadValue>>(StringComparer.Ordinal);
+        var sets = new Dictionary<string, Dictionary<string, MdRunValue>>(StringComparer.Ordinal);
         foreach (var set in Sets) sets.TryAdd(set.Name.Trim(), set.ToValues(Arguments));
         return sets;
     }
 
-    private static string Json(RpadFrontMatter fm) =>
+    private static string Json(MdRunFrontMatter fm) =>
         JsonSerializer.Serialize(new { fm.Arguments, fm.ArgumentSets, fm.SelectedArgumentSet });
 
     private ArgumentRowViewModel Track(ArgumentRowViewModel row)
@@ -394,7 +394,7 @@ public sealed class ScriptArgumentsViewModel : ReactiveObject
     {
         var name = "argument";
         for (var i = 2; Arguments.Any(a => a.Name == name); i++) name = $"argument{i}";
-        Arguments.Add(Track(new ArgumentRowViewModel(new RpadArgument { Name = name }, RemoveArgument)));
+        Arguments.Add(Track(new ArgumentRowViewModel(new MdRunArgument { Name = name }, RemoveArgument)));
         OnArgumentEdited();
     }
 
@@ -441,7 +441,7 @@ public sealed class ScriptArgumentsViewModel : ReactiveObject
     {
         if (_loading) return;
         var draft = Draft();
-        Problems = RpadArguments.Validate(draft);
+        Problems = MdRunArguments.Validate(draft);
         var names = Sets.Select(s => s.Name.Trim()).ToList();
         BlockingError = Problems.FirstOrDefault(p => p.Contains("argument name") || p.Contains("declared twice"))
             ?? (names.Any(n => n.Length == 0) ? "Every argument set needs a name."

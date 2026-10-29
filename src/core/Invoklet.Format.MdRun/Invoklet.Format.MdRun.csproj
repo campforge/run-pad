@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Invoklet.Format.RPad</RootNamespace>
+    <RootNamespace>Invoklet.Format.MdRun</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="YamlDotNet" />

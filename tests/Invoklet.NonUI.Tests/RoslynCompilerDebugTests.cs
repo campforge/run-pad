@@ -1,7 +1,7 @@
 using Invoklet.Build.Core.Models;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
@@ -56,7 +56,7 @@ public class RoslynCompilerDebugTests : IDisposable
         return path!;
     }
 
-    private CSharpLanguageHost CreateHost(string netcoredbg, RpadKind kind, int breakpointLine)
+    private CSharpLanguageHost CreateHost(string netcoredbg, MdRunKind kind, int breakpointLine)
     {
         var options = new CompiledDotnetLanguageHostOptions
         {
@@ -77,9 +77,9 @@ public class RoslynCompilerDebugTests : IDisposable
     }
 
     [Theory]
-    [InlineData(RpadKind.Program, 4)]
-    [InlineData(RpadKind.Statements, 2)]
-    public async Task RoslynBuiltScript_Should_HitTheBreakpoint_ShowLocals_AndContinue(RpadKind kind, int line)
+    [InlineData(MdRunKind.Program, 4)]
+    [InlineData(MdRunKind.Statements, 2)]
+    public async Task RoslynBuiltScript_Should_HitTheBreakpoint_ShowLocals_AndContinue(MdRunKind kind, int line)
     {
         await using var host = CreateHost(RequireNetcoredbg(), kind, line);
         var output = new List<string>();
@@ -92,7 +92,7 @@ public class RoslynCompilerDebugTests : IDisposable
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         timeout.CancelAfter(TimeSpan.FromMinutes(2));
-        await host.RunDebugAsync(kind == RpadKind.Program ? ProgramCode : StatementsCode,
+        await host.RunDebugAsync(kind == MdRunKind.Program ? ProgramCode : StatementsCode,
             (data, k) => { lock (output) output.Add($"{k}: {data}"); }, timeout.Token);
 
         string All() { lock (output) return string.Join('\n', output); }
@@ -108,7 +108,7 @@ public class RoslynCompilerDebugTests : IDisposable
     [Fact]
     public async Task ConditionalBreakpoint_Should_StopOnlyWhenTheConditionIsTrue()
     {
-        await using var host = CreateHost(RequireNetcoredbg(), RpadKind.Statements, 2);
+        await using var host = CreateHost(RequireNetcoredbg(), MdRunKind.Statements, 2);
         host.ClearBreakpoints();
         host.AddBreakpoint(new TestBreakpoint(Path.Combine(_outputDir, "InvokletQuery.cs"), 2, "i == 2"));
         var values = new List<string?>();
@@ -126,7 +126,7 @@ public class RoslynCompilerDebugTests : IDisposable
     [Fact]
     public async Task RoslynBuiltScript_Should_StepOverToTheNextLine()
     {
-        await using var host = CreateHost(RequireNetcoredbg(), RpadKind.Program, 4);
+        await using var host = CreateHost(RequireNetcoredbg(), MdRunKind.Program, 4);
         var stops = new List<(int Line, string? X)>();
         host.BreakpointHit += ctx =>
         {
@@ -149,7 +149,7 @@ public class RoslynCompilerDebugTests : IDisposable
     [Fact]
     public async Task RoslynBuiltScript_Should_EndPromptly_WhenStoppedWhilePaused()
     {
-        await using var host = CreateHost(RequireNetcoredbg(), RpadKind.Program, 4);
+        await using var host = CreateHost(RequireNetcoredbg(), MdRunKind.Program, 4);
         var output = new List<string>();
         var hit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         host.BreakpointHit += _ => hit.TrySetResult();
@@ -170,7 +170,7 @@ public class RoslynCompilerDebugTests : IDisposable
     [Fact]
     public async Task RoslynBuiltScript_Should_EvaluateExpressions_WhilePaused()
     {
-        await using var host = CreateHost(RequireNetcoredbg(), RpadKind.Program, 4);
+        await using var host = CreateHost(RequireNetcoredbg(), MdRunKind.Program, 4);
         var hit = new TaskCompletionSource<IBreakpointHitContext>(TaskCreationOptions.RunContinuationsAsynchronously);
         host.BreakpointHit += ctx => hit.TrySetResult(ctx);
 
@@ -202,7 +202,7 @@ public class RoslynCompilerDebugTests : IDisposable
                     throw new InvalidOperationException("boom");
             }
             """;
-        await using var host = CreateHost(RequireNetcoredbg(), RpadKind.Program, 100); // no real breakpoint line
+        await using var host = CreateHost(RequireNetcoredbg(), MdRunKind.Program, 100); // no real breakpoint line
         var hit = new TaskCompletionSource<IBreakpointHitContext>(TaskCreationOptions.RunContinuationsAsynchronously);
         host.BreakpointHit += ctx =>
         {
@@ -243,7 +243,7 @@ public class RoslynCompilerDebugTests : IDisposable
             },
             OutputDirectory = _outputDir,
             RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
-            Kind = RpadKind.Statements,
+            Kind = MdRunKind.Statements,
         };
         await using var host = new Invoklet.Languages.VB.VbLanguageHost(options, NullLoggerFactory.Instance);
         host.AddBreakpoint(new TestBreakpoint(Path.Combine(_outputDir, "InvokletQuery.vb"), 2));

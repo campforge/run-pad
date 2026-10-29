@@ -1,10 +1,10 @@
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 
 namespace Invoklet.Services;
 
 /// <summary>A language a new .rpad file can be created in, as the menus offer it.</summary>
-public sealed record NewFileLanguageChoice(RpadLanguage Language, string DisplayName, string? IconResourceKey)
+public sealed record NewFileLanguageChoice(MdRunLanguage Language, string DisplayName, string? IconResourceKey)
 {
     // The registered languages, in registration order. One the .rpad format has no language value for
     // can't be written to a file, so it isn't offered.
@@ -12,7 +12,7 @@ public sealed record NewFileLanguageChoice(RpadLanguage Language, string Display
     {
         var languages = new List<NewFileLanguageChoice>();
         foreach (var descriptor in registry.Languages)
-            if (RpadLanguageExtensions.TryFromLanguageId(descriptor.Id, out var language))
+            if (MdRunLanguageExtensions.TryFromLanguageId(descriptor.Id, out var language))
                 languages.Add(new NewFileLanguageChoice(language, descriptor.DisplayName, descriptor.IconResourceKey));
         return languages;
     }

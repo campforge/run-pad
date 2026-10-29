@@ -6,7 +6,7 @@ using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services.Preferences;
 using Invoklet.UserControls.Models;
 using Invoklet.Windows;
@@ -88,7 +88,7 @@ public class DependenciesWindowViewModelTests
     [AvaloniaFact]
     public async Task AddingASearchResult_Should_ChangeOnlyTheDraft_UntilOkIsClicked()
     {
-        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
+        var rpad = MdRunParser.TryParse(MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
         var vm = CreateVm();
         var window = new DependenciesWindow(vm);
         try
@@ -145,7 +145,7 @@ public class DependenciesWindowViewModelTests
         };
         try
         {
-            window.SetFrontMatter(RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine();\n", "Demo"))!.FrontMatter);
+            window.SetFrontMatter(MdRunParser.TryParse(MdRunWriter.NewFile("Console.WriteLine();\n", "Demo"))!.FrontMatter);
             window.Show();
             window.KeyTextInput("Newtonsoft.Json");
             await WaitUntilAsync(() => vm.OnlinePackages.Count == 1);
@@ -177,7 +177,7 @@ public class DependenciesWindowViewModelTests
         var window = new DependenciesWindow(vm);
         try
         {
-            window.SetFrontMatter(RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine();\n", "Demo"))!.FrontMatter);
+            window.SetFrontMatter(MdRunParser.TryParse(MdRunWriter.NewFile("Console.WriteLine();\n", "Demo"))!.FrontMatter);
             window.Show();
             window.KeyTextInput("Newtonsoft.Json");
             await WaitUntilAsync(() => vm.OnlinePackages.Count == 1);
@@ -200,7 +200,7 @@ public class DependenciesWindowViewModelTests
     [AvaloniaFact]
     public async Task RowAddButton_Should_AddTheLatestVersion_FromTheOnlineList()
     {
-        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
+        var rpad = MdRunParser.TryParse(MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
         var vm = CreateVm();
         // The row's action is an IconButton, whose template the app registers (App.axaml).
         var iconButtons = new global::Avalonia.Markup.Xaml.Styling.StyleInclude(new Uri("avares://Invoklet/"))
@@ -237,7 +237,7 @@ public class DependenciesWindowViewModelTests
     [AvaloniaFact]
     public async Task EnterInTheNamespacesBox_Should_AddALine_InvalidLine_Should_DisableSave_AndEscape_Should_AskBeforeDiscarding()
     {
-        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
+        var rpad = MdRunParser.TryParse(MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
         var namespacesBefore = rpad.FrontMatter.Namespaces?.ToList() ?? [];
         var vm = CreateVm();
         var window = new DependenciesWindow(vm);
@@ -284,7 +284,7 @@ public class DependenciesWindowViewModelTests
     [AvaloniaFact]
     public void Save_Should_StayDisabled_UntilSomethingChanges_AndCancelWithoutChanges_Should_CloseAtOnce()
     {
-        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
+        var rpad = MdRunParser.TryParse(MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
         var vm = CreateVm();
         var window = new DependenciesWindow(vm);
         try
@@ -318,7 +318,7 @@ public class DependenciesWindowViewModelTests
     [InlineData("Cancel", true, false)]
     public async Task CancelWithChanges_Should_AskToSave(string answer, bool staysOpen, bool applied)
     {
-        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
+        var rpad = MdRunParser.TryParse(MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
         var vm = CreateVm();
         var window = new DependenciesWindow(vm);
         try
@@ -369,7 +369,7 @@ public class DependenciesWindowViewModelTests
     [InlineData(1000, 640)]
     public async Task Layout_Should_KeepFooterAndPackageActionsInsideTheWindow(double width, double height)
     {
-        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
+        var rpad = MdRunParser.TryParse(MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
         var vm = CreateVm();
         var window = new DependenciesWindow(vm) { Width = width, Height = height };
         try
@@ -414,7 +414,7 @@ public class DependenciesWindowViewModelTests
         const string id = "Contoso.Enterprise.Platform.Integration.Messaging.Transport.Extensions.VeryLongPackageName";
         const string version = "10.0.0-preview.20261006.1234567890+sha.0123456789abcdef0123456789abcdef";
         const string range = "[1.0.0-preview.1, 2.0.0-preview.999999)";
-        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
+        var rpad = MdRunParser.TryParse(MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
         rpad.FrontMatter.Packages[id] = new Package(range);
         var vm = CreateVm([new PackageSearchResult(id, version, "A long description " + new string('x', 400), 1)], [version],
             cached: [new CachedPackageInfo(id + ".Cached", version)]);
@@ -479,7 +479,7 @@ public class DependenciesWindowViewModelTests
             Assert.False(vm.HasFrontMatter);
 
             // Act: the async tab load completes and assigns the real front matter moments later.
-            var rpad = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
+            var rpad = MdRunParser.TryParse(MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
             tab.FrontMatter = rpad!.FrontMatter;
 
             // Assert
@@ -586,11 +586,11 @@ public class DependenciesWindowViewModelTests
     // The real dialog offers "Allow unsafe code" on a Compilation tab for C# scripts only, explains
     // that it isn't a sandbox, and the choice reaches the script's metadata on Save.
     [AvaloniaTheory]
-    [InlineData(RpadLanguage.CSharp, true)]
-    [InlineData(RpadLanguage.Vb, false)]
-    public void TheCompilationTab_Should_OfferUnsafeCode_ForCSharpOnly(RpadLanguage language, bool offered)
+    [InlineData(MdRunLanguage.CSharp, true)]
+    [InlineData(MdRunLanguage.Vb, false)]
+    public void TheCompilationTab_Should_OfferUnsafeCode_ForCSharpOnly(MdRunLanguage language, bool offered)
     {
-        var rpad = RpadParser.TryParse(RpadWriter.NewFile("", "Demo", language: language))!;
+        var rpad = MdRunParser.TryParse(MdRunWriter.NewFile("", "Demo", language: language))!;
         var vm = CreateVm();
         var window = new DependenciesWindow(vm);
         try
@@ -608,7 +608,7 @@ public class DependenciesWindowViewModelTests
             Assert.True(Find<Button>(window, "OkButton").IsEnabled);
             Assert.True(vm.ApplyChanges());
             Assert.True(rpad.FrontMatter.AllowUnsafe);
-            Assert.Contains("allowUnsafe: true", RpadWriter.Write(rpad));
+            Assert.Contains("allowUnsafe: true", MdRunWriter.Write(rpad));
         }
         finally
         {

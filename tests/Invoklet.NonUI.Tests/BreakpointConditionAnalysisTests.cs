@@ -26,7 +26,7 @@ public class BreakpointConditionAnalysisTests
     public async Task ProgramCondition_Should_UseTheVisibleMethodsLocals()
     {
         using var service = new CSharpIntelliSenseService(new CSharpReferenceService().GetDefault(), NullLogger<CSharpIntelliSenseService>.Instance);
-        service.UpdateKind(Invoklet.Format.RPad.RpadKind.Program);
+        service.UpdateKind(Invoklet.Format.MdRun.MdRunKind.Program);
         const string code = "void Main() { int count = 2; System.Console.WriteLine(count); }";
         var result = await service.AnalyzeBreakpointConditionAsync(code, code.IndexOf("System.Console", StringComparison.Ordinal),
             "count > 1", TestContext.Current.CancellationToken);

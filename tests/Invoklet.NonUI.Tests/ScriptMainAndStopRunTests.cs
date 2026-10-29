@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using Invoklet.Build.Core.Models;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
@@ -20,7 +20,7 @@ public class ScriptMainAndStopRunTests
 {
     private sealed record Run(RunResult? Result, string Output, bool Cancelled, TimeSpan StopToEnd);
 
-    private static CSharpLanguageHost CreateHost(string outputDir, RpadKind kind)
+    private static CSharpLanguageHost CreateHost(string outputDir, MdRunKind kind)
     {
         var sdk = new DotnetSdkProvider().Get().First();
         var options = new CompiledDotnetLanguageHostOptions
@@ -41,7 +41,7 @@ public class ScriptMainAndStopRunTests
     }
 
     // Runs the script; with stopAfterLine, presses Stop once the script prints that line.
-    private static async Task<Run> RunAsync(RpadKind kind, string code, string? stopAfterLine = null)
+    private static async Task<Run> RunAsync(MdRunKind kind, string code, string? stopAfterLine = null)
     {
         var outputDir = Directory.CreateTempSubdirectory("Invoklet-main-test").FullName;
         try
@@ -79,7 +79,7 @@ public class ScriptMainAndStopRunTests
     [Fact]
     public async Task MainWithArgs_Should_GetEmptyArgs()
     {
-        var run = await RunAsync(RpadKind.Program, """
+        var run = await RunAsync(MdRunKind.Program, """
             void Main(string[] args)
             {
                 Console.WriteLine($"args: {args.Length}");
@@ -94,7 +94,7 @@ public class ScriptMainAndStopRunTests
     [Fact]
     public async Task AStatementsScript_Should_GetEmptyArgs()
     {
-        var run = await RunAsync(RpadKind.Statements, """Console.WriteLine($"args: {args.Length}");""");
+        var run = await RunAsync(MdRunKind.Statements, """Console.WriteLine($"args: {args.Length}");""");
 
         Assert.True(run.Result?.Succeeded, run.Output);
         Assert.Contains("args: 0", run.Output);
@@ -105,7 +105,7 @@ public class ScriptMainAndStopRunTests
     [InlineData("async Task<int> Main(string[] args) { await Task.Yield(); return 3; }")]
     public async Task AnIntMain_Should_SetTheExitCode(string code)
     {
-        var run = await RunAsync(RpadKind.Program, code);
+        var run = await RunAsync(MdRunKind.Program, code);
 
         Assert.Equal(RunResult.Exited(3), run.Result);
     }
@@ -114,7 +114,7 @@ public class ScriptMainAndStopRunTests
     [Fact]
     public async Task OfSeveralMains_TheOneWithArgsAndToken_Should_BeCalled()
     {
-        var run = await RunAsync(RpadKind.Program, """
+        var run = await RunAsync(MdRunKind.Program, """
             void Main() => Console.WriteLine("plain");
 
             void Main(string[] args, CancellationToken ct) => Console.WriteLine($"args and token: {ct.CanBeCanceled}");
@@ -128,7 +128,7 @@ public class ScriptMainAndStopRunTests
     [Fact]
     public async Task Stop_Should_LetAMainWithATokenCleanUp()
     {
-        var run = await RunAsync(RpadKind.Program, """
+        var run = await RunAsync(MdRunKind.Program, """
             async Task Main(string[] args, CancellationToken ct)
             {
                 Console.WriteLine("started");
@@ -150,7 +150,7 @@ public class ScriptMainAndStopRunTests
     [Fact]
     public async Task Stop_Should_LetAStatementsScriptUsingUtilCancellationTokenCleanUp()
     {
-        var run = await RunAsync(RpadKind.Statements, """
+        var run = await RunAsync(MdRunKind.Statements, """
             using var registration = Util.CancellationToken.Register(() => Console.WriteLine("cleaned up"));
             Console.WriteLine("started");
             Thread.Sleep(Timeout.Infinite);
@@ -164,7 +164,7 @@ public class ScriptMainAndStopRunTests
     [Fact]
     public async Task Stop_Should_EndAScriptWithoutATokenAtOnce()
     {
-        var run = await RunAsync(RpadKind.Statements, """
+        var run = await RunAsync(MdRunKind.Statements, """
             Console.WriteLine("started");
             Thread.Sleep(Timeout.Infinite);
             """, stopAfterLine: "started");

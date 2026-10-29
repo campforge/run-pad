@@ -1,5 +1,5 @@
 using Invoklet.Avalonia.CodeTextEditor;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services.Scaling;
 
 namespace Invoklet.Services.Preferences;
@@ -65,11 +65,11 @@ public sealed class EditorSettings
     // Enter/Tab/click.
     public bool CommitCharactersEnabled { get; set; } = true;
 
-    // File → New RPad File always showed NewFileKindDialog to pick a RpadKind, even for
+    // File → New RPad File always showed NewFileKindDialog to pick a MdRunKind, even for
     // a user who creates the same language+kind combination every time — these are the defaults that
     // Ctrl+N (MainWindow.OnWindowKeyDown) and the new "New File" menu item use to skip that dialog
     // entirely. The explicit File → New RPad File → C#/Visual Basic submenu and the file tree's own
     // "New File" context menu are unaffected — both still ask explicitly.
-    public RpadLanguage NewFileLanguage { get; set; } = RpadLanguage.CSharp;
-    public RpadKind NewFileKind { get; set; } = RpadKind.Statements;
+    public MdRunLanguage NewFileLanguage { get; set; } = MdRunLanguage.CSharp;
+    public MdRunKind NewFileKind { get; set; } = MdRunKind.Statements;
 }

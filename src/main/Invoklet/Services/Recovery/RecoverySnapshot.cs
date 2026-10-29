@@ -1,4 +1,4 @@
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 
 namespace Invoklet.Services.Recovery;
 
@@ -8,7 +8,7 @@ public sealed record RecoveryTab
     public string? FilePath { get; init; }
     public string? Title { get; init; }
     public required string EditorText { get; init; }
-    public RpadDocumentSnapshot? Document { get; init; }
+    public MdRunDocumentSnapshot? Document { get; init; }
     public string? ParseError { get; init; }
     public bool IsDirty { get; init; }
     public bool BaselineKnown { get; init; }

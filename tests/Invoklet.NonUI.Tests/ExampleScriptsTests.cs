@@ -1,5 +1,5 @@
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.Examples;
 using Invoklet.Services.Preferences;
@@ -39,15 +39,15 @@ public class ExampleScriptsTests
     {
         foreach (var example in ExampleScripts.All)
         {
-            var parsed = RpadParser.Parse(example.Text);
+            var parsed = MdRunParser.Parse(example.Text);
             Assert.Null(parsed.Error);
-            var document = Assert.IsType<RpadDocument>(parsed.Document);
-            Assert.Equal(RpadLanguage.CSharp, example.Language);
+            var document = Assert.IsType<MdRunDocument>(parsed.Document);
+            Assert.Equal(MdRunLanguage.CSharp, example.Language);
             Assert.Equal(document.FrontMatter.Kind, example.Kind);
             Assert.False(string.IsNullOrWhiteSpace(document.RunCode), example.Id);
         }
-        Assert.Contains(ExampleScripts.All, e => e.Kind == RpadKind.Expression);
-        Assert.Contains(ExampleScripts.All, e => e.Kind == RpadKind.Program);
+        Assert.Contains(ExampleScripts.All, e => e.Kind == MdRunKind.Expression);
+        Assert.Contains(ExampleScripts.All, e => e.Kind == MdRunKind.Program);
     }
 
     // An assembly without example resources (or with unreadable ones) gives an empty list, not an error.
@@ -90,7 +90,7 @@ public class ExampleScriptsTests
         var (vm, fileSystem, folder) = CreateViewModel();
         try
         {
-            var example = vm.Examples.Single(e => e.Kind == RpadKind.Program);
+            var example = vm.Examples.Single(e => e.Kind == MdRunKind.Program);
 
             vm.OpenExample(example);
 
@@ -98,9 +98,9 @@ public class ExampleScriptsTests
             Assert.Null(tab.FilePath);
             Assert.Same(example, tab.Example);
             Assert.Equal("Program kind", tab.FileName); // the tab title, and Save As's suggested name
-            Assert.Equal(RpadKind.Program, tab.NewFileKind);
+            Assert.Equal(MdRunKind.Program, tab.NewFileKind);
             Assert.Empty(Directory.EnumerateFileSystemEntries(folder));
-            fileSystem.Verify(f => f.CreateNewFile(It.IsAny<string>(), It.IsAny<RpadLanguage>(), It.IsAny<RpadKind>(), It.IsAny<string>()),
+            fileSystem.Verify(f => f.CreateNewFile(It.IsAny<string>(), It.IsAny<MdRunLanguage>(), It.IsAny<MdRunKind>(), It.IsAny<string>()),
                 Times.Never);
         }
         finally { Directory.Delete(folder, recursive: true); }

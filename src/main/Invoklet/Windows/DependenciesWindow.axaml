@@ -3,7 +3,7 @@
         xmlns:cte="using:Invoklet.Avalonia.CodeTextEditor"
         xmlns:tc="clr-namespace:Invoklet.TemplatedControls"
         xmlns:viewModels="clr-namespace:Invoklet.Windows.Models"
-        xmlns:rpad="clr-namespace:Invoklet.Format.RPad;assembly=Invoklet.Format.MdRun"
+        xmlns:rpad="clr-namespace:Invoklet.Format.MdRun;assembly=Invoklet.Format.MdRun"
         x:Class="Invoklet.Windows.DependenciesWindow"
         x:DataType="viewModels:DependenciesWindowViewModel"
         Title="Dependencies"
@@ -699,7 +699,7 @@
                                   PlaceholderText="{Binding AvailableHint}"
                                   AutomationProperties.Name="Your connections">
                             <ComboBox.ItemTemplate>
-                                <DataTemplate x:DataType="rpad:RpadConnection">
+                                <DataTemplate x:DataType="rpad:MdRunConnection">
                                     <TextBlock>
                                         <Run Text="{Binding Name}" FontWeight="SemiBold"/>
                                         <Run Text="{Binding Driver}" Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>

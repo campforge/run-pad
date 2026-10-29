@@ -5,7 +5,7 @@ using Avalonia.VisualTree;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.VB;
 using Invoklet.Services;
@@ -29,7 +29,7 @@ public class EditorTabKindTemplateTests
         var (mainVm, editorTabs, tmpDir) = CreateTabs();
         try
         {
-            mainVm.NewRpadFile(RpadLanguage.CSharp, RpadKind.Program);
+            mainVm.NewMdRunFile(MdRunLanguage.CSharp, MdRunKind.Program);
             var ctrl = await ActiveControlAsync(mainVm, editorTabs);
             var editor = ctrl.State.Editor;
 
@@ -48,7 +48,7 @@ public class EditorTabKindTemplateTests
         var (mainVm, editorTabs, tmpDir) = CreateTabs();
         try
         {
-            mainVm.NewRpadFile(RpadLanguage.CSharp, RpadKind.Statements);
+            mainVm.NewMdRunFile(MdRunLanguage.CSharp, MdRunKind.Statements);
             var ctrl = await ActiveControlAsync(mainVm, editorTabs);
 
             Assert.Equal("", ctrl.State.Editor.Text);
@@ -67,15 +67,15 @@ public class EditorTabKindTemplateTests
         {
             const string code = "var x = 21;\nConsole.WriteLine(x * 2);\n";
             var filePath = Path.Combine(tmpDir, "demo.rpad");
-            File.WriteAllText(filePath, RpadWriter.NewFile(code, "Demo", kind: RpadKind.Statements));
+            File.WriteAllText(filePath, MdRunWriter.NewFile(code, "Demo", kind: MdRunKind.Statements));
             mainVm.OpenTab(filePath);
             var ctrl = await ActiveControlAsync(mainVm, editorTabs);
             var editor = ctrl.State.Editor;
             Assert.Equal(code, editor.Text);
 
-            mainVm.ActiveTab!.SelectedKind = nameof(RpadKind.Program);
+            mainVm.ActiveTab!.SelectedKind = nameof(MdRunKind.Program);
 
-            Assert.Equal(RpadKind.Program, ctrl.State.RpadDocument!.FrontMatter.Kind);
+            Assert.Equal(MdRunKind.Program, ctrl.State.MdRunDocument!.FrontMatter.Kind);
             Assert.Equal(
                 "void Main()\n{\n    var x = 21;\n    Console.WriteLine(x * 2);\n}\n\n// Other methods, fields and types used by Main go here.\n",
                 editor.Text);
@@ -86,7 +86,7 @@ public class EditorTabKindTemplateTests
             // Switching back leaves the code alone.
             Assert.True(editor.Redo());
             var wrapped = editor.Text;
-            mainVm.ActiveTab!.SelectedKind = nameof(RpadKind.Statements);
+            mainVm.ActiveTab!.SelectedKind = nameof(MdRunKind.Statements);
             Assert.Equal(wrapped, editor.Text);
         }
         finally

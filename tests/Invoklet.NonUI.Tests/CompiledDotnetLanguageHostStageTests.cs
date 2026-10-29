@@ -1,7 +1,7 @@
 using Invoklet.Build.Core.Models;
 using Invoklet.Build.Core.ProcessRunners;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Compiler;
@@ -74,7 +74,7 @@ public sealed class CompiledDotnetLanguageHostStageTests : IDisposable
             },
             OutputDirectory = _outputDir,
             RuntimeLibPath = "Invoklet.Runtime.dll",
-            Kind = RpadKind.Statements,
+            Kind = MdRunKind.Statements,
         };
         return new CSharpLanguageHost(options, NullLoggerFactory.Instance, (_, _, _) => compiler,
             executionProcessFactory: (_, _, _, _, _) => new ExitedProcess());

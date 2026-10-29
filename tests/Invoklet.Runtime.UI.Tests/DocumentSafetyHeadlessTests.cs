@@ -6,7 +6,7 @@ using Avalonia.VisualTree;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -70,7 +70,7 @@ public class DocumentSafetyHeadlessTests
         Harness h, string name)
     {
         var path = Path.Combine(h.Root, name);
-        File.WriteAllText(path, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", Path.GetFileNameWithoutExtension(name)));
+        File.WriteAllText(path, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", Path.GetFileNameWithoutExtension(name)));
         h.MainVm.OpenTab(path);
         var tab = h.MainVm.Tabs.Single(t => t.FilePath == path);
         var ctrl = await FindControlAsync(h.Window, tab);
@@ -184,7 +184,7 @@ public class DocumentSafetyHeadlessTests
             h.WindowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
                 .ReturnsAsync(UnsavedChangesResult.Cancel);
 
-            tab.SelectedKind = nameof(RpadKind.Program);
+            tab.SelectedKind = nameof(MdRunKind.Program);
 
             Assert.True(tab.IsDirty);
             Assert.Contains("Save failed", ctrl.State.ExecStatusText);
@@ -210,11 +210,11 @@ public class DocumentSafetyHeadlessTests
         {
             var (tab, _) = await OpenNamedAsync(h, "a.rpad");
 
-            tab.SelectedKind = nameof(RpadKind.Program);
+            tab.SelectedKind = nameof(MdRunKind.Program);
 
             Assert.False(tab.IsDirty);
-            var saved = RpadParser.TryParse(File.ReadAllText(tab.FilePath!));
-            Assert.Equal(RpadKind.Program, saved!.FrontMatter.Kind);
+            var saved = MdRunParser.TryParse(File.ReadAllText(tab.FilePath!));
+            Assert.Equal(MdRunKind.Program, saved!.FrontMatter.Kind);
         }
         finally { Cleanup(h); }
     }
@@ -245,8 +245,8 @@ public class DocumentSafetyHeadlessTests
     // window service hosts a real DependenciesWindowViewModel on the active tab's FrontMatter stream,
     // edits the draft, then either applies it (OK) or drops it (Cancel/Escape/close).
     private static void SetupDependenciesDialog(Harness h, bool apply)
-        => h.WindowService.Setup(w => w.ShowDependenciesAsync(It.IsAny<IObservable<RpadFrontMatter?>?>(), It.IsAny<IObservable<string?>?>()))
-            .Returns<IObservable<RpadFrontMatter?>?, IObservable<string?>?>((stream, _) =>
+        => h.WindowService.Setup(w => w.ShowDependenciesAsync(It.IsAny<IObservable<MdRunFrontMatter?>?>(), It.IsAny<IObservable<string?>?>()))
+            .Returns<IObservable<MdRunFrontMatter?>?, IObservable<string?>?>((stream, _) =>
             {
                 var cache = new Mock<ILocalPackageCacheService>();
                 cache.Setup(c => c.GetCachedPackages()).Returns([]);
@@ -295,7 +295,7 @@ public class DocumentSafetyHeadlessTests
             await h.MainVm.OpenDependenciesCommand.Execute();
 
             Assert.False(tab.IsDirty);
-            var saved = RpadParser.TryParse(File.ReadAllText(tab.FilePath!));
+            var saved = MdRunParser.TryParse(File.ReadAllText(tab.FilePath!));
             Assert.Contains("System.Linq", saved!.FrontMatter.Namespaces!);
         }
         finally { Cleanup(h); }
@@ -351,7 +351,7 @@ public class DocumentSafetyHeadlessTests
             await h.MainVm.SaveTabAsAsync(tab, ctrl.WriteFile);
             Assert.False(tab.IsDirty);
             Assert.Equal(destination, tab.FilePath);
-            Assert.Equal(edited + "\n", RpadParser.TryParse(File.ReadAllText(destination))!.RunCode);
+            Assert.Equal(edited + "\n", MdRunParser.TryParse(File.ReadAllText(destination))!.RunCode);
             Assert.Equal(oldBytes, File.ReadAllBytes(oldPath));
         }
         finally { Cleanup(h); }

@@ -1,7 +1,7 @@
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Languages.DotnetCommon;
 using Microsoft.Extensions.Logging;
@@ -47,7 +47,7 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
         ["lock"] = "lock (${0})\n{\n\t\n}",
     };
 
-    public string? CodeForKind(string code, RpadKind kind, string indent = "    ") => ProgramTemplate.CodeForKind(code, kind, indent);
+    public string? CodeForKind(string code, MdRunKind kind, string indent = "    ") => ProgramTemplate.CodeForKind(code, kind, indent);
 
     public EditorLanguageProfile EditorProfile { get; } = new()
     {

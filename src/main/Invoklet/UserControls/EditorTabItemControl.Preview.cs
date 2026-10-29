@@ -2,7 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Styling;
 using Invoklet.Avalonia.Themes;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.UserControls.Models;
 using MarkView.Avalonia;
 using ReactiveUI;
@@ -125,12 +125,12 @@ public partial class EditorsTabItemControl
 
     internal string PreviewMarkdown() => PreviewMarkdown(out _);
 
-    // A file that isn't a valid .rpad has no RpadDocument and is saved back verbatim; it is shown
+    // A file that isn't a valid .rpad has no MdRunDocument and is saved back verbatim; it is shown
     // as the Markdown it is, line for line.
     private string PreviewMarkdown(out int codeLine)
     {
         codeLine = 0;
-        return State.RpadDocument is { } rpad ? RpadPreview.ToMarkdown(rpad, State.Editor.Text, out codeLine) : State.Editor.Text;
+        return State.MdRunDocument is { } rpad ? MdRunPreview.ToMarkdown(rpad, State.Editor.Text, out codeLine) : State.Editor.Text;
     }
 
     // Relative image links resolve against the script's folder; an untitled tab has none.

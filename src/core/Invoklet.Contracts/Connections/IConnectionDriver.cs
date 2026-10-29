@@ -1,4 +1,4 @@
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 
 namespace Invoklet.Contracts.Connections;
 
@@ -80,14 +80,14 @@ public interface IConnectionDriver
     /// with placeholders is checked only as far as the placeholders allow (their values are
     /// unknown until the script runs).
     /// </summary>
-    IReadOnlyList<string> Validate(RpadConnection connection);
+    IReadOnlyList<string> Validate(MdRunConnection connection);
 
     /// <summary>
     /// Tries the connection with its placeholders already replaced (see
     /// <see cref="ConnectionPlaceholderResolver"/>), for the Test button. Never throws for an
     /// unreachable or refusing endpoint: that is a failed result with the reason.
     /// </summary>
-    Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken);
+    Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken);
 
     /// <summary>
     /// The script's client class for a valid connection: C# for a public sealed class named
@@ -95,7 +95,7 @@ public interface IConnectionDriver
     /// sets the client up. Texts become expressions through <see cref="ConnectionCodeContext.Text"/>,
     /// so secrets and environment variables are read when the script runs, never put in the code.
     /// </summary>
-    ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context);
+    ConnectionClientCode CreateClient(MdRunConnection connection, ConnectionCodeContext context);
 }
 
 /// <summary>A connection's client class; the packages it uses are the driver's <see cref="IConnectionDriver.Packages"/>.</summary>

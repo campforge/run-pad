@@ -56,7 +56,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Invoklet.Runtime.Tests", "t
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Invoklet.Runtime.UI.Tests", "tests\Invoklet.Runtime.UI.Tests\Invoklet.Runtime.UI.Tests.csproj", "{30706321-17E4-4EC7-9E79-168DDBA1EE60}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Invoklet.Format.RPad.Tests", "tests\Invoklet.Format.RPad.Tests\Invoklet.Format.RPad.Tests.csproj", "{3EFE3731-463C-4361-8CF7-3B8A2B347290}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Invoklet.Format.MdRun.Tests", "tests\Invoklet.Format.MdRun.Tests\Invoklet.Format.MdRun.Tests.csproj", "{3EFE3731-463C-4361-8CF7-3B8A2B347290}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Invoklet.Languages.VB", "src\languages\Invoklet.Languages.VB\Invoklet.Languages.VB.csproj", "{E643188B-3D75-4C4F-ABD8-BB64C52E2929}"
 EndProject

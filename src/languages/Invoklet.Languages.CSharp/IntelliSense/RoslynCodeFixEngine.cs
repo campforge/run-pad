@@ -368,18 +368,18 @@ internal sealed class RoslynCodeFixEngine
     private static IEnumerable<CodeAction> Flatten(CodeAction action) =>
         action.NestedActions.Length == 0 ? [action] : action.NestedActions.SelectMany(Flatten);
 
-    // User report 2026-07-27: RpadKind.Program's synthetic wrapper class (RpadKindTransform.
+    // User report 2026-07-27: MdRunKind.Program's synthetic wrapper class (MdRunKindTransform.
     // ProgramWrapperClassName, "__InvokletProgram") is a REAL class in the live analysis document — the
     // user's own code is textually inside it — so caret-position-triggered refactoring providers
     // (e.g. "Generate constructor") can and do see it as the enclosing type and offer to generate
     // members on it, producing suggestions like "Generate constructor '__InvokletProgram(...)'" that
-    // are meaningless to the user (they never see or write that class — see RpadKindTransform's own
+    // are meaningless to the user (they never see or write that class — see MdRunKindTransform's own
     // doc comment). The identifier is deliberately distinctive enough ("astronomically unlikely" to
     // collide with real user code, per that same comment) that a plain Title substring check safely
     // filters this out regardless of which provider produced it, without needing to enumerate every
     // provider that could theoretically reference the enclosing type by name.
     private static bool MentionsSyntheticWrapper(string title) =>
-        title.Contains(RpadKindTransform.ProgramWrapperClassName, StringComparison.Ordinal);
+        title.Contains(MdRunKindTransform.ProgramWrapperClassName, StringComparison.Ordinal);
 
     // CodeActionWithOptions ("Generate overrides...", "Extract interface...", ...) needs an
     // interactive options dialog from the host (VS's member picker etc.) before it can produce any
@@ -476,7 +476,7 @@ internal sealed class RoslynCodeFixEngine
     // TrailingPad, since a synthetic space right after the last real token attaches to it as trailing
     // trivia the same as any other trailing whitespace. Each change's span is clamped to
     // preambleLength + userCodeLength for exactly this reason: the clamped-off tail is guaranteed to
-    // be nothing but synthetic wrapper text — TrailingPad, and for RpadKind.Program also the
+    // be nothing but synthetic wrapper text — TrailingPad, and for MdRunKind.Program also the
     // class-closing suffix mirrored by CSharpIntelliSenseService.KindSuffix — never
     // meaningful user content, so silently dropping it from what gets deleted/replaced is safe —
     // NewText itself is untouched, only how much of the (synthetic-only) tail end of the input span

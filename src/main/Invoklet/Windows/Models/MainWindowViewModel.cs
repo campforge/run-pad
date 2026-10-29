@@ -4,7 +4,7 @@ using System.Reactive.Linq;
 using Avalonia.Threading;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.Examples;
 using Invoklet.Services.Preferences;
@@ -92,8 +92,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
                 foreach (var frame in frames)
                 {
                     var vm = new EditorTabItemViewModel(frame.FilePath, AvailableSdks, _prefs, this,
-                        frame.Document?.FrontMatter.Language ?? RpadLanguage.CSharp,
-                        frame.Document?.FrontMatter.Kind ?? RpadKind.Statements)
+                        frame.Document?.FrontMatter.Language ?? MdRunLanguage.CSharp,
+                        frame.Document?.FrontMatter.Kind ?? MdRunKind.Statements)
                     {
                         RecoveryId = frame.Id,
                         RestoredRecovery = frame,
@@ -161,8 +161,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
                 }
                 else if (draft.FilePath is null) frame = draft with { IsDirty = true };
                 var vm = new EditorTabItemViewModel(frame.FilePath, AvailableSdks, _prefs, this,
-                    frame.Document?.FrontMatter.Language ?? RpadLanguage.CSharp,
-                    frame.Document?.FrontMatter.Kind ?? RpadKind.Statements)
+                    frame.Document?.FrontMatter.Language ?? MdRunLanguage.CSharp,
+                    frame.Document?.FrontMatter.Kind ?? MdRunKind.Statements)
                 {
                     RecoveryId = frame.Id,
                     RestoredRecovery = frame,
@@ -442,7 +442,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     }
 
     // Raised after the Dependencies dialog closes, so the view can refresh IntelliSense for the
-    // (possibly package-mutated) active tab. RpadFrontMatter has no change notification of its own.
+    // (possibly package-mutated) active tab. MdRunFrontMatter has no change notification of its own.
     public event Action? DependenciesWindowClosed;
 
     /// <summary>A script or folder in the scripts folder changed on disk (raised on the UI thread).</summary>
@@ -653,13 +653,13 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // (EditorTabItemViewModel.NewFileLanguage/NewFileKind) since there's no front matter on disk yet
     // for EditorsTabItemControl.SetDocumentContent/EditorTabsControl.CreateIntelliSenseAsync to read them
     // from.
-    public void NewRpadFile(RpadLanguage language = RpadLanguage.CSharp, RpadKind kind = RpadKind.Statements)
+    public void NewMdRunFile(MdRunLanguage language = MdRunLanguage.CSharp, MdRunKind kind = MdRunKind.Statements)
     {
         var vm = new EditorTabItemViewModel(null, AvailableSdks, _prefs, this, language, kind, NextUntitledTitle());
         AddTab(vm);
     }
 
-    // Ctrl+N / the new File > New File menu item — same as NewRpadFile above, but reads
+    // Ctrl+N / the new File > New File menu item — same as NewMdRunFile above, but reads
     // the language+kind to use from EditorSettings instead of requiring an explicit choice, so it
     // never has to show NewFileKindDialog. The explicit File > New RPad File submenu (still asking via
     // the dialog) and the file tree's own "New File" (writes to disk immediately) are
@@ -667,7 +667,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // File > New RPad File's choices: the registered languages.
     public IReadOnlyList<NewFileLanguageChoice> NewFileLanguages { get; }
 
-    public void NewRpadFileWithDefaults() => NewRpadFile(_prefs.Editor.NewFileLanguage, _prefs.Editor.NewFileKind);
+    public void NewMdRunFileWithDefaults() => NewMdRunFile(_prefs.Editor.NewFileLanguage, _prefs.Editor.NewFileKind);
 
     public void OpenTab(string? filePath)
     {
@@ -686,7 +686,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             blankToClose = Tabs[0];
 
         var vm = new EditorTabItemViewModel(filePath, AvailableSdks, _prefs, this,
-            RpadLanguage.CSharp, RpadKind.Statements, filePath is null ? NextUntitledTitle() : "Untitled");
+            MdRunLanguage.CSharp, MdRunKind.Statements, filePath is null ? NextUntitledTitle() : "Untitled");
         if (filePath is not null)
         {
             _openTabs[filePath] = vm;
@@ -916,7 +916,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         var linqPath = await _windowService.ShowOpenLinqFileDialogAsync(_fileSystemService.Folder);
         if (linqPath is null) return;
 
-        RpadDocument converted;
+        MdRunDocument converted;
         try
         {
             var linqText = await File.ReadAllTextAsync(linqPath);
@@ -943,7 +943,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
         try
         {
-            await File.WriteAllTextAsync(newPath, RpadWriter.Write(converted));
+            await File.WriteAllTextAsync(newPath, MdRunWriter.Write(converted));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -1147,7 +1147,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // (reused via ResolveParentDir below), but unlike "New Folder" the new file is also immediately
     // useful to open, so it's opened as a tab right away (same OpenTab used for double-click) rather
     // than left for the user to click on themselves.
-    public async Task<string> CreateFileAsync(string? contextPath, RpadLanguage language, RpadKind kind)
+    public async Task<string> CreateFileAsync(string? contextPath, MdRunLanguage language, MdRunKind kind)
     {
         var parentDir = ResolveParentDir(contextPath);
         var code = CodeTemplate.TakeCaret(_languageRegistry.NewScriptCode(language, kind, _prefs.Editor.IndentationUnit)).Text;
@@ -1276,7 +1276,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             navigation.CollapsedGroupsChanged += _collapsedGroupsChangedHandler;
             // The attached badges follow the active script's own connections list.
             _activeTabFrontMatterSubscription = this.WhenAnyValue(x => x.ActiveTab)
-                .Select(tab => tab?.WhenAnyValue(t => t.FrontMatter) ?? Observable.Return<RpadFrontMatter?>(null))
+                .Select(tab => tab?.WhenAnyValue(t => t.FrontMatter) ?? Observable.Return<MdRunFrontMatter?>(null))
                 .Switch()
                 .Subscribe(frontMatter => navigation.SetAttached(frontMatter is null ? null : frontMatter.Connections ?? []));
             // A finished run may have changed connection schema cache entries (EnsureAsync reads

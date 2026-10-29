@@ -1,5 +1,5 @@
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Compiler;
 using Microsoft.Extensions.Logging;
@@ -48,8 +48,8 @@ public sealed class VbLanguageHost : CompiledDotnetLanguageHostBase
     public override string ApplyKindTransform(string code) => Options.Kind switch
     {
         // args As String(): the script's command-line arguments, as C# top-level statements have them.
-        RpadKind.Statements => $"Module Program\nSub Main(args As String())\n{code}\nEnd Sub\nEnd Module\n",
-        RpadKind.Expression => $"(\n{code.TrimEnd()}\n).Dump()\n",
+        MdRunKind.Statements => $"Module Program\nSub Main(args As String())\n{code}\nEnd Sub\nEnd Module\n",
+        MdRunKind.Expression => $"(\n{code.TrimEnd()}\n).Dump()\n",
         _ => code,
     };
 
@@ -60,8 +60,8 @@ public sealed class VbLanguageHost : CompiledDotnetLanguageHostBase
     // component alone (see CSharpLanguageHost.CalcKindOffset's identical fix).
     public override int CalcKindOffset(string code) => Options.Usings.Count + (Options.Kind switch
     {
-        RpadKind.Statements => 2, // "Module Program" + "Sub Main(args As String())"
-        RpadKind.Expression => 1, // "("
+        MdRunKind.Statements => 2, // "Module Program" + "Sub Main(args As String())"
+        MdRunKind.Expression => 1, // "("
         _ => 0,
     });
 }

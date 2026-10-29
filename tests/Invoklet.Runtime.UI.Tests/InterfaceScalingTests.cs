@@ -11,7 +11,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -60,7 +60,7 @@ public class InterfaceScalingTests
             new InterfaceTheme("Test", ThemeVariant.Dark, true),
             new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
         var vm = new EditorTabItemViewModel(
-            filePath: null, [], prefs.Mock.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
+            filePath: null, [], prefs.Mock.Object, new Mock<IEditorTabActions>().Object, MdRunLanguage.CSharp, MdRunKind.Statements);
         var tab = new EditorsTabItemControl(vm, theme.Object, new Mock<IWindowService>().Object,
             new Mock<ILanguageHostRegistry>().Object, prefs.Mock.Object, intelliSense: null, new Mock<IBuildCacheService>().Object);
         var host = new Window { Content = tab, Width = 900, Height = 600 };

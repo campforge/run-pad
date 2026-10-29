@@ -8,7 +8,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Services;
@@ -31,7 +31,7 @@ public class EditorTabRunResultTests
 
     private static EditorsTabItemControl CreateControl(
         RunResult result, string stderrLine = "",
-        RpadLanguage language = RpadLanguage.CSharp, List<(string Language, ExecutionRequest Request)>? created = null, Func<Task<RunResult>>? pending = null, ILogger<EditorsTabItemControl>? logger = null, Action<OutputReceivedHandler>? captureOutput = null,
+        MdRunLanguage language = MdRunLanguage.CSharp, List<(string Language, ExecutionRequest Request)>? created = null, Func<Task<RunResult>>? pending = null, ILogger<EditorsTabItemControl>? logger = null, Action<OutputReceivedHandler>? captureOutput = null,
         Action<Mock<ILanguageHost>>? configureHost = null, ConnectionSchemas? connectionSchemas = null, ConnectionDriverRegistry? connectionDrivers = null)
     {
         var prefs = new Mock<IPreferencesService>();
@@ -64,7 +64,7 @@ public class EditorTabRunResultTests
             .Returns(host.Object);
 
         var vm = new EditorTabItemViewModel(
-            null, [], prefs.Object, new Mock<IEditorTabActions>().Object, language, RpadKind.Statements);
+            null, [], prefs.Object, new Mock<IEditorTabActions>().Object, language, MdRunKind.Statements);
         var ctrl = new EditorsTabItemControl(vm, theme.Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
             intelliSense: null, new Mock<IBuildCacheService>().Object, logger,
             connectionDrivers, connectionSchemas);
@@ -508,15 +508,15 @@ public class EditorTabRunResultTests
 
             var ctrl = CreateControl(RunResult.Exited(0), created: created, connectionSchemas: schemas, connectionDrivers: drivers);
 
-            ctrl.State.RpadDocument = new RpadDocument
+            ctrl.State.MdRunDocument = new MdRunDocument
 
             {
 
-                FrontMatter = new RpadFrontMatter
+                FrontMatter = new MdRunFrontMatter
 
                 {
 
-                    Connections = [new RpadConnection { Name = "slow", Driver = "blocking" }],
+                    Connections = [new MdRunConnection { Name = "slow", Driver = "blocking" }],
 
                 },
 
@@ -570,17 +570,17 @@ public class EditorTabRunResultTests
 
         public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string>();
 
-        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
+        public IReadOnlyList<string> Validate(MdRunConnection connection) => [];
 
-        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken) =>
 
             Task.FromResult(new ConnectionTestResult(true, ""));
 
-        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) =>
+        public ConnectionClientCode CreateClient(MdRunConnection connection, ConnectionCodeContext context) =>
 
             new($"public sealed class {context.ClassName} {{ }}");
 
-        public async Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
+        public async Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, ConnectionTools tools,
 
             CancellationToken cancellationToken)
 
@@ -613,9 +613,9 @@ public class EditorTabRunResultTests
     // document's defaults (an untitled tab has no front matter yet), the user's dotnet and debugger and
     // exception choices — never with the backend's own options, for C# and Visual Basic alike.
     [AvaloniaTheory]
-    [InlineData(RpadLanguage.CSharp, "csharp")]
-    [InlineData(RpadLanguage.Vb, "vb")]
-    public async Task TheRun_Should_AskItsLanguage_WithThePlainRequest(RpadLanguage language, string languageId)
+    [InlineData(MdRunLanguage.CSharp, "csharp")]
+    [InlineData(MdRunLanguage.Vb, "vb")]
+    public async Task TheRun_Should_AskItsLanguage_WithThePlainRequest(MdRunLanguage language, string languageId)
     {
         var created = new List<(string Language, ExecutionRequest Request)>();
         var ctrl = CreateControl(RunResult.Exited(0), language: language, created: created);
@@ -628,7 +628,7 @@ public class EditorTabRunResultTests
         Assert.Equal(ctrl.State.OutputDirectory, request.OutputDirectory);
         Assert.Equal(Path.Combine(Path.GetTempPath(), "Invoklet"), request.WorkingDirectory);
         Assert.Null(request.CurrentQueryPath);
-        Assert.Equal(RpadKind.Statements, request.Kind);
+        Assert.Equal(MdRunKind.Statements, request.Kind);
         Assert.Empty(request.References);
         Assert.Empty(request.Arguments);
         Assert.Equal(new DebuggerSettings().DotnetPath, request.RuntimePath);
@@ -644,7 +644,7 @@ public class EditorTabRunResultTests
     {
         var builds = new Queue<(string? Assembly, RunResult Result)>(
         [
-            (typeof(RpadDocument).Assembly.Location, RunResult.Exited(0)),
+            (typeof(MdRunDocument).Assembly.Location, RunResult.Exited(0)),
             (null, RunResult.CompilationFailed),
             (null, RunResult.StartFailed),
             (typeof(ILanguageHost).Assembly.Location, RunResult.Exited(0)),
@@ -667,7 +667,7 @@ public class EditorTabRunResultTests
         try
         {
             await RunAsync(ctrl);
-            Assert.Contains("RpadDocument", il.Text, StringComparison.Ordinal);
+            Assert.Contains("MdRunDocument", il.Text, StringComparison.Ordinal);
             var built = il.Document;
             var text = il.Text;
 
@@ -683,7 +683,7 @@ public class EditorTabRunResultTests
             Assert.Empty(builds);
             Assert.NotSame(built, il.Document);
             Assert.Contains("ILanguageHost", il.Text, StringComparison.Ordinal);
-            Assert.DoesNotContain("RpadDocument", il.Text, StringComparison.Ordinal);
+            Assert.DoesNotContain("MdRunDocument", il.Text, StringComparison.Ordinal);
         }
         finally
         {

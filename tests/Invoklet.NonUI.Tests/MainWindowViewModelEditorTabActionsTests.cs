@@ -48,7 +48,7 @@ public class MainWindowViewModelEditorTabActionsTests
         try
         {
             var (mainVm, windowService) = CreateViewModel(rootFolder);
-            mainVm.NewRpadFile();
+            mainVm.NewMdRunFile();
             var tab = Assert.Single(mainVm.Tabs);
             Assert.Null(tab.WriteToFile);
 

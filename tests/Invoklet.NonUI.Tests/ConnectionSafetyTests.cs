@@ -2,7 +2,7 @@ using System.Reactive.Linq;
 using System.Windows.Input;
 using Invoklet.Connectors.Http;
 using Invoklet.Contracts.Connections;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services.Connections;
 using Invoklet.Services.Secrets;
 using Invoklet.Windows.Models;
@@ -18,11 +18,11 @@ public sealed class ConnectionSafetyTests : IDisposable
     private string StorePath => Path.Combine(_folder, "connections.json");
     public void Dispose() => Directory.Delete(_folder, true);
 
-    private static RpadConnection Http(string name) => new()
+    private static MdRunConnection Http(string name) => new()
     {
         Name = name,
         Driver = "http",
-        Params = new() { ["baseAddress"] = RpadValue.Of("https://example.test/") },
+        Params = new() { ["baseAddress"] = MdRunValue.Of("https://example.test/") },
     };
 
     private static ConnectionDriverRegistry Drivers()
@@ -136,7 +136,7 @@ public sealed class ConnectionSafetyTests : IDisposable
     [Fact]
     public void ClientTypeNames_Should_NotCollideWithProperties_AndGeneratedCodeShouldCompile()
     {
-        var generated = GeneratedConnections.For([Http("api"), Http("api-client"), Http("api-client2")], RpadLanguage.CSharp, [], Drivers())!;
+        var generated = GeneratedConnections.For([Http("api"), Http("api-client"), Http("api-client2")], MdRunLanguage.CSharp, [], Drivers())!;
         Assert.Empty(generated.Errors);
         var refs = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
             .Select(path => MetadataReference.CreateFromFile(path));
@@ -148,7 +148,7 @@ public sealed class ConnectionSafetyTests : IDisposable
     [Fact]
     public void EnclosingClassName_Should_BeReportedBeforeCompiling()
     {
-        var generated = GeneratedConnections.For([Http("connections")], RpadLanguage.CSharp, [], Drivers())!;
+        var generated = GeneratedConnections.For([Http("connections")], MdRunLanguage.CSharp, [], Drivers())!;
         Assert.Contains(generated.Errors, e => e.Contains("reserved", StringComparison.Ordinal));
     }
 
@@ -158,9 +158,9 @@ public sealed class ConnectionSafetyTests : IDisposable
         var store = new FileConnectionStore(StorePath);
         store.Save([Http("api")], null);
         var changed = Http("api");
-        changed.Params["baseAddress"] = RpadValue.Of("https://changed.test/");
+        changed.Params["baseAddress"] = MdRunValue.Of("https://changed.test/");
         var vm = new ScriptConnectionsViewModel(store, new FileSecretStore(Path.Combine(_folder, "secrets.json")), Drivers());
-        vm.Load(new RpadFrontMatter { Connections = [changed] });
+        vm.Load(new MdRunFrontMatter { Connections = [changed] });
         vm.SelectedItem = vm.Items[0];
         ((ICommand)vm.ImportCommand).Execute(null);
         Assert.True(vm.IsImportConfirmationPending);

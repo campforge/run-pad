@@ -3,7 +3,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -29,7 +29,7 @@ public class SaveIfNeededFailureTests
         var filePath = Path.Combine(tmpDir, "demo.rpad");
         try
         {
-            File.WriteAllText(filePath, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
+            File.WriteAllText(filePath, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
 
             var prefs = new Mock<IPreferencesService>();
             prefs.Setup(p => p.Editor).Returns(new EditorSettings());

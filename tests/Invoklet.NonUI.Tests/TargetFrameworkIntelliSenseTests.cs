@@ -2,7 +2,7 @@ using System.IO.Compression;
 using Invoklet.Build.Core.Models;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.Compiler;
 using Invoklet.Languages.CSharp.IntelliSense;
@@ -109,7 +109,7 @@ public sealed class TargetFrameworkIntelliSenseTests : IAsyncDisposable
             },
             OutputDirectory = output,
             RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
-            Kind = RpadKind.Statements,
+            Kind = MdRunKind.Statements,
             Packages = packages ?? new Dictionary<string, string>(),
             NuGetConfigFile = _config,
         };

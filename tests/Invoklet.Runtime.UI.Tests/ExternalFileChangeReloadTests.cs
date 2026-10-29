@@ -9,7 +9,7 @@ using Avalonia.Threading;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -46,7 +46,7 @@ public class ExternalFileChangeReloadTests
         {
             Folder = Directory.CreateTempSubdirectory("Invoklet-external-reload").FullName;
             Path = System.IO.Path.Combine(Folder, "demo.rpad");
-            File.WriteAllText(Path, RpadWriter.NewFile(Original + "\n", "Demo"));
+            File.WriteAllText(Path, MdRunWriter.NewFile(Original + "\n", "Demo"));
 
             var prefs = new Mock<IPreferencesService>();
             prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
@@ -104,9 +104,9 @@ public class ExternalFileChangeReloadTests
         }
     }
 
-    private static void WriteExternally(string path, string code, RpadKind kind = RpadKind.Statements,
-        RpadLanguage language = RpadLanguage.CSharp)
-        => File.WriteAllText(path, RpadWriter.NewFile(code + "\n", "Demo", kind: kind, language: language));
+    private static void WriteExternally(string path, string code, MdRunKind kind = MdRunKind.Statements,
+        MdRunLanguage language = MdRunLanguage.CSharp)
+        => File.WriteAllText(path, MdRunWriter.NewFile(code + "\n", "Demo", kind: kind, language: language));
 
     [AvaloniaFact]
     public async Task ACleanTab_Should_ReloadQuietly_AsOneUndoableEdit()
@@ -141,7 +141,7 @@ public class ExternalFileChangeReloadTests
         await TestWait.WhileAsync(() => vm.IsDirty);
 
         h.Windows.Verify(w => w.ShowSaveConflictDialogAsync(It.IsAny<string>()), Times.Never);
-        Assert.Equal(EditedHere, RpadParser.TryParse(File.ReadAllText(h.Path))!.RunCode.Trim());
+        Assert.Equal(EditedHere, MdRunParser.TryParse(File.ReadAllText(h.Path))!.RunCode.Trim());
     }
 
     [AvaloniaFact]
@@ -216,13 +216,13 @@ public class ExternalFileChangeReloadTests
     {
         using var h = new Harness();
         var (vm, ctrl) = await h.OpenAsync();
-        WriteExternally(h.Path, "void Main() { }", RpadKind.Program);
+        WriteExternally(h.Path, "void Main() { }", MdRunKind.Program);
         var onDisk = File.ReadAllBytes(h.Path);
 
         await h.Tabs.CheckFilesChangedOnDiskAsync();
 
-        Assert.Equal(nameof(RpadKind.Program), vm.SelectedKind);
-        Assert.Equal(RpadKind.Program, ctrl.State.RpadDocument!.FrontMatter.Kind);
+        Assert.Equal(nameof(MdRunKind.Program), vm.SelectedKind);
+        Assert.Equal(MdRunKind.Program, ctrl.State.MdRunDocument!.FrontMatter.Kind);
         Assert.Equal("void Main() { }", ctrl.State.Editor.Text.Trim());
         Assert.False(vm.IsDirty);
         Assert.Equal(onDisk, File.ReadAllBytes(h.Path));
@@ -235,7 +235,7 @@ public class ExternalFileChangeReloadTests
         using var h = new Harness();
         var (vm, _) = await h.OpenAsync();
         h.MainVm.OpenTab(null);
-        WriteExternally(h.Path, "Console.WriteLine(\"vb\")", language: RpadLanguage.Vb);
+        WriteExternally(h.Path, "Console.WriteLine(\"vb\")", language: MdRunLanguage.Vb);
 
         await h.Tabs.CheckFilesChangedOnDiskAsync();
 
@@ -244,7 +244,7 @@ public class ExternalFileChangeReloadTests
         Assert.Equal(h.Path, reopened.FilePath);
         Assert.Equal(2, h.MainVm.Tabs.Count);
         await TestWait.WhileAsync(() => h.Tabs.ControlForTests(reopened) is null);
-        Assert.Equal(RpadLanguage.Vb, h.Tabs.ControlForTests(reopened)!.State.RpadDocument!.FrontMatter.Language);
+        Assert.Equal(MdRunLanguage.Vb, h.Tabs.ControlForTests(reopened)!.State.MdRunDocument!.FrontMatter.Language);
     }
 
     [AvaloniaTheory]
@@ -339,10 +339,10 @@ public class ExternalFileChangeReloadTests
     {
         using var h = new Harness();
         const string code = "Console.WriteLine(\"${0}\");";
-        File.WriteAllText(h.Path, raw ? code : RpadWriter.NewFile(code + "\n", "Demo"));
+        File.WriteAllText(h.Path, raw ? code : MdRunWriter.NewFile(code + "\n", "Demo"));
         var (_, ctrl) = await h.OpenAsync();
         Assert.Equal(code, ctrl.State.Editor.Text.Trim());
-        File.WriteAllText(h.Path, raw ? code + " // changed" : RpadWriter.NewFile(code + " // changed\n", "Demo"));
+        File.WriteAllText(h.Path, raw ? code + " // changed" : MdRunWriter.NewFile(code + " // changed\n", "Demo"));
         await h.Tabs.CheckFilesChangedOnDiskAsync();
         Assert.Equal(code + " // changed", ctrl.State.Editor.Text.Trim());
     }

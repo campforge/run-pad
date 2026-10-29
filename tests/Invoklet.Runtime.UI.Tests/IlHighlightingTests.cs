@@ -9,7 +9,7 @@ using AvaloniaEdit.Document;
 using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -157,7 +157,7 @@ public class IlHighlightingTests
         prefs.Setup(p => p.Appearance).Returns(new AppearanceSettings());
         var themeService = new Mock<IThemeService>();
         themeService.Setup(t => t.CurrentTheme).Returns(Dark);
-        var vm = new EditorTabItemViewModel(null, [], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
+        var vm = new EditorTabItemViewModel(null, [], prefs.Object, new Mock<IEditorTabActions>().Object, MdRunLanguage.CSharp, MdRunKind.Statements);
         var tab = new EditorsTabItemControl(vm, themeService.Object, new Mock<IWindowService>().Object,
             new Mock<ILanguageHostRegistry>().Object, prefs.Object, intelliSense: null, new Mock<IBuildCacheService>().Object);
         var host = new Window { Width = 900, Height = 600, Content = tab };

@@ -8,7 +8,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon.Sdk;
 using Invoklet.Languages.VB;
@@ -90,7 +90,7 @@ public sealed class ProgramSelectionExecutionTests : IDisposable
         window.Show();
         try
         {
-            shell.NewRpadFile(RpadLanguage.CSharp, RpadKind.Program);
+            shell.NewMdRunFile(MdRunLanguage.CSharp, MdRunKind.Program);
             var tab = shell.ActiveTab!;
             await TestWait.WhileAsync(() => tabs.ControlForTests(tab) is null);
             var ctrl = tabs.ControlForTests(tab)!;
@@ -109,7 +109,7 @@ public sealed class ProgramSelectionExecutionTests : IDisposable
             await TestWait.WhileAsync(() => scripts.Count == 0, TimeSpan.FromSeconds(5));
 
             var request = Assert.Single(requests);
-            Assert.Equal(RpadKind.Statements, request.Kind);
+            Assert.Equal(MdRunKind.Statements, request.Kind);
             var script = Assert.Single(scripts);
             Assert.Equal("Console.WriteLine(\"second\");", script.Trim());
             Assert.Equal(start, script.IndexOf("Console", StringComparison.Ordinal));
@@ -118,17 +118,17 @@ public sealed class ProgramSelectionExecutionTests : IDisposable
         finally { window.Close(); }
     }
 
-    private (EditorsTabItemControl Ctrl, Window Host)? Real(RpadLanguage language, string code, IReadOnlyList<string>? args = null)
+    private (EditorsTabItemControl Ctrl, Window Host)? Real(MdRunLanguage language, string code, IReadOnlyList<string>? args = null)
     {
         if (new DotnetSdkProvider().Get().FirstOrDefault() is null) return null; // no .NET SDK to compile with
-        var path = Path.Combine(_root, language == RpadLanguage.Vb ? "program-vb.rpad" : "program.rpad");
-        var document = RpadWriter.NewFile(code, "Demo", kind: RpadKind.Program, language: language);
+        var path = Path.Combine(_root, language == MdRunLanguage.Vb ? "program-vb.rpad" : "program.rpad");
+        var document = MdRunWriter.NewFile(code, "Demo", kind: MdRunKind.Program, language: language);
         if (args is { Count: > 0 })
         {
-            var parsed = RpadParser.Parse(document).Document!;
-            parsed.FrontMatter.Arguments = [new() { Name = "values", Type = RpadArgumentType.StringList,
-                Default = RpadValue.List(args.Select(RpadValue.Of)) }];
-            document = RpadWriter.Write(parsed);
+            var parsed = MdRunParser.Parse(document).Document!;
+            parsed.FrontMatter.Arguments = [new() { Name = "values", Type = MdRunArgumentType.StringList,
+                Default = MdRunValue.List(args.Select(MdRunValue.Of)) }];
+            document = MdRunWriter.Write(parsed);
         }
         File.WriteAllText(path, document);
         var registry = new LanguageHostRegistry();
@@ -140,7 +140,7 @@ public sealed class ProgramSelectionExecutionTests : IDisposable
         var prefs = Prefs();
         var shell = new MainWindowViewModel([], new Mock<IFileSystemService>().Object, new Mock<IWindowService>().Object, prefs.Object, registry);
         var sdk = new DotnetSdkProvider().Get().First();
-        var vm = new EditorTabItemViewModel(path, [sdk], prefs.Object, shell, language, RpadKind.Program);
+        var vm = new EditorTabItemViewModel(path, [sdk], prefs.Object, shell, language, MdRunKind.Program);
         var ctrl = new EditorsTabItemControl(vm, Theme().Object, new Mock<IWindowService>().Object, registry, prefs.Object,
             intelliSense: null, cache.Object);
         var window = new Window { Content = ctrl };
@@ -165,7 +165,7 @@ public sealed class ProgramSelectionExecutionTests : IDisposable
     public async Task ASelectionInsideACSharpMain_Should_RunAlone_InARealProcess()
     {
         const string code = "void Main()\n{\n    Console.WriteLine(\"not selected\");\n    Console.WriteLine(\"selected:\" + string.Join(\",\", args));\n    Helper();\n}\n\nvoid Helper() => Console.WriteLine(\"helper\");\n";
-        if (Real(RpadLanguage.CSharp, code, ["a1", "a2"]) is not var (ctrl, window)) return;
+        if (Real(MdRunLanguage.CSharp, code, ["a1", "a2"]) is not var (ctrl, window)) return;
         try
         {
             var original = File.ReadAllBytes(Path.Combine(_root, "program.rpad"));
@@ -188,7 +188,7 @@ public sealed class ProgramSelectionExecutionTests : IDisposable
     public async Task ASelectionUsingADeclarationOutsideIt_Should_ExplainTheCompileError()
     {
         const string code = "void Main()\n{\n    Helper();\n}\n\nvoid Helper() => Console.WriteLine(\"helper ran\");\n";
-        if (Real(RpadLanguage.CSharp, code) is not var (ctrl, window)) return;
+        if (Real(MdRunLanguage.CSharp, code) is not var (ctrl, window)) return;
         try
         {
             await RunAsync(ctrl, "Helper();");
@@ -209,7 +209,7 @@ public sealed class ProgramSelectionExecutionTests : IDisposable
     public async Task ASelectionInsideAVisualBasicSubMain_Should_RunAlone_InARealProcess()
     {
         const string code = "Module Program\n    Sub Main()\n        Console.WriteLine(\"vb not selected\")\n        Console.WriteLine(\"vb selected\")\n    End Sub\nEnd Module\n";
-        if (Real(RpadLanguage.Vb, code) is not var (ctrl, window)) return;
+        if (Real(MdRunLanguage.Vb, code) is not var (ctrl, window)) return;
         try
         {
             await RunAsync(ctrl, "Console.WriteLine(\"vb selected\")");

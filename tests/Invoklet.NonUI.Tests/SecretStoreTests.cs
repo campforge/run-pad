@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Text.Json.Nodes;
 using Invoklet.Build.Core.Models;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
@@ -138,7 +138,7 @@ public sealed class SecretStoreTests : IDisposable
                 },
                 OutputDirectory = outputDir,
                 RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
-                Kind = RpadKind.Statements,
+                Kind = MdRunKind.Statements,
             };
             Directory.CreateDirectory(outputDir);
             await using var host = new CSharpLanguageHost(options, NullLoggerFactory.Instance);

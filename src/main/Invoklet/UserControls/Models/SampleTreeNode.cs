@@ -1,5 +1,5 @@
 using System.Collections.ObjectModel;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services.Examples;
 using ReactiveUI;
 
@@ -33,7 +33,7 @@ public sealed class SampleTreeNode : ReactiveObject
     public string? IconKey => Example?.Language switch
     {
         null => null,
-        RpadLanguage.Vb => "Icon.LanguageVb",
+        MdRunLanguage.Vb => "Icon.LanguageVb",
         _ => "Icon.LanguageCSharp",
     };
 

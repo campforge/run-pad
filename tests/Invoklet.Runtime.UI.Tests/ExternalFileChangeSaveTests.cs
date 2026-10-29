@@ -4,7 +4,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -73,7 +73,7 @@ public class ExternalFileChangeSaveTests
     }
 
     private static string? CodeIn(string path) =>
-        File.Exists(path) ? RpadParser.TryParse(File.ReadAllText(path))?.RunCode.Trim() : null;
+        File.Exists(path) ? MdRunParser.TryParse(File.ReadAllText(path))?.RunCode.Trim() : null;
 
     private static void InTemporaryScript(Action<string, string> test)
     {
@@ -81,7 +81,7 @@ public class ExternalFileChangeSaveTests
         try
         {
             var path = Path.Combine(dir, "demo.rpad");
-            File.WriteAllText(path, RpadWriter.NewFile(Original + "\n", "Demo"));
+            File.WriteAllText(path, MdRunWriter.NewFile(Original + "\n", "Demo"));
             test(dir, path);
         }
         finally
@@ -98,7 +98,7 @@ public class ExternalFileChangeSaveTests
 
     private static void ChangeExternally(string path, Change change, string code = External)
     {
-        var text = RpadWriter.NewFile(code + "\n", "Demo");
+        var text = MdRunWriter.NewFile(code + "\n", "Demo");
         switch (change)
         {
             case Change.Write:
@@ -114,7 +114,7 @@ public class ExternalFileChangeSaveTests
                 break;
             case Change.SameLengthKeepingTheTime:
                 var time = File.GetLastWriteTimeUtc(path);
-                File.WriteAllText(path, RpadWriter.NewFile(Sameness + "\n", "Demo"));
+                File.WriteAllText(path, MdRunWriter.NewFile(Sameness + "\n", "Demo"));
                 File.SetLastWriteTimeUtc(path, time);
                 break;
         }
@@ -178,14 +178,14 @@ public class ExternalFileChangeSaveTests
             ChangeExternally(path, Change.Write);
             tab.Answer(SaveConflictChoice.Cancel);
 
-            tab.Vm.SelectedKind = nameof(RpadKind.Program);
+            tab.Vm.SelectedKind = nameof(MdRunKind.Program);
             Dispatcher.UIThread.RunJobs();
 
             tab.AssertAsked(1);
             Assert.Equal(External, CodeIn(path));
-            Assert.Equal(RpadKind.Statements, RpadParser.TryParse(File.ReadAllText(path))!.FrontMatter.Kind);
+            Assert.Equal(MdRunKind.Statements, MdRunParser.TryParse(File.ReadAllText(path))!.FrontMatter.Kind);
             Assert.True(tab.Vm.IsDirty);
-            Assert.Equal(RpadKind.Program, tab.Ctrl.State.RpadDocument!.FrontMatter.Kind);
+            Assert.Equal(MdRunKind.Program, tab.Ctrl.State.MdRunDocument!.FrontMatter.Kind);
         });
     }
 
@@ -304,7 +304,7 @@ public class ExternalFileChangeSaveTests
         {
             var path = Path.Combine(dir, "later.rpad");
             using var tab = Open(path);
-            File.WriteAllText(path, RpadWriter.NewFile(External + "\n", "Demo"));
+            File.WriteAllText(path, MdRunWriter.NewFile(External + "\n", "Demo"));
             tab.Answer(SaveConflictChoice.Cancel);
 
             tab.Ctrl.SaveIfNeeded();
@@ -322,20 +322,20 @@ public class ExternalFileChangeSaveTests
         try
         {
             var path = Path.Combine(dir, "demo.rpad");
-            File.WriteAllText(path, RpadWriter.NewFile(Original + "\n", "Demo"));
+            File.WriteAllText(path, MdRunWriter.NewFile(Original + "\n", "Demo"));
             using var tab = Open(path);
             ChangeExternally(path, Change.Write);
             var answer = new TaskCompletionSource<SaveConflictChoice>();
             tab.Windows.Setup(w => w.ShowSaveConflictDialogAsync(It.IsAny<string>())).Returns(answer.Task);
 
             var first = tab.Ctrl.SaveAsync();
-            tab.Vm.SelectedKind = nameof(RpadKind.Program); // a front-matter save while waiting
+            tab.Vm.SelectedKind = nameof(MdRunKind.Program); // a front-matter save while waiting
             var second = tab.Ctrl.SaveAsync();
             answer.SetResult(SaveConflictChoice.Overwrite);
             await Task.WhenAll(first, second);
 
             tab.AssertAsked(1);
-            Assert.Equal(RpadKind.Program, RpadParser.TryParse(File.ReadAllText(path))!.FrontMatter.Kind);
+            Assert.Equal(MdRunKind.Program, MdRunParser.TryParse(File.ReadAllText(path))!.FrontMatter.Kind);
             Assert.False(tab.Vm.IsDirty);
         }
         finally { Directory.Delete(dir, recursive: true); }

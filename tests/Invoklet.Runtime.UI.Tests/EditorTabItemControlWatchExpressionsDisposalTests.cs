@@ -4,7 +4,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -47,7 +47,7 @@ public class EditorTabItemControlWatchExpressionsDisposalTests
     {
         var prefs = MakePrefs();
         var vm = new EditorTabItemViewModel(
-            filePath: null, [], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
+            filePath: null, [], prefs.Object, new Mock<IEditorTabActions>().Object, MdRunLanguage.CSharp, MdRunKind.Statements);
         var registry = new Mock<ILanguageHostRegistry>();
         var buildCache = new Mock<IBuildCacheService>();
 

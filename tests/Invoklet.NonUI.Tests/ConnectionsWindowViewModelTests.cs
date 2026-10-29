@@ -3,7 +3,7 @@ using System.Reactive.Threading.Tasks;
 using System.Windows.Input;
 using Invoklet.Connectors.Http;
 using Invoklet.Contracts.Connections;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services.Connections;
 using Invoklet.Services.Secrets;
 using Invoklet.Windows.Models;
@@ -26,14 +26,14 @@ public sealed class FileConnectionStoreTests : IDisposable
         Assert.Empty(store.Load());
         store.Save(
         [
-            new RpadConnection
+            new MdRunConnection
             {
                 Name = "billing",
                 Driver = "http",
                 Params = new(StringComparer.Ordinal)
                 {
-                    ["baseAddress"] = RpadValue.Of("https://billing.local/"),
-                    ["headers"] = RpadValue.Map([new("Authorization", RpadValue.Of("Bearer ${secret:billing}"))]),
+                    ["baseAddress"] = MdRunValue.Of("https://billing.local/"),
+                    ["headers"] = MdRunValue.Map([new("Authorization", MdRunValue.Of("Bearer ${secret:billing}"))]),
                 },
             },
         ], null);
@@ -68,7 +68,7 @@ public class ConnectionsWindowViewModelTests
 {
     private sealed class FakeDriver : IConnectionDriver
     {
-        public IReadOnlyDictionary<string, RpadValue>? Tested { get; private set; }
+        public IReadOnlyDictionary<string, MdRunValue>? Tested { get; private set; }
         public Exception? Failure { get; set; }
         // When set, a test waits for it: the server's answer comes when the test says so.
         public TaskCompletionSource<ConnectionTestResult>? Answer { get; set; }
@@ -84,41 +84,41 @@ public class ConnectionsWindowViewModelTests
             new("schemas", "Schemas", ConnectionParamType.List),
         ];
 
-        public IReadOnlyList<string> Validate(RpadConnection connection) =>
+        public IReadOnlyList<string> Validate(MdRunConnection connection) =>
             connection.Params.ContainsKey("connectionString") ? [] : ["The connection string is missing."];
 
-        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken)
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken)
         {
             Tested = resolvedParams;
             if (Answer is not null) return Answer.Task;
             return Failure is null ? Task.FromResult(new ConnectionTestResult(true, "Connected.")) : Task.FromException<ConnectionTestResult>(Failure);
         }
 
-        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) =>
+        public ConnectionClientCode CreateClient(MdRunConnection connection, ConnectionCodeContext context) =>
             new($"public sealed class {context.ClassName} {{ internal {context.ClassName}() {{ }} }}");
     }
 
-    private static readonly RpadConnection Billing = new()
+    private static readonly MdRunConnection Billing = new()
     {
         Name = "billing",
         Driver = "http",
         Params = new(StringComparer.Ordinal)
         {
-            ["baseAddress"] = RpadValue.Of("https://billing.local/"),
-            ["headers"] = RpadValue.Map([new("Authorization", RpadValue.Of("Bearer ${secret:billing}"))]),
-            ["retries"] = RpadValue.Of("3"), // not an http parameter: kept as written
+            ["baseAddress"] = MdRunValue.Of("https://billing.local/"),
+            ["headers"] = MdRunValue.Map([new("Authorization", MdRunValue.Of("Bearer ${secret:billing}"))]),
+            ["retries"] = MdRunValue.Of("3"), // not an http parameter: kept as written
         },
     };
 
-    private static readonly RpadConnection Future = new()
+    private static readonly MdRunConnection Future = new()
     {
         Name = "warehouse",
         Driver = "snowflake",
-        Params = new(StringComparer.Ordinal) { ["account"] = RpadValue.Of("acme") },
+        Params = new(StringComparer.Ordinal) { ["account"] = MdRunValue.Of("acme") },
     };
 
     private static (ConnectionsWindowViewModel Vm, Mock<IConnectionStore> Store, FakeDriver Fake) CreateVm(
-        IReadOnlyList<Secret>? secrets = null, params RpadConnection[] connections)
+        IReadOnlyList<Secret>? secrets = null, params MdRunConnection[] connections)
     {
         var store = new Mock<IConnectionStore>();
         store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot(connections, null));
@@ -176,10 +176,10 @@ public class ConnectionsWindowViewModelTests
         Execute(billing.Fields[1].AddRowCommand);
         billing.Fields[1].Rows[1].Name = "Accept";
         billing.Fields[1].Rows[1].Value = "application/json";
-        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()), Times.Never);
+        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<MdRunConnection>>(), It.IsAny<string?>()), Times.Never);
 
-        IReadOnlyList<RpadConnection>? saved = null;
-        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>())).Callback<IReadOnlyList<RpadConnection>, string?>((list, _) => saved = list);
+        IReadOnlyList<MdRunConnection>? saved = null;
+        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<MdRunConnection>>(), It.IsAny<string?>())).Callback<IReadOnlyList<MdRunConnection>, string?>((list, _) => saved = list);
         Assert.True(vm.Save());
 
         Assert.NotNull(saved);
@@ -199,8 +199,8 @@ public class ConnectionsWindowViewModelTests
         var (vm, store, fake) = CreateVm();
         Execute(vm.AddCommand, fake);
         vm.SelectedConnection!.Fields[0].Text = "Data Source=x";
-        IReadOnlyList<RpadConnection>? saved = null;
-        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>())).Callback<IReadOnlyList<RpadConnection>, string?>((list, _) => saved = list);
+        IReadOnlyList<MdRunConnection>? saved = null;
+        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<MdRunConnection>>(), It.IsAny<string?>())).Callback<IReadOnlyList<MdRunConnection>, string?>((list, _) => saved = list);
         Assert.True(vm.Save());
         Assert.Equal(["connectionString"], Assert.Single(saved!).Params.Keys);
     }
@@ -217,7 +217,7 @@ public class ConnectionsWindowViewModelTests
         Assert.False(vm.Save());
         vm.SelectedConnection.Name = "2nd";
         Assert.False(vm.CanSave);
-        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()), Times.Never);
+        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<MdRunConnection>>(), It.IsAny<string?>()), Times.Never);
 
         Execute(vm.RemoveCommand);
         Assert.True(vm.CanSave);
@@ -227,7 +227,7 @@ public class ConnectionsWindowViewModelTests
     [Fact]
     public void AddedNames_Should_NotRepeat()
     {
-        var (vm, _, _) = CreateVm(null, Billing, new RpadConnection { Name = "http", Driver = "http" });
+        var (vm, _, _) = CreateVm(null, Billing, new MdRunConnection { Name = "http", Driver = "http" });
         var http = vm.Drivers.First(d => d.Id == "http");
         Execute(vm.AddCommand, http);
         Execute(vm.AddCommand, http);
@@ -350,13 +350,13 @@ public class ConnectionsWindowViewModelTests
         Assert.False(vm.Save());
         Assert.Contains("no name", vm.Connections[0].Problems);
         Assert.False(vm.CanTest);
-        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()), Times.Never);
+        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<MdRunConnection>>(), It.IsAny<string?>()), Times.Never);
 
         if (named) headers.Rows[^1].Name = "X-Trace";
         else Execute(headers.RemoveRowCommand, headers.Rows[^1]);
         Assert.Null(vm.ValidationError);
         Assert.True(vm.Save());
-        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()), Times.Once);
+        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<MdRunConnection>>(), It.IsAny<string?>()), Times.Once);
     }
 
     // An otherwise incomplete draft (a missing required parameter) still saves; only the test waits.
@@ -367,7 +367,7 @@ public class ConnectionsWindowViewModelTests
         Execute(vm.AddCommand, vm.Drivers.First(d => d.Id == "fake"));
         Assert.Contains("connection string is missing", vm.SelectedConnection!.Problems);
         Assert.True(vm.Save());
-        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()), Times.Once);
+        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<MdRunConnection>>(), It.IsAny<string?>()), Times.Once);
     }
 
     // Save refuses a value without a name, so that value must still count as a change: closing has to ask.
@@ -433,7 +433,7 @@ public class ConnectionsWindowViewModelTests
         var schemas = new ConnectionSchemas(drivers, Path.Combine(Path.GetTempPath(), "Invoklet-unused-schemas"),
             new ConnectionTools { GetPackageFolderAsync = (_, _, _) => Task.FromResult("") }, _ => null);
         var store = new Mock<IConnectionStore>();
-        store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot([new RpadConnection { Name = "described", Driver = "described" }], null));
+        store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot([new MdRunConnection { Name = "described", Driver = "described" }], null));
         store.Setup(s => s.FilePath).Returns("/data/Invoklet/connections.json");
         var secrets = new Mock<ISecretStore>();
         secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([], null));
@@ -454,14 +454,14 @@ public class ConnectionsWindowViewModelTests
         public ConnectionCategory Category => ConnectionCategory.Database;
         public IReadOnlyList<ConnectionParam> Params => [];
         public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string>();
-        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
+        public IReadOnlyList<string> Validate(MdRunConnection connection) => [];
 
-        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken) =>
             Task.FromResult(new ConnectionTestResult(true, "Connected."));
 
-        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) => new("");
+        public ConnectionClientCode CreateClient(MdRunConnection connection, ConnectionCodeContext context) => new("");
 
-        public Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
+        public Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, ConnectionTools tools,
             CancellationToken cancellationToken) =>
             Task.FromException<ConnectionSchema>(new InvalidOperationException("No schema is offered."));
     }
@@ -492,7 +492,7 @@ public class ConnectionsWindowViewModelTests
             Mock.Of<ISecretStore>(secrets => secrets.LoadSnapshot() == new SecretStoreSnapshot(Array.Empty<Secret>(), null)));
         Assert.Contains("damaged", vm.LoadError);
         Assert.False(vm.Save());
-        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()), Times.Never);
+        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<MdRunConnection>>(), It.IsAny<string?>()), Times.Never);
     }
 
     [Fact]
@@ -541,11 +541,11 @@ public class ConnectionsWindowViewModelTests
     {
         var (vm, store, _) = CreateVm(null, Billing);
         vm.Connections[0].Name = "invoices";
-        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>())).Throws(new IOException());
+        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<MdRunConnection>>(), It.IsAny<string?>())).Throws(new IOException());
         Assert.False(vm.Save());
         Assert.True(vm.HasChanges);
 
-        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>())).Returns("saved");
+        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<MdRunConnection>>(), It.IsAny<string?>())).Returns("saved");
         Assert.True(vm.Save());
         Assert.False(vm.HasChanges);
     }

@@ -1,4 +1,4 @@
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 
 namespace Invoklet.Cli;
 
@@ -20,10 +20,10 @@ internal sealed record CliArguments
     /// after the script still replace it.</summary>
     public string? ArgumentSet { get; init; }
 
-    public RpadKind? Kind { get; init; }
+    public MdRunKind? Kind { get; init; }
 
     /// <summary>Set by the <c>VB…</c> values of <c>-lang</c>: the script must be Visual Basic.</summary>
-    public RpadLanguage? Language { get; init; }
+    public MdRunLanguage? Language { get; init; }
 
     public TargetSdk? TargetSdk { get; init; }
     public bool CompileOnly { get; init; }
@@ -178,20 +178,20 @@ internal sealed record CliArguments
         return false;
     }
 
-    private static (RpadKind Kind, RpadLanguage? Language)? ParseKind(string value)
+    private static (MdRunKind Kind, MdRunLanguage? Language)? ParseKind(string value)
     {
-        RpadLanguage? language = null;
+        MdRunLanguage? language = null;
         if (value.StartsWith("vb", StringComparison.OrdinalIgnoreCase) && value.Length > 2)
         {
-            language = RpadLanguage.Vb;
+            language = MdRunLanguage.Vb;
             value = value[2..];
         }
 
-        RpadKind? kind = value.ToLowerInvariant() switch
+        MdRunKind? kind = value.ToLowerInvariant() switch
         {
-            "s" or "statements" => RpadKind.Statements,
-            "p" or "program" => RpadKind.Program,
-            "e" or "expression" => RpadKind.Expression,
+            "s" or "statements" => MdRunKind.Statements,
+            "p" or "program" => MdRunKind.Program,
+            "e" or "expression" => MdRunKind.Expression,
             _ => null,
         };
         return kind is null ? null : (kind.Value, language);
@@ -203,10 +203,10 @@ internal sealed record CliArguments
     private static TargetSdk? ParseSdk(string value)
     {
         if (string.Equals(value, "latest", StringComparison.OrdinalIgnoreCase))
-            return Invoklet.Format.RPad.TargetSdk.Default;
+            return Invoklet.Format.MdRun.TargetSdk.Default;
         var version = value.StartsWith("net", StringComparison.OrdinalIgnoreCase) ? value[3..] : value;
         var parts = version.Split('.');
         if (parts.Length > 2 || !parts.All(p => p.Length > 0 && p.All(char.IsAsciiDigit))) return null;
-        return new Invoklet.Format.RPad.TargetSdk("net", parts.Length == 1 ? version + ".0" : version);
+        return new Invoklet.Format.MdRun.TargetSdk("net", parts.Length == 1 ? version + ".0" : version);
     }
 }

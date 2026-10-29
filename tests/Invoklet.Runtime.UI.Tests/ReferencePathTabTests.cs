@@ -7,7 +7,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
@@ -48,10 +48,10 @@ public class ReferencePathTabTests : IDisposable
         _library = Path.Combine(Directory.CreateDirectory(Path.Combine(_oldDir, "lib")).FullName, "Greeter.dll");
         File.WriteAllText(_library, "");
         _script = Path.Combine(_oldDir, "query.rpad");
-        var text = RpadWriter.NewFile("Console.WriteLine(1);\n", "Demo");
-        var document = RpadParser.TryParse(text)!;
+        var text = MdRunWriter.NewFile("Console.WriteLine(1);\n", "Demo");
+        var document = MdRunParser.TryParse(text)!;
         document.FrontMatter.References = [.. References];
-        File.WriteAllText(_script, RpadWriter.Write(document));
+        File.WriteAllText(_script, MdRunWriter.Write(document));
     }
 
     public void Dispose()
@@ -88,7 +88,7 @@ public class ReferencePathTabTests : IDisposable
         registry.Setup(r => r.Create(It.IsAny<string>(), It.IsAny<ExecutionRequest>()))
             .Callback<string, ExecutionRequest>((_, request) => _runRequest = request).Returns(host.Object);
 
-        var vm = new EditorTabItemViewModel(untitled ? null : _script, [Sdk], prefs.Object, shell, RpadLanguage.CSharp, RpadKind.Statements);
+        var vm = new EditorTabItemViewModel(untitled ? null : _script, [Sdk], prefs.Object, shell, MdRunLanguage.CSharp, MdRunKind.Statements);
         var buildCache = new Mock<IBuildCacheService>();
         var output = Path.Combine(_root, "build");
         buildCache.Setup(b => b.EnsureOutputDirectory(It.IsAny<string>(), It.IsAny<string>()))
@@ -101,7 +101,7 @@ public class ReferencePathTabTests : IDisposable
         return (ctrl, vm, shell, window);
     }
 
-    private static List<string> ReferencesIn(string path) => RpadParser.TryParse(File.ReadAllText(path))!.FrontMatter.References!;
+    private static List<string> ReferencesIn(string path) => MdRunParser.TryParse(File.ReadAllText(path))!.FrontMatter.References!;
 
     [AvaloniaFact]
     public async Task RunOptions_AndIntelliSense_Should_GetTheReferenceNextToTheScript()
@@ -146,10 +146,10 @@ public class ReferencePathTabTests : IDisposable
             Assert.Equal(expected, ReferencesIn(newScript));
             Assert.Equal(original, File.ReadAllBytes(_script));
             Assert.Equal(newScript, vm.FilePath);
-            Assert.Equal(expected, ctrl.State.RpadDocument!.FrontMatter.References);
+            Assert.Equal(expected, ctrl.State.MdRunDocument!.FrontMatter.References);
             Assert.False(vm.IsDirty);
             // Still the same file, now from the new folder.
-            Assert.Equal([_library, _library], ReferencePathResolver.Resolve(ctrl.State.RpadDocument.FrontMatter.References, vm.FilePath).Assemblies);
+            Assert.Equal([_library, _library], ReferencePathResolver.Resolve(ctrl.State.MdRunDocument.FrontMatter.References, vm.FilePath).Assemblies);
             await TestWait.EventuallyAsync(() => _intelliSense.Verify(s => s.UpdatePackageReferences(It.IsAny<IReadOnlyDictionary<string, Package>>(),
                 It.Is<PackageReferenceContext>(c => c.AssemblyReferences != null && c.AssemblyReferences.Count == 2)), Times.AtLeast(2)));
 
@@ -173,7 +173,7 @@ public class ReferencePathTabTests : IDisposable
             await vm.SaveAsCommand.Execute();
 
             Assert.Equal(_script, vm.FilePath);
-            Assert.Equal(References, ctrl.State.RpadDocument!.FrontMatter.References);
+            Assert.Equal(References, ctrl.State.MdRunDocument!.FrontMatter.References);
             Assert.True(vm.IsDirty);
             Assert.Equal(original, File.ReadAllBytes(_script));
         }
@@ -196,7 +196,7 @@ public class ReferencePathTabTests : IDisposable
 
             _windows.Verify(w => w.ShowErrorAsync("Save Failed", It.IsAny<string>()), Times.Once);
             Assert.Equal(_script, vm.FilePath);
-            Assert.Equal(References, ctrl.State.RpadDocument!.FrontMatter.References);
+            Assert.Equal(References, ctrl.State.MdRunDocument!.FrontMatter.References);
             Assert.True(vm.IsDirty);
         }
         finally { window.Close(); ctrl.Dispose(); }
@@ -218,7 +218,7 @@ public class ReferencePathTabTests : IDisposable
 
             Assert.Equal(changed, File.ReadAllBytes(_script));
             Assert.Equal(_script, vm.FilePath);
-            Assert.Equal(References, ctrl.State.RpadDocument!.FrontMatter.References);
+            Assert.Equal(References, ctrl.State.MdRunDocument!.FrontMatter.References);
             Assert.True(vm.IsDirty);
         }
         finally { window.Close(); ctrl.Dispose(); }
@@ -237,8 +237,8 @@ public class ReferencePathTabTests : IDisposable
         var (ctrl, vm, _, window) = Open(untitled: true);
         try
         {
-            ctrl.State.RpadDocument!.FrontMatter.References = ["lib/Greeter.dll", "$(CurrentQueryPath)/lib/Greeter.dll"];
-            Assert.Empty(ReferencePathResolver.Resolve(ctrl.State.RpadDocument.FrontMatter.References, vm.FilePath).Assemblies);
+            ctrl.State.MdRunDocument!.FrontMatter.References = ["lib/Greeter.dll", "$(CurrentQueryPath)/lib/Greeter.dll"];
+            Assert.Empty(ReferencePathResolver.Resolve(ctrl.State.MdRunDocument.FrontMatter.References, vm.FilePath).Assemblies);
             _windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(_script);
             calls.Clear();
 
@@ -268,7 +268,7 @@ public class ReferencePathTabTests : IDisposable
         var (ctrl, vm, _, window) = Open(untitled: true);
         try
         {
-            ctrl.State.RpadDocument!.FrontMatter.References = ["lib/Greeter.dll"];
+            ctrl.State.MdRunDocument!.FrontMatter.References = ["lib/Greeter.dll"];
             _windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync((string?)null);
             contexts.Clear();
 
@@ -277,7 +277,7 @@ public class ReferencePathTabTests : IDisposable
 
             Assert.Null(vm.FilePath);
             Assert.DoesNotContain(contexts, c => c.AssemblyReferences?.Count > 0);
-            Assert.Equal(["lib/Greeter.dll"], ctrl.State.RpadDocument.FrontMatter.References);
+            Assert.Equal(["lib/Greeter.dll"], ctrl.State.MdRunDocument.FrontMatter.References);
         }
         finally { window.Close(); ctrl.Dispose(); }
     }
@@ -294,7 +294,7 @@ public class ReferencePathTabTests : IDisposable
             var copy = Path.Combine(_oldDir, "query copy.rpad");
             Assert.Equal(References, ReferencesIn(copy));
             Assert.Equal(_script, vm.FilePath);
-            Assert.Equal(References, ctrl.State.RpadDocument!.FrontMatter.References);
+            Assert.Equal(References, ctrl.State.MdRunDocument!.FrontMatter.References);
         }
         finally { window.Close(); ctrl.Dispose(); }
     }
