@@ -123,7 +123,7 @@
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
-        <Setter Property="CornerRadius" Value="3"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Invoklet.Radius.Control}"/>
         <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
