@@ -67,7 +67,8 @@
             <RowDefinition Height="1"/>
             <RowDefinition Height="{Binding OutputPanel.Size, Mode=TwoWay}" MinHeight="0" MaxHeight="600"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="22"/>
+            <!-- The status strip: 24, as tall as the sidebar's section headers beside it. -->
+            <RowDefinition Height="24"/>
         </Grid.RowDefinitions>
 
         <!-- Row 0: Toolbar -->
