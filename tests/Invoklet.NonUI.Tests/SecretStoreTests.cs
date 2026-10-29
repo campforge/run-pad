@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using Invoklet.Build.Core.Models;
+using Invoklet.Build.Core.ProcessRunners;
 using Invoklet.Build.Core.Secrets;
 using Invoklet.Contracts.Models;
 using Invoklet.Format.MdRun;
@@ -125,7 +126,10 @@ public sealed class SecretStoreTests : IDisposable
         if (!new DotnetSdkProvider().Get().Any()) return;
         SaveSecrets([new Secret("api-token", "t0ken")]);
         var previous = Environment.GetEnvironmentVariable(FileSecretStore.FileEnvVar);
+        var previousInput = Environment.GetEnvironmentVariable(ChildProcess.InputEnvVar);
         Environment.SetEnvironmentVariable(FileSecretStore.FileEnvVar, StorePath);
+        // This test asserts the missing-secret exception; do not let the child wait for UI input.
+        Environment.SetEnvironmentVariable(ChildProcess.InputEnvVar, "0");
         try
         {
             var outputDir = Path.Combine(_folder, "build");
@@ -159,7 +163,11 @@ public sealed class SecretStoreTests : IDisposable
             Assert.Contains("t0ken", output);
             Assert.Contains(output, line => line.Contains("'missing'", StringComparison.Ordinal));
         }
-        finally { Environment.SetEnvironmentVariable(FileSecretStore.FileEnvVar, previous); }
+        finally
+        {
+            Environment.SetEnvironmentVariable(FileSecretStore.FileEnvVar, previous);
+            Environment.SetEnvironmentVariable(ChildProcess.InputEnvVar, previousInput);
+        }
     }
 
     [Theory]
