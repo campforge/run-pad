@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace Invoklet.Format.RPad.Tests;
+namespace Invoklet.Format.MdRun.Tests;
 
 // Reference spelling, judged from the text alone and the same on every host: Windows drive and
 // network paths are recognised in either spelling and written with '/'; on a Unix host a backslash
@@ -58,13 +58,13 @@ public sealed class ReferencePathTests
     [InlineData("It's/日本語 dir/🌍.dll", false, "It's/日本語 dir/🌍.dll")]
     public void Writing_Should_SaveTheCanonicalSpelling_AndStayStableAcrossSaves(string reference, bool windowsPaths, string expected)
     {
-        var parsed = RpadParser.Parse("---\nlanguage: csharp\nreferences:\n  - " + System.Text.Json.JsonSerializer.Serialize(reference) + "\n---\n```csharp run\n1.Dump();\n```\n");
+        var parsed = MdRunParser.Parse("---\nlanguage: csharp\nreferences:\n  - " + System.Text.Json.JsonSerializer.Serialize(reference) + "\n---\n```csharp run\n1.Dump();\n```\n");
         Assert.True(parsed.IsSuccess, parsed.Error);
         var document = parsed.Document!;
 
-        var first = RpadWriter.Write(document, windowsPaths);
-        var reread = RpadParser.Parse(first).Document!;
-        var second = RpadWriter.Write(reread, windowsPaths);
+        var first = MdRunWriter.Write(document, windowsPaths);
+        var reread = MdRunParser.Parse(first).Document!;
+        var second = MdRunWriter.Write(reread, windowsPaths);
 
         Assert.Equal(expected, Assert.Single(reread.FrontMatter.References!));
         Assert.Equal(first, second);

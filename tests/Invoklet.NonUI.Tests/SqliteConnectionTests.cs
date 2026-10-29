@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using Invoklet.Connectors.Sqlite;
 using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Languages.DotnetCommon;
@@ -44,13 +44,13 @@ public sealed class SqliteConnectionTests : IDisposable
 
     private string DatabasePath => Path.Combine(ScriptDirectory, "data", "shop.db");
 
-    private static RpadConnection Shop(string file = "data/shop.db", string? readOnly = null) => new()
+    private static MdRunConnection Shop(string file = "data/shop.db", string? readOnly = null) => new()
     {
         Name = "shop",
         Driver = "sqlite",
         Params = readOnly is null
-            ? new(StringComparer.Ordinal) { ["file"] = RpadValue.Of(file) }
-            : new(StringComparer.Ordinal) { ["file"] = RpadValue.Of(file), ["readOnly"] = RpadValue.Of(readOnly) },
+            ? new(StringComparer.Ordinal) { ["file"] = MdRunValue.Of(file) }
+            : new(StringComparer.Ordinal) { ["file"] = MdRunValue.Of(file), ["readOnly"] = MdRunValue.Of(readOnly) },
     };
 
     private ConnectionSchemas Schemas()
@@ -60,7 +60,7 @@ public sealed class SqliteConnectionTests : IDisposable
         return new ConnectionSchemas(drivers, Path.Combine(_folder, "schemas"), DotnetConnectionTools.Default, _ => null);
     }
 
-    private static Dictionary<string, RpadValue> Resolved(RpadConnection connection) =>
+    private static Dictionary<string, MdRunValue> Resolved(MdRunConnection connection) =>
         ConnectionPlaceholderResolver.Resolve(connection.Params, _ => null, _ => null).Params.ToDictionary();
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class SqliteConnectionTests : IDisposable
     {
         var driver = new SqliteConnectionDriver();
         Assert.Empty(driver.Validate(Shop()));
-        Assert.Equal(["The database file is missing."], driver.Validate(new RpadConnection { Name = "a", Driver = "sqlite" }));
+        Assert.Equal(["The database file is missing."], driver.Validate(new MdRunConnection { Name = "a", Driver = "sqlite" }));
         Assert.Equal(
             ["An in-memory database has no tables to read: give a database file.", "Read only must be true or false, not 'yes'."],
             driver.Validate(Shop(":memory:", "yes")));
@@ -141,7 +141,7 @@ public sealed class SqliteConnectionTests : IDisposable
         Assert.Null(schemas.Cache.Get(connection, _folder));
 
         var packages = new SqliteConnectionDriver().Packages;
-        var generated = GeneratedConnections.For([connection], RpadLanguage.CSharp, packages.Keys, schemas.Drivers, schemas.Cache, ScriptDirectory)!;
+        var generated = GeneratedConnections.For([connection], MdRunLanguage.CSharp, packages.Keys, schemas.Drivers, schemas.Cache, ScriptDirectory)!;
         Assert.Empty(generated.Errors);
         Assert.Contains("public global::Microsoft.EntityFrameworkCore.DbSet<Customer> Customers => Set<Customer>();", generated.Source);
         Assert.Contains("e.HasKey(x => new { x.OrderId, x.Line });", generated.Source);
@@ -206,12 +206,12 @@ public sealed class SqliteConnectionTests : IDisposable
         var reason = $"The database file {Path.Combine(ScriptDirectory, "data", "missing.db")} doesn't exist.";
         var packages = new SqliteConnectionDriver().Packages.Keys;
         Assert.Equal([$"Connection 'shop': its description couldn't be read: {reason}"],
-            GeneratedConnections.For([connection], RpadLanguage.CSharp, packages, schemas.Drivers, schemas.Cache, ScriptDirectory)!.Errors);
+            GeneratedConnections.For([connection], MdRunLanguage.CSharp, packages, schemas.Drivers, schemas.Cache, ScriptDirectory)!.Errors);
 
         var tab = new ScriptConnectionsViewModel(null, null, schemas.Drivers, schemas);
         tab.UsePackages(() => new HashSet<string>(packages, StringComparer.OrdinalIgnoreCase), (_, _) => { });
         tab.SetScriptPath(Path.Combine(ScriptDirectory, "shop.rpad"));
-        tab.Load(new RpadFrontMatter { Connections = [connection] });
+        tab.Load(new MdRunFrontMatter { Connections = [connection] });
         Assert.Equal($"Its description couldn't be read: {reason}", Assert.Single(tab.Items).Problem);
     }
 
@@ -288,7 +288,7 @@ public sealed class SqliteConnectionTests : IDisposable
         var connection = Shop();
         var schemas = Schemas();
         await schemas.EnsureAsync([connection], ScriptDirectory, ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken);
-        var generated = GeneratedConnections.For([connection], RpadLanguage.CSharp, new SqliteConnectionDriver().Packages.Keys,
+        var generated = GeneratedConnections.For([connection], MdRunLanguage.CSharp, new SqliteConnectionDriver().Packages.Keys,
             schemas.Drivers, schemas.Cache, ScriptDirectory)!;
         Assert.Empty(generated.Errors);
         Assert.DoesNotContain(generated.Source, c => c is (char)0x85 or (char)0x2028 or (char)0x2029);
@@ -326,7 +326,7 @@ public sealed class SqliteConnectionTests : IDisposable
         var schemas = Schemas();
         await schemas.EnsureAsync([connection], ScriptDirectory, ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken);
         var packages = new SqliteConnectionDriver().Packages;
-        var generated = GeneratedConnections.For([connection], RpadLanguage.CSharp, packages.Keys, schemas.Drivers, schemas.Cache, ScriptDirectory)!;
+        var generated = GeneratedConnections.For([connection], MdRunLanguage.CSharp, packages.Keys, schemas.Drivers, schemas.Cache, ScriptDirectory)!;
         Assert.Empty(generated.Errors);
         var outputDir = Path.Combine(_folder, "regression-build");
         Directory.CreateDirectory(outputDir);

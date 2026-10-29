@@ -6,7 +6,7 @@ using Invoklet.Contracts;
 using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -33,20 +33,20 @@ public sealed class EditorTabConnectionSchemaChangeTests : IDisposable
         public ConnectionCategory Category => ConnectionCategory.Grpc;
         public IReadOnlyList<ConnectionParam> Params { get; } = [];
         public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string>();
-        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
-        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+        public IReadOnlyList<string> Validate(MdRunConnection connection) => [];
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken) =>
             Task.FromResult(new ConnectionTestResult(true, ""));
-        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) =>
+        public ConnectionClientCode CreateClient(MdRunConnection connection, ConnectionCodeContext context) =>
             new($"public sealed class {context.ClassName} {{ }}");
-        public Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
+        public Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, ConnectionTools tools,
             CancellationToken cancellationToken) => Task.FromResult(new ConnectionSchema("1 service", [], ""));
     }
 
-    private static RpadConnection Described(string address) => new()
+    private static MdRunConnection Described(string address) => new()
     {
         Name = "stock",
         Driver = "described",
-        Params = new(StringComparer.Ordinal) { ["address"] = RpadValue.Of(address) },
+        Params = new(StringComparer.Ordinal) { ["address"] = MdRunValue.Of(address) },
     };
 
     [AvaloniaFact]
@@ -73,7 +73,7 @@ public sealed class EditorTabConnectionSchemaChangeTests : IDisposable
             new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
         var intelliSense = new Mock<IIntelliSenseService>();
         var vm = new EditorTabItemViewModel(
-            null, [], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
+            null, [], prefs.Object, new Mock<IEditorTabActions>().Object, MdRunLanguage.CSharp, MdRunKind.Statements);
         var tab = new EditorsTabItemControl(vm, theme.Object, new Mock<IWindowService>().Object,
             new Mock<ILanguageHostRegistry>().Object, prefs.Object, intelliSense.Object, new Mock<IBuildCacheService>().Object,
             connectionDrivers: drivers, connectionSchemas: schemas);
@@ -81,7 +81,7 @@ public sealed class EditorTabConnectionSchemaChangeTests : IDisposable
         host.Show();
         try
         {
-            tab.State.RpadDocument = new RpadDocument { FrontMatter = new RpadFrontMatter { Connections = [listed] }, RunCode = "" };
+            tab.State.MdRunDocument = new MdRunDocument { FrontMatter = new MdRunFrontMatter { Connections = [listed] }, RunCode = "" };
             // The refresh the new document starts has landed before the test counts.
             await TestWait.WhileAsync(() => intelliSense.Invocations.All(i => i.Method.Name != nameof(IIntelliSenseService.NotifyTextChanged)));
             await TestWait.WhileAsync(() => intelliSense.Invocations.All(i => i.Method.Name != nameof(IIntelliSenseService.ApplyExecutionContext)));

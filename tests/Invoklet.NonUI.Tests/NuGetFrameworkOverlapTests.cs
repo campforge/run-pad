@@ -1,7 +1,7 @@
 using System.IO.Compression;
 using Invoklet.Build.Core.Models;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.Compiler;
 using Invoklet.Languages.CSharp.IntelliSense;
@@ -99,7 +99,7 @@ public sealed class NuGetFrameworkOverlapTests : IAsyncDisposable
         },
         OutputDirectory = output,
         RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
-        Kind = RpadKind.Statements,
+        Kind = MdRunKind.Statements,
         Packages = new Dictionary<string, string> { ["Feed.App"] = "1.0.0" },
         NuGetConfigFile = _config,
     };

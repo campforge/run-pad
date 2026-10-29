@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Text.Json;
 using Invoklet.Contracts.Connections;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services.Connections;
 using Invoklet.Services.Secrets;
 using Invoklet.Shared;
@@ -125,7 +125,7 @@ public sealed class ConnectionFieldViewModel : ReactiveObject
     public ReactiveCommand<Unit, Unit> AddRowCommand { get; }
     public ReactiveCommand<ConnectionMapRowViewModel, Unit> RemoveRowCommand { get; }
 
-    internal ConnectionFieldViewModel(ConnectionParam param, RpadValue? value, IReadOnlyList<string> secretNames)
+    internal ConnectionFieldViewModel(ConnectionParam param, MdRunValue? value, IReadOnlyList<string> secretNames)
     {
         Param = param;
         SecretNames = secretNames;
@@ -178,17 +178,17 @@ public sealed class ConnectionFieldViewModel : ReactiveObject
     }
 
     // Null for nothing set (and for a switch left at its default), so the parameter isn't written.
-    internal RpadValue? ToValue() => Param.Type switch
+    internal MdRunValue? ToValue() => Param.Type switch
     {
         ConnectionParamType.Boolean => BooleanValue == string.Equals(Param.Default, "true", StringComparison.OrdinalIgnoreCase)
-            ? null : RpadValue.Of(BooleanValue ? "true" : "false"),
+            ? null : MdRunValue.Of(BooleanValue ? "true" : "false"),
         ConnectionParamType.Map => Rows.Any(r => r.Name.Trim().Length > 0)
-            ? RpadValue.Map(Rows.Where(r => r.Name.Trim().Length > 0).GroupBy(r => r.Name.Trim(), StringComparer.OrdinalIgnoreCase).Select(g => KeyValuePair.Create(g.First().Name.Trim(), RpadValue.Of(g.First().Value))))
+            ? MdRunValue.Map(Rows.Where(r => r.Name.Trim().Length > 0).GroupBy(r => r.Name.Trim(), StringComparer.OrdinalIgnoreCase).Select(g => KeyValuePair.Create(g.First().Name.Trim(), MdRunValue.Of(g.First().Value))))
             : null,
         ConnectionParamType.List => Text.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToList() is { Count: > 0 } items
-            ? RpadValue.List(items.Select(RpadValue.Of))
+            ? MdRunValue.List(items.Select(MdRunValue.Of))
             : null,
-        _ => Text.Trim().Length > 0 ? RpadValue.Of(Text.Trim()) : null,
+        _ => Text.Trim().Length > 0 ? MdRunValue.Of(Text.Trim()) : null,
     };
 }
 
@@ -197,8 +197,8 @@ public sealed class ConnectionFieldViewModel : ReactiveObject
 // unchanged and written back.
 public sealed class ConnectionItemViewModel : ReactiveObject
 {
-    private readonly Dictionary<string, RpadValue> _otherParams;
-    private readonly Dictionary<string, RpadValue>? _extra;
+    private readonly Dictionary<string, MdRunValue> _otherParams;
+    private readonly Dictionary<string, MdRunValue>? _extra;
 
     internal event Action? Edited;
 
@@ -257,7 +257,7 @@ public sealed class ConnectionItemViewModel : ReactiveObject
     // about parameters no longer shown.
     internal int EditCount { get; private set; }
 
-    internal ConnectionItemViewModel(RpadConnection connection, IConnectionDriver? driver, IReadOnlyList<string> secretNames)
+    internal ConnectionItemViewModel(MdRunConnection connection, IConnectionDriver? driver, IReadOnlyList<string> secretNames)
     {
         Name = connection.Name;
         DriverId = connection.Driver;
@@ -286,20 +286,20 @@ public sealed class ConnectionItemViewModel : ReactiveObject
     private void UpdateProblems()
     {
         var connection = ToConnection();
-        var placeholders = connection.Params.SelectMany(p => p.Value.Texts().Select(t => (p.Key, RpadPlaceholders.Parse(t).Error)))
+        var placeholders = connection.Params.SelectMany(p => p.Value.Texts().Select(t => (p.Key, MdRunPlaceholders.Parse(t).Error)))
             .Where(p => p.Error is not null).Select(p => $"{p.Key}: {p.Error}");
         var problems = Fields.Select(f => f.MapError).OfType<string>().Concat(placeholders).Concat(Driver?.Validate(connection) ?? []).ToList();
         Problems = problems.Count == 0 ? null : string.Join("\n", problems);
     }
 
     // Driver parameters in the driver's order, then the ones it doesn't define.
-    internal RpadConnection ToConnection()
+    internal MdRunConnection ToConnection()
     {
-        var parameters = new Dictionary<string, RpadValue>(StringComparer.Ordinal);
+        var parameters = new Dictionary<string, MdRunValue>(StringComparer.Ordinal);
         foreach (var param in Driver?.Params ?? [])
             if (Fields.First(f => f.Param.Key == param.Key).ToValue() is { } value) parameters[param.Key] = value;
         foreach (var (key, value) in _otherParams) parameters[key] = value;
-        return new RpadConnection { Name = Name.Trim(), Driver = DriverId, Params = parameters, Extra = _extra };
+        return new MdRunConnection { Name = Name.Trim(), Driver = DriverId, Params = parameters, Extra = _extra };
     }
 }
 
@@ -495,7 +495,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
     // Renamed connections keep their group and removed ones are forgotten. Assignments are rebuilt
     // from the groups read before saving, so swapping two names doesn't swap their groups. The list
     // itself is already saved, so a failure here only loses the organization change.
-    private void SaveGrouping(IReadOnlyList<RpadConnection> connections, IReadOnlyList<string> groups)
+    private void SaveGrouping(IReadOnlyList<MdRunConnection> connections, IReadOnlyList<string> groups)
     {
         Grouping.Retain([]);
         for (var i = 0; i < connections.Count; i++) Grouping.MoveConnection(connections[i].Name, groups[i]);
@@ -509,7 +509,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { return []; }
     }
 
-    private ConnectionItemViewModel Add(RpadConnection connection)
+    private ConnectionItemViewModel Add(MdRunConnection connection)
     {
         var item = new ConnectionItemViewModel(connection, _drivers.Find(connection.Driver), _secretNames);
         item.Edited += OnConnectionEdited;
@@ -522,7 +522,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
         var name = driver.Id;
         for (var i = 2; Connections.Any(c => string.Equals(c.Name.Trim(), name, StringComparison.OrdinalIgnoreCase)); i++)
             name = $"{driver.Id}{i}";
-        SelectedConnection = Add(new RpadConnection { Name = name, Driver = driver.Id });
+        SelectedConnection = Add(new MdRunConnection { Name = name, Driver = driver.Id });
         Validate();
     }
 
@@ -803,7 +803,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
     {
         UpdateHasChanges();
         this.RaisePropertyChanged(nameof(CanTest));
-        var errors = RpadConnection.Validate(Connections.Select(c => new RpadConnection { Name = c.Name.Trim(), Driver = c.DriverId }));
+        var errors = MdRunConnection.Validate(Connections.Select(c => new MdRunConnection { Name = c.Name.Trim(), Driver = c.DriverId }));
         ValidationError = errors.FirstOrDefault() ?? Connections.SelectMany(c => c.Fields).Select(f => f.MapError).FirstOrDefault(e => e is not null);
     }
 

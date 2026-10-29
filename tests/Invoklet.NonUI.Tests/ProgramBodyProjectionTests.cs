@@ -19,7 +19,7 @@ public class ProgramBodyProjectionTests
             Assert.Equal(offset, projection.ToOriginal(projection.ToProjected(offset)));
         Assert.Equal(Code.Count(c => c == '\n'), projection.Text.Count(c => c == '\n'));
         Assert.Equal(Code.Count(c => c == '\r'), projection.Text.Count(c => c == '\r'));
-        Assert.Equal(2, RpadKindTransform.ProgramLineOffset(Code, Options));
+        Assert.Equal(2, MdRunKindTransform.ProgramLineOffset(Code, Options));
     }
 
     [Fact]
@@ -27,8 +27,8 @@ public class ProgramBodyProjectionTests
     {
         var projection = ProgramBodyProjection.Create(Code, Options);
         var changed = projection.Text.Replace("n * 2", "n * 3", StringComparison.Ordinal);
-        var restored = projection.RestoreEdit(changed, [], RpadKindTransform.ProgramPrefixFor(Code, Options),
-            RpadKindTransform.ProgramSuffixFor(Code, Options), Options);
+        var restored = projection.RestoreEdit(changed, [], MdRunKindTransform.ProgramPrefixFor(Code, Options),
+            MdRunKindTransform.ProgramSuffixFor(Code, Options), Options);
         Assert.NotNull(restored);
         Assert.Equal(Code.Replace("n * 2", "n * 3", StringComparison.Ordinal), restored.Value.Code);
         var span = Assert.Single(restored.Value.ChangedSpans);
@@ -40,8 +40,8 @@ public class ProgramBodyProjectionTests
     {
         var projection = ProgramBodyProjection.Create(Code, Options);
         var changed = projection.Text.Replace("partial class __InvokletProgram", "partial class Changed", StringComparison.Ordinal);
-        Assert.Null(projection.RestoreEdit(changed, [], RpadKindTransform.ProgramPrefixFor(Code, Options),
-            RpadKindTransform.ProgramSuffixFor(Code, Options), Options));
+        Assert.Null(projection.RestoreEdit(changed, [], MdRunKindTransform.ProgramPrefixFor(Code, Options),
+            MdRunKindTransform.ProgramSuffixFor(Code, Options), Options));
     }
 
     [Fact]
@@ -54,8 +54,8 @@ public class ProgramBodyProjectionTests
         Assert.Contains("}static class Helpers {}partial class", text, StringComparison.Ordinal);
         Assert.Contains("}static class Extensions", text, StringComparison.Ordinal);
         Assert.Contains("}namespace Tools", text, StringComparison.Ordinal);
-        Assert.StartsWith("using static " + RpadKindTransform.ProgramWrapperClassName + ";",
-            RpadKindTransform.ProgramPrefixFor(code, Options), StringComparison.Ordinal);
+        Assert.StartsWith("using static " + MdRunKindTransform.ProgramWrapperClassName + ";",
+            MdRunKindTransform.ProgramPrefixFor(code, Options), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -78,8 +78,8 @@ public class ProgramBodyProjectionTests
         Assert.Equal(new string(' ', "using System;".Length) + "\n" + new string(' ', "using System.Linq;".Length) + "\n\nvoid Main()",
             projection.Text[..("using System;".Length + 1 + "using System.Linq;".Length + 1 + 1 + "void Main()".Length)]);
 
-        var prefix = RpadKindTransform.ProgramPrefixFor(code, Options);
-        var suffix = RpadKindTransform.ProgramSuffixFor(code, Options);
+        var prefix = MdRunKindTransform.ProgramPrefixFor(code, Options);
+        var suffix = MdRunKindTransform.ProgramSuffixFor(code, Options);
         var compiled = prefix + projection.Text + suffix;
         Assert.StartsWith("using System;\nusing System.Linq;", compiled, StringComparison.Ordinal);
         var tree = CSharpSyntaxTree.ParseText(compiled, Options, cancellationToken: TestContext.Current.CancellationToken);
@@ -87,7 +87,7 @@ public class ProgramBodyProjectionTests
 
         // 2 lines for the call statement's own class header/brace, plus 1 for the embedded '\n'
         // between the two hoisted using directives.
-        Assert.Equal(3, RpadKindTransform.ProgramLineOffset(code, Options));
+        Assert.Equal(3, MdRunKindTransform.ProgramLineOffset(code, Options));
 
         for (var offset = 0; offset <= code.Length; offset++)
             Assert.Equal(offset, projection.ToOriginal(projection.ToProjected(offset)));
@@ -113,8 +113,8 @@ public class ProgramBodyProjectionTests
         // after the editor's snippet caret (${0}) is accepted and left empty.
         const string code = "using System;\n\nvoid Main()\n{\n    \n}\n\n// Other methods, fields and types used by Main go here.\n";
         var projection = ProgramBodyProjection.Create(code, Options);
-        var prefix = RpadKindTransform.ProgramPrefixFor(code, Options);
-        var suffix = RpadKindTransform.ProgramSuffixFor(code, Options);
+        var prefix = MdRunKindTransform.ProgramPrefixFor(code, Options);
+        var suffix = MdRunKindTransform.ProgramSuffixFor(code, Options);
         var compiled = prefix + projection.Text + suffix;
         var tree = CSharpSyntaxTree.ParseText(compiled, Options, cancellationToken: TestContext.Current.CancellationToken);
         Assert.DoesNotContain(tree.GetDiagnostics(TestContext.Current.CancellationToken), d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
@@ -125,7 +125,7 @@ public class ProgramBodyProjectionTests
     {
         const string code = "void Main() {}\n";
         Assert.Equal("", ProgramBodyProjection.Create(code, Options).LeadingDirectives);
-        Assert.Equal(2, RpadKindTransform.ProgramLineOffset(code, Options));
+        Assert.Equal(2, MdRunKindTransform.ProgramLineOffset(code, Options));
     }
 
     [Fact]
@@ -143,15 +143,15 @@ public class ProgramBodyProjectionTests
         Assert.DoesNotContain("#endif", projection.Text, StringComparison.Ordinal);
         Assert.Equal(code.Count(c => c == '\n'), projection.Text.Count(c => c == '\n'));
 
-        var prefix = RpadKindTransform.ProgramPrefixFor(code, Options);
-        var suffix = RpadKindTransform.ProgramSuffixFor(code, Options);
+        var prefix = MdRunKindTransform.ProgramPrefixFor(code, Options);
+        var suffix = MdRunKindTransform.ProgramSuffixFor(code, Options);
         var compiled = prefix + projection.Text + suffix;
         var tree = CSharpSyntaxTree.ParseText(compiled, Options, cancellationToken: TestContext.Current.CancellationToken);
         Assert.DoesNotContain(tree.GetDiagnostics(TestContext.Current.CancellationToken), d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
 
         // 2 lines for the class header/brace, 3 for the embedded '\n's inside the hoisted block, plus
         // 1 more because the block ends in '#endif' and so can't share the call statement's line.
-        Assert.Equal(6, RpadKindTransform.ProgramLineOffset(code, Options));
+        Assert.Equal(6, MdRunKindTransform.ProgramLineOffset(code, Options));
 
         for (var offset = 0; offset <= code.Length; offset++)
             Assert.Equal(offset, projection.ToOriginal(projection.ToProjected(offset)));
@@ -168,15 +168,15 @@ public class ProgramBodyProjectionTests
         Assert.DoesNotContain('#', projection.Text);
         Assert.Equal(code.Count(c => c == '\n'), projection.Text.Count(c => c == '\n'));
 
-        var prefix = RpadKindTransform.ProgramPrefixFor(code, Options);
-        var suffix = RpadKindTransform.ProgramSuffixFor(code, Options);
+        var prefix = MdRunKindTransform.ProgramPrefixFor(code, Options);
+        var suffix = MdRunKindTransform.ProgramSuffixFor(code, Options);
         var compiled = prefix + projection.Text + suffix;
         var tree = CSharpSyntaxTree.ParseText(compiled, Options, cancellationToken: TestContext.Current.CancellationToken);
         Assert.DoesNotContain(tree.GetDiagnostics(TestContext.Current.CancellationToken), d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
 
         // 2 for the class header/brace, 5 for the embedded '\n's inside the hoisted block, plus 1
         // more because the block ends in '#endif' and so can't share the call statement's line.
-        Assert.Equal(8, RpadKindTransform.ProgramLineOffset(code, Options));
+        Assert.Equal(8, MdRunKindTransform.ProgramLineOffset(code, Options));
 
         for (var offset = 0; offset <= code.Length; offset++)
             Assert.Equal(offset, projection.ToOriginal(projection.ToProjected(offset)));
@@ -195,8 +195,8 @@ public class ProgramBodyProjectionTests
         Assert.DoesNotContain('#', projection.Text);
         Assert.Equal(code.Count(c => c == '\n'), projection.Text.Count(c => c == '\n'));
 
-        var prefix = RpadKindTransform.ProgramPrefixFor(code, Options);
-        var suffix = RpadKindTransform.ProgramSuffixFor(code, Options);
+        var prefix = MdRunKindTransform.ProgramPrefixFor(code, Options);
+        var suffix = MdRunKindTransform.ProgramSuffixFor(code, Options);
         var compiled = prefix + projection.Text + suffix;
         Assert.DoesNotContain("// imports\nvoid", compiled, StringComparison.Ordinal);
         var tree = CSharpSyntaxTree.ParseText(compiled, Options, cancellationToken: TestContext.Current.CancellationToken);
@@ -204,7 +204,7 @@ public class ProgramBodyProjectionTests
 
         // 2 for the class header/brace, 3 for the embedded '\n's inside the hoisted block, plus 1
         // more because the block ends in '#endif // imports' and so can't share the call statement's line.
-        Assert.Equal(6, RpadKindTransform.ProgramLineOffset(code, Options));
+        Assert.Equal(6, MdRunKindTransform.ProgramLineOffset(code, Options));
 
         for (var offset = 0; offset <= code.Length; offset++)
             Assert.Equal(offset, projection.ToOriginal(projection.ToProjected(offset)));
@@ -222,13 +222,13 @@ public class ProgramBodyProjectionTests
         Assert.DoesNotContain('#', projection.Text);
         Assert.Equal(code.Count(c => c == '\n'), projection.Text.Count(c => c == '\n'));
 
-        var prefix = RpadKindTransform.ProgramPrefixFor(code, Options);
-        var suffix = RpadKindTransform.ProgramSuffixFor(code, Options);
+        var prefix = MdRunKindTransform.ProgramPrefixFor(code, Options);
+        var suffix = MdRunKindTransform.ProgramSuffixFor(code, Options);
         var compiled = prefix + projection.Text + suffix;
         var tree = CSharpSyntaxTree.ParseText(compiled, Options, cancellationToken: TestContext.Current.CancellationToken);
         Assert.DoesNotContain(tree.GetDiagnostics(TestContext.Current.CancellationToken), d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
 
-        Assert.Equal(6, RpadKindTransform.ProgramLineOffset(code, Options));
+        Assert.Equal(6, MdRunKindTransform.ProgramLineOffset(code, Options));
 
         for (var offset = 0; offset <= code.Length; offset++)
             Assert.Equal(offset, projection.ToOriginal(projection.ToProjected(offset)));

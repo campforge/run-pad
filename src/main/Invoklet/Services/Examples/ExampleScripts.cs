@@ -1,5 +1,5 @@
 using System.Reflection;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 
 namespace Invoklet.Services.Examples;
 
@@ -8,7 +8,7 @@ namespace Invoklet.Services.Examples;
 /// <param name="Title">The document's first Markdown heading, else a name made from the file name.</param>
 /// <param name="Text">The whole .rpad document, front matter and Markdown included.</param>
 /// <param name="Folder">Its folder under Examples, e.g. "getting-started"; empty at the top.</param>
-public sealed record ExampleScript(string Id, string Title, string Text, RpadLanguage Language, RpadKind Kind, string Folder = "")
+public sealed record ExampleScript(string Id, string Title, string Text, MdRunLanguage Language, MdRunKind Kind, string Folder = "")
 {
     /// <summary>The folder's name as the Samples tree shows it: "getting-started" → "Getting started".</summary>
     public static string FolderTitle(string folder)
@@ -62,7 +62,7 @@ public static class ExampleScripts
                 if (stream is null) continue;
                 using var reader = new StreamReader(stream);
                 var text = reader.ReadToEnd();
-                if (RpadParser.TryParse(text) is not { } document) continue; // not a valid script: left out
+                if (MdRunParser.TryParse(text) is not { } document) continue; // not a valid script: left out
                 result.Add(new ExampleScript(id, TitleOf(text, id), text,
                     document.FrontMatter.Language, document.FrontMatter.Kind, folder));
             }

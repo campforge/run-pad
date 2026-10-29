@@ -1,6 +1,6 @@
 using Invoklet.Build.Core.Models;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -8,7 +8,7 @@ using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;
 
-// CalcKindOffset() returned 2 for RpadKind.Program, but ApplyKindTransform's
+// CalcKindOffset() returned 2 for MdRunKind.Program, but ApplyKindTransform's
 // Program branch ("Main();{code}", no newline) glued onto the same physical line as the user's first
 // line — structurally zero new lines, same as Statements' passthrough — which misaligned every
 // breakpoint/stack frame in Program-kind scripts by exactly the erroneous offset.
@@ -18,7 +18,7 @@ namespace Invoklet.Runtime.UI.Tests;
 // more than just Main (fields declared below Main became CS0165 "unassigned", methods with an access
 // modifier became CS0106 "not valid for this item" — LINQPad-style scripts, the norm for this kind, hit
 // both routinely). ApplyKindTransform's Program branch now wraps the user's code in a real class
-// instead (RpadKindTransform.ProgramPrefixFor/ProgramSuffixFor) — field initializers become constructor
+// instead (MdRunKindTransform.ProgramPrefixFor/ProgramSuffixFor) — field initializers become constructor
 // prologue (always runs before any instance method call, regardless of textual order) and ordinary
 // access modifiers are exactly what class members expect. That shape needs 2 lines of offset (the
 // wrapper class's header + opening brace), not 0 — CalcKindOffset changed accordingly. A real
@@ -37,7 +37,7 @@ public class CSharpLanguageHostKindTransformTests
     // CSharpLanguageHost only implements IAsyncDisposable (see LanguageHostBase) — nothing here starts
     // a process or opens a handle (only Directory.CreateDirectory in the ctor for OutputDirectory), so
     // these tests don't bother disposing; the temp directory is cleaned up explicitly instead.
-    private static CSharpLanguageHost CreateHost(RpadKind kind, out string outputDir, IReadOnlyList<string>? usings = null)
+    private static CSharpLanguageHost CreateHost(MdRunKind kind, out string outputDir, IReadOnlyList<string>? usings = null)
     {
         outputDir = Path.Combine(Path.GetTempPath(), "Invoklet-tests-" + Guid.NewGuid());
         var options = new CompiledDotnetLanguageHostOptions
@@ -57,7 +57,7 @@ public class CSharpLanguageHostKindTransformTests
         return new CSharpLanguageHost(options, NullLoggerFactory.Instance);
     }
 
-    private const string WrapperClass = RpadKindTransform.ProgramWrapperClassName;
+    private const string WrapperClass = MdRunKindTransform.ProgramWrapperClassName;
     private const string TrampolineCall = $"{WrapperClass}.__InvokletRun(args)";
 
     // The trampoline takes the top-level `args`; an int-returning Main's result is returned from the
@@ -81,9 +81,9 @@ public class CSharpLanguageHostKindTransformTests
     }
 
     [Theory]
-    [InlineData(RpadKind.Statements, "int x = 1;", "int x = 1;")]
-    [InlineData(RpadKind.Expression, "1 + 1", "(\n1 + 1\n).Dump();\n")]
-    public void ApplyKindTransform_Should_ProduceExpectedText(RpadKind kind, string code, string expected)
+    [InlineData(MdRunKind.Statements, "int x = 1;", "int x = 1;")]
+    [InlineData(MdRunKind.Expression, "1 + 1", "(\n1 + 1\n).Dump();\n")]
+    public void ApplyKindTransform_Should_ProduceExpectedText(MdRunKind kind, string code, string expected)
     {
         var host = CreateHost(kind, out var outputDir);
         try
@@ -96,7 +96,7 @@ public class CSharpLanguageHostKindTransformTests
     [Fact]
     public void ApplyKindTransform_Should_WrapProgramCodeInAClass_WithACallGluedOntoTheFirstLine()
     {
-        var host = CreateHost(RpadKind.Program, out var outputDir);
+        var host = CreateHost(MdRunKind.Program, out var outputDir);
         try
         {
             const string code = "void Main() { }";
@@ -118,7 +118,7 @@ public class CSharpLanguageHostKindTransformTests
             + "private string? GetResolution(string fileName)\n{\n"
             + "    return regexp.Matches(fileName).Cast<Match>().ToList().FirstOrDefault()?.Groups[\"resolution\"].Value;\n}\n";
 
-        var host = CreateHost(RpadKind.Program, out var outputDir);
+        var host = CreateHost(MdRunKind.Program, out var outputDir);
         try
         {
             var transformed = host.ApplyKindTransform(code);
@@ -133,10 +133,10 @@ public class CSharpLanguageHostKindTransformTests
     }
 
     [Theory]
-    [InlineData(RpadKind.Statements, 0)]
-    [InlineData(RpadKind.Program, 2)]
-    [InlineData(RpadKind.Expression, 1)]
-    public void CalcKindOffset_Should_MatchLinesActuallyInsertedByApplyKindTransform(RpadKind kind, int expectedOffset)
+    [InlineData(MdRunKind.Statements, 0)]
+    [InlineData(MdRunKind.Program, 2)]
+    [InlineData(MdRunKind.Expression, 1)]
+    public void CalcKindOffset_Should_MatchLinesActuallyInsertedByApplyKindTransform(MdRunKind kind, int expectedOffset)
     {
         var host = CreateHost(kind, out var outputDir);
         try
@@ -151,10 +151,10 @@ public class CSharpLanguageHostKindTransformTests
     // actual invariant DapSession relies on (see its _lineOffset doc comment), not just two isolated
     // hardcoded expectations that could coincidentally both be updated wrong in the same way.
     [Theory]
-    [InlineData(RpadKind.Statements)]
-    [InlineData(RpadKind.Program)]
-    [InlineData(RpadKind.Expression)]
-    public void CalcKindOffset_Should_EqualNewlinesInsertedBeforeUserCodeByApplyKindTransform(RpadKind kind)
+    [InlineData(MdRunKind.Statements)]
+    [InlineData(MdRunKind.Program)]
+    [InlineData(MdRunKind.Expression)]
+    public void CalcKindOffset_Should_EqualNewlinesInsertedBeforeUserCodeByApplyKindTransform(MdRunKind kind)
     {
         const string code = "FIRST_USER_LINE";
         var host = CreateHost(kind, out var outputDir);
@@ -177,10 +177,10 @@ public class CSharpLanguageHostKindTransformTests
     // the user immediately after the kind-transform-only fix above ("now the debugger misses by
     // exactly one line") on a script whose front matter has one namespace configured.
     [Theory]
-    [InlineData(RpadKind.Statements, 0)]
-    [InlineData(RpadKind.Program, 2)]
-    [InlineData(RpadKind.Expression, 1)]
-    public void CalcKindOffset_Should_IncludeFrontMatterUsingsCount(RpadKind kind, int kindOnlyOffset)
+    [InlineData(MdRunKind.Statements, 0)]
+    [InlineData(MdRunKind.Program, 2)]
+    [InlineData(MdRunKind.Expression, 1)]
+    public void CalcKindOffset_Should_IncludeFrontMatterUsingsCount(MdRunKind kind, int kindOnlyOffset)
     {
         IReadOnlyList<string> usings = ["System.Text", "System.Linq"];
         var host = CreateHost(kind, out var outputDir, usings);
@@ -204,7 +204,7 @@ public class CSharpLanguageHostKindTransformTests
     [InlineData("async System.Threading.Tasks.Task Main() { }", true)]
     public void ApplyKindTransform_Should_AwaitMain_OnlyWhenMainIsTaskReturning(string code, bool expectAwait)
     {
-        var host = CreateHost(RpadKind.Program, out var outputDir);
+        var host = CreateHost(MdRunKind.Program, out var outputDir);
         try
         {
             Assert.Equal(ExpectedProgramTransform(code, isStatic: false, returnsTask: expectAwait, returnsInt: code.Contains("<int>")), host.ApplyKindTransform(code));
@@ -219,7 +219,7 @@ public class CSharpLanguageHostKindTransformTests
     [InlineData("static async Task Main() { }", true)]
     public void ApplyKindTransform_Should_CallStaticMain_ByTypeName_NotByNewingUpAnInstance(string code, bool expectAwait)
     {
-        var host = CreateHost(RpadKind.Program, out var outputDir);
+        var host = CreateHost(MdRunKind.Program, out var outputDir);
         try
         {
             Assert.Equal(ExpectedProgramTransform(code, isStatic: true, returnsTask: expectAwait), host.ApplyKindTransform(code));
@@ -233,7 +233,7 @@ public class CSharpLanguageHostKindTransformTests
     public void ApplyKindTransform_Should_NotAwaitMain_WhenTaskMainOnlyAppearsInAComment()
     {
         const string code = "// async Task Main() { }\nvoid Main() { }";
-        var host = CreateHost(RpadKind.Program, out var outputDir);
+        var host = CreateHost(MdRunKind.Program, out var outputDir);
         try
         {
             Assert.StartsWith($"{TrampolineCall};", host.ApplyKindTransform(code), StringComparison.Ordinal);
@@ -250,7 +250,7 @@ public class CSharpLanguageHostKindTransformTests
     [InlineData("")]
     public void ApplyKindTransform_Should_LeaveAProgramWithoutTopLevelStatements_AsWritten(string code)
     {
-        var host = CreateHost(RpadKind.Program, out var outputDir, ["System.Text"]);
+        var host = CreateHost(MdRunKind.Program, out var outputDir, ["System.Text"]);
         try
         {
             Assert.Equal(code, host.ApplyKindTransform(code));
@@ -265,7 +265,7 @@ public class CSharpLanguageHostKindTransformTests
     public void ApplyKindTransform_Should_IgnoreAMainNestedInAHelper()
     {
         const string code = "void Main() { }\n\nvoid Helper()\n{\n    static async Task<int> Main(string[] args) => 0;\n}\n";
-        var host = CreateHost(RpadKind.Program, out var outputDir);
+        var host = CreateHost(MdRunKind.Program, out var outputDir);
         try
         {
             Assert.Equal(ExpectedProgramTransform(code, isStatic: false, returnsTask: false), host.ApplyKindTransform(code));
@@ -282,7 +282,7 @@ public class CSharpLanguageHostKindTransformTests
     [InlineData("static void Main() { }")]
     public void CalcKindOffset_Should_StayAtTwoForProgram_RegardlessOfWhichMainCallVariantWasUsed(string code)
     {
-        var host = CreateHost(RpadKind.Program, out var outputDir);
+        var host = CreateHost(MdRunKind.Program, out var outputDir);
         try
         {
             var transformed = host.ApplyKindTransform(code);
@@ -305,7 +305,7 @@ public class CSharpLanguageHostKindTransformTests
     [InlineData("Console.WriteLine(", "Console.WriteLine(")]
     public void ApplyKindTransform_Should_GiveOnlyAnEmptyStatementsScript_AReturn(string code, string expected)
     {
-        var host = CreateHost(RpadKind.Statements, out var outputDir);
+        var host = CreateHost(MdRunKind.Statements, out var outputDir);
         try
         {
             var transformed = host.ApplyKindTransform(code);
@@ -325,7 +325,7 @@ public class CSharpLanguageHostKindTransformTests
     [InlineData("#if !DEBUG\nvoid Main() { }\n#else\nclass P { static void Main() { } }\n#endif\n", 0)]
     public void Classification_Should_FollowTheBuildsSymbols(string code, int offset)
     {
-        var host = CreateHost(RpadKind.Program, out var outputDir);
+        var host = CreateHost(MdRunKind.Program, out var outputDir);
         try
         {
             var transformed = host.ApplyKindTransform(code);

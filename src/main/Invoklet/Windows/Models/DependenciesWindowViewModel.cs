@@ -3,7 +3,7 @@ using System.Reactive;
 using System.Reactive.Disposables;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Connections;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services.Connections;
 using Invoklet.Services.Secrets;
 using Invoklet.Shared;
@@ -137,7 +137,7 @@ public sealed class DependencyEntryViewModel
 
 // ── Main ViewModel ─────────────────────────────────────────────────────────────
 
-// Edits a draft copy of the script's packages/references/namespaces. The RpadFrontMatter passed to
+// Edits a draft copy of the script's packages/references/namespaces. The MdRunFrontMatter passed to
 // SetFrontMatter is never touched until ApplyChanges (the window's OK button); Cancel/Escape/closing
 // the window simply drops the draft. MainWindowViewModel.DependenciesWindowClosed then lets the
 // editor tab notice a real metadata change, mark itself dirty, save and refresh IntelliSense.
@@ -165,7 +165,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     private readonly TimeSpan _searchDebounce;
     private readonly CompositeDisposable _disposables = new();
 
-    private RpadFrontMatter? _original;
+    private MdRunFrontMatter? _original;
     private readonly List<DraftPackage> _draftPackages = [];
     private bool _applied;
     private bool _disposed;
@@ -699,7 +699,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     // ── Compilation ────────────────────────────────────────────────────────────
 
     // C# only: Visual Basic has no unsafe code, so its scripts get no such option.
-    public bool HasUnsafeOption => _original?.Language == RpadLanguage.CSharp;
+    public bool HasUnsafeOption => _original?.Language == MdRunLanguage.CSharp;
 
     /// <summary>The Connections tab: the script's <c>connections:</c>.</summary>
     public ScriptConnectionsViewModel Connections { get; }
@@ -814,7 +814,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
     // Fed by the active tab's FrontMatter stream (WindowService.ShowDependenciesAsync), so it can go
     // null -> loaded while the dialog is open. Re-sending the same object keeps the draft and selection.
-    public void SetFrontMatter(RpadFrontMatter? fm)
+    public void SetFrontMatter(MdRunFrontMatter? fm)
     {
         if (_disposed || ReferenceEquals(fm, _original)) return;
 

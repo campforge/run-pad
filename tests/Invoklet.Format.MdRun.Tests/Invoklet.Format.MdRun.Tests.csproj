@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <IsPackable>false</IsPackable>
-    <RootNamespace>Invoklet.Format.RPad.Tests</RootNamespace>
+    <RootNamespace>Invoklet.Format.MdRun.Tests</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="xunit" />
@@ -10,7 +10,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <!-- Renders RpadPreview's Markdown the way the preview's viewer does. -->
+    <!-- Renders MdRunPreview's Markdown the way the preview's viewer does. -->
     <PackageReference Include="Markdig" />
     <PackageReference Include="coverlet.collector">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

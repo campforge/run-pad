@@ -6,7 +6,7 @@ using Avalonia.Styling;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -76,7 +76,7 @@ public class EditorTabsControlShowAllTabsTests
         try
         {
             var pathA = Path.Combine(rootFolder, "A.rpad");
-            File.WriteAllText(pathA, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "A"));
+            File.WriteAllText(pathA, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "A"));
             mainVm.OpenTab(pathA);
             await TestWait.WhileAsync(() => mainVm.Tabs.Count < 2);
 
@@ -115,9 +115,9 @@ public class EditorTabsControlShowAllTabsTests
         {
             var firstTab = Assert.Single(mainVm.Tabs); // the initial blank tab
 
-            // NewRpadFile (unlike OpenTab) never auto-closes an existing blank tab — this is the one
+            // NewMdRunFile (unlike OpenTab) never auto-closes an existing blank tab — this is the one
             // reliable way to end up with two simultaneous tabs to click between.
-            mainVm.NewRpadFile();
+            mainVm.NewMdRunFile();
             await TestWait.WhileAsync(() => mainVm.Tabs.Count < 2);
             Assert.NotSame(firstTab, mainVm.ActiveTab); // the new tab is active now, not the first one
 

@@ -15,7 +15,7 @@ namespace Invoklet.Languages.CSharp;
 /// class uses, such as an extension's receiver, must be internal or public, as in LINQPad.
 /// Also hoists the script's own leading <c>extern alias</c>/<c>using</c> directives, which are only
 /// valid before the generated wrapper class, never inside it (CS1529) — <see cref="LeadingDirectives"/>
-/// is spliced into the prefix instead (see <see cref="RpadKindTransform.ProgramPrefixFor"/>), and the
+/// is spliced into the prefix instead (see <see cref="MdRunKindTransform.ProgramPrefixFor"/>), and the
 /// source lines they came from are replaced by whitespace here so line numbers stay put. Only
 /// synthetic braces, partial-class headers and that whitespace are introduced; no original character
 /// moves or is removed, and no line is inserted or deleted. The same projection is used by the
@@ -127,7 +127,7 @@ internal sealed class ProgramBodyProjection
         foreach (var declaration in declarations)
         {
             insertions.Add(new Insertion(declaration.SpanStart, "}"));
-            insertions.Add(new Insertion(declaration.Span.End, $"partial class {RpadKindTransform.ProgramWrapperClassName}{{"));
+            insertions.Add(new Insertion(declaration.Span.End, $"partial class {MdRunKindTransform.ProgramWrapperClassName}{{"));
         }
         if (insertions.Count == 0 && directives.Count == 0) return Identity(code);
         return new ProgramBodyProjection(code, blanked, insertions, [.. declarations.Select(d => d.Span)], leadingDirectives,

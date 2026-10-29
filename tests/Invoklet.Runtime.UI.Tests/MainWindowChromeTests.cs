@@ -484,7 +484,7 @@ public class MainWindowChromeTests
         var path = Path.Combine(folder, "file_with_underscores.rpad");
         try
         {
-            File.WriteAllText(path, Invoklet.Format.RPad.RpadWriter.NewFile("1.Dump();", "test"));
+            File.WriteAllText(path, Invoklet.Format.MdRun.MdRunWriter.NewFile("1.Dump();", "test"));
             await vm.OpenScriptAsync(path);
             var group = window.MainMenuEntries[0].Items.OfType<MainMenuGroup>().Single(g => g.Header == "Recent _Files");
             var entry = Assert.IsType<MainMenuCommand>(group.Items[0]);

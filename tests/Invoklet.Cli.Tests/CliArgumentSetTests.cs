@@ -1,6 +1,6 @@
 using Invoklet.Contracts;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Spectre.Console.Testing;
 using Xunit;
 
@@ -89,7 +89,7 @@ public class CliArgumentSetTests
             {
                 Assert.NotNull(language.Request!.ArgumentContractJson);
                 Assert.Empty(language.Request.ArgumentContractErrors);
-                var contract = RpadArgumentContract.FromJson(language.Request.ArgumentContractJson);
+                var contract = MdRunArgumentContract.FromJson(language.Request.ArgumentContractJson);
                 Assert.Equal("environment", contract.Members.First().Name);
                 return (language.Request!.Arguments, null, stderr.Output);
             }

@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 
 namespace Invoklet.Contracts.Connections;
 
@@ -36,14 +36,14 @@ public interface IConnectionSchemaDriver : IConnectionDriver
 {
     /// <summary>Reads the endpoint's description with placeholders already replaced. Throws with a
     /// message for the user when the endpoint can't be reached or described.</summary>
-    Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
+    Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, ConnectionTools tools,
         CancellationToken cancellationToken);
 
     /// <summary>
     /// Whether the schema depends on the script's folder, as a database file given by a relative
     /// path does: such a connection's schema is kept for each folder it is used from.
     /// </summary>
-    bool UsesScriptDirectory(RpadConnection connection) => false;
+    bool UsesScriptDirectory(MdRunConnection connection) => false;
 
     /// <summary>Change when cached descriptions need to be read again after a driver update.</summary>
     string SchemaVersion => "";
@@ -97,7 +97,7 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
     /// <summary>A read of a schema started or ended (<see cref="IsFetching"/>), with its key; raised on any thread.</summary>
     public event Action<string>? FetchingChanged;
 
-    public string KeyOf(RpadConnection connection, string? scriptDirectory = null)
+    public string KeyOf(MdRunConnection connection, string? scriptDirectory = null)
     {
         var folderPart = drivers?.Find(connection.Driver) is IConnectionSchemaDriver driver && driver.UsesScriptDirectory(connection)
             ? "\n" + (scriptDirectory is null ? "" : Path.GetFullPath(scriptDirectory))
@@ -109,7 +109,7 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
     }
 
     /// <summary>The cached schema, or null when there is none (or it can't be read).</summary>
-    public ConnectionSchema? Get(RpadConnection connection, string? scriptDirectory = null)
+    public ConnectionSchema? Get(MdRunConnection connection, string? scriptDirectory = null)
     {
         var key = KeyOf(connection, scriptDirectory);
         var path = Path.Combine(Folder, key + ".json");
@@ -155,21 +155,21 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
     }
 
     /// <summary>Returns a schema already loaded in this process, without checking or reading disk.</summary>
-    public ConnectionSchema? TryGetLoaded(RpadConnection connection, string? scriptDirectory = null)
+    public ConnectionSchema? TryGetLoaded(MdRunConnection connection, string? scriptDirectory = null)
     {
         var key = KeyOf(connection, scriptDirectory);
         lock (_lock) return _descriptions.TryGetValue(key, out var cached) ? cached.Schema : null;
     }
 
     /// <summary>Whether this Invoklet is reading the connection's schema right now.</summary>
-    public bool IsFetching(RpadConnection connection, string? scriptDirectory = null)
+    public bool IsFetching(MdRunConnection connection, string? scriptDirectory = null)
     {
         var key = KeyOf(connection, scriptDirectory);
         lock (_lock) return _fetches.ContainsKey(key);
     }
 
     /// <summary>Why the schema couldn't be read the last time this Invoklet tried, or null.</summary>
-    public string? ErrorFor(RpadConnection connection, string? scriptDirectory = null)
+    public string? ErrorFor(MdRunConnection connection, string? scriptDirectory = null)
     {
         lock (_lock) return _errors.GetValueOrDefault(KeyOf(connection, scriptDirectory));
     }
@@ -205,7 +205,7 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
         }
     }
 
-    public void Put(RpadConnection connection, ConnectionSchema schema, string? scriptDirectory = null)
+    public void Put(MdRunConnection connection, ConnectionSchema schema, string? scriptDirectory = null)
     {
         Directory.CreateDirectory(Folder);
         var key = KeyOf(connection, scriptDirectory);
@@ -249,7 +249,7 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
     /// being read for another caller isn't read a second time: this call waits for that read.
     /// Cancelling stops the wait, not the read, which still records its schema or error.
     /// </summary>
-    public async Task<bool> EnsureAsync(IEnumerable<RpadConnection> connections, string? scriptDirectory,
+    public async Task<bool> EnsureAsync(IEnumerable<MdRunConnection> connections, string? scriptDirectory,
         ConnectionDriverRegistry drivers, Func<string, string?> secret, ConnectionTools tools, ConnectionSchemaRefresh refresh,
         CancellationToken cancellationToken)
     {
@@ -280,8 +280,8 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
     // synchronously, and without any caller's token: it is shared, so one caller giving up must not
     // cancel it for the others, nor record the cancellation as the schema's error. False when there
     // was nothing to read after all: a read that finished just before this call came for it.
-    private Task<bool> FetchOnceAsync(string key, RpadConnection connection, IConnectionSchemaDriver driver,
-        IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools, string? scriptDirectory,
+    private Task<bool> FetchOnceAsync(string key, MdRunConnection connection, IConnectionSchemaDriver driver,
+        IReadOnlyDictionary<string, MdRunValue> resolvedParams, ConnectionTools tools, string? scriptDirectory,
         ConnectionSchemaRefresh refresh)
     {
         var cached = refresh != ConnectionSchemaRefresh.All ? Get(connection, scriptDirectory) : null;
@@ -334,7 +334,7 @@ public sealed class ConnectionSchemas(ConnectionDriverRegistry drivers, string c
     public ConnectionSchemaCache Cache { get; } = new(cacheFolder, drivers);
 
     /// <param name="scriptDirectory">The script's folder, for relative file paths; null outside a saved script.</param>
-    public Task<bool> EnsureAsync(IEnumerable<RpadConnection> connections, string? scriptDirectory, ConnectionSchemaRefresh refresh,
+    public Task<bool> EnsureAsync(IEnumerable<MdRunConnection> connections, string? scriptDirectory, ConnectionSchemaRefresh refresh,
         CancellationToken cancellationToken) =>
         Cache.EnsureAsync(connections, scriptDirectory, Drivers, secret, tools, refresh, cancellationToken);
 }

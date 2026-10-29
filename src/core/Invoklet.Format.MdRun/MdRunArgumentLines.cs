@@ -1,4 +1,4 @@
-namespace Invoklet.Format.RPad;
+namespace Invoklet.Format.MdRun;
 
 /// <summary>
 /// An argument list as editable text, one argument per line exactly as it reaches <c>args</c>:
@@ -6,7 +6,7 @@ namespace Invoklet.Format.RPad;
 /// break is not an argument of its own, so "a\n" and "a" are the same list. An argument that
 /// contains a line break has no line of its own; <see cref="Fits"/> says whether a list can be shown.
 /// </summary>
-public static class RpadArgumentLines
+public static class MdRunArgumentLines
 {
     public static List<string> Parse(string text)
     {

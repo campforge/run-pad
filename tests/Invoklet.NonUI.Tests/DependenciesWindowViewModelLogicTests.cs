@@ -1,6 +1,6 @@
 using System.Windows.Input;
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
@@ -12,12 +12,12 @@ namespace Invoklet.NonUI.Tests;
 // the VM's own PendingSearch/PendingVersions instead of sleeping.
 public class DependenciesWindowViewModelLogicTests
 {
-    private static RpadFrontMatter NewFrontMatter(Action<RpadFrontMatter>? configure = null)
+    private static MdRunFrontMatter NewFrontMatter(Action<MdRunFrontMatter>? configure = null)
     {
-        var fm = new RpadFrontMatter
+        var fm = new MdRunFrontMatter
         {
             Version = "1.0",
-            Kind = RpadKind.Program,
+            Kind = MdRunKind.Program,
             TargetSdk = TargetSdk.Default,
             Packages = new Dictionary<string, Package> { ["Existing.Package"] = new("1.2.3") },
             References = ["../lib/My.dll"],
@@ -109,7 +109,7 @@ public class DependenciesWindowViewModelLogicTests
         Assert.Equal(["../lib/My.dll", "$(NuGetPackageRoot)/x.dll"], fm.References!);
         Assert.Equal(["System.Linq"], fm.Namespaces!);
         // Fields outside the dialog's scope survive untouched.
-        Assert.Equal(RpadKind.Program, fm.Kind);
+        Assert.Equal(MdRunKind.Program, fm.Kind);
         Assert.Equal("1.0", fm.Version);
 
         // Applies once only.
@@ -823,7 +823,7 @@ public class DependenciesWindowViewModelLogicTests
     public void AllowUnsafe_Should_BeAnOptInDraftChange_ForCSharpScripts()
     {
         var (vm, _, _) = CreateVm();
-        var fm = new RpadFrontMatter { Language = RpadLanguage.CSharp };
+        var fm = new MdRunFrontMatter { Language = MdRunLanguage.CSharp };
         vm.SetFrontMatter(fm);
         Assert.True(vm.HasUnsafeOption);
         Assert.False(vm.AllowUnsafe);
@@ -841,7 +841,7 @@ public class DependenciesWindowViewModelLogicTests
     public void AllowUnsafe_Should_NotBeOffered_ForVisualBasicScripts()
     {
         var (vm, _, _) = CreateVm();
-        var fm = new RpadFrontMatter { Language = RpadLanguage.Vb, Namespaces = ["System.Text"] };
+        var fm = new MdRunFrontMatter { Language = MdRunLanguage.Vb, Namespaces = ["System.Text"] };
         vm.SetFrontMatter(fm);
         Assert.False(vm.HasUnsafeOption);
         vm.AllowUnsafe = true;

@@ -3,7 +3,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -16,7 +16,7 @@ using Xunit;
 namespace Invoklet.Runtime.UI.Tests;
 
 // A brand-new script starts empty and in-memory-only (no disk
-// write until Save/Save As — see MainWindowViewModel.NewRpadFile), and its tab tracks whether it has
+// write until Save/Save As — see MainWindowViewModel.NewMdRunFile), and its tab tracks whether it has
 // unsaved changes (EditorTabItemViewModel.IsDirty, shown as yellow tab text).
 public class EditorTabLifecycleTests
 {
@@ -41,7 +41,7 @@ public class EditorTabLifecycleTests
     }
 
     private static (EditorsTabItemControl Ctrl, EditorTabItemViewModel Vm) CreateControl(
-        string? filePath, RpadLanguage newFileLanguage = RpadLanguage.CSharp, RpadKind newFileKind = RpadKind.Statements)
+        string? filePath, MdRunLanguage newFileLanguage = MdRunLanguage.CSharp, MdRunKind newFileKind = MdRunKind.Statements)
     {
         var prefs = MakePrefs();
         var vm = new EditorTabItemViewModel(
@@ -67,11 +67,11 @@ public class EditorTabLifecycleTests
     [AvaloniaFact]
     public void NewUntitledTab_Should_CarryThePendingLanguageAndKind_IntoItsInMemoryFrontMatter()
     {
-        var (ctrl, _) = CreateControl(filePath: null, newFileLanguage: RpadLanguage.Vb, newFileKind: RpadKind.Program);
+        var (ctrl, _) = CreateControl(filePath: null, newFileLanguage: MdRunLanguage.Vb, newFileKind: MdRunKind.Program);
 
-        Assert.NotNull(ctrl.State.RpadDocument);
-        Assert.Equal(RpadLanguage.Vb, ctrl.State.RpadDocument!.FrontMatter.Language);
-        Assert.Equal(RpadKind.Program, ctrl.State.RpadDocument.FrontMatter.Kind);
+        Assert.NotNull(ctrl.State.MdRunDocument);
+        Assert.Equal(MdRunLanguage.Vb, ctrl.State.MdRunDocument!.FrontMatter.Language);
+        Assert.Equal(MdRunKind.Program, ctrl.State.MdRunDocument.FrontMatter.Kind);
     }
 
     [AvaloniaFact]
@@ -99,7 +99,7 @@ public class EditorTabLifecycleTests
         try
         {
             var filePath = Path.Combine(tmpDir, "demo.rpad");
-            File.WriteAllText(filePath, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
+            File.WriteAllText(filePath, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
             var (ctrl, vm) = CreateControl(filePath);
 
             ctrl.State.Editor.Text = "Console.WriteLine(2);";
@@ -154,7 +154,7 @@ public class EditorTabLifecycleTests
         try
         {
             var (mainVm, windowService, _) = CreateMainVm(rootFolder);
-            mainVm.NewRpadFile();
+            mainVm.NewMdRunFile();
             var tab = Assert.Single(mainVm.Tabs);
             Assert.Null(tab.FilePath);
 
@@ -190,7 +190,7 @@ public class EditorTabLifecycleTests
         try
         {
             var (mainVm, windowService, _) = CreateMainVm(rootFolder);
-            mainVm.NewRpadFile();
+            mainVm.NewMdRunFile();
             var tab = Assert.Single(mainVm.Tabs);
 
             windowService.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>()))
@@ -214,7 +214,7 @@ public class EditorTabLifecycleTests
         try
         {
             var original = Path.Combine(rootFolder, "Query 1.rpad");
-            File.WriteAllText(original, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Query 1"));
+            File.WriteAllText(original, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Query 1"));
 
             var (mainVm, _, _) = CreateMainVm(rootFolder);
             mainVm.OpenTab(original);
@@ -238,7 +238,7 @@ public class EditorTabLifecycleTests
         try
         {
             var (mainVm, _, _) = CreateMainVm(rootFolder);
-            mainVm.NewRpadFile();
+            mainVm.NewMdRunFile();
             var tab = Assert.Single(mainVm.Tabs);
 
             var writeCalled = false;

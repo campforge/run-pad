@@ -1,14 +1,14 @@
 using System.Text;
 using System.Text.Json.Serialization;
 
-namespace Invoklet.Format.RPad;
+namespace Invoklet.Format.MdRun;
 
 /// <summary>
 /// One entry of the front matter's <c>connections:</c> list: a database, HTTP or gRPC endpoint the
 /// script uses, named for the script's code (<c>Connections.Orders</c> for <c>orders</c>). Only the
 /// name and the driver are fixed; everything else belongs to the driver, in <see cref="Params"/>.
 /// </summary>
-public sealed class RpadConnection
+public sealed class MdRunConnection
 {
     public string Name { get; set; } = "";
 
@@ -17,14 +17,14 @@ public sealed class RpadConnection
 
     /// <summary>
     /// What the driver needs — a connection string, an address, headers… — in the file's order.
-    /// Text may name a secret or an environment variable (see <see cref="RpadPlaceholders"/>),
+    /// Text may name a secret or an environment variable (see <see cref="MdRunPlaceholders"/>),
     /// which is substituted only when the script runs.
     /// </summary>
-    public Dictionary<string, RpadValue> Params { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, MdRunValue> Params { get; set; } = new(StringComparer.Ordinal);
 
     /// <summary>Keys of the entry other than name, driver and params, kept as they are so a newer
     /// Invoklet's additions survive a save.</summary>
-    public Dictionary<string, RpadValue>? Extra { get; set; }
+    public Dictionary<string, MdRunValue>? Extra { get; set; }
 
     /// <summary>The script's name for the connection: words of <see cref="Name"/> (split at
     /// <c>-</c>, <c>_</c> and <c>.</c>) in PascalCase, so <c>orders-db</c> is <c>OrdersDb</c>.</summary>
@@ -44,7 +44,7 @@ public sealed class RpadConnection
     /// two names give the same <see cref="CodeName"/> —, a name whose code name is the reserved
     /// <c>Connections</c>, a missing driver, or a malformed placeholder. Empty when the list is fine.
     /// </summary>
-    public static IReadOnlyList<string> Validate(IEnumerable<RpadConnection> connections)
+    public static IReadOnlyList<string> Validate(IEnumerable<MdRunConnection> connections)
     {
         var errors = new List<string>();
         var codeNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -70,7 +70,7 @@ public sealed class RpadConnection
                 errors.Add($"{label} has no driver.");
             foreach (var (key, value) in connection.Params)
                 foreach (var text in value.Texts())
-                    if (RpadPlaceholders.Parse(text).Error is { } error)
+                    if (MdRunPlaceholders.Parse(text).Error is { } error)
                         errors.Add($"{label}, {key}: {error}");
         }
         return errors;
@@ -86,23 +86,23 @@ public sealed class RpadConnection
 /// <see cref="Items"/> and <see cref="Fields"/>. Every YAML scalar is text (<c>30</c> and
 /// <c>true</c> included); the driver decides what it means.
 /// </summary>
-public sealed class RpadValue
+public sealed class MdRunValue
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Text { get; init; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<RpadValue>? Items { get; init; }
+    public List<MdRunValue>? Items { get; init; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Dictionary<string, RpadValue>? Fields { get; init; }
+    public Dictionary<string, MdRunValue>? Fields { get; init; }
 
-    public static RpadValue Of(string text) => new() { Text = text };
+    public static MdRunValue Of(string text) => new() { Text = text };
 
-    public static RpadValue List(IEnumerable<RpadValue> items) => new() { Items = [.. items] };
+    public static MdRunValue List(IEnumerable<MdRunValue> items) => new() { Items = [.. items] };
 
-    public static RpadValue Map(IEnumerable<KeyValuePair<string, RpadValue>> fields) =>
-        new() { Fields = new Dictionary<string, RpadValue>(fields, StringComparer.Ordinal) };
+    public static MdRunValue Map(IEnumerable<KeyValuePair<string, MdRunValue>> fields) =>
+        new() { Fields = new Dictionary<string, MdRunValue>(fields, StringComparer.Ordinal) };
 
     /// <summary>Every piece of text in this value, nested ones included.</summary>
     public IEnumerable<string> Texts()
@@ -111,12 +111,12 @@ public sealed class RpadValue
         foreach (var item in Items ?? [])
             foreach (var text in item.Texts())
                 yield return text;
-        foreach (var field in Fields?.Values ?? Enumerable.Empty<RpadValue>())
+        foreach (var field in Fields?.Values ?? Enumerable.Empty<MdRunValue>())
             foreach (var text in field.Texts())
                 yield return text;
     }
 
-    internal RpadValue Clone() => new()
+    internal MdRunValue Clone() => new()
     {
         Text = Text,
         Items = Items?.Select(i => i.Clone()).ToList(),
@@ -129,7 +129,7 @@ public sealed class RpadValue
 /// <c>${env:NAME}</c> an environment variable, and <c>$${</c> a literal <c>${</c>. They are
 /// replaced only when the script runs, never in the file, the build or its cache.
 /// </summary>
-public static class RpadPlaceholders
+public static class MdRunPlaceholders
 {
     public enum Kind { Text, Secret, Environment }
 

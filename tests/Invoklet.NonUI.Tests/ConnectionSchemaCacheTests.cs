@@ -1,5 +1,5 @@
 using Invoklet.Contracts.Connections;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;
@@ -23,14 +23,14 @@ public sealed class ConnectionSchemaCacheTests : IDisposable
         public ConnectionCategory Category => ConnectionCategory.Grpc;
         public IReadOnlyList<ConnectionParam> Params => [];
         public IReadOnlyDictionary<string, string> Packages => new Dictionary<string, string>();
-        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
+        public IReadOnlyList<string> Validate(MdRunConnection connection) => [];
 
-        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken) =>
             Task.FromResult(new ConnectionTestResult(true, ""));
 
-        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) => new("");
+        public ConnectionClientCode CreateClient(MdRunConnection connection, ConnectionCodeContext context) => new("");
 
-        public async Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
+        public async Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, ConnectionTools tools,
             CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref Fetches);
@@ -39,11 +39,11 @@ public sealed class ConnectionSchemaCacheTests : IDisposable
         }
     }
 
-    private static readonly RpadConnection Connection = new()
+    private static readonly MdRunConnection Connection = new()
     {
         Name = "stock",
         Driver = "slow",
-        Params = new(StringComparer.Ordinal) { ["address"] = RpadValue.Of("http://localhost:5000") },
+        Params = new(StringComparer.Ordinal) { ["address"] = MdRunValue.Of("http://localhost:5000") },
     };
 
     private static readonly ConnectionTools Tools = new()
@@ -160,11 +160,11 @@ public sealed class ConnectionSchemaCacheTests : IDisposable
     {
         var (schemas, _) = Create();
         var cache = schemas.Cache;
-        var other = new RpadConnection
+        var other = new MdRunConnection
         {
             Name = "other",
             Driver = "slow",
-            Params = new(StringComparer.Ordinal) { ["address"] = RpadValue.Of("http://localhost:5001") },
+            Params = new(StringComparer.Ordinal) { ["address"] = MdRunValue.Of("http://localhost:5001") },
         };
         cache.Put(Connection, new ConnectionSchema("stale", [], ""));
         cache.Put(other, new ConnectionSchema("fresh", [], ""));
@@ -206,11 +206,11 @@ public sealed class ConnectionSchemaCacheTests : IDisposable
         Assert.True(await schemas.EnsureAsync([Connection], null, ConnectionSchemaRefresh.All, TestContext.Current.CancellationToken));
         Assert.Equal([schemas.Cache.KeyOf(Connection)], keys);
 
-        var withSecret = new RpadConnection
+        var withSecret = new MdRunConnection
         {
             Name = "secret",
             Driver = "slow",
-            Params = new(StringComparer.Ordinal) { ["address"] = RpadValue.Of("http://${secret:missing}:5000") },
+            Params = new(StringComparer.Ordinal) { ["address"] = MdRunValue.Of("http://${secret:missing}:5000") },
         };
         Assert.True(await schemas.EnsureAsync([withSecret], null, ConnectionSchemaRefresh.All, TestContext.Current.CancellationToken));
         Assert.Equal([schemas.Cache.KeyOf(Connection), schemas.Cache.KeyOf(withSecret)], keys);

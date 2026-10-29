@@ -1,6 +1,6 @@
 using System.Reactive;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.Examples;
 using Invoklet.Services.Preferences;
@@ -83,11 +83,11 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 
     // Front matter this tab should be created with the first time it's actually written to disk
     // (Save/Save As) — only meaningful while FilePath is null (a brand-new, never-saved tab; see
-    // MainWindowViewModel.NewRpadFile and EditorsTabItemControl.SetDocumentContent's null-FilePath
-    // branch). Once saved, the file's own front matter (State.RpadDocument) is the source of truth
+    // MainWindowViewModel.NewMdRunFile and EditorsTabItemControl.SetDocumentContent's null-FilePath
+    // branch). Once saved, the file's own front matter (State.MdRunDocument) is the source of truth
     // and these are no longer consulted.
-    public RpadLanguage NewFileLanguage { get; }
-    public RpadKind NewFileKind { get; }
+    public MdRunLanguage NewFileLanguage { get; }
+    public MdRunKind NewFileKind { get; }
     internal string UntitledTitle { get; }
 
     // Whether the editor's text has changed since this tab was last written to disk — starts false
@@ -111,7 +111,7 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
     // Dependencies window (WindowService.ShowDependenciesAsync) during that window would take a
     // one-time null snapshot and the "+" buttons would stay disabled for the rest of that dialog's
     // lifetime even after the front matter became available.
-    public RpadFrontMatter? FrontMatter
+    public MdRunFrontMatter? FrontMatter
     {
         get;
         internal set => this.RaiseAndSetIfChanged(ref field, value);
@@ -143,7 +143,7 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         internal set => this.RaiseAndSetIfChanged(ref _selectedArgumentSet, value);
     }
 
-    internal void SetArgumentSetChoices(RpadFrontMatter? frontMatter)
+    internal void SetArgumentSetChoices(MdRunFrontMatter? frontMatter)
     {
         IEnumerable<string> names = frontMatter?.ArgumentSets.Keys ?? Enumerable.Empty<string>();
         ArgumentSetChoices = ["Defaults", .. names];
@@ -278,8 +278,8 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         List<DotnetSdk> sdks,
         IPreferencesService prefs,
         IEditorTabActions actions,
-        RpadLanguage newFileLanguage = RpadLanguage.CSharp,
-        RpadKind newFileKind = RpadKind.Statements,
+        MdRunLanguage newFileLanguage = MdRunLanguage.CSharp,
+        MdRunKind newFileKind = MdRunKind.Statements,
         string untitledTitle = "Untitled")
     {
         FilePath = filePath;

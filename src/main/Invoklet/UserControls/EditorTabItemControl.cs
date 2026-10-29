@@ -19,7 +19,7 @@ using Invoklet.Contracts;
 using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Resources;
 using Invoklet.Services;
@@ -424,7 +424,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     internal void WriteFile(string path)
     {
         byte[] bytes;
-        if (State.RpadDocument is { } rpad)
+        if (State.MdRunDocument is { } rpad)
         {
             rpad.RunCode = State.Editor.Text;
             // The document's identity: its own file keeps it, and a file written before IDs gets one
@@ -445,7 +445,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             try
             {
                 // As File.WriteAllText(path, text, Encoding.UTF8) did: with the UTF-8 byte order mark.
-                bytes = [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(RpadWriter.Write(rpad))];
+                bytes = [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(MdRunWriter.Write(rpad))];
             }
             finally
             {
@@ -487,14 +487,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // An untitled copy's references were relative to the file it was made from.
         var anchor = oldPath ?? _vm.RestoredRecovery?.OriginalPath;
         if (anchor is not null
-            && State.RpadDocument?.FrontMatter is { References: { } references } frontMatter
+            && State.MdRunDocument?.FrontMatter is { References: { } references } frontMatter
             && RebasedReferences(references, anchor, newPath) is { } rebased)
         {
             frontMatter.References = rebased;
             _metadataBaseline = FrontMatterSnapshot();
         }
         // The ID written to the new file is now this document's own.
-        if (_writtenId is ({ } writtenPath, var writtenId) && writtenPath == newPath && State.RpadDocument is { } moved)
+        if (_writtenId is ({ } writtenPath, var writtenId) && writtenPath == newPath && State.MdRunDocument is { } moved)
             moved.FrontMatter.Id = writtenId;
         RefreshIntelliSenseContext(reanalyze: true);
         UpdatePreviewNow();
@@ -568,7 +568,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // Statements and Program scripts run the selected statements on their own, as Statements:
         // in a Program the selection is usually the body of Main or another method, which compiles as
         // top-level statements once the rest is blanked out. An Expression script has no statements.
-        if ((State.RpadDocument?.FrontMatter.Kind ?? _vm.NewFileKind) == RpadKind.Expression)
+        if ((State.MdRunDocument?.FrontMatter.Kind ?? _vm.NewFileKind) == MdRunKind.Expression)
         {
             SetStatus("Execute Selection is not available in Expression mode", "Invoklet.Status.ErrorBrush");
             UpdateOutputUi();
@@ -669,7 +669,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
 
         // A selected argument set the script no longer has: say so rather than run with other arguments.
-        if (RpadArguments.Resolve(s.RpadDocument?.FrontMatter).Error is { } argumentsError)
+        if (MdRunArguments.Resolve(s.MdRunDocument?.FrontMatter).Error is { } argumentsError)
         {
             s.Output.Clear();
             s.HadRunError = true;
@@ -695,7 +695,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // compile or start has no IL of its own and must not take the previous one away.
         SetStatus("Process", "Invoklet.Status.RunningBrush");
         s.RunStopwatch.Restart();
-        if (s.RpadDocument is { } doc && TargetSdkResolver.Warning(doc.FrontMatter.TargetSdk, platform) is { } sdkWarning)
+        if (s.MdRunDocument is { } doc && TargetSdkResolver.Warning(doc.FrontMatter.TargetSdk, platform) is { } sdkWarning)
             s.Output.Append($"\n<div>warning: {HttpUtility.HtmlEncode(sdkWarning)}</div>");
         UpdateOutputUi();
 
@@ -735,10 +735,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var workDir = EnsureWorkDirectory();
             // A gRPC server's classes are part of the build: read the ones not read yet, and try
             // again those that failed (the server may be up now).
-            if (_connectionSchemas is { } schemas && s.RpadDocument?.FrontMatter.Connections is { Count: > 0 } connections)
+            if (_connectionSchemas is { } schemas && s.MdRunDocument?.FrontMatter.Connections is { Count: > 0 } connections)
             {
                 // Off the UI thread: a driver may read the whole schema synchronously (SQLite does).
-                List<RpadConnection> list = [.. connections];
+                List<MdRunConnection> list = [.. connections];
                 var scriptDirectory = ScriptDirectory;
                 var token = runCts.Token;
                 Volatile.Write(ref _runStageValue, (int)RunStage.ReadingConnectionSchemas);
@@ -747,7 +747,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             }
             var request = BuildRunRequest(platform, workDir);
             // A selection runs as Statements whatever the script's own kind (see RunSelectionAsync).
-            if (selection is not null) request = request with { Kind = RpadKind.Statements };
+            if (selection is not null) request = request with { Kind = MdRunKind.Statements };
             var script = selection ?? s.Editor.Text;
             // Read on the UI thread; they name the host's source file once it exists (see below).
             // Disabled breakpoints stay in the gutter but never reach the debugger.
@@ -1180,7 +1180,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var editor = State.Editor;
             if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
 
-            if (State.RpadDocument is not null)
+            if (State.MdRunDocument is not null)
                 AddGlobalUsings(resolved.UsingsToAdd);
             else
                 editor.Document.Text = PrependUsings(resolved.UsingsToAdd, code);
@@ -2574,7 +2574,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         FilePath = _vm.FilePath,
         Title = _vm.FileName,
         EditorText = State.Editor.Text,
-        Document = State.RpadDocument?.CaptureSnapshot(),
+        Document = State.MdRunDocument?.CaptureSnapshot(),
         ParseError = State.DocumentParseError,
         IsDirty = _vm.IsDirty || FrontMatterSnapshot() != _metadataBaseline,
         BaselineKnown = !_vm.RequiresBaselineConfirmation && _vm.DiskState is not null,
@@ -2591,11 +2591,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void SetDocumentContent(CodeTextEditor editor, string? filePath)
     {
         string content;
-        RpadDocument? rpad = null;
+        MdRunDocument? rpad = null;
 
         if (_vm.RestoredRecovery is { } recovered)
         {
-            rpad = recovered.Document is null ? null : RpadDocument.FromSnapshot(recovered.Document);
+            rpad = recovered.Document is null ? null : MdRunDocument.FromSnapshot(recovered.Document);
             content = recovered.EditorText;
             State.DocumentParseError = recovered.ParseError;
             _vm.DiskState = recovered.BaselineKnown ? new ScriptFileState(recovered.DiskHash?.ToArray()) : null;
@@ -2607,7 +2607,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             // An example: an untitled, editable copy of its whole document — the code, its front
             // matter and the Markdown around it, which Save As writes out — never the original.
-            var parsed = RpadParser.Parse(example.Text);
+            var parsed = MdRunParser.Parse(example.Text);
             rpad = parsed.Document;
             content = rpad?.RunCode ?? "";
         }
@@ -2615,14 +2615,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             // Deferred creation ("tab lifecycle") — a brand-new tab is genuinely
             // empty, not the old "Hello, RPad!" sample, and stays in-memory only until the user does
-            // Save/Save As. It still gets a real (in-memory) RpadDocument built from the language/kind
+            // Save/Save As. It still gets a real (in-memory) MdRunDocument built from the language/kind
             // chosen in NewFileKindDialog (_vm.NewFileLanguage/NewFileKind) rather than staying null —
             // that's what lets the toolbar's kind combobox, IntelliSense's kind-aware analysis, and
             // Run/Debug all already behave correctly for the chosen language/kind before the first
             // save, the same as they do for a file freshly loaded from disk.
             // Empty, except that a Program starts with its Main skeleton.
             content = _registry.NewScriptCode(_vm.NewFileLanguage, _vm.NewFileKind, _prefs.Editor.IndentationUnit);
-            rpad = RpadParser.TryParse(RpadWriter.NewFile(
+            rpad = MdRunParser.TryParse(MdRunWriter.NewFile(
                 "", title: "Untitled", language: _vm.NewFileLanguage, kind: _vm.NewFileKind));
         }
         else if (File.Exists(filePath))
@@ -2677,15 +2677,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     }
 
     // The script in a file's exact bytes, which become what later saves compare the file with. An
-    // invalid document comes back as the whole file and no RpadDocument, and says why in the output.
-    private (string Content, RpadDocument? Document) ReadScript(byte[] bytes)
+    // invalid document comes back as the whole file and no MdRunDocument, and says why in the output.
+    private (string Content, MdRunDocument? Document) ReadScript(byte[] bytes)
     {
         _vm.DiskState = ScriptFileState.Of(bytes);
         _vm.RequiresBaselineConfirmation = false;
         var raw = DecodeScript(bytes);
-        var parsed = RpadParser.Parse(raw);
+        var parsed = MdRunParser.Parse(raw);
         // Invalid document: show the whole file as-is instead of default metadata —
-        // WriteFile's no-RpadDocument branch then saves it back verbatim, and RunAsync refuses it.
+        // WriteFile's no-MdRunDocument branch then saves it back verbatim, and RunAsync refuses it.
         State.DocumentParseError = parsed.Error;
         if (parsed.Error is { } error)
         {
@@ -2705,9 +2705,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // Makes rpad the tab's document: the toolbar, IntelliSense and the baseline that tells a
     // front-matter edit apart follow its header. The editor's text is the caller's to set.
-    private void ApplyDocument(RpadDocument? rpad)
+    private void ApplyDocument(MdRunDocument? rpad)
     {
-        State.RpadDocument = rpad;
+        State.MdRunDocument = rpad;
         _metadataBaseline = FrontMatterSnapshot();
         _vm.FrontMatter = rpad?.FrontMatter;
         _vm.SelectedKind = rpad?.FrontMatter.Kind.ToString() ?? "Statements";
@@ -2739,7 +2739,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // setting editor.Document fires TextChanged synchronously, which is what actually triggers the
         // first NotifyTextChanged/diagnostics pass. Doing this the other way around (as it used to
         // be) meant that very first pass always ran against IntelliSense's stale defaults — kind
-        // still RpadKind.Statements, no packages, no usings — since UpdateKind/UpdatePackageReferences/
+        // still MdRunKind.Statements, no packages, no usings — since UpdateKind/UpdatePackageReferences/
         // UpdateGlobalUsings only invalidate the cached analysis document, they don't themselves
         // trigger a fresh pass. For a Program-kind file, that meant a spurious "declared but never
         // used" CS8321 on the user's own Main sitting in the diagnostics panel until their next
@@ -2774,8 +2774,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         // This tab's editor services, grammar and snippets are its language's; a script that is now
         // in another language needs a tab of its own.
-        var language = State.RpadDocument?.FrontMatter.Language ?? RpadLanguage.CSharp;
-        if (RpadParser.TryParse(DecodeScript(bytes))?.FrontMatter.Language is { } newLanguage && newLanguage != language)
+        var language = State.MdRunDocument?.FrontMatter.Language ?? MdRunLanguage.CSharp;
+        if (MdRunParser.TryParse(DecodeScript(bytes))?.FrontMatter.Language is { } newLanguage && newLanguage != language)
             return DiskReload.OtherLanguage;
 
         var (content, rpad) = ReadScript(bytes);
@@ -2806,7 +2806,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     /// <summary>
     /// Pushes this tab's current NuGet packages into its own IntelliSense instance, with where this
     /// tab builds, so it can use the assemblies the last restore resolved. Called on initial load,
-    /// after the Dependencies window closes (it mutates the same RpadFrontMatter in place without any
+    /// after the Dependencies window closes (it mutates the same MdRunFrontMatter in place without any
     /// change notification of its own), after each successful build and when the SDK changes.
     /// </summary>
     internal void RefreshIntelliSensePackages() => RefreshIntelliSenseContext(reanalyze: false);
@@ -2828,7 +2828,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         previousContextRefreshCts?.Cancel();
         var refresh = _contextRefreshCts = new CancellationTokenSource();
         var token = refresh.Token;
-        var frontMatter = State.RpadDocument?.FrontMatter;
+        var frontMatter = State.MdRunDocument?.FrontMatter;
         // The same request a run makes, so the editor reads the references and packages as the build does.
         // The lists are copied: the Dependencies window edits the front matter in place.
         var baseRequest = ExecutionRequest.For(frontMatter, _vm.FilePath) with
@@ -2839,8 +2839,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             RuntimePath = _prefs.Debugger?.DotnetPath,
         };
         baseRequest = baseRequest with { Usings = [.. baseRequest.Usings], References = [.. baseRequest.References] };
-        List<RpadConnection> connections = [.. frontMatter?.Connections ?? []];
-        var language = frontMatter?.Language ?? RpadLanguage.CSharp;
+        List<MdRunConnection> connections = [.. frontMatter?.Connections ?? []];
+        var language = frontMatter?.Language ?? MdRunLanguage.CSharp;
         List<string> packageIds = frontMatter is null ? [] : [.. frontMatter.Packages.Keys];
         var scriptDirectory = ScriptDirectory;
         _ = Task.Run(async () =>
@@ -2890,7 +2890,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             try
             {
                 if (_disposed || _connectionSchemas is not { } schemas
-                    || State.RpadDocument?.FrontMatter.Connections is not { Count: > 0 } connections) return;
+                    || State.MdRunDocument?.FrontMatter.Connections is not { Count: > 0 } connections) return;
                 var scriptDirectory = ScriptDirectory;
                 var pendingKey = Volatile.Read(ref _connectionSchemaRefreshKey);
                 if (pendingKey is null || !connections.Any(c => schemas.Cache.KeyOf(c, scriptDirectory) == pendingKey)) return;
@@ -2911,13 +2911,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // possibly before the new classes were in.
     private void EnsureConnectionSchemasInBackground()
     {
-        if (_connectionSchemas is not { } schemas || State.RpadDocument?.FrontMatter.Connections is not { Count: > 0 } connections) return;
+        if (_connectionSchemas is not { } schemas || State.MdRunDocument?.FrontMatter.Connections is not { Count: > 0 } connections) return;
         var previous = Interlocked.Exchange(ref _connectionSchemaWarmupCts, null);
         previous?.Cancel();
         var warmup = new CancellationTokenSource();
         Interlocked.Exchange(ref _connectionSchemaWarmupCts, warmup);
         var token = warmup.Token;
-        List<RpadConnection> list = [.. connections];
+        List<MdRunConnection> list = [.. connections];
         var scriptDirectory = ScriptDirectory;
         _ = Task.Run(async () =>
         {
@@ -2961,7 +2961,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _syncingArgumentSet = true;
         try
         {
-            _vm.SetArgumentSetChoices(State.RpadDocument?.FrontMatter);
+            _vm.SetArgumentSetChoices(State.MdRunDocument?.FrontMatter);
         }
         finally
         {
@@ -2976,7 +2976,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private string FrontMatterSnapshot()
     {
-        if (State.RpadDocument?.FrontMatter is not { } fm) return "";
+        if (State.MdRunDocument?.FrontMatter is not { } fm) return "";
         return System.Text.Json.JsonSerializer.Serialize(new
         {
             fm.Version,
@@ -2998,7 +2998,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     /// <summary>Pushes this tab's front-matter `namespaces:` list into its own IntelliSense instance.</summary>
     private void RefreshIntelliSenseUsings()
     {
-        _intelliSense?.UpdateGlobalUsings(State.RpadDocument?.FrontMatter.Namespaces ?? []);
+        _intelliSense?.UpdateGlobalUsings(State.MdRunDocument?.FrontMatter.Namespaces ?? []);
         RefreshIntelliSenseArguments();
     }
 
@@ -3006,9 +3006,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         if (_intelliSense is Invoklet.Languages.CSharp.IntelliSense.CSharpIntelliSenseService csharp)
         {
-            var contract = State.RpadDocument?.FrontMatter is { } frontMatter
-                ? RpadArgumentContract.Build(frontMatter, out _)
-                : RpadArgumentContract.Empty;
+            var contract = State.MdRunDocument?.FrontMatter is { } frontMatter
+                ? MdRunArgumentContract.Build(frontMatter, out _)
+                : MdRunArgumentContract.Empty;
             csharp.UpdateArgumentContract(contract);
         }
     }
@@ -3018,7 +3018,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // to skip) — so live analysis mirrors the same kind-specific transform the compiler applies
     //.
     private void RefreshIntelliSenseKind()
-        => _intelliSense?.UpdateKind(State.RpadDocument?.FrontMatter.Kind ?? RpadKind.Statements);
+        => _intelliSense?.UpdateKind(State.MdRunDocument?.FrontMatter.Kind ?? MdRunKind.Statements);
 
     // Adds namespaces to the .rpad front matter's `namespaces:` list (compiled in as `global using` —
     // see docs/ImplementationPlanRPad.md) instead of inserting `using X;` text into the script, and
@@ -3026,7 +3026,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // right away rather than waiting for the next save/run.
     private void AddGlobalUsings(IReadOnlyList<string> usings)
     {
-        var rpad = State.RpadDocument;
+        var rpad = State.MdRunDocument;
         if (rpad is null) return;
 
         var fmUsings = rpad.FrontMatter.Namespaces ??= [];
@@ -3051,9 +3051,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // and only reacts to genuine user-driven changes.
     private void OnSelectedKindChanged(string? kind)
     {
-        var rpad = State.RpadDocument;
+        var rpad = State.MdRunDocument;
         if (rpad is null || kind is null) return;
-        if (!Enum.TryParse(kind, out RpadKind parsedKind) || rpad.FrontMatter.Kind == parsedKind) return;
+        if (!Enum.TryParse(kind, out MdRunKind parsedKind) || rpad.FrontMatter.Kind == parsedKind) return;
 
         rpad.FrontMatter.Kind = parsedKind;
         ApplyKindTemplate(parsedKind);
@@ -3067,7 +3067,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // Main (the language decides how; see ILanguageHostFactory.CodeForKind) — one replacement, so a
     // single Undo brings the old code back. Code that already fits the kind is left alone, and so is
     // every switch away from Program.
-    private void ApplyKindTemplate(RpadKind kind)
+    private void ApplyKindTemplate(MdRunKind kind)
     {
         if (_registry.GetCodeForKind(ResolveLanguageId(), State.Editor.Text, kind, State.Editor.Options.IndentationString) is not { } code) return;
         var (text, caret) = CodeTemplate.TakeCaret(code);
@@ -3087,7 +3087,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // The new target's references, C# version and symbols apply to the text already in the
         // editor: analyse it again once they are in, as the squiggles would otherwise wait for the next edit.
         RefreshIntelliSenseContext(reanalyze: true);
-        if (_syncingSdk || sdk is null || State.RpadDocument is not { } rpad) return;
+        if (_syncingSdk || sdk is null || State.MdRunDocument is not { } rpad) return;
 
         var target = ReferenceEquals(sdk, _vm.LatestSdk) ? TargetSdk.Default : TargetSdkResolver.ToTarget(sdk);
         if (target == rpad.FrontMatter.TargetSdk) return;
@@ -3098,7 +3098,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private void OnSelectedArgumentSetChanged(string? choice)
     {
-        if (_syncingArgumentSet || choice is null || State.RpadDocument is not { } rpad) return;
+        if (_syncingArgumentSet || choice is null || State.MdRunDocument is not { } rpad) return;
         var selected = choice == "Defaults" ? null : choice;
         if (rpad.FrontMatter.SelectedArgumentSet == selected) return;
         rpad.FrontMatter.SelectedArgumentSet = selected;
@@ -3109,7 +3109,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // "{Kind} · {TargetSdk}" status-bar readout for the currently open .rpad —
     // called on open (SetDocumentContent) and again whenever the kind combobox changes it.
     private void UpdateProjectInfoBlock()
-        => ProjectInfoBlock.Text = State.RpadDocument is { } rpad
+        => ProjectInfoBlock.Text = State.MdRunDocument is { } rpad
             ? $"{rpad.FrontMatter.Kind} · {rpad.FrontMatter.TargetSdk}{NotInstalledSuffix(rpad.FrontMatter.TargetSdk)}"
             : "";
 
@@ -3144,7 +3144,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             // Usings go to the .rpad front matter's `namespaces:` list (a project file, per
             // docs/ImplementationPlanRPad.md), not the visible script — except for a plain script
             // with no front matter to route them to, where they're folded into the text.
-            var hasProjectFile = State.RpadDocument is not null;
+            var hasProjectFile = State.MdRunDocument is not null;
             var newCode = hasProjectFile
                 ? materialized.NewCode
                 : PrependUsings(materialized.UsingsToAdd, materialized.NewCode);
@@ -3170,9 +3170,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _ => CodeFixSeverity.Info,
     };
 
-    // Defaults to C# for untitled tabs (no RpadDocument yet — see SetDocumentContent).
+    // Defaults to C# for untitled tabs (no MdRunDocument yet — see SetDocumentContent).
     private string ResolveLanguageId()
-        => (State.RpadDocument?.FrontMatter.Language ?? RpadLanguage.CSharp).ToLanguageId();
+        => (State.MdRunDocument?.FrontMatter.Language ?? MdRunLanguage.CSharp).ToLanguageId();
 
     private static string FormatElapsed(TimeSpan t) => t switch
     {
@@ -3191,7 +3191,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // What this tab's run asks for; its language's backend builds the host's own options from it.
     private ExecutionRequest BuildRunRequest(DotnetSdk platform, string workDir)
     {
-        var rpad = State.RpadDocument;
+        var rpad = State.MdRunDocument;
 
         // Reused across runs of this tab (allocated once, normally already set by SetDocumentContent
         // at file-open time) so the process compiler can detect an unchanged project/source and skip
@@ -3223,7 +3223,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // script's own folder, as the running script reads them through Util.CurrentQueryPath.
     private string? ScriptDirectory => _vm.FilePath is { } path ? Path.GetDirectoryName(path) : null;
 
-    private GeneratedConnections? GeneratedConnectionsFor(RpadFrontMatter? frontMatter) =>
+    private GeneratedConnections? GeneratedConnectionsFor(MdRunFrontMatter? frontMatter) =>
         frontMatter is null ? null
             : GeneratedConnections.For(frontMatter.Connections, frontMatter.Language, frontMatter.Packages.Keys, _connectionDrivers,
                 _connectionSchemas?.Cache, ScriptDirectory, readSchemaFromDisk: false);

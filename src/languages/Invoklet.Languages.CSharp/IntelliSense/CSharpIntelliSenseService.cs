@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp.Compiler;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Compiler;
@@ -205,8 +205,8 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     private string[] _extraPreambleUsings = [];
     private string _preamble = "";
     private int _preambleLength;
-    private RpadKind _kind = RpadKind.Statements;
-    private IReadOnlyList<RpadArgumentContractMember> _argumentContract = [];
+    private MdRunKind _kind = MdRunKind.Statements;
+    private IReadOnlyList<MdRunArgumentContractMember> _argumentContract = [];
     private string _lastCode = "";
 
     // The full synced document
@@ -385,7 +385,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     /// <summary>Updates the typed <c>Arguments</c> members offered by completion.</summary>
     private (DocumentId Id, string Text)? _argumentSource;
 
-    public void UpdateArgumentContract(RpadArgumentContract? contract)
+    public void UpdateArgumentContract(MdRunArgumentContract? contract)
     {
         var members = contract?.Members ?? [];
         lock (_syncLock)
@@ -414,7 +414,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         }
     }
 
-    public void UpdateKind(RpadKind kind)
+    public void UpdateKind(MdRunKind kind)
     {
         if (_kind == kind) return;
 
@@ -425,7 +425,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     }
 
     // The prefix ApplyKindTransform (CSharpLanguageHost) inserts before the user's code for
-    // RpadKind.Program — mirrored here so the live-analysis document contains the same wrapper-class
+    // MdRunKind.Program — mirrored here so the live-analysis document contains the same wrapper-class
     // call the compiler will actually emit, otherwise Roslyn correctly (from its own point of view)
     // flags the user's Main as an unused local function (CS8321). Deliberately NOT mirroring
     // Expression's transform here — it also trims/wraps the *end* of the code, which would desync the
@@ -437,7 +437,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // Parsed with this document's own options (the build's symbols for its target), as the build does.
     private string KindPrefix(string code) => KindShapeFor(code).Prefix;
 
-    // Closes the wrapper class KindPrefix opens for RpadKind.Program — mirrored for the
+    // Closes the wrapper class KindPrefix opens for MdRunKind.Program — mirrored for the
     // same reason as the prefix: without it, the live-analysis document would contain a permanently
     // unclosed class declaration, breaking parsing/binding for the rest of the synced text.
     // Code-dependent for the same reason as KindPrefix — ProgramSuffixFor's synthetic trampoline shape
@@ -445,7 +445,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     private string KindSuffix(string code) => KindShapeFor(code).Suffix;
 
     // Total offset from the start of the live-analysis document text to the start of the user's own
-    // code — usings preamble plus (for RpadKind.Program) the mirrored wrapper-class prefix above.
+    // code — usings preamble plus (for MdRunKind.Program) the mirrored wrapper-class prefix above.
     private int HeaderLength(string code) => _preambleLength + KindPrefix(code).Length;
 
     private ProgramBodyProjection ProjectionFor(string code) => KindShapeFor(code).Projection;
@@ -453,7 +453,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // The prefix, projection and suffix each parse the whole script, and the offset mapping below
     // runs once per classified span, diagnostic or highlighted token: computed once per text, kind
     // and parse options, not on every mapped offset.
-    private sealed record KindShape(string Code, CSharpParseOptions Options, RpadKind Kind,
+    private sealed record KindShape(string Code, CSharpParseOptions Options, MdRunKind Kind,
         string Prefix, ProgramBodyProjection Projection, string Suffix);
 
     private KindShape? _kindShape;
@@ -464,11 +464,11 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         {
             if (_kindShape is { } shape && shape.Code == code && shape.Options == _parseOptions && shape.Kind == _kind)
                 return shape;
-            return _kindShape = _kind == RpadKind.Program
+            return _kindShape = _kind == MdRunKind.Program
                 ? new KindShape(code, _parseOptions, _kind,
-                    RpadKindTransform.ProgramPrefixFor(code, _parseOptions),
+                    MdRunKindTransform.ProgramPrefixFor(code, _parseOptions),
                     ProgramBodyProjection.Create(code, _parseOptions),
-                    RpadKindTransform.ProgramSuffixFor(code, _parseOptions))
+                    MdRunKindTransform.ProgramSuffixFor(code, _parseOptions))
                 : new KindShape(code, _parseOptions, _kind, "", ProgramBodyProjection.Identity(code), "");
         }
     }
@@ -1771,7 +1771,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             if (projection.RestoreEdit(materialized.Value.NewCode, materialized.Value.ChangedSpans,
                     KindPrefix(code), KindSuffix(code), _parseOptions) is not var (restored, changedSpans)) return null;
             var newCode = restored;
-            if (_kind == RpadKind.Program && restored != code)
+            if (_kind == MdRunKind.Program && restored != code)
             {
                 // A class compiled outside the hidden one was formatted at its own columns already.
                 var moved = projection.HasChanges ? ProgramBodyProjection.Create(restored, _parseOptions).Moved : [];
@@ -2108,7 +2108,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
 
             // Clamp to code.Length before the start>=end skip below, same pattern as
             // ComputeSemanticTokensAsync/ComputeInlayHintsAsync's own bounds checks — needed since
-            // RpadKind.Program's mirrored KindSuffix (the wrapper class's closing brace)
+            // MdRunKind.Program's mirrored KindSuffix (the wrapper class's closing brace)
             // now follows the user's own code in the synced document, so a diagnostic anchored there
             // (or straddling into it) needs to not leak an out-of-range span to the editor.
             var end = Math.Min(Math.Max(mappedStart.Value.End, start + 1), code.Length);

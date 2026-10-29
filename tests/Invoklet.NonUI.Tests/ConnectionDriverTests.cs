@@ -1,7 +1,7 @@
 using System.Net;
 using Invoklet.Connectors.Http;
 using Invoklet.Contracts.Connections;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;
@@ -11,11 +11,11 @@ public class ConnectionPlaceholderResolverTests
     [Fact]
     public void Placeholders_Should_BeReplacedEverywhere_AndMissingOnesReported()
     {
-        var parameters = new Dictionary<string, RpadValue>
+        var parameters = new Dictionary<string, MdRunValue>
         {
-            ["url"] = RpadValue.Of("https://${env:API_HOST}/v1"),
-            ["headers"] = RpadValue.Map([new("Authorization", RpadValue.Of("Bearer ${secret:token}")), new("X-Literal", RpadValue.Of("$${keep}"))]),
-            ["list"] = RpadValue.List([RpadValue.Of("${secret:token}"), RpadValue.Of("plain")]),
+            ["url"] = MdRunValue.Of("https://${env:API_HOST}/v1"),
+            ["headers"] = MdRunValue.Map([new("Authorization", MdRunValue.Of("Bearer ${secret:token}")), new("X-Literal", MdRunValue.Of("$${keep}"))]),
+            ["list"] = MdRunValue.List([MdRunValue.Of("${secret:token}"), MdRunValue.Of("plain")]),
         };
         var secrets = new Dictionary<string, string> { ["token"] = "t0k" };
         var env = new Dictionary<string, string> { ["API_HOST"] = "api.local" };
@@ -53,7 +53,7 @@ public class ConnectionPlaceholderResolverTests
 
 public class HttpConnectionDriverTests
 {
-    private static RpadConnection Http(params (string Key, RpadValue Value)[] parameters) => new()
+    private static MdRunConnection Http(params (string Key, MdRunValue Value)[] parameters) => new()
     {
         Name = "api",
         Driver = "http",
@@ -64,16 +64,16 @@ public class HttpConnectionDriverTests
     public void Validate_Should_CheckTheAddressHeadersAndTimeout()
     {
         var driver = new HttpConnectionDriver();
-        Assert.Empty(driver.Validate(Http(("baseAddress", RpadValue.Of("https://api.example.com/")))));
-        Assert.Empty(driver.Validate(Http(("baseAddress", RpadValue.Of("https://${env:HOST}/")), ("timeout", RpadValue.Of("${env:T}")))));
-        Assert.Empty(driver.Validate(Http(("baseAddress", RpadValue.Of("http://localhost:5000")), ("headers", RpadValue.Of("")))));
+        Assert.Empty(driver.Validate(Http(("baseAddress", MdRunValue.Of("https://api.example.com/")))));
+        Assert.Empty(driver.Validate(Http(("baseAddress", MdRunValue.Of("https://${env:HOST}/")), ("timeout", MdRunValue.Of("${env:T}")))));
+        Assert.Empty(driver.Validate(Http(("baseAddress", MdRunValue.Of("http://localhost:5000")), ("headers", MdRunValue.Of("")))));
 
         Assert.Equal(["The base address is missing."], driver.Validate(Http()));
         Assert.Equal(["The base address 'ftp://files' is not an http:// or https:// address."],
-            driver.Validate(Http(("baseAddress", RpadValue.Of("ftp://files")))));
+            driver.Validate(Http(("baseAddress", MdRunValue.Of("ftp://files")))));
         Assert.Equal(["Headers must be names with texts.", "The timeout '-1' is not a number of seconds from 0.001 to 2147483."],
-            driver.Validate(Http(("baseAddress", RpadValue.Of("https://a/")),
-                ("headers", RpadValue.List([RpadValue.Of("x")])), ("timeout", RpadValue.Of("-1")))));
+            driver.Validate(Http(("baseAddress", MdRunValue.Of("https://a/")),
+                ("headers", MdRunValue.List([MdRunValue.Of("x")])), ("timeout", MdRunValue.Of("-1")))));
     }
 
     // What HttpClient.Timeout takes: a whole number of milliseconds, at most int.MaxValue.
@@ -90,7 +90,7 @@ public class HttpConnectionDriverTests
     [InlineData("soon", false)]
     public void Validate_Should_AcceptOnlyTimeoutsHttpClientTakes(string seconds, bool valid)
     {
-        var problems = new HttpConnectionDriver().Validate(Http(("baseAddress", RpadValue.Of("https://a/")), ("timeout", RpadValue.Of(seconds))));
+        var problems = new HttpConnectionDriver().Validate(Http(("baseAddress", MdRunValue.Of("https://a/")), ("timeout", MdRunValue.Of(seconds))));
         if (valid) Assert.Empty(problems);
         else Assert.Equal([$"The timeout '{seconds}' is not a number of seconds from 0.001 to 2147483."], problems);
     }
@@ -99,13 +99,13 @@ public class HttpConnectionDriverTests
     [Fact]
     public void Validate_Should_RejectHeaders_TheClientCantSend()
     {
-        var problems = new HttpConnectionDriver().Validate(Http(("baseAddress", RpadValue.Of("https://a/")),
-            ("headers", RpadValue.Map(
+        var problems = new HttpConnectionDriver().Validate(Http(("baseAddress", MdRunValue.Of("https://a/")),
+            ("headers", MdRunValue.Map(
             [
-                new("Authorization", RpadValue.Of("Bearer ${secret:token}")),
-                new("X-Api-Key", RpadValue.Of("k")),
-                new("Content-Type", RpadValue.Of("application/json")),
-                new("My Header", RpadValue.Of("x")),
+                new("Authorization", MdRunValue.Of("Bearer ${secret:token}")),
+                new("X-Api-Key", MdRunValue.Of("k")),
+                new("Content-Type", MdRunValue.Of("application/json")),
+                new("My Header", MdRunValue.Of("x")),
             ]))));
         Assert.Equal(
         [
@@ -135,11 +135,11 @@ public class HttpConnectionDriverTests
         }
     }
 
-    private static Dictionary<string, RpadValue> Resolved(string address, string? authorization = null, string? timeout = null)
+    private static Dictionary<string, MdRunValue> Resolved(string address, string? authorization = null, string? timeout = null)
     {
-        var parameters = new Dictionary<string, RpadValue> { ["baseAddress"] = RpadValue.Of(address) };
-        if (authorization is not null) parameters["headers"] = RpadValue.Map([new("Authorization", RpadValue.Of(authorization))]);
-        if (timeout is not null) parameters["timeout"] = RpadValue.Of(timeout);
+        var parameters = new Dictionary<string, MdRunValue> { ["baseAddress"] = MdRunValue.Of(address) };
+        if (authorization is not null) parameters["headers"] = MdRunValue.Map([new("Authorization", MdRunValue.Of(authorization))]);
+        if (timeout is not null) parameters["timeout"] = MdRunValue.Of(timeout);
         return parameters;
     }
 

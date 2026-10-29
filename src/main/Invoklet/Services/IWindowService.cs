@@ -1,5 +1,5 @@
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.DotnetCommon;
 
 namespace Invoklet.Services;
@@ -8,7 +8,7 @@ public interface IWindowService
 {
     // Takes a live stream rather than a snapshot so the dialog picks up front matter that becomes
     // available after it's already open (see EditorTabItemViewModel.FrontMatter).
-    Task ShowDependenciesAsync(IObservable<RpadFrontMatter?>? frontMatter = null, IObservable<string?>? scriptPath = null);
+    Task ShowDependenciesAsync(IObservable<MdRunFrontMatter?>? frontMatter = null, IObservable<string?>? scriptPath = null);
 
     /// <summary>Asks whether to add a connection together with the NuGet packages its driver needs; false when declined or no window is open.</summary>
     Task<bool> ConfirmConnectionPackagesAsync(string message);

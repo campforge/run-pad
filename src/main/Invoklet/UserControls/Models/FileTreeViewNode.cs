@@ -1,5 +1,5 @@
 using System.Collections.ObjectModel;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using ReactiveUI;
 
 namespace Invoklet.UserControls.Models;
@@ -35,19 +35,19 @@ public class FileTreeViewNode : ReactiveObject
     // re-peeks the next time its node is rebuilt (rename/move creates a fresh node — see
     // FileTreeViewModel.MergeNodeList), not on every unrelated tree refresh, matching how DisplayName
     // itself is only ever set once from the same peek.
-    public RpadLanguage? Language { get; init; }
+    public MdRunLanguage? Language { get; init; }
 
     // Resource key (Resources/Icons.axaml) of the Material Design icon for this file's language, if
     // one exists — null falls back to the tree's generic file icon (FileTreeView.axaml resolves the
     // key to an actual Geometry via ResourceKeyToGeometryConverter). Used to be a
-    // `switch` on RpadLanguage hardcoded right here in the main UI project — now supplied by
+    // `switch` on MdRunLanguage hardcoded right here in the main UI project — now supplied by
     // FileTreeViewModel.MapToNode, which reads it off the owning ILanguageHostFactory's
     // EditorLanguageProfile.IconResourceKey (same seam as FoldingRegionsProvider), so
     // this class no longer needs to know any language's identity to pick its own icon.
     public string? LanguageIconKey { get; init; }
 
     // The tree's fallback "plain document" icon — shown for a file whose language has no entry
-    // above (any future RpadLanguage not yet given an icon) instead of leaving nothing rendered.
+    // above (any future MdRunLanguage not yet given an icon) instead of leaving nothing rendered.
     public bool ShowGenericFileIcon => !IsFolder && LanguageIconKey is null;
 
     public bool IsRenaming
@@ -73,7 +73,7 @@ public class FileTreeViewNode : ReactiveObject
         set => this.RaiseAndSetIfChanged(ref _isDropTarget, value);
     }
 
-    public FileTreeViewNode(string title, string filePath, RpadLanguage? language = null)
+    public FileTreeViewNode(string title, string filePath, MdRunLanguage? language = null)
     {
         _title = title;
         FilePath = filePath;

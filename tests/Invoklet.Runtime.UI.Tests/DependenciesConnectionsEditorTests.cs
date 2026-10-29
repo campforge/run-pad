@@ -6,7 +6,7 @@ using Avalonia.Threading;
 using Invoklet.Connectors.Http;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Connections;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services.Connections;
 using Invoklet.Services.Secrets;
 using Invoklet.Windows;
@@ -27,15 +27,15 @@ public class DependenciesConnectionsEditorTests
         public ConnectionCategory Category => ConnectionCategory.Database;
         public IReadOnlyList<ConnectionParam> Params { get; } = [];
         public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string> { ["Package.Client"] = "1.0.0" };
-        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
-        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+        public IReadOnlyList<string> Validate(MdRunConnection connection) => [];
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken) =>
             Task.FromResult(new ConnectionTestResult(true, ""));
-        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) => new("");
+        public ConnectionClientCode CreateClient(MdRunConnection connection, ConnectionCodeContext context) => new("");
     }
 
     private sealed class Fixture
     {
-        public List<RpadConnection> Mine { get; } = [];
+        public List<MdRunConnection> Mine { get; } = [];
         public ConnectionDriverRegistry Drivers { get; } = new();
         public Mock<IConnectionStore> Store { get; } = new();
         public Mock<ISecretStore> Secrets { get; } = new();
@@ -46,8 +46,8 @@ public class DependenciesConnectionsEditorTests
             Drivers.Register(new HttpConnectionDriver());
             Store.Setup(s => s.LoadSnapshot()).Returns(() => new ConnectionStoreSnapshot([.. Mine], null));
             Store.Setup(s => s.FilePath).Returns("/data/Invoklet/connections.json");
-            Store.Setup(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()))
-                .Callback<IReadOnlyList<RpadConnection>, string?>((saved, _) => { Mine.Clear(); Mine.AddRange(saved); });
+            Store.Setup(s => s.Save(It.IsAny<IReadOnlyList<MdRunConnection>>(), It.IsAny<string?>()))
+                .Callback<IReadOnlyList<MdRunConnection>, string?>((saved, _) => { Mine.Clear(); Mine.AddRange(saved); });
             Secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([], null));
         }
 
@@ -59,7 +59,7 @@ public class DependenciesConnectionsEditorTests
             cache.Setup(c => c.GetCachedPackages()).Returns([]);
             var vm = new DependenciesWindowViewModel(Mock.Of<IPackageSearchService>(), cache.Object, sources.Object, TimeSpan.Zero,
                 Store.Object, Secrets.Object, Drivers);
-            vm.SetFrontMatter(new RpadFrontMatter());
+            vm.SetFrontMatter(new MdRunFrontMatter());
             var window = new DependenciesWindow(vm, () =>
                 Opened = new ConnectionsWindow(new ConnectionsWindowViewModel(Store.Object, Drivers, Secrets.Object)));
             var owner = new Window();
@@ -90,7 +90,7 @@ public class DependenciesConnectionsEditorTests
     {
         var fixture = new Fixture();
         fixture.Drivers.Register(new PackageDriver());
-        fixture.Mine.Add(new RpadConnection { Name = "local", Driver = "package" });
+        fixture.Mine.Add(new MdRunConnection { Name = "local", Driver = "package" });
         var (window, vm, owner) = fixture.CreateWindow();
         var completion = new TaskCompletionSource<bool>();
         vm.Connections.AddConfirmationDialog = _ => completion.Task;
@@ -141,7 +141,7 @@ public class DependenciesConnectionsEditorTests
     public async Task CancellingTheConnectionsWindow_Should_LeaveTheListAndTheDraftAsTheyWere()
     {
         var fixture = new Fixture();
-        fixture.Mine.Add(new RpadConnection { Name = "kept", Driver = "http" });
+        fixture.Mine.Add(new MdRunConnection { Name = "kept", Driver = "http" });
         var (window, vm, owner) = fixture.CreateWindow();
         try
         {
@@ -159,7 +159,7 @@ public class DependenciesConnectionsEditorTests
             Assert.Equal(["kept"], fixture.Mine.Select(c => c.Name));
             Assert.Empty(vm.Connections.Items);
             Assert.False(vm.HasChanges);
-            fixture.Store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()), Times.Never);
+            fixture.Store.Verify(s => s.Save(It.IsAny<IReadOnlyList<MdRunConnection>>(), It.IsAny<string?>()), Times.Never);
         }
         finally { window.Close(); owner.Close(); }
     }

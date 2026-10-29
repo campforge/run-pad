@@ -1,6 +1,6 @@
 using Invoklet.Contracts;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.DotnetCommon;
 using Microsoft.Extensions.Logging;
 
@@ -33,7 +33,7 @@ public sealed class VbLanguageHostFactory : ILanguageHostFactory
     // CompletionTriggers). No required statement terminator — a newline ends a statement. VB is
     // case-insensitive, so "New"/"new" both starting completion is a real language property, not
     // sloppiness, hence the case-insensitive HashSet.
-    public string? CodeForKind(string code, RpadKind kind, string indent = "    ") => VbProgramTemplate.CodeForKind(code, kind, indent);
+    public string? CodeForKind(string code, MdRunKind kind, string indent = "    ") => VbProgramTemplate.CodeForKind(code, kind, indent);
 
     public EditorLanguageProfile EditorProfile { get; } = new()
     {

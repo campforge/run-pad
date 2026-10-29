@@ -5,7 +5,7 @@ using Avalonia.Threading;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -100,7 +100,7 @@ public sealed class EditorTabsEditorServicesTests : IDisposable
         try
         {
             tabs.Attach(shell); // the initial blank C# tab
-            shell.NewRpadFile(RpadLanguage.CSharp);
+            shell.NewMdRunFile(MdRunLanguage.CSharp);
 
             var first = await ShownAsync(tabs, shell.Tabs[0]);
             var second = await ShownAsync(tabs, shell.Tabs[1]);
@@ -123,7 +123,7 @@ public sealed class EditorTabsEditorServicesTests : IDisposable
         try
         {
             tabs.Attach(shell);
-            shell.NewRpadFile(RpadLanguage.Vb);
+            shell.NewMdRunFile(MdRunLanguage.Vb);
 
             var ctrl = await ShownAsync(tabs, shell.Tabs[^1]);
 

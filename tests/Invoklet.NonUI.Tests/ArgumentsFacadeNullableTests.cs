@@ -1,4 +1,4 @@
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Xunit;
@@ -12,7 +12,7 @@ public class ArgumentsFacadeNullableTests
     [Fact]
     public void Facade_Should_CompileWithoutNullableWarnings_InAGeneratedFile()
     {
-        var contract = new RpadArgumentContract([
+        var contract = new MdRunArgumentContract([
             new("value", "string", [], [], IsNullable: true),
             new("tags", "string[]", [], [], IsNullable: true),
             new("count", "int", [], [], IsNullable: true),

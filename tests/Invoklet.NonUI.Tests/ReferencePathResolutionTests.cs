@@ -1,7 +1,7 @@
 using Invoklet.Build.Core.Models;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.Compiler;
 using Invoklet.Languages.CSharp.IntelliSense;
@@ -156,7 +156,7 @@ public sealed class ReferencePathResolutionTests : IDisposable
     public async Task TheBuild_TheCli_AndIntelliSense_Should_UseTheScriptRelativeReference()
     {
         var library = Library("lib", "Greeter", "namespace Shared { public static class Greeter { public static string Hello() => \"hi\"; } }");
-        var frontMatter = new RpadFrontMatter { References = ["lib/Greeter.dll"] };
+        var frontMatter = new MdRunFrontMatter { References = ["lib/Greeter.dll"] };
         const string code = "System.Console.WriteLine(Shared.Greeter.Hello());\n";
         var tfm = $"net{Environment.Version.Major}.{Environment.Version.Minor}";
 
@@ -177,7 +177,7 @@ public sealed class ReferencePathResolutionTests : IDisposable
             },
             OutputDirectory = output,
             RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
-            Kind = RpadKind.Statements,
+            Kind = MdRunKind.Statements,
             AssemblyReferences = resolved.Assemblies,
             ReferenceErrors = resolved.Errors,
             ReferenceWarnings = resolved.Warnings,
@@ -220,7 +220,7 @@ public sealed class ReferencePathResolutionTests : IDisposable
             },
             OutputDirectory = output,
             RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
-            Kind = RpadKind.Statements,
+            Kind = MdRunKind.Statements,
             ReferenceErrors = resolved.Errors,
             ReferenceWarnings = resolved.Warnings,
         };

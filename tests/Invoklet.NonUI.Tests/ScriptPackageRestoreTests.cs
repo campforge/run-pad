@@ -1,7 +1,7 @@
 using System.IO.Compression;
 using System.Runtime.InteropServices;
 using Invoklet.Build.Core.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.Compiler;
 using Invoklet.Languages.DotnetCommon;
@@ -57,7 +57,7 @@ public sealed class ScriptPackageRestoreTests : IAsyncDisposable
             },
             OutputDirectory = dir,
             RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
-            Kind = RpadKind.Statements,
+            Kind = MdRunKind.Statements,
             Packages = packages,
             NuGetConfigFile = _config,
         };

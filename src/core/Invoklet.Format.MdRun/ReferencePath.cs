@@ -1,4 +1,4 @@
-namespace Invoklet.Format.RPad;
+namespace Invoklet.Format.MdRun;
 
 /// <summary>How a <c>references:</c> entry is written, judged from its text alone.</summary>
 public enum ReferencePathKind

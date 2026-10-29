@@ -1,5 +1,5 @@
 using System.Text;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 
 namespace Invoklet.Contracts.Connections;
 
@@ -10,24 +10,24 @@ namespace Invoklet.Contracts.Connections;
 /// </summary>
 public static class ConnectionPlaceholderResolver
 {
-    public sealed record Result(IReadOnlyDictionary<string, RpadValue> Params, IReadOnlyList<string> Errors);
+    public sealed record Result(IReadOnlyDictionary<string, MdRunValue> Params, IReadOnlyList<string> Errors);
 
     /// <param name="secret">The Secret Store value for a name, or null when there is none.</param>
     /// <param name="environment">An environment variable's value, or null when it isn't set.</param>
-    public static Result Resolve(IReadOnlyDictionary<string, RpadValue> parameters,
+    public static Result Resolve(IReadOnlyDictionary<string, MdRunValue> parameters,
         Func<string, string?> secret, Func<string, string?> environment)
     {
         var errors = new List<string>();
         var resolved = parameters.ToDictionary(p => p.Key, p => Resolve(p.Value), StringComparer.Ordinal);
         return new Result(resolved, errors.Distinct().ToList());
 
-        RpadValue Resolve(RpadValue value) => value.Text is { } text ? RpadValue.Of(ResolveText(text))
-            : value.Items is { } items ? RpadValue.List(items.Select(Resolve))
-            : RpadValue.Map((value.Fields ?? []).Select(f => KeyValuePair.Create(f.Key, Resolve(f.Value))));
+        MdRunValue Resolve(MdRunValue value) => value.Text is { } text ? MdRunValue.Of(ResolveText(text))
+            : value.Items is { } items ? MdRunValue.List(items.Select(Resolve))
+            : MdRunValue.Map((value.Fields ?? []).Select(f => KeyValuePair.Create(f.Key, Resolve(f.Value))));
 
         string ResolveText(string text)
         {
-            var parsed = RpadPlaceholders.Parse(text);
+            var parsed = MdRunPlaceholders.Parse(text);
             if (parsed.Error is { } error)
             {
                 errors.Add(error);
@@ -38,9 +38,9 @@ public static class ConnectionPlaceholderResolver
             {
                 var value = part.Kind switch
                 {
-                    RpadPlaceholders.Kind.Secret => secret(part.Value)
+                    MdRunPlaceholders.Kind.Secret => secret(part.Value)
                         ?? Missing($"The Secret Store has no secret named '{part.Value}'. Add it in Tools → Secret Store."),
-                    RpadPlaceholders.Kind.Environment => environment(part.Value)
+                    MdRunPlaceholders.Kind.Environment => environment(part.Value)
                         ?? Missing($"The environment variable '{part.Value}' is not set."),
                     _ => part.Value,
                 };

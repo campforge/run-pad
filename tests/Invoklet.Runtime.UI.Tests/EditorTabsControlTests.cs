@@ -6,7 +6,7 @@ using Avalonia.VisualTree;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -31,7 +31,7 @@ public class EditorTabsControlTests
         try
         {
             var filePath = Path.Combine(tmpDir, "demo.rpad");
-            File.WriteAllText(filePath, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
+            File.WriteAllText(filePath, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
 
             var prefs = new Mock<IPreferencesService>();
             prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
@@ -96,7 +96,7 @@ public class EditorTabsControlTests
         try
         {
             var filePath = Path.Combine(tmpDir, "demo.rpad");
-            File.WriteAllText(filePath, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
+            File.WriteAllText(filePath, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
 
             var prefs = new Mock<IPreferencesService>();
             prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
@@ -148,7 +148,7 @@ public class EditorTabsControlTests
             editorTabs.SaveActive();
 
             Assert.False(tab.IsDirty);
-            var written = RpadParser.TryParse(File.ReadAllText(filePath));
+            var written = MdRunParser.TryParse(File.ReadAllText(filePath));
             Assert.NotNull(written);
             Assert.Contains("Console.WriteLine(2);", written!.RunCode);
         }
@@ -239,7 +239,7 @@ public class EditorTabsControlTests
         try
         {
             var filePath = Path.Combine(tmpDir, "demo.rpad");
-            File.WriteAllText(filePath, RpadWriter.NewFile("void Main()\n{\n    \n}\n", "Demo", kind: RpadKind.Program));
+            File.WriteAllText(filePath, MdRunWriter.NewFile("void Main()\n{\n    \n}\n", "Demo", kind: MdRunKind.Program));
 
             var prefs = new Mock<IPreferencesService>();
             prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
@@ -279,7 +279,7 @@ public class EditorTabsControlTests
             mainVm.OpenTab(filePath);
             await TestWait.WhileAsync(() => mainVm.ActiveTab?.FrontMatter is null);
 
-            intelliSense.Verify(x => x.UpdateKind(RpadKind.Program), Times.AtLeastOnce);
+            intelliSense.Verify(x => x.UpdateKind(MdRunKind.Program), Times.AtLeastOnce);
         }
         finally
         {
@@ -287,15 +287,15 @@ public class EditorTabsControlTests
         }
     }
 
-    // CreateControlAsync used to always RpadFilePeek.PeekLanguage
+    // CreateControlAsync used to always MdRunFilePeek.PeekLanguage
     // (vm.FilePath) to decide whether to build a C# IntelliSense instance — harmless while every new
     // file was written to disk (with correct front matter) before its tab ever opened, since
     // PeekLanguage would then read the real language back off disk. Now that file creation is
-    // deferred (NewRpadFile no longer touches disk), PeekLanguage(null) always answers C# regardless
+    // deferred (NewMdRunFile no longer touches disk), PeekLanguage(null) always answers C# regardless
     // of what the user actually picked, which would wire a live C# IntelliSense instance up against
     // VB source text for a brand-new VB tab until its first save.
     [AvaloniaFact]
-    public async Task NewRpadFile_ForVb_Should_NotBuildACSharpIntelliSenseInstance()
+    public async Task NewMdRunFile_ForVb_Should_NotBuildACSharpIntelliSenseInstance()
     {
         var tmpDir = Directory.CreateTempSubdirectory("Invoklet-tabs-vb-newfile-test").FullName;
         try
@@ -342,7 +342,7 @@ public class EditorTabsControlTests
             await TestWait.WhileAsync(() => intelliSenseFactoryCalls < 1);
             Assert.Equal(1, intelliSenseFactoryCalls);
 
-            mainVm.NewRpadFile(RpadLanguage.Vb);
+            mainVm.NewMdRunFile(MdRunLanguage.Vb);
             await TestWait.WhileAsync(() => mainVm.Tabs.Count < 2);
 
             // The VB tab's own CreateControlAsync never hits a real await (PeekLanguage-equivalent
@@ -377,7 +377,7 @@ public class EditorTabsControlTests
             for (var i = 0; i < tabCount; i++)
             {
                 var path = Path.Combine(tmpDir, $"Query {i}.rpad");
-                File.WriteAllText(path, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", $"Query {i}"));
+                File.WriteAllText(path, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", $"Query {i}"));
                 paths.Add(path);
             }
 

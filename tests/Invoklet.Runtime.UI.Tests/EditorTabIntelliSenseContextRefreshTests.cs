@@ -9,7 +9,7 @@ using Invoklet.Contracts;
 using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -37,20 +37,20 @@ public sealed class EditorTabIntelliSenseContextRefreshTests : IDisposable
         public ConnectionCategory Category => ConnectionCategory.Grpc;
         public IReadOnlyList<ConnectionParam> Params { get; } = [];
         public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string>();
-        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
-        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+        public IReadOnlyList<string> Validate(MdRunConnection connection) => [];
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken) =>
             Task.FromResult(new ConnectionTestResult(true, ""));
-        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) =>
+        public ConnectionClientCode CreateClient(MdRunConnection connection, ConnectionCodeContext context) =>
             new($"public sealed class {context.ClassName} {{ }}");
-        public Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
+        public Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, ConnectionTools tools,
             CancellationToken cancellationToken) => Task.FromResult(new ConnectionSchema("1 service", [], ""));
     }
 
-    private static readonly RpadConnection Stock = new()
+    private static readonly MdRunConnection Stock = new()
     {
         Name = "stock",
         Driver = "described",
-        Params = new(StringComparer.Ordinal) { ["address"] = RpadValue.Of("http://listed:5000") },
+        Params = new(StringComparer.Ordinal) { ["address"] = MdRunValue.Of("http://listed:5000") },
     };
 
     private static ConnectionSchema Version(int number) =>
@@ -128,7 +128,7 @@ public sealed class EditorTabIntelliSenseContextRefreshTests : IDisposable
             new InterfaceTheme("Test", ThemeVariant.Dark, true),
             new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
         var vm = new EditorTabItemViewModel(
-            null, [], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
+            null, [], prefs.Object, new Mock<IEditorTabActions>().Object, MdRunLanguage.CSharp, MdRunKind.Statements);
         var tab = new EditorsTabItemControl(vm, theme.Object, new Mock<IWindowService>().Object,
             new Mock<ILanguageHostRegistry>().Object, prefs.Object, service.Mock.Object, new Mock<IBuildCacheService>().Object,
             connectionDrivers: drivers, connectionSchemas: schemas);
@@ -136,7 +136,7 @@ public sealed class EditorTabIntelliSenseContextRefreshTests : IDisposable
         host.Show();
         try
         {
-            tab.State.RpadDocument = new RpadDocument { FrontMatter = new RpadFrontMatter { Connections = [Stock] }, RunCode = "" };
+            tab.State.MdRunDocument = new MdRunDocument { FrontMatter = new MdRunFrontMatter { Connections = [Stock] }, RunCode = "" };
             _ = await service.AppliedSignal.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
             await TestWait.WhileAsync(() => service.Mock.Invocations.All(i => i.Method.Name != nameof(IIntelliSenseService.NotifyTextChanged)));
             await service.CallbackFinished.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);

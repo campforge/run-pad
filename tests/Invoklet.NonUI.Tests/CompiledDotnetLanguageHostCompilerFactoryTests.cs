@@ -1,6 +1,6 @@
 using Invoklet.Build.Core.Models;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Compiler;
@@ -31,7 +31,7 @@ public class CompiledDotnetLanguageHostCompilerFactoryTests
     }
 
     private static (CSharpLanguageHost Host, FakeCompiler Compiler) CreateHost(
-        RpadKind kind, ProcessCompilerResult result, out string outputDir)
+        MdRunKind kind, ProcessCompilerResult result, out string outputDir)
     {
         outputDir = Path.Combine(Path.GetTempPath(), "Invoklet-tests-" + Guid.NewGuid());
         var options = new CompiledDotnetLanguageHostOptions
@@ -57,7 +57,7 @@ public class CompiledDotnetLanguageHostCompilerFactoryTests
     public async Task CompileAsync_Should_UseTheInjectedCompiler_InsteadOfShellingOutToDotnetBuild()
     {
         var result = new ProcessCompilerResult("out.dll", true, [], []);
-        var (host, compiler) = CreateHost(RpadKind.Statements, result, out var outputDir);
+        var (host, compiler) = CreateHost(MdRunKind.Statements, result, out var outputDir);
         try
         {
             var compilation = await host.CompileAsync("int x = 1;", TestContext.Current.CancellationToken);
@@ -72,7 +72,7 @@ public class CompiledDotnetLanguageHostCompilerFactoryTests
     public async Task CompileAsync_Should_PassTheKindTransformedCode_ToTheInjectedCompiler()
     {
         var result = new ProcessCompilerResult("out.dll", true, [], []);
-        var (host, compiler) = CreateHost(RpadKind.Expression, result, out var outputDir);
+        var (host, compiler) = CreateHost(MdRunKind.Expression, result, out var outputDir);
         try
         {
             await host.CompileAsync("1 + 1", TestContext.Current.CancellationToken);
@@ -90,7 +90,7 @@ public class CompiledDotnetLanguageHostCompilerFactoryTests
             Success: false,
             Errors: [new ResultItem("CS0000", "Program.cs", new LineSymbol(1, 1), "boom")],
             Warnings: []);
-        var (host, _) = CreateHost(RpadKind.Statements, result, out var outputDir);
+        var (host, _) = CreateHost(MdRunKind.Statements, result, out var outputDir);
         try
         {
             var compilation = await host.CompileAsync("this is not valid C#", TestContext.Current.CancellationToken);
@@ -103,11 +103,11 @@ public class CompiledDotnetLanguageHostCompilerFactoryTests
     }
 
     [Theory]
-    [InlineData(RpadKind.Statements, "class __InvokletProgram { }")]
-    [InlineData(RpadKind.Program, "class __InvokletProgram { static void Main() { } }")]
-    [InlineData(RpadKind.Expression, "class __InvokletProgram { }")]
+    [InlineData(MdRunKind.Statements, "class __InvokletProgram { }")]
+    [InlineData(MdRunKind.Program, "class __InvokletProgram { static void Main() { } }")]
+    [InlineData(MdRunKind.Expression, "class __InvokletProgram { }")]
     public async Task CompileAsync_Should_RejectTheReservedProgramWrapperType_BeforeTheKindTransform(
-        RpadKind kind, string code)
+        MdRunKind kind, string code)
     {
         var result = new ProcessCompilerResult("out.dll", true, [], []);
         var (host, compiler) = CreateHost(kind, result, out var outputDir);
@@ -128,7 +128,7 @@ public class CompiledDotnetLanguageHostCompilerFactoryTests
     public async Task CompileAsync_Should_RejectTheReservedProgramTrampolineMethod()
     {
         var result = new ProcessCompilerResult("out.dll", true, [], []);
-        var (host, compiler) = CreateHost(RpadKind.Program, result, out var outputDir);
+        var (host, compiler) = CreateHost(MdRunKind.Program, result, out var outputDir);
         try
         {
             var compilation = await host.CompileAsync(
@@ -147,7 +147,7 @@ public class CompiledDotnetLanguageHostCompilerFactoryTests
     public async Task CompileAsync_Should_RejectTheReservedProgramTrampolineField()
     {
         var result = new ProcessCompilerResult("out.dll", true, [], []);
-        var (host, compiler) = CreateHost(RpadKind.Program, result, out var outputDir);
+        var (host, compiler) = CreateHost(MdRunKind.Program, result, out var outputDir);
         try
         {
             var compilation = await host.CompileAsync(
@@ -166,7 +166,7 @@ public class CompiledDotnetLanguageHostCompilerFactoryTests
     public async Task CompileAsync_Should_AllowTheTrampolineName_ForAProgramLocalFunction()
     {
         var result = new ProcessCompilerResult("out.dll", true, [], []);
-        var (host, compiler) = CreateHost(RpadKind.Program, result, out var outputDir);
+        var (host, compiler) = CreateHost(MdRunKind.Program, result, out var outputDir);
         try
         {
             const string code = "void Main() { void __InvokletRun() { } __InvokletRun(); }";
@@ -182,7 +182,7 @@ public class CompiledDotnetLanguageHostCompilerFactoryTests
     public async Task CompileAsync_Should_NotRejectReservedNamesInsideStringsOrComments()
     {
         var result = new ProcessCompilerResult("out.dll", true, [], []);
-        var (host, compiler) = CreateHost(RpadKind.Statements, result, out var outputDir);
+        var (host, compiler) = CreateHost(MdRunKind.Statements, result, out var outputDir);
         try
         {
             const string code = "// class __InvokletProgram { }\nConsole.WriteLine(\"__InvokletProgram\");";
@@ -199,7 +199,7 @@ public class CompiledDotnetLanguageHostCompilerFactoryTests
     public async Task CompileAsync_Should_RaiseCompiledEvent_WithTheOutputBinaryPath_OnSuccess()
     {
         var result = new ProcessCompilerResult("out.dll", true, [], []);
-        var (host, _) = CreateHost(RpadKind.Statements, result, out var outputDir);
+        var (host, _) = CreateHost(MdRunKind.Statements, result, out var outputDir);
         try
         {
             string? received = null;
@@ -220,7 +220,7 @@ public class CompiledDotnetLanguageHostCompilerFactoryTests
             Success: false,
             Errors: [new ResultItem("CS0000", "Program.cs", new LineSymbol(1, 1), "boom")],
             Warnings: []);
-        var (host, _) = CreateHost(RpadKind.Statements, result, out var outputDir);
+        var (host, _) = CreateHost(MdRunKind.Statements, result, out var outputDir);
         try
         {
             var raised = false;
@@ -247,7 +247,7 @@ public class CompiledDotnetLanguageHostCompilerFactoryTests
             Success: false,
             Errors: [new ResultItem(code, "", new LineSymbol((uint)line, (uint)column), "boom")],
             Warnings: []);
-        var (host, _) = CreateHost(RpadKind.Statements, result, out var outputDir);
+        var (host, _) = CreateHost(MdRunKind.Statements, result, out var outputDir);
         try
         {
             var output = new List<(string Text, OutputKind Kind)>();

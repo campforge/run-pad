@@ -9,7 +9,7 @@ using Inventory.V1;
 using Invoklet.Connectors.Grpc;
 using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Languages.DotnetCommon;
@@ -94,20 +94,20 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         Directory.Delete(_folder, true);
     }
 
-    private RpadConnection Inventory(string? address = null, string? metadata = "Bearer ${secret:inventory-token}") => new()
+    private MdRunConnection Inventory(string? address = null, string? metadata = "Bearer ${secret:inventory-token}") => new()
     {
         Name = "inventory",
         Driver = "grpc",
         Params = metadata is null
-            ? new(StringComparer.Ordinal) { ["address"] = RpadValue.Of(address ?? Address) }
+            ? new(StringComparer.Ordinal) { ["address"] = MdRunValue.Of(address ?? Address) }
             : new(StringComparer.Ordinal)
             {
-                ["address"] = RpadValue.Of(address ?? Address),
-                ["metadata"] = RpadValue.Map([new("authorization", RpadValue.Of(metadata))]),
+                ["address"] = MdRunValue.Of(address ?? Address),
+                ["metadata"] = MdRunValue.Map([new("authorization", MdRunValue.Of(metadata))]),
             },
     };
 
-    private static Dictionary<string, RpadValue> Resolved(RpadConnection connection) =>
+    private static Dictionary<string, MdRunValue> Resolved(MdRunConnection connection) =>
         ConnectionPlaceholderResolver.Resolve(connection.Params, _ => "t0k", _ => null).Params.ToDictionary();
 
     private ConnectionSchemas Schemas()
@@ -123,16 +123,16 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
     {
         var driver = new GrpcConnectionDriver();
         Assert.Empty(driver.Validate(Inventory("https://${env:INVENTORY_HOST}")));
-        Assert.Equal(["The address is missing."], driver.Validate(new RpadConnection { Name = "a", Driver = "grpc" }));
-        var bad = new RpadConnection
+        Assert.Equal(["The address is missing."], driver.Validate(new MdRunConnection { Name = "a", Driver = "grpc" }));
+        var bad = new MdRunConnection
         {
             Name = "a",
             Driver = "grpc",
             Params = new(StringComparer.Ordinal)
             {
-                ["address"] = RpadValue.Of("localhost:5001"),
-                ["metadata"] = RpadValue.Map([new("token-bin", RpadValue.Of("x"))]),
-                ["skipCertificateCheck"] = RpadValue.Of("yes"),
+                ["address"] = MdRunValue.Of("localhost:5001"),
+                ["metadata"] = MdRunValue.Map([new("token-bin", MdRunValue.Of("x"))]),
+                ["skipCertificateCheck"] = MdRunValue.Of("yes"),
             },
         };
         Assert.Equal(
@@ -166,10 +166,10 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
     [InlineData("token-bin")]
     public async Task Test_Should_SayWhichMetadataNameIsInvalid(string name)
     {
-        var parameters = new Dictionary<string, RpadValue>(StringComparer.Ordinal)
+        var parameters = new Dictionary<string, MdRunValue>(StringComparer.Ordinal)
         {
-            ["address"] = RpadValue.Of(Address),
-            ["metadata"] = RpadValue.Map([new(name, RpadValue.Of("x"))]),
+            ["address"] = MdRunValue.Of(Address),
+            ["metadata"] = MdRunValue.Map([new(name, MdRunValue.Of("x"))]),
         };
         var result = await new GrpcConnectionDriver().TestAsync(parameters, TestContext.Current.CancellationToken);
         Assert.Equal(new ConnectionTestResult(false,
@@ -184,7 +184,7 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         var connection = Inventory();
         var schemas = Schemas();
         schemas.Cache.Put(connection, new ConnectionSchema("", [], "[]"));
-        var generated = GeneratedConnections.For([connection], RpadLanguage.CSharp,
+        var generated = GeneratedConnections.For([connection], MdRunLanguage.CSharp,
             new GrpcConnectionDriver().Packages.Keys, schemas.Drivers, schemas.Cache)!;
         Assert.Empty(generated.Errors);
         Assert.Contains("var all = new global::Grpc.Core.Metadata();", generated.Source, StringComparison.Ordinal);
@@ -262,7 +262,7 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
     [Fact]
     public void ConnectionWrapper_Should_EnableNullable_ForItsOwnText()
     {
-        var generated = GeneratedConnections.For([Inventory()], RpadLanguage.CSharp, new GrpcConnectionDriver().Packages.Keys, Schemas().Drivers,
+        var generated = GeneratedConnections.For([Inventory()], MdRunLanguage.CSharp, new GrpcConnectionDriver().Packages.Keys, Schemas().Drivers,
             Schemas().Cache);
         Assert.NotNull(generated);
         Assert.StartsWith("#nullable enable\n", generated.Source, StringComparison.Ordinal);
@@ -331,12 +331,12 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         var connection = Inventory();
         var other = Inventory();
         other.Name = "other";
-        other.Params["address"] = RpadValue.Of("http://localhost:5002");
+        other.Params["address"] = MdRunValue.Of("http://localhost:5002");
         var schemas = Schemas();
         const string code = "namespace Shared { public partial class Message { public void Send() {} } }";
         schemas.Cache.Put(connection, new ConnectionSchema("", [new("Shared.cs", code)], "[]"));
         schemas.Cache.Put(other, new ConnectionSchema("", [new("Shared.cs", code)], "[]"));
-        var generated = GeneratedConnections.For([connection, other], RpadLanguage.CSharp,
+        var generated = GeneratedConnections.For([connection, other], MdRunLanguage.CSharp,
             new GrpcConnectionDriver().Packages.Keys, schemas.Drivers, schemas.Cache)!;
         Assert.Empty(generated.Errors);
         Assert.Single(generated.Files);
@@ -347,7 +347,7 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         Assert.DoesNotContain(compilation.GetDiagnostics(TestContext.Current.CancellationToken), d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
 
         schemas.Cache.Put(other, new ConnectionSchema("", [new("Shared.cs", code.Replace("Send", "Receive"))], "[]"));
-        generated = GeneratedConnections.For([connection, other], RpadLanguage.CSharp,
+        generated = GeneratedConnections.For([connection, other], MdRunLanguage.CSharp,
             new GrpcConnectionDriver().Packages.Keys, schemas.Drivers, schemas.Cache)!;
         Assert.Contains(generated.Errors, e => e.Contains("conflicts with another connection", StringComparison.Ordinal));
     }
@@ -359,7 +359,7 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         var schemas = Schemas();
         schemas.Cache.Put(connection, new ConnectionSchema("", [],
             "[{\"Service\":\"example.InventoryClient\",\"ClientType\":\"global::Example.Client\",\"Property\":\"InventoryClient\"}]"));
-        var generated = GeneratedConnections.For([connection], RpadLanguage.CSharp,
+        var generated = GeneratedConnections.For([connection], MdRunLanguage.CSharp,
             new GrpcConnectionDriver().Packages.Keys, schemas.Drivers, schemas.Cache)!;
         Assert.Empty(generated.Errors);
         Assert.Contains("public global::Example.Client ExampleInventoryClient =>", generated.Source, StringComparison.Ordinal);
@@ -386,7 +386,7 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         Assert.False(await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken));
 
         var packages = new GrpcConnectionDriver().Packages;
-        var generated = GeneratedConnections.For([connection], RpadLanguage.CSharp, packages.Keys, schemas.Drivers, schemas.Cache)!;
+        var generated = GeneratedConnections.For([connection], MdRunLanguage.CSharp, packages.Keys, schemas.Drivers, schemas.Cache)!;
         Assert.Empty(generated.Errors);
         Assert.Contains("public global::Inventory.V1.Stock.StockClient Stock => __stock ??= new global::Inventory.V1.Stock.StockClient(CallInvoker);",
             generated.Source);
@@ -528,19 +528,19 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         var schemas = Schemas();
         var packages = new GrpcConnectionDriver().Packages.Keys;
         Assert.Equal(["Connection 'inventory': its description hasn't been read yet; Invoklet reads it when the script is opened or run."],
-            GeneratedConnections.For([connection], RpadLanguage.CSharp, packages, schemas.Drivers, schemas.Cache)!.Errors);
+            GeneratedConnections.For([connection], MdRunLanguage.CSharp, packages, schemas.Drivers, schemas.Cache)!.Errors);
 
         Assert.True(await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken));
         Assert.Equal(
             ["Connection 'inventory': its description couldn't be read: The server doesn't offer gRPC server reflection, which Invoklet reads its services with."],
-            GeneratedConnections.For([connection], RpadLanguage.CSharp, packages, schemas.Drivers, schemas.Cache)!.Errors);
+            GeneratedConnections.For([connection], MdRunLanguage.CSharp, packages, schemas.Drivers, schemas.Cache)!.Errors);
         Assert.False(await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken));
         Assert.True(await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.Failed, TestContext.Current.CancellationToken));
 
         // Dependencies → Connections says so too.
         var tab = new ScriptConnectionsViewModel(null, null, schemas.Drivers, schemas);
         tab.UsePackages(() => new HashSet<string>(packages, StringComparer.OrdinalIgnoreCase), (_, _) => { });
-        tab.Load(new RpadFrontMatter { Connections = [connection] });
+        tab.Load(new MdRunFrontMatter { Connections = [connection] });
         Assert.Equal("Its description couldn't be read: The server doesn't offer gRPC server reflection, which Invoklet reads its services with.",
             Assert.Single(tab.Items).Problem);
 
@@ -591,10 +591,10 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         return X509CertificateLoader.LoadPkcs12(certificate.Export(X509ContentType.Pfx), null);
     }
 
-    private static Dictionary<string, RpadValue> Params(string address, bool skipCertificate = false)
+    private static Dictionary<string, MdRunValue> Params(string address, bool skipCertificate = false)
     {
-        var parameters = new Dictionary<string, RpadValue>(StringComparer.Ordinal) { ["address"] = RpadValue.Of(address) };
-        if (skipCertificate) parameters["skipCertificateCheck"] = RpadValue.Of("true");
+        var parameters = new Dictionary<string, MdRunValue>(StringComparer.Ordinal) { ["address"] = MdRunValue.Of(address) };
+        if (skipCertificate) parameters["skipCertificateCheck"] = MdRunValue.Of("true");
         return parameters;
     }
 
@@ -690,10 +690,10 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
     public void TheClient_Should_UseTheAddressAsWritten_WithoutTlsOrCertificateChanges()
     {
         var schemas = Schemas();
-        static string Source(ConnectionSchemas schemas, RpadConnection connection)
+        static string Source(ConnectionSchemas schemas, MdRunConnection connection)
         {
             schemas.Cache.Put(connection, new ConnectionSchema("", [], "[]"));
-            var generated = GeneratedConnections.For([connection], RpadLanguage.CSharp,
+            var generated = GeneratedConnections.For([connection], MdRunLanguage.CSharp,
                 new GrpcConnectionDriver().Packages.Keys, schemas.Drivers, schemas.Cache)!;
             Assert.Empty(generated.Errors);
             return generated.Source;
@@ -706,7 +706,7 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         Assert.DoesNotContain("RemoteCertificateValidationCallback", plain, StringComparison.Ordinal);
 
         var connection = Inventory("https://localhost:5001", metadata: null);
-        connection.Params["skipCertificateCheck"] = RpadValue.Of("true");
+        connection.Params["skipCertificateCheck"] = MdRunValue.Of("true");
         Assert.Contains("RemoteCertificateValidationCallback = (_, _, _, _) => true;", Source(schemas, connection), StringComparison.Ordinal);
     }
 }

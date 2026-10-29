@@ -10,7 +10,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -47,7 +47,7 @@ public class PanelTabsTests
         themeService.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
             new InterfaceTheme("Test", ThemeVariant.Dark, true),
             new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
-        var vm = new EditorTabItemViewModel(null, [], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
+        var vm = new EditorTabItemViewModel(null, [], prefs.Object, new Mock<IEditorTabActions>().Object, MdRunLanguage.CSharp, MdRunKind.Statements);
         var tab = new EditorsTabItemControl(vm, themeService.Object, new Mock<IWindowService>().Object,
             new Mock<ILanguageHostRegistry>().Object, prefs.Object, intelliSense: null, new Mock<IBuildCacheService>().Object);
         host = Host(tab, theme);
@@ -83,14 +83,14 @@ public class PanelTabsTests
             var tab = Assert.IsType<EditorsTabItemControl>(host.Content);
             var update = typeof(EditorsTabItemControl).GetMethod("UpdateIlOutput",
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
-            await Task.Run(() => update.Invoke(tab, [typeof(RpadDocument).Assembly.Location, 0]), TestContext.Current.CancellationToken);
+            await Task.Run(() => update.Invoke(tab, [typeof(MdRunDocument).Assembly.Location, 0]), TestContext.Current.CancellationToken);
             Dispatcher.UIThread.RunJobs();
             var editor = host.GetVisualDescendants().OfType<AvaloniaEdit.TextEditor>().Single(e => e.Name == "IlOutput");
             Assert.Contains(".class", editor.Text, StringComparison.Ordinal);
-            Assert.Contains("RpadDocument", editor.Text, StringComparison.Ordinal);
+            Assert.Contains("MdRunDocument", editor.Text, StringComparison.Ordinal);
             Assert.True(editor.Document.LineCount > 1);
             var current = editor.Document;
-            await Task.Run(() => update.Invoke(tab, [typeof(RpadDocument).Assembly.Location, -1]), TestContext.Current.CancellationToken);
+            await Task.Run(() => update.Invoke(tab, [typeof(MdRunDocument).Assembly.Location, -1]), TestContext.Current.CancellationToken);
             Dispatcher.UIThread.RunJobs();
             Assert.Same(current, editor.Document);
         }

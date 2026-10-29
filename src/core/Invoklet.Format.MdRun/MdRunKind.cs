@@ -1,6 +1,6 @@
-namespace Invoklet.Format.RPad;
+namespace Invoklet.Format.MdRun;
 
-public enum RpadKind
+public enum MdRunKind
 {
     Unknown = 0,
     Statements = 1,

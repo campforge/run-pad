@@ -5,7 +5,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services.Preferences;
 using Invoklet.UserControls.Models;
 
@@ -34,11 +34,11 @@ public sealed class FileTreeCreateFolderEventArgs(RoutedEvent routedEvent, strin
 // Same ParentPath convention as FileTreeCreateFolderEventArgs; Language comes from
 // which "New File" submenu entry (C#/Visual Basic) was clicked, same split as MainWindow's
 // File → New RPad File menu.
-public sealed class FileTreeCreateFileEventArgs(RoutedEvent routedEvent, string? parentPath, RpadLanguage language)
+public sealed class FileTreeCreateFileEventArgs(RoutedEvent routedEvent, string? parentPath, MdRunLanguage language)
     : RoutedEventArgs(routedEvent)
 {
     public string? ParentPath { get; } = parentPath;
-    public RpadLanguage Language { get; } = language;
+    public MdRunLanguage Language { get; } = language;
 }
 
 // SourcePath is the dragged node; TargetPath follows the exact same convention as
@@ -412,7 +412,7 @@ public partial class FileTreeView : UserControl
 
     private void ContextCreateFile_Click(object? sender, RoutedEventArgs e)
     {
-        if (sender is MenuItem { Tag: RpadLanguage language })
+        if (sender is MenuItem { Tag: MdRunLanguage language })
             RaiseEvent(new FileTreeCreateFileEventArgs(
                 CreateFileEvent, (_fileTree.SelectedItem as FileTreeViewNode)?.FilePath, language));
     }

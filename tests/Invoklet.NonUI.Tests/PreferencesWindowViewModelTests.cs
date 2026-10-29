@@ -1,7 +1,7 @@
 using Avalonia.Styling;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.VB;
 using Invoklet.Services;
@@ -49,11 +49,11 @@ public class PreferencesWindowViewModelTests
     [Fact]
     public void TheNewFileLanguageChoices_Should_FollowTheRegisteredLanguages()
     {
-        Assert.Equal([RpadLanguage.CSharp, RpadLanguage.Vb], CreateViewModel(CreateRealRegistry()).AvailableNewFileLanguages);
+        Assert.Equal([MdRunLanguage.CSharp, MdRunLanguage.Vb], CreateViewModel(CreateRealRegistry()).AvailableNewFileLanguages);
 
         var vbOnly = new LanguageHostRegistry();
         vbOnly.Register(new VbLanguageHostFactory(NullLoggerFactory.Instance));
-        Assert.Equal([RpadLanguage.Vb], CreateViewModel(vbOnly).AvailableNewFileLanguages);
+        Assert.Equal([MdRunLanguage.Vb], CreateViewModel(vbOnly).AvailableNewFileLanguages);
     }
 
     // The Keyboard page lists every command of the catalog; editing a row writes the binding to
@@ -155,11 +155,11 @@ public class PreferencesWindowViewModelTests
         prefs.Setup(p => p.Editor).Returns(editorSettings);
         var vm = new PreferencesWindowViewModel(theme.Object, prefs.Object, CreateRealRegistry());
 
-        vm.NewFileLanguage = RpadLanguage.Vb;
-        vm.NewFileKind = RpadKind.Program;
+        vm.NewFileLanguage = MdRunLanguage.Vb;
+        vm.NewFileKind = MdRunKind.Program;
 
-        Assert.Equal(RpadLanguage.Vb, editorSettings.NewFileLanguage);
-        Assert.Equal(RpadKind.Program, editorSettings.NewFileKind);
+        Assert.Equal(MdRunLanguage.Vb, editorSettings.NewFileLanguage);
+        Assert.Equal(MdRunKind.Program, editorSettings.NewFileKind);
         prefs.Verify(p => p.Save(), Times.Exactly(2));
     }
 

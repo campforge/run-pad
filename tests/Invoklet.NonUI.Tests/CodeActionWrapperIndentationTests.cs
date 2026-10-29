@@ -1,5 +1,5 @@
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Microsoft.CodeAnalysis.Text;
@@ -16,7 +16,7 @@ namespace Invoklet.Runtime.UI.Tests;
 [Collection(CodeActionAllocationCollection.Name)]
 public sealed class CodeActionWrapperIndentationTests
 {
-    private static CSharpIntelliSenseService CreateService(RpadKind kind)
+    private static CSharpIntelliSenseService CreateService(MdRunKind kind)
     {
         var referenceService = new CSharpReferenceService();
         var service = new CSharpIntelliSenseService(
@@ -77,7 +77,7 @@ public sealed class CodeActionWrapperIndentationTests
     public async Task AddBraces_InTheProgramKind_Should_IndentRelativeToTheVisibleCode()
     {
         const string code = "void Main()\n{\n    if (DateTime.Now.Year > 2000) Console.WriteLine(1);\n}\n";
-        using var service = CreateService(RpadKind.Program);
+        using var service = CreateService(MdRunKind.Program);
 
         var result = await ApplyAsync(service, code, "Add braces");
 
@@ -91,7 +91,7 @@ public sealed class CodeActionWrapperIndentationTests
     {
         const string extensions = "static class Extensions\n{\n    public static int Twice(this int n) => n * 2;\n}\n";
         const string code = "void Main()\n{\n    if (DateTime.Now.Year > 2000) Console.WriteLine(1.Twice());\n}\n" + extensions;
-        using var service = CreateService(RpadKind.Program);
+        using var service = CreateService(MdRunKind.Program);
 
         var result = await ApplyAsync(service, code, "Add braces");
 
@@ -103,7 +103,7 @@ public sealed class CodeActionWrapperIndentationTests
     {
         const string main = "void Main()\n{\n    Console.WriteLine(1.Twice());\n}\n";
         const string code = main + "static class Extensions\n{\n    public static int Twice(this int n)\n    {\n        if (n > 0) return n * 2;\n        return 0;\n    }\n}\n";
-        using var service = CreateService(RpadKind.Program);
+        using var service = CreateService(MdRunKind.Program);
 
         var result = await ApplyAsync(service, code, "Add braces", from: main.Length);
 
@@ -114,7 +114,7 @@ public sealed class CodeActionWrapperIndentationTests
     public async Task AddAccessibilityModifiers_InTheProgramKind_Should_KeepTheMemberAtItsColumn()
     {
         const string code = "void Main()\n{\n    Console.WriteLine(1);\n}\n";
-        using var service = CreateService(RpadKind.Program);
+        using var service = CreateService(MdRunKind.Program);
 
         var result = await ApplyAsync(service, code, "Add accessibility modifiers");
 
@@ -127,7 +127,7 @@ public sealed class CodeActionWrapperIndentationTests
     public async Task AnAlignedWrap_InTheProgramKind_Should_KeepItsAlignment_AndOtherLines()
     {
         const string code = "void Main()\n{\n    Console.WriteLine(Twice(2));\n}\n\nint Twice(int v)\n{\n    return v * 2;\n}\n\nint Odd()\n{\n  return 1;\n}\n";
-        using var service = CreateService(RpadKind.Program);
+        using var service = CreateService(MdRunKind.Program);
 
         var aligned = await ApplyAsync(service, code, "Wrap and align expression", code.IndexOf("return v", StringComparison.Ordinal));
 
@@ -148,8 +148,8 @@ public sealed class CodeActionWrapperIndentationTests
         var statements = "Console.WriteLine(Twice(2));\n\nint Twice(int v)\n{\n" + body + "}\n";
         var from = program.IndexOf("return v", StringComparison.Ordinal);
 
-        using var programService = CreateService(RpadKind.Program);
-        using var statementsService = CreateService(RpadKind.Statements);
+        using var programService = CreateService(MdRunKind.Program);
+        using var statementsService = CreateService(MdRunKind.Statements);
         var expected = (await ApplyAsync(statementsService, statements, "Wrap expression", statements.IndexOf("return v", StringComparison.Ordinal)))
             .Replace("Console.WriteLine(Twice(2));\n\n", "");
         Assert.Contains("\n" + statementIndent + "return v\n" + continuationIndent + "* 2;\n", expected);
@@ -164,7 +164,7 @@ public sealed class CodeActionWrapperIndentationTests
     public async Task AddBraces_InTheProgramKind_Should_KeepUntouchedTabIndentedLines()
     {
         const string code = "void Main()\n{\n    if (DateTime.Now.Year > 2000) Console.WriteLine(1);\n}\n\nint Other()\n{\n\treturn 1;\n}\n";
-        using var service = CreateService(RpadKind.Program);
+        using var service = CreateService(MdRunKind.Program);
 
         var result = await ApplyAsync(service, code, "Add braces");
 
@@ -180,7 +180,7 @@ public sealed class CodeActionWrapperIndentationTests
         var members = string.Concat(Enumerable.Range(0, 2_500).Select(i => $"int Value{i}()\n{{\n    return {i};\n}}\n"));
         var code = "void Main()\n{\n    if (DateTime.Now.Year > 2000) Console.WriteLine(1);\n}\n" + members;
         Assert.True(code.Split('\n').Length > 10_000);
-        using var service = CreateService(RpadKind.Program);
+        using var service = CreateService(MdRunKind.Program);
 
         var result = await ApplyAsync(service, code, "Add braces", allocationBudget: 150_000_000);
 
@@ -191,7 +191,7 @@ public sealed class CodeActionWrapperIndentationTests
     [Fact]
     public async Task Reindenting_Should_StopWhenCancelled()
     {
-        using var service = CreateService(RpadKind.Program);
+        using var service = CreateService(MdRunKind.Program);
         using var cancelled = new CancellationTokenSource();
         cancelled.Cancel();
         var code = string.Concat(Enumerable.Range(0, 5_000).Select(i => $"int Value{i}() => {i};\n"));
@@ -205,7 +205,7 @@ public sealed class CodeActionWrapperIndentationTests
     public async Task AddBraces_InTheStatementsKind_Should_StayAsBefore()
     {
         const string code = "if (DateTime.Now.Year > 2000) Console.WriteLine(1);\nConsole.WriteLine(2);\n";
-        using var service = CreateService(RpadKind.Statements);
+        using var service = CreateService(MdRunKind.Statements);
 
         var result = await ApplyAsync(service, code, "Add braces");
 

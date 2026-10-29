@@ -269,7 +269,7 @@ public class MainWindowViewModelDocumentSafetyTests
             var file = Path.Combine(root, "a.rpad");
             File.WriteAllText(file, "content");
             var (vm, _, _) = CreateViewModel(root);
-            vm.NewRpadFile();
+            vm.NewMdRunFile();
             var untitled = Assert.Single(vm.Tabs);
             untitled.IsDirty = true;
 

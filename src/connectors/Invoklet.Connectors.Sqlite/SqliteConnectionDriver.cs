@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Invoklet.Contracts.Connections;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Microsoft.Data.Sqlite;
 
 namespace Invoklet.Connectors.Sqlite;
@@ -43,7 +43,7 @@ public sealed class SqliteConnectionDriver : IConnectionSchemaDriver
             Description: "Opens the file for reading only, so the script can't change it."),
     ];
 
-    public IReadOnlyList<string> Validate(RpadConnection connection)
+    public IReadOnlyList<string> Validate(MdRunConnection connection)
     {
         var errors = new List<string>();
         if (!connection.Params.TryGetValue(File, out var file) || string.IsNullOrWhiteSpace(file.Text))
@@ -56,11 +56,11 @@ public sealed class SqliteConnectionDriver : IConnectionSchemaDriver
     }
 
     // A relative path, or one a placeholder may make relative, depends on the script's folder.
-    public bool UsesScriptDirectory(RpadConnection connection) =>
+    public bool UsesScriptDirectory(MdRunConnection connection) =>
         connection.Params.TryGetValue(File, out var file) && file.Text is { } text
-        && (RpadPlaceholders.Parse(text).Parts.Any(p => p.Kind != RpadPlaceholders.Kind.Text) || !Path.IsPathRooted(text));
+        && (MdRunPlaceholders.Parse(text).Parts.Any(p => p.Kind != MdRunPlaceholders.Kind.Text) || !Path.IsPathRooted(text));
 
-    public async Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken)
+    public async Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken)
     {
         try
         {
@@ -73,7 +73,7 @@ public sealed class SqliteConnectionDriver : IConnectionSchemaDriver
         }
     }
 
-    public async Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
+    public async Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, ConnectionTools tools,
         CancellationToken cancellationToken)
     {
         var tables = await ReadAsync(resolvedParams, tools.ScriptDirectory, cancellationToken).ConfigureAwait(false);
@@ -81,7 +81,7 @@ public sealed class SqliteConnectionDriver : IConnectionSchemaDriver
     }
 
     // A DbContext opening the file, with a set per table and view, each a nested class.
-    public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context)
+    public ConnectionClientCode CreateClient(MdRunConnection connection, ConnectionCodeContext context)
     {
         var file = connection.Params[File].Text!.Trim();
         var readOnly = connection.Params.TryGetValue(ReadOnly, out var r) && bool.TryParse(r.Text, out var flag) && flag;
@@ -172,7 +172,7 @@ public sealed class SqliteConnectionDriver : IConnectionSchemaDriver
 
     // Reads the tables and views of the file the parameters name, opened for reading only so that
     // Invoklet never creates or changes it.
-    private static async Task<List<SqliteTable>> ReadAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, string? scriptDirectory,
+    private static async Task<List<SqliteTable>> ReadAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, string? scriptDirectory,
         CancellationToken cancellationToken)
     {
         if (!resolvedParams.TryGetValue(File, out var fileValue) || fileValue.Text is not { Length: > 0 } text)

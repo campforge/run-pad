@@ -8,7 +8,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -100,7 +100,7 @@ public class EditorTabItemControlPreviewTests
     {
         var prefs = sharedPrefs ?? MakePrefs();
         var vm = new EditorTabItemViewModel(
-            null, [], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
+            null, [], prefs.Object, new Mock<IEditorTabActions>().Object, MdRunLanguage.CSharp, MdRunKind.Statements);
         var theme = new Mock<IThemeService>();
         theme.Setup(t => t.CurrentTheme).Returns(Theme(TextMateSharp.Grammars.ThemeName.DarkPlus));
         // The real theme gives the preview a background, which also makes its gaps between blocks
@@ -209,7 +209,7 @@ public class EditorTabItemControlPreviewTests
         var (ctrl, vm) = CreateControl();
         vm.TogglePreviewToSide();
 
-        vm.SelectedKind = nameof(RpadKind.Expression);
+        vm.SelectedKind = nameof(MdRunKind.Expression);
 
         Assert.Contains("| Kind | Expression |", ctrl.PreviewForTests!.Markdown);
         ctrl.Dispose();
@@ -221,10 +221,10 @@ public class EditorTabItemControlPreviewTests
         var (ctrl, vm) = CreateControl(out var window);
         try
         {
-            var fm = ctrl.State.RpadDocument!.FrontMatter;
-            fm.Arguments = [new() { Name = "value", Type = RpadArgumentType.Int }];
-            fm.ArgumentSets["dev"] = new() { ["value"] = RpadValue.Of("3") };
-            fm.ArgumentSets["prod"] = new() { ["value"] = RpadValue.Of("7") };
+            var fm = ctrl.State.MdRunDocument!.FrontMatter;
+            fm.Arguments = [new() { Name = "value", Type = MdRunArgumentType.Int }];
+            fm.ArgumentSets["dev"] = new() { ["value"] = MdRunValue.Of("3") };
+            fm.ArgumentSets["prod"] = new() { ["value"] = MdRunValue.Of("7") };
             fm.SelectedArgumentSet = "dev";
             ctrl.OnDependenciesEdited();
             Dispatcher.UIThread.RunJobs();
@@ -238,7 +238,7 @@ public class EditorTabItemControlPreviewTests
             Assert.Equal("prod", fm.SelectedArgumentSet);
             var request = Invoklet.Contracts.Models.ExecutionRequest.For(fm, null);
             Assert.Equal(["--value", "7"], request.Arguments);
-            Assert.Equal(["7"], RpadArgumentContract.FromJson(request.ArgumentContractJson).Members.Single().Values);
+            Assert.Equal(["7"], MdRunArgumentContract.FromJson(request.ArgumentContractJson).Members.Single().Values);
 
             selector.SelectedItem = "dev";
             Dispatcher.UIThread.RunJobs();
@@ -246,7 +246,7 @@ public class EditorTabItemControlPreviewTests
             selector.SelectedItem = "Defaults";
             Dispatcher.UIThread.RunJobs();
             Assert.Null(fm.SelectedArgumentSet);
-            Assert.Empty(RpadArgumentContract.Build(fm, out _).Members.Single().Values);
+            Assert.Empty(MdRunArgumentContract.Build(fm, out _).Members.Single().Values);
         }
         finally
         {
@@ -263,7 +263,7 @@ public class EditorTabItemControlPreviewTests
         var before = ctrl.PreviewForTests!.Markdown;
 
         ctrl.State.Editor.Text = "var hidden = 1;";
-        vm.SelectedKind = nameof(RpadKind.Expression);
+        vm.SelectedKind = nameof(MdRunKind.Expression);
 
         Assert.Equal(before, ctrl.PreviewForTests.Markdown);
         vm.TogglePreviewToSide();
@@ -337,7 +337,7 @@ public class EditorTabItemControlPreviewTests
 
     private static int CodeLine(EditorsTabItemControl ctrl)
     {
-        RpadPreview.ToMarkdown(ctrl.State.RpadDocument!, ctrl.State.Editor.Text, out var codeLine);
+        MdRunPreview.ToMarkdown(ctrl.State.MdRunDocument!, ctrl.State.Editor.Text, out var codeLine);
         return codeLine;
     }
 

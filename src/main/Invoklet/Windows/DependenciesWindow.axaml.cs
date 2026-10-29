@@ -3,7 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Windows.Models;
 using ReactiveUI;
@@ -62,7 +62,7 @@ public partial class DependenciesWindow : Window
 
     private bool _askingToSave;
 
-    public void SetFrontMatter(RpadFrontMatter? fm) => ViewModel?.SetFrontMatter(fm);
+    public void SetFrontMatter(MdRunFrontMatter? fm) => ViewModel?.SetFrontMatter(fm);
 
     public void SetScriptPath(string? path) => ViewModel?.Connections.SetScriptPath(path);
 

@@ -4,8 +4,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Invoklet.Languages.CSharp;
 
 /// <summary>
-/// Inspects a <see cref="Invoklet.Format.MdRun.RpadKind.Program"/> script's <c>Main</c> local function
-/// signature — <see cref="RpadKindTransform"/> needs both facts captured in <see cref="MainSignature"/>
+/// Inspects a <see cref="Invoklet.Format.MdRun.MdRunKind.Program"/> script's <c>Main</c> local function
+/// signature — <see cref="MdRunKindTransform"/> needs both facts captured in <see cref="MainSignature"/>
 /// to build the right call statement: <c>IsStatic</c> picks between <c>__InvokletProgram.Main()</c> and
 /// <c>new __InvokletProgram().Main()</c> (a static local function can't be called through an instance
 /// reference — CS0176), and <c>ReturnsTask</c> (<c>async Task Main()</c>/<c>Task Main()</c>/generic
@@ -15,7 +15,7 @@ namespace Invoklet.Languages.CSharp;
 /// of a text/regex sniff, since the project already depends on Microsoft.CodeAnalysis.CSharp for
 /// IntelliSense — a real AST doesn't false-positive on a commented-out old signature, a "Main" inside
 /// a string literal, or a same-named member on some other local type. Parsed as raw top-level-statement
-/// text (not wrapped in the <see cref="RpadKindTransform"/> class shell) — before compiling/analyzing,
+/// text (not wrapped in the <see cref="MdRunKindTransform"/> class shell) — before compiling/analyzing,
 /// the user's own `.rpad` code is still exactly what they typed, and `Main` (however it's later
 /// compiled) is always written by the user as a bare local-function-shaped declaration, modifiers and
 /// all — the parser accepts that syntax even though the binder would reject some of it standing alone
@@ -29,7 +29,7 @@ internal static class ProgramEntryPointDetector
     public enum MainParameters { None, Args, Token, ArgsAndToken }
 
     // Found is false for a still-empty/Main-less script — every other member then has its default,
-    // matching RpadKindTransform's fallback (non-static, no-argument, no-await call shape).
+    // matching MdRunKindTransform's fallback (non-static, no-argument, no-await call shape).
     // ReturnsInt: int or Task<int>, which becomes the process exit code.
     public readonly record struct MainSignature(
         bool Found, bool IsStatic, bool ReturnsTask, bool ReturnsInt = false, MainParameters Parameters = MainParameters.None);
@@ -72,7 +72,7 @@ internal static class ProgramEntryPointDetector
     /// be outside LINQPad (<c>class Program { static void Main() … }</c>, often inside a namespace
     /// and after using directives). It is compiled exactly as written: the compiler picks its entry
     /// point by the usual rules and reports a missing or ambiguous one itself. Anything else is a
-    /// LINQPad-style program, whose top-level members are wrapped in a class (see RpadKindTransform).
+    /// LINQPad-style program, whose top-level members are wrapped in a class (see MdRunKindTransform).
     /// Parsed with the build's own <paramref name="parseOptions"/>, as <see cref="DetectMain"/> is.
     /// </summary>
     public static bool IsCompiledAsWritten(string code, CSharpParseOptions parseOptions) =>

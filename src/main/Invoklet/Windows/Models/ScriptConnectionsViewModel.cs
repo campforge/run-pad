@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Text.Json;
 using Invoklet.Contracts.Connections;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services.Connections;
 using Invoklet.Services.Secrets;
 using ReactiveUI;
@@ -12,14 +12,14 @@ namespace Invoklet.Windows.Models;
 // One of the script's connections, with what Invoklet can tell about it.
 public sealed class ScriptConnectionItemViewModel : ReactiveObject
 {
-    internal ScriptConnectionItemViewModel(RpadConnection connection) => Connection = connection;
+    internal ScriptConnectionItemViewModel(MdRunConnection connection) => Connection = connection;
 
-    internal RpadConnection Connection { get; }
+    internal MdRunConnection Connection { get; }
 
     public string Name => Connection.Name;
 
     // How the script's code reaches it.
-    public string CodeName => "Connections." + RpadConnection.CodeName(Connection.Name);
+    public string CodeName => "Connections." + MdRunConnection.CodeName(Connection.Name);
 
     public string DriverName
     {
@@ -59,12 +59,12 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
     private ConnectionSchemaCache? _schemas => _connectionSchemas?.Cache;
     // The script's folder, which a database file's relative path is read from.
     private string? _scriptDirectory;
-    private IReadOnlyList<RpadConnection> _original = [];
-    private List<RpadConnection> _mine = [];
+    private IReadOnlyList<MdRunConnection> _original = [];
+    private List<MdRunConnection> _mine = [];
     private string? _version;
-    private List<RpadConnection>? _pendingImport;
+    private List<MdRunConnection>? _pendingImport;
     private string? _pendingVersion;
-    private RpadConnection? _pendingAdd;
+    private MdRunConnection? _pendingAdd;
     private CancellationTokenSource? _refreshCancellation;
     private int _addConfirmationVersion;
     // The script's packages as drafted in the window, and how to add or remove one there.
@@ -84,9 +84,9 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
     public ObservableCollection<ScriptConnectionItemViewModel> Items { get; } = [];
 
     // The user's connections the script doesn't list yet.
-    public ObservableCollection<RpadConnection> Available { get; } = [];
+    public ObservableCollection<MdRunConnection> Available { get; } = [];
 
-    public RpadConnection? SelectedAvailable
+    public MdRunConnection? SelectedAvailable
     {
         get;
         set { if (ReferenceEquals(field, value)) return; this.RaiseAndSetIfChanged(ref field, value); CancelAddConfirmation(); }
@@ -234,7 +234,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
         _secrets = secrets;
         _drivers = drivers ?? new ConnectionDriverRegistry();
         Items.CollectionChanged += (_, _) => this.RaisePropertyChanged(nameof(HasItems));
-        AddCommand = ReactiveCommand.Create(RequestAdd, this.WhenAnyValue(x => x.SelectedAvailable, (RpadConnection? c) => c is not null));
+        AddCommand = ReactiveCommand.Create(RequestAdd, this.WhenAnyValue(x => x.SelectedAvailable, (MdRunConnection? c) => c is not null));
         RemoveCommand = ReactiveCommand.Create(RemoveSelected, this.WhenAnyValue(x => x.SelectedItem, (ScriptConnectionItemViewModel? i) => i is not null));
         ImportCommand = ReactiveCommand.Create(ImportSelected,
             this.WhenAnyValue(x => x.SelectedItem, x => x.HasReadError, (ScriptConnectionItemViewModel? i, bool error) => i is not null && !error && _store is not null));
@@ -267,7 +267,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
         Refresh();
     }
 
-    internal void Load(RpadFrontMatter? frontMatter)
+    internal void Load(MdRunFrontMatter? frontMatter)
     {
         SelectedItem = null;
         CancelAddConfirmation();
@@ -275,7 +275,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
         _addedPackages.Clear();
         WriteError = null;
         _original = frontMatter?.Connections ?? [];
-        IsCSharp = frontMatter?.Language is null or RpadLanguage.CSharp;
+        IsCSharp = frontMatter?.Language is null or MdRunLanguage.CSharp;
         LoadMine();
         ReadSecretNames();
         Items.Clear();
@@ -283,7 +283,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
         Refresh();
     }
 
-    internal List<RpadConnection> ToList() => [.. Items.Select(i => i.Connection)];
+    internal List<MdRunConnection> ToList() => [.. Items.Select(i => i.Connection)];
 
     internal bool HasChanges => Json(_original) != Json(ToList());
 
@@ -357,7 +357,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
             SelectedItem = existing;
             CreateMessage = string.Equals(existing.Name, connectionName, StringComparison.OrdinalIgnoreCase)
                 ? $"'{connectionName}' is already in this script."
-                : $"'{connectionName}' can't be added: this script already has a connection called {RpadConnection.CodeName(connectionName)} in code.";
+                : $"'{connectionName}' can't be added: this script already has a connection called {MdRunConnection.CodeName(connectionName)} in code.";
             return;
         }
         if (Available.FirstOrDefault(c => string.Equals(c.Name, connectionName, StringComparison.Ordinal)) is not { } offered)
@@ -417,7 +417,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
         if (created is null) return;
         if (Available.FirstOrDefault(c => string.Equals(c.Name, created.Name, StringComparison.OrdinalIgnoreCase)) is not { } offered)
         {
-            CreateMessage = $"Saved '{created.Name}'. This script already has a connection called {RpadConnection.CodeName(created.Name)} in code, so it was not added.";
+            CreateMessage = $"Saved '{created.Name}'. This script already has a connection called {MdRunConnection.CodeName(created.Name)} in code, so it was not added.";
             return;
         }
         SelectedAvailable = offered;
@@ -439,7 +439,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
         AddMessage = null;
     }
 
-    private void ApplyAdd(RpadConnection connection)
+    private void ApplyAdd(MdRunConnection connection)
     {
         var schemas = _schemas;
         if (_drivers.Find(connection.Driver) is IConnectionSchemaDriver && schemas is not null
@@ -543,7 +543,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
             _pendingVersion = _version;
             ImportMessage = (string.Equals(mine, item.Name, StringComparison.OrdinalIgnoreCase)
                     ? $"Replace your saved connection '{mine}'?"
-                    : $"Replace your saved connection '{mine}' with '{item.Name}'? Both are {RpadConnection.CodeName(item.Name)} in code.")
+                    : $"Replace your saved connection '{mine}' with '{item.Name}'? Both are {MdRunConnection.CodeName(item.Name)} in code.")
                 + " This is saved immediately; Cancel in Dependencies will not undo it.";
             IsImportConfirmationPending = true;
             return;
@@ -567,7 +567,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
         ImportMessage = null;
     }
 
-    private void CommitImport(List<RpadConnection> candidate, string? version)
+    private void CommitImport(List<MdRunConnection> candidate, string? version)
     {
         if (_store is null) return;
         try
@@ -586,26 +586,26 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
     }
 
     // The saved connection of that name, or else the one with the same name in code.
-    private RpadConnection? FindMine(string name) =>
+    private MdRunConnection? FindMine(string name) =>
         _mine.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase))
         ?? _mine.FirstOrDefault(c => SameCodeName(c.Name, name));
 
-    // As RpadConnection.Validate compares them: two such connections can't be in one script.
+    // As MdRunConnection.Validate compares them: two such connections can't be in one script.
     private static bool SameCodeName(string a, string b) =>
-        string.Equals(RpadConnection.CodeName(a), RpadConnection.CodeName(b), StringComparison.OrdinalIgnoreCase);
+        string.Equals(MdRunConnection.CodeName(a), MdRunConnection.CodeName(b), StringComparison.OrdinalIgnoreCase);
 
     private void Refresh()
     {
         var secretNames = SecretNames();
         // Validate reports each connection's problems as it reaches it, so the messages that
         // appear when a connection joins the list are that connection's.
-        var listed = new List<RpadConnection>();
+        var listed = new List<MdRunConnection>();
         var reported = 0;
         foreach (var item in Items)
         {
             var connection = item.Connection;
             listed.Add(connection);
-            var listErrors = RpadConnection.Validate(listed);
+            var listErrors = MdRunConnection.Validate(listed);
             var problems = listErrors.Skip(reported).ToList();
             reported = listErrors.Count;
             var driver = _drivers.Find(connection.Driver);
@@ -628,9 +628,9 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
             // A malformed placeholder is one of Validate's messages.
             foreach (var text in connection.Params.Values.SelectMany(v => v.Texts()))
             {
-                var parsed = RpadPlaceholders.Parse(text);
+                var parsed = MdRunPlaceholders.Parse(text);
                 problems.AddRange(parsed.Parts
-                    .Where(p => p.Kind == RpadPlaceholders.Kind.Secret && secretNames is not null && !secretNames.Contains(p.Value))
+                    .Where(p => p.Kind == MdRunPlaceholders.Kind.Secret && secretNames is not null && !secretNames.Contains(p.Value))
                     .Select(p => $"The Secret Store has no secret named '{p.Value}'."));
             }
             item.Problem = problems.Count == 0 ? null : string.Join("\n", problems.Distinct());
@@ -677,12 +677,12 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
     // renamed connection has a new name too. One that only changed its name keeps its driver and
     // parameters, so it is matched to a connection that disappeared with the same content; what is
     // left over (the last one, if several) was created.
-    internal static RpadConnection? FindCreated(IReadOnlyList<RpadConnection> before, IReadOnlyList<RpadConnection> after)
+    internal static MdRunConnection? FindCreated(IReadOnlyList<MdRunConnection> before, IReadOnlyList<MdRunConnection> after)
     {
         var known = before.Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var current = after.Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var vanished = before.Where(c => !current.Contains(c.Name)).Select(Content).ToList();
-        RpadConnection? created = null;
+        MdRunConnection? created = null;
         foreach (var connection in after.Where(c => !known.Contains(c.Name)))
         {
             var index = vanished.IndexOf(Content(connection));
@@ -692,15 +692,15 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
         return created;
     }
 
-    private static string Content(RpadConnection connection)
+    private static string Content(MdRunConnection connection)
     {
         var copy = Clone(connection);
         copy.Name = "";
         return JsonSerializer.Serialize(copy);
     }
 
-    private static string Json(IReadOnlyList<RpadConnection> connections) => JsonSerializer.Serialize(connections);
+    private static string Json(IReadOnlyList<MdRunConnection> connections) => JsonSerializer.Serialize(connections);
 
-    private static RpadConnection Clone(RpadConnection connection) =>
-        JsonSerializer.Deserialize<RpadConnection>(JsonSerializer.Serialize(connection))!;
+    private static MdRunConnection Clone(MdRunConnection connection) =>
+        JsonSerializer.Deserialize<MdRunConnection>(JsonSerializer.Serialize(connection))!;
 }

@@ -1,5 +1,5 @@
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -22,8 +22,8 @@ public class CSharpIntelliSenseCodeFixQualityTests
         return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
     }
 
-    // "offers to generate a constructor for '__InvokletProgram'" — RpadKind.Program wraps the user's code in
-    // a synthetic class (RpadKindTransform.ProgramWrapperClassName) that's a REAL class in the live
+    // "offers to generate a constructor for '__InvokletProgram'" — MdRunKind.Program wraps the user's code in
+    // a synthetic class (MdRunKindTransform.ProgramWrapperClassName) that's a REAL class in the live
     // analysis document, never shown to the user. Confirmed via a live probe (before the fix, with
     // RoslynCodeFixEngine's filter temporarily disabled) that caret position 0 — on the "int x;" field
     // declaration below — makes Roslyn's own generate-constructor refactoring fire against it,
@@ -33,7 +33,7 @@ public class CSharpIntelliSenseCodeFixQualityTests
     public async Task GetRefactoringsAsync_Should_NotOfferToGenerateAConstructor_OnTheSyntheticProgramWrapperClass()
     {
         using var service = CreateService();
-        service.UpdateKind(RpadKind.Program);
+        service.UpdateKind(MdRunKind.Program);
         const string code = "int x;\n\nvoid Main()\n{\n    Console.WriteLine(x);\n}\n";
 
         var refactorings = await service.GetRefactoringsAsync(code, 0, TestContext.Current.CancellationToken);

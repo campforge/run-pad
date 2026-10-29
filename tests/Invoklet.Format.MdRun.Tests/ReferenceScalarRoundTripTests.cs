@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Xunit;
 
-namespace Invoklet.Format.RPad.Tests;
+namespace Invoklet.Format.MdRun.Tests;
 
 public sealed class ReferenceScalarRoundTripTests
 {
@@ -29,15 +29,15 @@ public sealed class ReferenceScalarRoundTripTests
     {
         const string body = "\r\n# 日本語 🌍\r\nBefore\r\n```csharp run\r\n1.Dump();\r\n```\r\nAfter\r\n";
         var source = "---\nlanguage: csharp\nreferences:\n  - " + JsonSerializer.Serialize(reference) + "\n---\n" + body;
-        var parsed = RpadParser.Parse(source);
+        var parsed = MdRunParser.Parse(source);
         Assert.True(parsed.IsSuccess, parsed.Error);
         Assert.Equal(reference, Assert.Single(parsed.Document.FrontMatter.References!));
 
         for (var save = 0; save < 2; save++)
         {
-            var written = RpadWriter.Write(parsed.Document);
+            var written = MdRunWriter.Write(parsed.Document);
             Assert.EndsWith(body, written, StringComparison.Ordinal);
-            parsed = RpadParser.Parse(written);
+            parsed = MdRunParser.Parse(written);
             Assert.True(parsed.IsSuccess, parsed.Error);
             Assert.Equal(reference, Assert.Single(parsed.Document.FrontMatter.References!));
         }

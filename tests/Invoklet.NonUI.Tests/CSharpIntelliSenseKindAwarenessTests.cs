@@ -1,5 +1,5 @@
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -8,12 +8,12 @@ using Xunit;
 namespace Invoklet.Runtime.UI.Tests;
 
 // SyncDocument built its live-analysis document as just "preamble + code",
-// with no awareness of RpadKind at all — so for RpadKind.Program, where the *real* compiled program
+// with no awareness of MdRunKind at all — so for MdRunKind.Program, where the *real* compiled program
 // gets an implicit `Main();` call prepended (CSharpLanguageHost.ApplyKindTransform), the analysis
 // model never saw that call. From Roslyn's point of view the user's own `void Main() { ... }` was a
 // top-level local function nobody ever invoked — a textbook, correctly-reported CS8321 ("declared but
 // never used") that nonetheless made every Program-kind script's entry point look broken in the
-// editor. UpdateKind(RpadKind.Program) makes SyncDocument mirror that same prefix.
+// editor. UpdateKind(MdRunKind.Program) makes SyncDocument mirror that same prefix.
 public class CSharpIntelliSenseKindAwarenessTests
 {
     private const string ProgramKindScript = "void Main()\n{\n    Console.WriteLine(\"hi\");\n}\n";
@@ -43,7 +43,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     public async Task ImportedNamespaces_Should_NotConflictWithGlobalUsings()
     {
         using var service = CreateService();
-        service.UpdateKind(RpadKind.Statements);
+        service.UpdateKind(MdRunKind.Statements);
         service.UpdateGlobalUsings(["System.Text"]);
         const string code = "global using Text = System.Text;\nusing System.Globalization;\nConsole.WriteLine(new Text.StringBuilder());";
         var diagnostics = await WaitForDiagnosticsAsync(service, code);
@@ -54,7 +54,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     public async Task NotifyTextChanged_Should_NotFlagMainAsUnused_WhenKindIsProgram()
     {
         using var service = CreateService();
-        service.UpdateKind(RpadKind.Program);
+        service.UpdateKind(MdRunKind.Program);
 
         var diagnostics = await WaitForDiagnosticsAsync(service, ProgramKindScript);
 
@@ -63,7 +63,7 @@ public class CSharpIntelliSenseKindAwarenessTests
 
     // Regression guard proving the assertion above actually exercises the fix rather than passing
     // vacuously: the exact same script, without ever calling UpdateKind (kind stays the default
-    // RpadKind.Statements) — this reproduces the pre-fix state, where SyncDocument had no way to know
+    // MdRunKind.Statements) — this reproduces the pre-fix state, where SyncDocument had no way to know
     // about the implicit Main(); call at all, so Main() really is unreachable dead code as far as this
     // synthetic document is concerned.
     [Fact]
@@ -76,7 +76,7 @@ public class CSharpIntelliSenseKindAwarenessTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Main", StringComparison.Ordinal));
     }
 
-    // A static Main (also valid Program-kind, LINQPad-style, input — RpadKindTransform calls it via
+    // A static Main (also valid Program-kind, LINQPad-style, input — MdRunKindTransform calls it via
     // __InvokletProgram.Main() rather than new __InvokletProgram().Main()) is wrapped the same way, so the
     // synced document contains the same synthetic second entry point the real build does. Unlike the
     // real build, this workspace's compilation is always a library (CompilationOptions above,
@@ -87,7 +87,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     public async Task NotifyTextChanged_Should_NotFlagCS7022_ForAStaticMain_WhenKindIsProgram()
     {
         using var service = CreateService();
-        service.UpdateKind(RpadKind.Program);
+        service.UpdateKind(MdRunKind.Program);
         const string code = "static void Main()\n{\n    Console.WriteLine(\"hi\");\n}\n";
 
         var diagnostics = await WaitForDiagnosticsAsync(service, code);
@@ -96,14 +96,14 @@ public class CSharpIntelliSenseKindAwarenessTests
     }
 
     // Position math sanity check: HeaderLength now includes the mirrored "Main();" prefix for
-    // RpadKind.Program, so a completion request at a position *inside* the user's own code must still
+    // MdRunKind.Program, so a completion request at a position *inside* the user's own code must still
     // resolve against the right character offset in the live-analysis document, not one shifted by the
     // prefix's own length.
     [Fact]
     public async Task GetCompletionsAsync_Should_ResolveCorrectPosition_WhenKindIsProgram()
     {
         using var service = CreateService();
-        service.UpdateKind(RpadKind.Program);
+        service.UpdateKind(MdRunKind.Program);
 
         const string code = "void Main()\n{\n    Console.Wr\n}\n";
         var position = code.IndexOf("Console.Wr", StringComparison.Ordinal) + "Console.Wr".Length;
@@ -125,7 +125,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     public async Task NotifyTextChanged_Should_NotFlagMainAsUnused_WhenMainIsAsyncTask()
     {
         using var service = CreateService();
-        service.UpdateKind(RpadKind.Program);
+        service.UpdateKind(MdRunKind.Program);
 
         var diagnostics = await WaitForDiagnosticsAsync(service, AsyncProgramKindScript);
 
@@ -139,7 +139,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     public async Task GetCompletionsAsync_Should_ResolveCorrectPosition_WhenMainIsAsyncTask()
     {
         using var service = CreateService();
-        service.UpdateKind(RpadKind.Program);
+        service.UpdateKind(MdRunKind.Program);
 
         const string code = "async Task Main()\n{\n    Console.Wr\n}\n";
         var position = code.IndexOf("Console.Wr", StringComparison.Ordinal) + "Console.Wr".Length;
@@ -158,7 +158,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     // actually calls NotifyTextChanged below) BEFORE calling RefreshIntelliSenseKind() (UpdateKind).
     // UpdateKind only invalidates the cached analysis document; it doesn't itself trigger a fresh
     // pass — so the very first analysis for a freshly opened file always ran under the stale default
-    // (RpadKind.Statements), and nothing re-ran it until the user's next edit. These two tests pin the
+    // (MdRunKind.Statements), and nothing re-ran it until the user's next edit. These two tests pin the
     // ordering that actually matters, one call to NotifyTextChanged each, no service-level fix needed.
     [Fact]
     public async Task NotifyTextChanged_Should_NotFlagAsyncMainAsUnused_OnItsVeryFirstPass_WhenKindIsAppliedFirst()
@@ -167,7 +167,7 @@ public class CSharpIntelliSenseKindAwarenessTests
 
         // Mirrors EditorTabItemControl.SetDocumentContent's fixed ordering: RefreshIntelliSenseKind()
         // (UpdateKind) now runs before editor.Document is ever assigned.
-        service.UpdateKind(RpadKind.Program);
+        service.UpdateKind(MdRunKind.Program);
         var diagnostics = await WaitForDiagnosticsAsync(service, AsyncProgramKindScript);
 
         Assert.DoesNotContain(diagnostics, d => d.Message.Contains("Main", StringComparison.Ordinal));
@@ -183,7 +183,7 @@ public class CSharpIntelliSenseKindAwarenessTests
         using var service = CreateService();
 
         var diagnostics = await WaitForDiagnosticsAsync(service, AsyncProgramKindScript); // kind still Statements
-        service.UpdateKind(RpadKind.Program); // too late for the pass that already ran
+        service.UpdateKind(MdRunKind.Program); // too late for the pass that already ran
 
         Assert.Contains(diagnostics, d => d.Message.Contains("Main", StringComparison.Ordinal));
     }
@@ -204,7 +204,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     public async Task NotifyTextChanged_Should_ReportNoErrors_ForALinqPadStyleScript_WithAFieldBelowMain_AndAModifiedHelperMethod()
     {
         using var service = CreateService();
-        service.UpdateKind(RpadKind.Program);
+        service.UpdateKind(MdRunKind.Program);
         service.UpdateGlobalUsings(["System.Text.RegularExpressions"]);
 
         var diagnostics = await WaitForDiagnosticsAsync(service, RegexHelperProgramKindScript);
@@ -227,7 +227,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     public async Task AClassicProgram_Should_BeAnalyzedAsWritten()
     {
         using var service = CreateService();
-        service.UpdateKind(RpadKind.Program);
+        service.UpdateKind(MdRunKind.Program);
         const string code = "using System;\nusing Out = System.Console;\n\nnamespace N\n{\n    class Program\n    {\n        static void Main()\n        {\n            int x = \"text\";\n            Out.WriteLine(x);\n        }\n    }\n}\n";
 
         var diagnostics = await WaitForDiagnosticsAsync(service, code);
@@ -245,12 +245,12 @@ public class CSharpIntelliSenseKindAwarenessTests
         const string code = "unsafe static void Main() { int x = 1; int* p = &x; Console.WriteLine(*p); }\n";
         using (var off = CreateService())
         {
-            off.UpdateKind(RpadKind.Program);
+            off.UpdateKind(MdRunKind.Program);
             Assert.Contains(await WaitForDiagnosticsAsync(off, code), d => d.Message.Contains("unsafe", StringComparison.OrdinalIgnoreCase)
                 && d.Severity == DiagnosticSeverity.Error);
         }
         using var on = CreateService();
-        on.UpdateKind(RpadKind.Program);
+        on.UpdateKind(MdRunKind.Program);
         on.UpdateExecutionContext(new Invoklet.Contracts.Models.ExecutionRequest { AllowUnsafe = true });
         Assert.DoesNotContain(await WaitForDiagnosticsAsync(on, code), d => d.Severity == DiagnosticSeverity.Error);
     }
@@ -260,7 +260,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     public async Task AnEmptyStatementsScript_Should_HaveNoErrorsInTheEditor()
     {
         using var service = CreateService();
-        service.UpdateKind(RpadKind.Statements);
+        service.UpdateKind(MdRunKind.Statements);
 
         var diagnostics = await WaitForDiagnosticsAsync(service, "// only comments\nusing System.Text;\n");
 
@@ -273,7 +273,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     public async Task AMemberMainUnderDebug_Should_NotBeFlaggedAsUnused()
     {
         using var service = CreateService();
-        service.UpdateKind(RpadKind.Program);
+        service.UpdateKind(MdRunKind.Program);
 
         var diagnostics = await WaitForDiagnosticsAsync(service, "#if DEBUG\nvoid Main()\n{\n    Console.WriteLine(\"hi\");\n}\n#endif\n");
 
@@ -283,7 +283,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     public async Task ExtensionClass_Should_ResolveCallsAndMapDefinitionToOriginalSource()
     {
         using var service = CreateService();
-        service.UpdateKind(RpadKind.Program);
+        service.UpdateKind(MdRunKind.Program);
         const string code = "void Main() { Console.WriteLine(2.Twice()); }\nstatic class Extensions { public static int Twice(this int n) => n * 2; }\nvoid Helper() { Console.WriteLine(3.Twice()); }\n";
         var diagnostics = await WaitForDiagnosticsAsync(service, code);
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
@@ -300,7 +300,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     public async Task ExtensionProjection_Should_MapDiagnosticsAndRenameAcrossClassBoundaries()
     {
         using var service = CreateService();
-        service.UpdateKind(RpadKind.Program);
+        service.UpdateKind(MdRunKind.Program);
         const string code = "void Main() { Console.WriteLine(2.Twice()); }\nstatic class Extensions { public static int Twice(this int n) => n * 2; }\nvoid Helper() { MissingType x; Console.WriteLine(3.Twice()); }\n";
         var diagnostics = await WaitForDiagnosticsAsync(service, code);
         var error = Assert.Single(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
@@ -315,7 +315,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     public async Task ExtensionProjection_Should_MaterializeRefactoringWithoutSyntheticBraces()
     {
         using var service = CreateService();
-        service.UpdateKind(RpadKind.Program);
+        service.UpdateKind(MdRunKind.Program);
         const string code = "void Main() { Console.WriteLine(2.Twice()); }\nstatic class Extensions\n{\n    public static int Twice(this int n)\n    {\n        return n * 2;\n    }\n}\n";
         var fixes = await service.GetRefactoringsAsync(code, code.IndexOf("return n", StringComparison.Ordinal), TestContext.Current.CancellationToken);
         Assert.NotNull(fixes);
@@ -332,7 +332,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     public async Task ExtensionProjection_Should_CompleteAndClassifySourceAfterLiftedTypes()
     {
         using var service = CreateService();
-        service.UpdateKind(RpadKind.Program);
+        service.UpdateKind(MdRunKind.Program);
         const string code = "void Main() { Console.WriteLine(2.Twice()); }\nstatic class Extensions { public static int Twice(this int n) => n * 2; }\nvoid Helper() { Console.WriteLine(3.Twice()); }\n";
         var position = code.IndexOf("3.Twice", StringComparison.Ordinal) + 2;
         var completions = await service.GetCompletionsAsync(code, position, ct: TestContext.Current.CancellationToken);

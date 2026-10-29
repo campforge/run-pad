@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Text.Json;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 
 namespace Invoklet.Services.Connections;
 
@@ -10,7 +10,7 @@ namespace Invoklet.Services.Connections;
 /// same shape as a script's <c>connections:</c>. Secrets are not in it: their values stay in the
 /// Secret Store and connections name them with <c>${secret:…}</c>.
 /// </summary>
-public sealed record ConnectionStoreSnapshot(IReadOnlyList<RpadConnection> Connections, string? Version);
+public sealed record ConnectionStoreSnapshot(IReadOnlyList<MdRunConnection> Connections, string? Version);
 
 public sealed class ConnectionStoreConflictException() : IOException("The connection list changed after it was opened.");
 
@@ -25,7 +25,7 @@ public interface IConnectionStore
 
     /// <summary>Replaces the list only if it still matches the loaded version; returns the new version.</summary>
     /// <exception cref="ConnectionStoreConflictException">The list changed; nothing was written.</exception>
-    string Save(IReadOnlyList<RpadConnection> connections, string? expectedVersion);
+    string Save(IReadOnlyList<MdRunConnection> connections, string? expectedVersion);
 }
 
 /// <summary>The list as <c>connections.json</c> in Invoklet's data folder, readable only by its owner
@@ -41,7 +41,7 @@ public sealed class FileConnectionStore : IConnectionStore
 
     public string FilePath { get; }
 
-    public IReadOnlyList<RpadConnection> Load() => LoadSnapshot().Connections;
+    public IReadOnlyList<MdRunConnection> Load() => LoadSnapshot().Connections;
 
     public ConnectionStoreSnapshot LoadSnapshot()
     {
@@ -61,7 +61,7 @@ public sealed class FileConnectionStore : IConnectionStore
             throw new InvalidDataException($"The connection list was written by a newer Invoklet (format {file.Version}).");
         if (file.Version != FormatVersion)
             throw new InvalidDataException("The connection list file is damaged.");
-        var connections = new List<RpadConnection>();
+        var connections = new List<MdRunConnection>();
         foreach (var connection in file.Connections ?? [])
         {
             if (!IsWhole(connection)) throw new InvalidDataException("The connection list file is damaged.");
@@ -70,7 +70,7 @@ public sealed class FileConnectionStore : IConnectionStore
         return new ConnectionStoreSnapshot(connections, VersionOf(bytes));
     }
 
-    public string Save(IReadOnlyList<RpadConnection> connections, string? expectedVersion)
+    public string Save(IReadOnlyList<MdRunConnection> connections, string? expectedVersion)
     {
         var fullPath = Path.GetFullPath(FilePath);
         var folder = Path.GetDirectoryName(fullPath)!;
@@ -105,12 +105,12 @@ public sealed class FileConnectionStore : IConnectionStore
     }
 
     // JSON nulls deserialize into properties the rest of Invoklet reads as never null.
-    private static bool IsWhole([NotNullWhen(true)] RpadConnection? connection) =>
+    private static bool IsWhole([NotNullWhen(true)] MdRunConnection? connection) =>
         connection is { Name: not null, Driver: not null, Params: not null }
         && connection.Params.Values.All(IsWhole)
         && (connection.Extra?.Values.All(IsWhole) ?? true);
 
-    private static bool IsWhole(RpadValue? value) =>
+    private static bool IsWhole(MdRunValue? value) =>
         value is not null && (value.Items?.All(IsWhole) ?? true) && (value.Fields?.Values.All(IsWhole) ?? true);
 
     private static string VersionOf(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
@@ -125,6 +125,6 @@ public sealed class FileConnectionStore : IConnectionStore
     private sealed class StoreFile
     {
         public int Version { get; set; }
-        public List<RpadConnection?>? Connections { get; set; }
+        public List<MdRunConnection?>? Connections { get; set; }
     }
 }

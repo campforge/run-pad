@@ -5,7 +5,7 @@ using Avalonia.Threading;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -28,7 +28,7 @@ public class StartupWorkspaceReadyTests
         var root = Directory.CreateTempSubdirectory("Invoklet-startup-ready-test").FullName;
         var paths = new[] { "a.rpad", "b.rpad", "c.rpad" }.Select(n => Path.Combine(root, n)).ToArray();
         foreach (var path in paths)
-            File.WriteAllText(path, RpadWriter.NewFile("Console.WriteLine(1);\n", Path.GetFileNameWithoutExtension(path)));
+            File.WriteAllText(path, MdRunWriter.NewFile("Console.WriteLine(1);\n", Path.GetFileNameWithoutExtension(path)));
 
         var session = new SessionSettings { OpenTabs = [.. paths], ActiveTabPath = paths[1] };
         var prefs = new Mock<IPreferencesService>();

@@ -156,14 +156,14 @@ public class MainWindowViewModelSessionTests
     }
 
     [Fact]
-    public void NewRpadFile_Should_NotAddAnUntitledTab_ToTheSessionsPathList()
+    public void NewMdRunFile_Should_NotAddAnUntitledTab_ToTheSessionsPathList()
     {
         var rootFolder = Directory.CreateTempSubdirectory("Invoklet-session-test").FullName;
         try
         {
             var (vm, session) = CreateViewModel(rootFolder);
 
-            vm.NewRpadFile();
+            vm.NewMdRunFile();
 
             Assert.Empty(session.OpenTabs);
             Assert.Null(session.ActiveTabPath);

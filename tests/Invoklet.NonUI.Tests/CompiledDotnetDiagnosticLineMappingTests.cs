@@ -1,6 +1,6 @@
 using Invoklet.Build.Core.Models;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Compiler;
@@ -27,7 +27,7 @@ public class CompiledDotnetDiagnosticLineMappingTests
         }
     }
 
-    private static CompiledDotnetLanguageHostOptions Options(string outputDir, RpadKind kind, int usings,
+    private static CompiledDotnetLanguageHostOptions Options(string outputDir, MdRunKind kind, int usings,
         DotnetSdk? platform = null, string runtimeLibPath = "Invoklet.Runtime.dll") => new()
         {
             Platform = platform ?? new DotnetSdk("net10.0", "net10.0", "10.0.0", "net10.0"),
@@ -44,7 +44,7 @@ public class CompiledDotnetDiagnosticLineMappingTests
         };
 
     private static async Task<IReadOnlyList<(string Code, string File, int Line, int Column)>> Compile(
-        bool vb, RpadKind kind, int usings, string code, params ResultItem[] errors)
+        bool vb, MdRunKind kind, int usings, string code, params ResultItem[] errors)
     {
         var outputDir = Path.Combine(Path.GetTempPath(), "Invoklet-tests-" + Guid.NewGuid());
         try
@@ -70,16 +70,16 @@ public class CompiledDotnetDiagnosticLineMappingTests
     public async Task CSharpProgram_Should_MapTheWrapperAndFrontMatterOffsetBack()
     {
         // 1 import + the call statement/class header line + the brace line: user line 3 is generated line 6.
-        var diagnostics = await Compile(false, RpadKind.Program, 1, "void Main()\n{\n    MissingName();\n}\n", Item(".cs", 6, 5));
+        var diagnostics = await Compile(false, MdRunKind.Program, 1, "void Main()\n{\n    MissingName();\n}\n", Item(".cs", 6, 5));
 
         Assert.Equal((3, 5), (diagnostics[0].Line, diagnostics[0].Column));
     }
 
     [Theory]
-    [InlineData(RpadKind.Statements, 2, 3, 1)]
-    [InlineData(RpadKind.Statements, 0, 2, 2)]
-    [InlineData(RpadKind.Expression, 1, 3, 1)]
-    public async Task CSharp_Should_MapKindAndImportLinesBack(RpadKind kind, int usings, int generatedLine, int userLine)
+    [InlineData(MdRunKind.Statements, 2, 3, 1)]
+    [InlineData(MdRunKind.Statements, 0, 2, 2)]
+    [InlineData(MdRunKind.Expression, 1, 3, 1)]
+    public async Task CSharp_Should_MapKindAndImportLinesBack(MdRunKind kind, int usings, int generatedLine, int userLine)
     {
         var diagnostics = await Compile(false, kind, usings, "a\nb\nc\n", Item(".cs", generatedLine, 7));
 
@@ -87,11 +87,11 @@ public class CompiledDotnetDiagnosticLineMappingTests
     }
 
     [Theory]
-    [InlineData(RpadKind.Statements, 1, 4, 1)]
-    [InlineData(RpadKind.Statements, 0, 4, 2)]
-    [InlineData(RpadKind.Expression, 1, 3, 1)]
-    [InlineData(RpadKind.Program, 1, 3, 2)]
-    public async Task Vb_Should_MapKindAndImportLinesBack(RpadKind kind, int usings, int generatedLine, int userLine)
+    [InlineData(MdRunKind.Statements, 1, 4, 1)]
+    [InlineData(MdRunKind.Statements, 0, 4, 2)]
+    [InlineData(MdRunKind.Expression, 1, 3, 1)]
+    [InlineData(MdRunKind.Program, 1, 3, 2)]
+    public async Task Vb_Should_MapKindAndImportLinesBack(MdRunKind kind, int usings, int generatedLine, int userLine)
     {
         var diagnostics = await Compile(true, kind, usings, "a\nb\nc\n", Item(".vb", generatedLine, 3));
 
@@ -103,7 +103,7 @@ public class CompiledDotnetDiagnosticLineMappingTests
     {
         // Generated: import / directives + call statement + class header / brace / user lines.
         const string code = "// header\n  using System.Text;\nusing System.Linq;\nvoid Main()\n{\n    Missing();\n}\n";
-        var diagnostics = await Compile(false, RpadKind.Program, 1, code,
+        var diagnostics = await Compile(false, MdRunKind.Program, 1, code,
             Item(".cs", 2, 7),   // `System` of the first hoisted using: written on line 2, column 9
             Item(".cs", 3, 7),   // second hoisted using
             Item(".cs", 3, 40),  // the call statement glued after it
@@ -118,7 +118,7 @@ public class CompiledDotnetDiagnosticLineMappingTests
     [Fact]
     public async Task Diagnostics_Should_NotBeShifted_WhenOutsideTheUserScript()
     {
-        var diagnostics = await Compile(false, RpadKind.Program, 1, "void Main()\n{\n}\n",
+        var diagnostics = await Compile(false, MdRunKind.Program, 1, "void Main()\n{\n}\n",
             Item(".cs", 6, 5, "/obj/InvokletQuery.Generated.cs"),
             Item(".cs", 4, 2, "/obj/Connections/Db.cs"),
             Item(".cs", 3, 1, "/Other/InvokletQuery.cs"),
@@ -131,8 +131,8 @@ public class CompiledDotnetDiagnosticLineMappingTests
     public async Task Diagnostics_Should_LoseTheLine_WhenTheyPointAtGeneratedText()
     {
         // Imports before the user's code and the Expression/Statements suffix after it.
-        var expression = await Compile(false, RpadKind.Expression, 1, "1 +\n2\n\n", Item(".cs", 1, 1), Item(".cs", 5, 2));
-        var vb = await Compile(true, RpadKind.Statements, 0, "x = 1", Item(".vb", 2, 1), Item(".vb", 4, 1));
+        var expression = await Compile(false, MdRunKind.Expression, 1, "1 +\n2\n\n", Item(".cs", 1, 1), Item(".cs", 5, 2));
+        var vb = await Compile(true, MdRunKind.Statements, 0, "x = 1", Item(".vb", 2, 1), Item(".vb", 4, 1));
 
         Assert.All(expression.Concat(vb), d => Assert.Equal((0, 0), (d.Line, d.Column)));
     }
@@ -148,7 +148,7 @@ public class CompiledDotnetDiagnosticLineMappingTests
             var outputDir = Directory.CreateTempSubdirectory("Invoklet-line-mapping-test").FullName;
             try
             {
-                var options = Options(outputDir, RpadKind.Program, 1, new DotnetSdkProvider().Get().First(),
+                var options = Options(outputDir, MdRunKind.Program, 1, new DotnetSdkProvider().Get().First(),
                     new CSharpReferenceService().GetExtensionReference());
                 await using var host = new CSharpLanguageHost(options, NullLoggerFactory.Instance);
 

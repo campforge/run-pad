@@ -1,5 +1,5 @@
 using Invoklet.Contracts.Connections;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 
 namespace Invoklet.Contracts.Models;
 
@@ -14,7 +14,7 @@ public sealed record ExecutionRequest
     /// <summary>The SDK to build and run on; null where none is known yet (the editor before one is found).</summary>
     public DotnetSdk? Platform { get; init; }
 
-    public RpadKind Kind { get; init; } = RpadKind.Statements;
+    public MdRunKind Kind { get; init; } = MdRunKind.Statements;
 
     /// <summary>NuGet package id → version, from <c>packages:</c>.</summary>
     public IReadOnlyDictionary<string, string> Packages { get; init; } = new Dictionary<string, string>();
@@ -71,22 +71,22 @@ public sealed record ExecutionRequest
     /// <summary>
     /// The request a script's front matter makes: its kind, packages, usings, references, unsafe
     /// setting and arguments, for a script at <paramref name="currentQueryPath"/>. The arguments are
-    /// <see cref="RpadArguments"/>'s choice: <paramref name="arguments"/> when given, else the set
+    /// <see cref="MdRunArguments"/>'s choice: <paramref name="arguments"/> when given, else the set
     /// <paramref name="argumentSet"/> names, the selected set or declaration defaults. A run checks
-    /// <see cref="RpadArguments.Resolve"/>'s error first: with one, the arguments here are empty. A
+    /// <see cref="MdRunArguments.Resolve"/>'s error first: with one, the arguments here are empty. A
     /// script without front matter (untitled, never saved) gets the defaults a new document has.
     /// </summary>
-    public static ExecutionRequest For(RpadFrontMatter? frontMatter, string? currentQueryPath, IReadOnlyList<string>? arguments = null,
+    public static ExecutionRequest For(MdRunFrontMatter? frontMatter, string? currentQueryPath, IReadOnlyList<string>? arguments = null,
         string? argumentSet = null)
     {
-        var contract = RpadArgumentContract.Build(frontMatter, out var contractErrors, arguments, argumentSet);
+        var contract = MdRunArgumentContract.Build(frontMatter, out var contractErrors, arguments, argumentSet);
         return new()
         {
-            Kind = frontMatter?.Kind ?? RpadKind.Statements,
+            Kind = frontMatter?.Kind ?? MdRunKind.Statements,
             Packages = frontMatter?.Packages.ToDictionary(p => p.Key, p => p.Value.Version) ?? [],
             Usings = frontMatter?.Namespaces ?? [],
             References = frontMatter?.References ?? [],
-            Arguments = RpadArguments.Resolve(frontMatter, arguments, argumentSet).Arguments,
+            Arguments = MdRunArguments.Resolve(frontMatter, arguments, argumentSet).Arguments,
             ArgumentContractJson = contractErrors.Count == 0 && contract.Members.Count > 0
                 ? contract.ToJson() : null,
             ArgumentContractErrors = contractErrors,

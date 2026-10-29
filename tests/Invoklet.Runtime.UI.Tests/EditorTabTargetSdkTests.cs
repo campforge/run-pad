@@ -6,7 +6,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
@@ -42,11 +42,11 @@ public class EditorTabTargetSdkTests
             Assert.False(tab.IsDirty);
 
             tab.SelectedSdk = tab.SdkChoices.Single(s => s.Description == ".NET 8.0.400");
-            Assert.Equal("net8.0", ctrl.State.RpadDocument!.FrontMatter.TargetSdk.ToString());
+            Assert.Equal("net8.0", ctrl.State.MdRunDocument!.FrontMatter.TargetSdk.ToString());
             Assert.Contains("targetSdk: net8.0", File.ReadAllText(path));
 
             tab.SelectedSdk = tab.LatestSdk;
-            Assert.Equal("latest", ctrl.State.RpadDocument!.FrontMatter.TargetSdk.ToString());
+            Assert.Equal("latest", ctrl.State.MdRunDocument!.FrontMatter.TargetSdk.ToString());
             Assert.Contains("targetSdk: latest", File.ReadAllText(path));
         }
         finally
@@ -90,7 +90,7 @@ public class EditorTabTargetSdkTests
 
             Assert.Equal(".NET 10.0.100", tab.SelectedSdk!.Description);
             Assert.False(tab.IsDirty);
-            Assert.Equal("net6.0", ctrl.State.RpadDocument!.FrontMatter.TargetSdk.ToString());
+            Assert.Equal("net6.0", ctrl.State.MdRunDocument!.FrontMatter.TargetSdk.ToString());
             Assert.Contains("targetSdk: net6.0", File.ReadAllText(path));
             var status = ctrl.FindControl<TextBlock>("ProjectInfoBlock")!.Text;
             Assert.Equal("Statements · net6.0 (not installed)", status);
@@ -104,7 +104,7 @@ public class EditorTabTargetSdkTests
     private static string WriteScript(string dir, string targetSdk)
     {
         var path = Path.Combine(dir, "demo.rpad");
-        File.WriteAllText(path, RpadWriter.NewFile("Console.WriteLine(1);\n", "Demo", targetSdk));
+        File.WriteAllText(path, MdRunWriter.NewFile("Console.WriteLine(1);\n", "Demo", targetSdk));
         return path;
     }
 

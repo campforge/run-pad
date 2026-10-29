@@ -3,23 +3,23 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace Invoklet.Format.RPad;
+namespace Invoklet.Format.MdRun;
 
-public static partial class RpadWriter
+public static partial class MdRunWriter
 {
     /// ToDo: figure out the stream handling — specifically, be able to grab the code stream directly, ignoring the headers
     /// <summary>Serializes the document back to .rpad file content.</summary>
-    public static string Write(RpadDocument doc) => Write(doc, OperatingSystem.IsWindows());
+    public static string Write(MdRunDocument doc) => Write(doc, OperatingSystem.IsWindows());
 
     /// <param name="windowsPaths">Whether <c>\</c> in a reference can only be a separator (see ReferencePath.Canonical).</param>
-    public static string Write(RpadDocument doc, bool windowsPaths)
+    public static string Write(MdRunDocument doc, bool windowsPaths)
     {
         var yaml = SerializeFm(doc.FrontMatter, windowsPaths);
         // A truly empty block stays empty rather than gaining a blank code line; the
         // closing fence already starts its own line after the opening fence's newline.
         var code = doc.RunCode.Length == 0 || doc.RunCode.EndsWith('\n') ? doc.RunCode : doc.RunCode + "\n";
         // A document built in code (not parsed) has no surrounding Markdown — and so no run fence,
-        // which RpadParser requires; emit a bare one rather than writing unfenced code.
+        // which MdRunParser requires; emit a bare one rather than writing unfenced code.
         if (doc.BodyBeforeCode.Length == 0 && doc.BodyAfterCode.Length == 0)
             return $"---\n{yaml}\n---\n```{doc.FrontMatter.Language.ToLanguageId()} run\n{code}```\n";
         return $"---\n{yaml}\n---\n{doc.BodyBeforeCode}{code}{doc.BodyAfterCode}";
@@ -32,20 +32,20 @@ public static partial class RpadWriter
         string code,
         string title = "Untitled",
         string targetSdk = "latest",
-        RpadKind kind = RpadKind.Statements,
-        RpadLanguage language = RpadLanguage.CSharp)
+        MdRunKind kind = MdRunKind.Statements,
+        MdRunLanguage language = MdRunLanguage.CSharp)
     {
         var languageId = language.ToLanguageId();
 
         // Even an empty code block needs its own line: without a trailing newline the closing fence
-        // lands on the code's line, and RpadParser.FindClosingFence only recognizes a fence that
+        // lands on the code's line, and MdRunParser.FindClosingFence only recognizes a fence that
         // starts a line. Write() applies the same guard to RunCode.
         if (!code.EndsWith('\n')) code += "\n";
         var id = Guid.NewGuid().ToString("D");
         return $"---\nversion: \"1.0\"\nid: {id}\nlanguage: {languageId}\ntargetSdk: {targetSdk}\nkind: {kind}\n---\n\n# {title}\n\n```{languageId} run\n{code}```\n";
     }
 
-    private static string SerializeFm(RpadFrontMatter fm, bool windowsPaths)
+    private static string SerializeFm(MdRunFrontMatter fm, bool windowsPaths)
     {
         // Explicit '\n' throughout, not StringBuilder.AppendLine (which appends the *running
         // machine's* Environment.NewLine) — otherwise the very same document produced identical
@@ -89,10 +89,10 @@ public static partial class RpadWriter
             foreach (var argument in fm.Arguments)
             {
                 sb.Append('\n').Append("  - name: ").Append(Scalar(argument.Name));
-                sb.Append('\n').Append("    type: ").Append(RpadArgument.TypeName(argument.Type)); // fixed names, plain in YAML
+                sb.Append('\n').Append("    type: ").Append(MdRunArgument.TypeName(argument.Type)); // fixed names, plain in YAML
                 if (argument.Default is { } value) WriteEntry(sb, "default", value, 4);
-                if (argument.Type == RpadArgumentType.Enum)
-                    WriteEntry(sb, "values", RpadValue.List(argument.Values.Select(RpadValue.Of)), 4);
+                if (argument.Type == MdRunArgumentType.Enum)
+                    WriteEntry(sb, "values", MdRunValue.List(argument.Values.Select(MdRunValue.Of)), 4);
             }
         }
 
@@ -138,7 +138,7 @@ public static partial class RpadWriter
 
     // A map entry in block style. A list of text is a block list; anything else in a list is
     // written as a JSON flow collection, which YAML reads the same way.
-    private static void WriteEntry(StringBuilder sb, string key, RpadValue value, int indent)
+    private static void WriteEntry(StringBuilder sb, string key, MdRunValue value, int indent)
     {
         sb.Append('\n').Append(' ', indent).Append(Scalar(key)).Append(':');
         if (value.Text is { } text)
@@ -155,7 +155,7 @@ public static partial class RpadWriter
             sb.Append(" {}");
     }
 
-    private static string Flow(RpadValue value) =>
+    private static string Flow(MdRunValue value) =>
         value.Text is { } text ? Quoted(text)
         : value.Items is { } items ? "[" + string.Join(", ", items.Select(Flow)) + "]"
         : "{" + string.Join(", ", (value.Fields ?? []).Select(f => Quoted(f.Key) + ": " + Flow(f.Value))) + "}";

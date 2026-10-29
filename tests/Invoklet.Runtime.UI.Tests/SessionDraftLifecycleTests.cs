@@ -5,7 +5,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
@@ -100,7 +100,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
     public async Task NormalExitAndRestart_Should_RestoreOrderActiveTextAndMetadata_WithoutWritingOriginals()
     {
         var path = Path.Combine(_root, "named.rpad");
-        File.WriteAllText(path, RpadWriter.NewFile("saved", "Named"));
+        File.WriteAllText(path, MdRunWriter.NewFile("saved", "Named"));
         var original = File.ReadAllBytes(path);
         Guid active;
         using (var first = new Session(_root, new DiskRecoveryStore(RecoveryRoot)))
@@ -108,8 +108,8 @@ public sealed class SessionDraftLifecycleTests : IDisposable
             await first.Ready();
             var blank = Assert.Single(first.Vm.Tabs);
             first.Control(blank).State.Editor.Text = "untitled\r\n${0}";
-            var fm = first.Control(blank).State.RpadDocument!.FrontMatter;
-            fm.Arguments = [new() { Name = "values", Type = RpadArgumentType.StringList, Default = RpadValue.List(new[] { "", "a b", "Ж" }.Select(RpadValue.Of)) }];
+            var fm = first.Control(blank).State.MdRunDocument!.FrontMatter;
+            fm.Arguments = [new() { Name = "values", Type = MdRunArgumentType.StringList, Default = MdRunValue.List(new[] { "", "a b", "Ж" }.Select(MdRunValue.Of)) }];
             fm.References = ["relative/a.dll", "$(RuntimeDirectory)/System.dll"];
             fm.Namespaces = ["System.Text"];
             fm.Packages["Example"] = new Package("1.2.3");
@@ -132,10 +132,10 @@ public sealed class SessionDraftLifecycleTests : IDisposable
         Assert.Equal(active, next.Vm.ActiveTab!.RecoveryId);
         var restored = next.Control(next.Vm.Tabs[0]);
         Assert.Equal("untitled\r\n${0}", restored.State.Editor.Text);
-        Assert.Equal(new[] { "", "a b", "Ж" }, restored.State.RpadDocument!.FrontMatter.Arguments[0].Default!.Items!.Select(i => i.Text));
-        Assert.Equal(2, restored.State.RpadDocument.FrontMatter.References!.Count);
-        Assert.Equal("1.2.3", restored.State.RpadDocument.FrontMatter.Packages["Example"].Version);
-        Assert.Equal("net8.0", restored.State.RpadDocument.FrontMatter.TargetSdk.ToString());
+        Assert.Equal(new[] { "", "a b", "Ж" }, restored.State.MdRunDocument!.FrontMatter.Arguments[0].Default!.Items!.Select(i => i.Text));
+        Assert.Equal(2, restored.State.MdRunDocument.FrontMatter.References!.Count);
+        Assert.Equal("1.2.3", restored.State.MdRunDocument.FrontMatter.Packages["Example"].Version);
+        Assert.Equal("net8.0", restored.State.MdRunDocument.FrontMatter.TargetSdk.ToString());
         Assert.Equal("dirty named", next.Control(next.Vm.Tabs[1]).State.Editor.Text);
         Assert.All(next.Vm.Tabs, tab => Assert.True(tab.IsDirty));
         Assert.Equal(original, File.ReadAllBytes(path));
@@ -224,23 +224,23 @@ public sealed class SessionDraftLifecycleTests : IDisposable
     {
         var changed = Path.Combine(_root, "changed.rpad");
         var deleted = Path.Combine(_root, "deleted.rpad");
-        File.WriteAllText(changed, RpadWriter.NewFile("old", "Changed"));
-        File.WriteAllText(deleted, RpadWriter.NewFile("cached", "Deleted"));
+        File.WriteAllText(changed, MdRunWriter.NewFile("old", "Changed"));
+        File.WriteAllText(deleted, MdRunWriter.NewFile("cached", "Deleted"));
         RecoveryTab Frame(string path)
         {
             var raw = File.ReadAllText(path);
             return new()
             {
                 FilePath = path,
-                EditorText = RpadParser.TryParse(raw)!.RunCode,
-                Document = RpadParser.TryParse(raw)!.CaptureSnapshot(),
+                EditorText = MdRunParser.TryParse(raw)!.RunCode,
+                Document = MdRunParser.TryParse(raw)!.CaptureSnapshot(),
                 BaselineKnown = true,
                 DiskHash = ScriptFileState.Read(path).Hash
             };
         }
         using (var seed = new DiskRecoveryStore(RecoveryRoot))
             await seed.CommitAsync(new() { Revision = 1, Tabs = [Frame(changed), Frame(deleted)] });
-        File.WriteAllText(changed, RpadWriter.NewFile("new on disk", "Changed"));
+        File.WriteAllText(changed, MdRunWriter.NewFile("new on disk", "Changed"));
         File.Delete(deleted);
         using var next = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
         await next.Ready();
@@ -256,7 +256,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
     [AvaloniaFact]
     public async Task Restart_Should_PreserveVisualBasicMarkdownAndInvalidRawText()
     {
-        var doc = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(1)", "VB", language: RpadLanguage.Vb))!;
+        var doc = MdRunParser.TryParse(MdRunWriter.NewFile("Console.WriteLine(1)", "VB", language: MdRunLanguage.Vb))!;
         var captured = doc.CaptureSnapshot();
         var before = "# Notes\r\n\r\n```vb run\r\n";
         var after = "\r\n```\r\nAfter **code**\r\n";
@@ -277,14 +277,14 @@ public sealed class SessionDraftLifecycleTests : IDisposable
         using var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
         await session.Ready();
         var ctrl = session.Control(session.Vm.Tabs[0]);
-        Assert.Equal(RpadLanguage.Vb, ctrl.State.RpadDocument!.FrontMatter.Language);
-        Assert.Equal(before, ctrl.State.RpadDocument.CaptureSnapshot().BodyBeforeCode);
-        Assert.Equal(after, ctrl.State.RpadDocument.CaptureSnapshot().BodyAfterCode);
+        Assert.Equal(MdRunLanguage.Vb, ctrl.State.MdRunDocument!.FrontMatter.Language);
+        Assert.Equal(before, ctrl.State.MdRunDocument.CaptureSnapshot().BodyBeforeCode);
+        Assert.Equal(after, ctrl.State.MdRunDocument.CaptureSnapshot().BodyAfterCode);
         Assert.Equal("Example VB", session.Vm.Tabs[0].FileName);
         Assert.Equal(8, ctrl.State.Editor.CaretOffset);
         Assert.Equal(6, ctrl.State.Editor.SelectionLength);
         Assert.Equal(raw.EditorText, session.Control(session.Vm.Tabs[1]).State.Editor.Text);
-        Assert.Null(session.Control(session.Vm.Tabs[1]).State.RpadDocument);
+        Assert.Null(session.Control(session.Vm.Tabs[1]).State.MdRunDocument);
         Assert.NotNull(session.Control(session.Vm.Tabs[1]).State.DocumentParseError);
         await session.Close();
     }
@@ -379,7 +379,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
     public async Task RenameWaitingForConflictChoice_Should_FinishBeforeTheExitSnapshot()
     {
         var original = Path.Combine(_root, "before.rpad");
-        File.WriteAllText(original, RpadWriter.NewFile("old", "Before"));
+        File.WriteAllText(original, MdRunWriter.NewFile("old", "Before"));
         using (var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot)))
         {
             await session.Ready();
@@ -387,7 +387,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
             await session.Ready();
             var tab = session.Vm.Tabs.Last();
             session.Control(tab).State.Editor.Text = "current code";
-            File.WriteAllText(original, RpadWriter.NewFile("external", "Before"));
+            File.WriteAllText(original, MdRunWriter.NewFile("external", "Before"));
             var choice = new TaskCompletionSource<SaveConflictChoice>(TaskCreationOptions.RunContinuationsAsynchronously);
             session.Windows.Setup(w => w.ShowSaveConflictDialogAsync(It.IsAny<string>())).Returns(choice.Task);
             var renaming = session.Vm.RenameFile(original, "after");
@@ -468,7 +468,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
     private static RecoveryTab DirtyFileDraft(string path, string text, string args)
     {
         var bytes = File.ReadAllBytes(path);
-        var document = RpadParser.Parse(RpadWriter.NewFile(text, Path.GetFileNameWithoutExtension(path), kind: RpadKind.Program)
+        var document = MdRunParser.Parse(MdRunWriter.NewFile(text, Path.GetFileNameWithoutExtension(path), kind: MdRunKind.Program)
             .Replace("kind: Program\n", $"kind: Program\narguments:\n  - name: value\n    default: \"{args}\"\n")).Document!;
         return new RecoveryTab
         {
@@ -485,7 +485,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
     public async Task TwoWindowsDraftsOfTheSameFile_Should_BothBeRestored_WithoutWritingTheFile()
     {
         var path = Path.Combine(_root, "shared.rpad");
-        File.WriteAllText(path, RpadWriter.NewFile("on disk", "Shared"));
+        File.WriteAllText(path, MdRunWriter.NewFile("on disk", "Shared"));
         var disk = File.ReadAllBytes(path);
         var otherFolder = await ClosedSessionAsync(DateTime.UtcNow.AddMinutes(-10), DirtyFileDraft(path, "other window's edit", "other-arg"));
         await ClosedSessionAsync(DateTime.UtcNow, DirtyFileDraft(path, "this window's edit", "own-arg"));
@@ -502,9 +502,9 @@ public sealed class SessionDraftLifecycleTests : IDisposable
             Assert.True(copy.IsDirty);
             var copyState = session.Control(copy).State;
             Assert.Equal("other window's edit", copyState.Editor.Text);
-            Assert.Equal("other-arg", copyState.RpadDocument!.FrontMatter.Arguments.Single().Default!.Text);
-            Assert.Equal(RpadKind.Program, copyState.RpadDocument.FrontMatter.Kind);
-            Assert.Equal("own-arg", session.Control(file).State.RpadDocument!.FrontMatter.Arguments.Single().Default!.Text);
+            Assert.Equal("other-arg", copyState.MdRunDocument!.FrontMatter.Arguments.Single().Default!.Text);
+            Assert.Equal(MdRunKind.Program, copyState.MdRunDocument.FrontMatter.Kind);
+            Assert.Equal("own-arg", session.Control(file).State.MdRunDocument!.FrontMatter.Arguments.Single().Default!.Text);
             Assert.Contains("untitled copy", session.Vm.RecoveryNotice);
             Assert.Equal(file, session.Vm.ActiveTab); // the restored session keeps its own active tab
             AssertNoModalNotice(session);
@@ -530,9 +530,9 @@ public sealed class SessionDraftLifecycleTests : IDisposable
     public async Task AnImportedDraftOfAFileNotOpenHere_Should_ReopenItWithTheBaselineItWasEditedAgainst()
     {
         var path = Path.Combine(_root, "elsewhere.rpad");
-        File.WriteAllText(path, RpadWriter.NewFile("original", "Elsewhere"));
+        File.WriteAllText(path, MdRunWriter.NewFile("original", "Elsewhere"));
         var draft = DirtyFileDraft(path, "edited in the other window", "x");
-        File.WriteAllText(path, RpadWriter.NewFile("changed on disk later", "Elsewhere"));
+        File.WriteAllText(path, MdRunWriter.NewFile("changed on disk later", "Elsewhere"));
         var changed = File.ReadAllBytes(path);
         await ClosedSessionAsync(DateTime.UtcNow.AddMinutes(-10), draft);
         await ClosedSessionAsync(DateTime.UtcNow, new RecoveryTab { EditorText = "own untitled", IsDirty = true });
@@ -589,7 +589,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
     private async Task<(Session Session, EditorTabItemViewModel Named, string Path)> DirtyNamedTabAsync(IRecoveryStore? store = null)
     {
         var path = Path.Combine(_root, "named.rpad");
-        File.WriteAllText(path, RpadWriter.NewFile("saved text", "Named"));
+        File.WriteAllText(path, MdRunWriter.NewFile("saved text", "Named"));
         var session = new Session(_root, store ?? new DiskRecoveryStore(RecoveryRoot));
         await session.Ready();
         session.Vm.OpenTab(path);
@@ -613,7 +613,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
     public async Task ClosingWithNothingUnsaved_Should_NotAsk_AndStillKeepTheSession()
     {
         var path = Path.Combine(_root, "clean.rpad");
-        File.WriteAllText(path, RpadWriter.NewFile("clean", "Clean"));
+        File.WriteAllText(path, MdRunWriter.NewFile("clean", "Clean"));
         using (var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot)))
         {
             await session.Ready();
@@ -707,7 +707,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
         var (session, named, path) = await DirtyNamedTabAsync();
         using (session)
         {
-            session.Vm.NewRpadFile();
+            session.Vm.NewMdRunFile();
             await session.Ready();
             var untitled = session.Vm.Tabs.Last();
             session.Control(untitled).State.Editor.Text = "untitled draft";
@@ -730,7 +730,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
         var (session, named, path) = await DirtyNamedTabAsync();
         using (session)
         {
-            File.WriteAllText(path, RpadWriter.NewFile("changed elsewhere", "Named"));
+            File.WriteAllText(path, MdRunWriter.NewFile("changed elsewhere", "Named"));
             var external = File.ReadAllBytes(path);
             session.Windows.Setup(w => w.ShowSaveConflictDialogAsync(It.IsAny<string>())).ReturnsAsync(SaveConflictChoice.Cancel);
             Answer(session, ExitUnsavedChoice.SaveAll);
@@ -796,11 +796,11 @@ public sealed class SessionDraftLifecycleTests : IDisposable
         File.Copy(typeof(Assert).Assembly.Location, library);
         File.Copy(typeof(Assert).Assembly.Location, macro);
         var path = Path.Combine(folder, "shared.rpad");
-        File.WriteAllText(path, RpadWriter.NewFile("on disk", "Shared"));
+        File.WriteAllText(path, MdRunWriter.NewFile("on disk", "Shared"));
         RecoveryTab Draft(string text, string arg)
         {
             var draft = DirtyFileDraft(path, text, arg);
-            var document = RpadDocument.FromSnapshot(draft.Document!);
+            var document = MdRunDocument.FromSnapshot(draft.Document!);
             document.FrontMatter.References = ["lib/example.dll", "$(CurrentQueryPath)/lib/macro.dll"];
             document.FrontMatter.Packages["Humanizer"] = new Package("2.14.1");
             return draft with { Document = document.CaptureSnapshot() };
@@ -864,12 +864,12 @@ public sealed class SessionDraftLifecycleTests : IDisposable
         await session.Vm.SaveTabAsAsync(copy, copy.WriteToFile!);
 
         Assert.Equal(target, copy.FilePath);
-        var saved = RpadParser.TryParse(File.ReadAllText(target))!;
+        var saved = MdRunParser.TryParse(File.ReadAllText(target))!;
         Assert.Equal([library, macro], ReferencePathResolver.Resolve(saved.FrontMatter.References!, target).Assemblies);
         Assert.StartsWith("$(CurrentQueryPath)/", saved.FrontMatter.References![1]);
         Assert.Equal("other-arg", saved.FrontMatter.Arguments.Single().Default!.Text);
         Assert.Equal("2.14.1", saved.FrontMatter.Packages["Humanizer"].Version);
-        Assert.Equal(RpadKind.Program, saved.FrontMatter.Kind);
+        Assert.Equal(MdRunKind.Program, saved.FrontMatter.Kind);
         Assert.Equal(original, File.ReadAllBytes(script));
         await session.Close();
     }
@@ -888,7 +888,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
 
         Assert.Null(copy.FilePath);
         Assert.True(copy.IsDirty);
-        Assert.Equal(["lib/example.dll", "$(CurrentQueryPath)/lib/macro.dll"], session.Control(copy).State.RpadDocument!.FrontMatter.References);
+        Assert.Equal(["lib/example.dll", "$(CurrentQueryPath)/lib/macro.dll"], session.Control(copy).State.MdRunDocument!.FrontMatter.References);
         Assert.Equal([library, macro], await BuildReferencesAsync(session));
         await session.Close();
     }

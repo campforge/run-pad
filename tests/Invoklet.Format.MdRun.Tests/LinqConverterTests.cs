@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace Invoklet.Format.RPad.Tests;
+namespace Invoklet.Format.MdRun.Tests;
 
 // LinqConverter.Convert. Fixtures below are representative
 // hand-written .linq content matching LINQPad's documented file shape (XML <Query> header + plain
@@ -19,21 +19,21 @@ public class LinqConverterTests
 
         var doc = LinqConverter.Convert(linq);
 
-        Assert.Equal(RpadLanguage.CSharp, doc.FrontMatter.Language);
-        Assert.Equal(RpadKind.Statements, doc.FrontMatter.Kind);
+        Assert.Equal(MdRunLanguage.CSharp, doc.FrontMatter.Language);
+        Assert.Equal(MdRunKind.Statements, doc.FrontMatter.Kind);
         // No trailing '\n' here — this raw string literal's last content line has none either (its
-        // closing """ sits on the very next line); RpadWriter.Write is what guarantees one on the way
+        // closing """ sits on the very next line); MdRunWriter.Write is what guarantees one on the way
         // out, not the converter (see the round-trip test below).
         Assert.Equal("Console.WriteLine(\"hi\");", doc.RunCode);
     }
 
     [Theory]
-    [InlineData("Program", RpadLanguage.CSharp, RpadKind.Program)]
-    [InlineData("Expression", RpadLanguage.CSharp, RpadKind.Expression)]
-    [InlineData("VBStatements", RpadLanguage.Vb, RpadKind.Statements)]
-    [InlineData("VBProgram", RpadLanguage.Vb, RpadKind.Program)]
-    [InlineData("VBExpression", RpadLanguage.Vb, RpadKind.Expression)]
-    public void Convert_Should_MapEveryInvokletSupportedKind(string linqKind, RpadLanguage expectedLanguage, RpadKind expectedKind)
+    [InlineData("Program", MdRunLanguage.CSharp, MdRunKind.Program)]
+    [InlineData("Expression", MdRunLanguage.CSharp, MdRunKind.Expression)]
+    [InlineData("VBStatements", MdRunLanguage.Vb, MdRunKind.Statements)]
+    [InlineData("VBProgram", MdRunLanguage.Vb, MdRunKind.Program)]
+    [InlineData("VBExpression", MdRunLanguage.Vb, MdRunKind.Expression)]
+    public void Convert_Should_MapEveryInvokletSupportedKind(string linqKind, MdRunLanguage expectedLanguage, MdRunKind expectedKind)
     {
         var linq = $"""
             <Query Kind="{linqKind}" />
@@ -113,7 +113,7 @@ public class LinqConverterTests
     {
         var doc = LinqConverter.Convert($"<Query Kind=\"{kind}\" />\n1");
         Assert.Equal(CSharpDefaults, doc.FrontMatter.Namespaces);
-        var reparsed = RpadParser.TryParse(RpadWriter.Write(doc));
+        var reparsed = MdRunParser.TryParse(MdRunWriter.Write(doc));
         Assert.NotNull(reparsed);
         Assert.Equal(CSharpDefaults, reparsed.FrontMatter.Namespaces);
         Assert.Equal("1\n", reparsed.RunCode);
@@ -149,11 +149,11 @@ public class LinqConverterTests
     }
 
     [Fact]
-    public void ConvertingLinq_Should_NotAddImportsToAnOrdinaryRpadFile()
+    public void ConvertingLinq_Should_NotAddImportsToAnOrdinaryMdRunFile()
     {
-        var text = RpadWriter.NewFile("1");
+        var text = MdRunWriter.NewFile("1");
         LinqConverter.Convert("<Query Kind=\"Statements\" />");
-        var doc = RpadParser.TryParse(text);
+        var doc = MdRunParser.TryParse(text);
         Assert.NotNull(doc);
         Assert.True(doc.FrontMatter.Namespaces is null or { Count: 0 });
     }
@@ -207,7 +207,7 @@ public class LinqConverterTests
     }
 
     [Fact]
-    public void Convert_Should_ProduceADocument_WritableByRpadWriter_AndReparsableByRpadParser()
+    public void Convert_Should_ProduceADocument_WritableByMdRunWriter_AndReparsableByMdRunParser()
     {
         const string linq = """
             <Query Kind="Statements">
@@ -219,12 +219,12 @@ public class LinqConverterTests
             """;
 
         var doc = LinqConverter.Convert(linq);
-        var rpadText = RpadWriter.Write(doc);
-        var reparsed = RpadParser.TryParse(rpadText);
+        var rpadText = MdRunWriter.Write(doc);
+        var reparsed = MdRunParser.TryParse(rpadText);
 
         Assert.NotNull(reparsed);
-        Assert.Equal(RpadKind.Statements, reparsed!.FrontMatter.Kind);
-        Assert.Equal(RpadLanguage.CSharp, reparsed.FrontMatter.Language);
+        Assert.Equal(MdRunKind.Statements, reparsed!.FrontMatter.Kind);
+        Assert.Equal(MdRunLanguage.CSharp, reparsed.FrontMatter.Language);
         Assert.Contains("Newtonsoft.Json", reparsed.FrontMatter.Packages.Keys);
         Assert.Contains("System.Text", reparsed.FrontMatter.Namespaces!);
         Assert.Equal("Console.WriteLine(\"hi\");\n", reparsed.RunCode);
@@ -277,7 +277,7 @@ public class LinqConverterTests
         var doc = LinqConverter.Convert(linq);
 
         Assert.False(doc.FrontMatter.AllowUnsafe);
-        Assert.DoesNotContain("allowUnsafe", RpadWriter.Write(doc));
+        Assert.DoesNotContain("allowUnsafe", MdRunWriter.Write(doc));
         Assert.Contains("unsafe static void Main()", doc.RunCode);
     }
 }

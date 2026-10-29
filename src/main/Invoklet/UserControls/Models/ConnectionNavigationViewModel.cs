@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 using Invoklet.Contracts.Connections;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services.Connections;
 using Invoklet.Services.Secrets;
 using Invoklet.Windows.Models;
@@ -43,7 +43,7 @@ public sealed class ConnectionNavigationNode : ReactiveObject
     internal static ConnectionNavigationNode Group(ConnectionGroup group, int depth) =>
         new(ConnectionNavigationNodeKind.Group, group.Id, group.Name, depth) { IconKey = "Icon.ConnectionGroup" };
 
-    internal static ConnectionNavigationNode Connection(RpadConnection connection, IConnectionDriver? driver, int depth, ConnectionStatus status)
+    internal static ConnectionNavigationNode Connection(MdRunConnection connection, IConnectionDriver? driver, int depth, ConnectionStatus status)
     {
         var node = new ConnectionNavigationNode(ConnectionNavigationNodeKind.Connection, connection.Name, connection.Name, depth)
         {
@@ -218,7 +218,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject, IDisposable
     private readonly ConnectionSchemas? _schemas;
     private readonly HashSet<string> _collapsed = new(StringComparer.Ordinal);
     private ConnectionGroupingModel _grouping = new();
-    private IReadOnlyList<RpadConnection> _connections = [];
+    private IReadOnlyList<MdRunConnection> _connections = [];
     private IReadOnlyDictionary<string, ConnectionStatus> _statuses = new Dictionary<string, ConnectionStatus>();
     private readonly SynchronizationContext? _context;
     private int _statusGeneration;
@@ -318,9 +318,9 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject, IDisposable
         }
     }
 
-    private (IReadOnlyList<RpadConnection>, ConnectionGroupingModel, string?, bool) Load()
+    private (IReadOnlyList<MdRunConnection>, ConnectionGroupingModel, string?, bool) Load()
     {
-        IReadOnlyList<RpadConnection> connections;
+        IReadOnlyList<MdRunConnection> connections;
         try { connections = _store.LoadSnapshot().Connections; }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
         {
@@ -345,7 +345,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject, IDisposable
     // and environment variables the settings name, and the state of the contract (gRPC). Only names
     // are looked up, never a secret's value. Each connection is checked on its own, so one driver
     // throwing doesn't hide the others.
-    private Dictionary<string, ConnectionStatus> FindStatuses(IReadOnlyList<RpadConnection> connections)
+    private Dictionary<string, ConnectionStatus> FindStatuses(IReadOnlyList<MdRunConnection> connections)
     {
         HashSet<string>? secretNames = null;
         if (_secrets is not null)
@@ -365,7 +365,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject, IDisposable
         return statuses;
     }
 
-    private ConnectionStatus StatusOf(RpadConnection connection, HashSet<string>? secretNames)
+    private ConnectionStatus StatusOf(MdRunConnection connection, HashSet<string>? secretNames)
     {
         if (_drivers is null) return ConnectionStatus.Ready;
         if (_drivers.Find(connection.Driver) is not { } driver)
@@ -513,7 +513,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject, IDisposable
     }
 
     /// <summary>Marks the connections the active script uses (null: no script is active).</summary>
-    public void SetAttached(IEnumerable<RpadConnection>? scriptConnections)
+    public void SetAttached(IEnumerable<MdRunConnection>? scriptConnections)
     {
         HasActiveScript = scriptConnections is not null;
         _attached = (scriptConnections ?? []).Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
@@ -629,7 +629,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject, IDisposable
     /// and the packages are added with it. True when the front matter changed; otherwise
     /// <see cref="Notice"/> says why, or the user declined.
     /// </summary>
-    public async Task<bool> AddToScriptAsync(RpadFrontMatter frontMatter, string? scriptPath, string connectionName,
+    public async Task<bool> AddToScriptAsync(MdRunFrontMatter frontMatter, string? scriptPath, string connectionName,
         Func<string, Task<bool>> confirmPackages)
     {
         if (_disposed) return false;
@@ -747,7 +747,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject, IDisposable
         this.RaisePropertyChanged(nameof(IsEmpty));
     }
 
-    private ConnectionNavigationNode ConnectionRow(RpadConnection connection, int depth)
+    private ConnectionNavigationNode ConnectionRow(MdRunConnection connection, int depth)
     {
         var node = ConnectionNavigationNode.Connection(connection, _drivers?.Find(connection.Driver), depth,
             _statuses.GetValueOrDefault(connection.Name, ConnectionStatus.Ready));

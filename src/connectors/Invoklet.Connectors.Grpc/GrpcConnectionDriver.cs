@@ -9,7 +9,7 @@ using Grpc.Core;
 using Grpc.Net.Client;
 using Grpc.Reflection.V1Alpha;
 using Invoklet.Contracts.Connections;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 
 namespace Invoklet.Connectors.Grpc;
 
@@ -68,7 +68,7 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
     /// </summary>
     public string SchemaVersion => "2";
 
-    public IReadOnlyList<string> Validate(RpadConnection connection)
+    public IReadOnlyList<string> Validate(MdRunConnection connection)
     {
         var errors = new List<string>();
         var parameters = connection.Params;
@@ -92,7 +92,7 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
         return errors;
     }
 
-    public async Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken)
+    public async Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken)
     {
         try
         {
@@ -106,7 +106,7 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
         }
     }
 
-    public async Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
+    public async Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, ConnectionTools tools,
         CancellationToken cancellationToken)
     {
         // Compute cache key from address + metadata
@@ -152,7 +152,7 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
 
     // A client with the channel, an invoker that adds the metadata to every call, and a client per
     // service, created on first use.
-    public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context)
+    public ConnectionClientCode CreateClient(MdRunConnection connection, ConnectionCodeContext context)
     {
         var parameters = connection.Params;
         var address = parameters[Address].Text!;
@@ -214,7 +214,7 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
 
     // Opens a channel as the parameters say and runs the reflection calls, turning what can go wrong
     // into a message for the user.
-    private async Task<T> WithServerAsync<T>(IReadOnlyDictionary<string, RpadValue> resolvedParams,
+    private async Task<T> WithServerAsync<T>(IReadOnlyDictionary<string, MdRunValue> resolvedParams,
         Func<GrpcReflection, CancellationToken, Task<T>> action, CancellationToken cancellationToken)
     {
         if (!resolvedParams.TryGetValue(Address, out var addressValue) || addressValue.Text is not { } address || !IsHttpAddress(address))
@@ -431,7 +431,7 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
 
     private static bool IsWellKnown(string file) => file.StartsWith("google/protobuf/", StringComparison.Ordinal);
 
-    private static bool HasPlaceholder(string text) => RpadPlaceholders.Parse(text).Parts.Any(p => p.Kind != RpadPlaceholders.Kind.Text);
+    private static bool HasPlaceholder(string text) => MdRunPlaceholders.Parse(text).Parts.Any(p => p.Kind != MdRunPlaceholders.Kind.Text);
 
     private static bool IsHttpAddress(string text) =>
         Uri.TryCreate(text, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);

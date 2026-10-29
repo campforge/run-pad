@@ -1,7 +1,7 @@
 using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -20,7 +20,7 @@ public sealed class CSharpUtilArgsCompletionTests
     {
         var references = new CSharpReferenceService();
         using var service = CreateService(references);
-        service.UpdateArgumentContract(new RpadArgumentContract([new("env", "enum", ["prod"], ["dev", "prod"])]));
+        service.UpdateArgumentContract(new MdRunArgumentContract([new("env", "enum", ["prod"], ["dev", "prod"])]));
         var properties = await service.GetCompletionsAsync("Arguments.", "Arguments.".Length,
             ct: TestContext.Current.CancellationToken);
         Assert.Contains("ArgumentsEnv", properties!.Items.Single(i => i.DisplayText == "Env").Summary ?? "");
@@ -36,7 +36,7 @@ public sealed class CSharpUtilArgsCompletionTests
     {
         var references = new CSharpReferenceService();
         using var service = CreateService(references);
-        service.UpdateArgumentContract(new RpadArgumentContract(
+        service.UpdateArgumentContract(new MdRunArgumentContract(
         [
             new("Environment", "string", ["test"], ["dev", "test"]),
             new("Count", "int", ["3"], []),

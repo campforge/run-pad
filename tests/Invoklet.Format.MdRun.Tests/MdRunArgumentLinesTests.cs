@@ -1,9 +1,9 @@
 using Xunit;
 
-namespace Invoklet.Format.RPad.Tests;
+namespace Invoklet.Format.MdRun.Tests;
 
 // An argument list as one line per argument (the Dependencies window's Arguments tab).
-public class RpadArgumentLinesTests
+public class MdRunArgumentLinesTests
 {
     [Theory]
     [InlineData("", new string[0])]
@@ -15,7 +15,7 @@ public class RpadArgumentLinesTests
     [InlineData("a\n\n", new[] { "a", "" })]
     [InlineData("\n", new[] { "" })]
     public void Parse_Should_TakeEachLineAsOneArgument(string text, string[] expected)
-        => Assert.Equal(expected, RpadArgumentLines.Parse(text));
+        => Assert.Equal(expected, MdRunArgumentLines.Parse(text));
 
     public static TheoryData<string[]> Lists => new() { new string[0], new[] { "a" }, new[] { "" }, new[] { "a", "" }, new[] { "", "", "x y", "é" } };
 
@@ -23,11 +23,11 @@ public class RpadArgumentLinesTests
     [MemberData(nameof(Lists))]
     public void Format_ThenParse_Should_GiveTheSameList(string[] arguments)
     {
-        Assert.True(RpadArgumentLines.Fits(arguments));
-        Assert.Equal(arguments, RpadArgumentLines.Parse(RpadArgumentLines.Format(arguments)));
+        Assert.True(MdRunArgumentLines.Fits(arguments));
+        Assert.Equal(arguments, MdRunArgumentLines.Parse(MdRunArgumentLines.Format(arguments)));
     }
 
     [Fact]
     public void AnArgumentWithALineBreak_Should_NotFit()
-        => Assert.False(RpadArgumentLines.Fits(["two\nlines"]));
+        => Assert.False(MdRunArgumentLines.Fits(["two\nlines"]));
 }

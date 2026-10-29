@@ -12,7 +12,7 @@ using Avalonia.VisualTree;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Connectors.Http;
 using Invoklet.Contracts.Connections;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services.Connections;
 using Invoklet.Services.Secrets;
 using Invoklet.TemplatedControls;
@@ -37,12 +37,12 @@ public class WindowDesignRegressionTests
     {
         var store = new Mock<IConnectionStore>();
         store.Setup(s => s.FilePath).Returns("/sample/connections.json");
-        store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot([new RpadConnection
+        store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot([new MdRunConnection
         {
             Name = "billing-api", Driver = "http", Params = new()
             {
-                ["baseAddress"] = RpadValue.Of("https://example.test/"),
-                ["headers"] = RpadValue.Map([new("Authorization", RpadValue.Of("Bearer ${secret:token}"))]),
+                ["baseAddress"] = MdRunValue.Of("https://example.test/"),
+                ["headers"] = MdRunValue.Map([new("Authorization", MdRunValue.Of("Bearer ${secret:token}"))]),
             },
         }], "v1"));
         var drivers = new ConnectionDriverRegistry();

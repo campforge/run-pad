@@ -1,9 +1,9 @@
 using System.Xml.Linq;
 
-namespace Invoklet.Format.RPad;
+namespace Invoklet.Format.MdRun;
 
 /// <summary>
-/// Converts a LINQPad <c>.linq</c> file to an <see cref="RpadDocument"/> — a <c>.linq</c>
+/// Converts a LINQPad <c>.linq</c> file to an <see cref="MdRunDocument"/> — a <c>.linq</c>
 /// file is an XML <c>&lt;Query&gt;</c> header (<c>Kind</c> attribute, <c>&lt;NuGetReference&gt;</c>/
 /// <c>&lt;Namespace&gt;</c>/<c>&lt;RemoveNamespace&gt;</c>/<c>&lt;Reference&gt;</c> children) followed by plain C#/VB source — no XML
 /// wrapping on the code itself, so the header is parsed as an isolated fragment rather than the whole
@@ -12,16 +12,16 @@ namespace Invoklet.Format.RPad;
 public static class LinqConverter
 {
     // LINQPad's own supported Kind values — SQL/ESQL/F# ones have no Invoklet-supported equivalent
-    // (only C#/VB, see RpadLanguage) and are rejected explicitly below rather than silently
+    // (only C#/VB, see MdRunLanguage) and are rejected explicitly below rather than silently
     // mis-converted.
-    private static readonly Dictionary<string, (RpadLanguage Language, RpadKind Kind)> KindMap = new()
+    private static readonly Dictionary<string, (MdRunLanguage Language, MdRunKind Kind)> KindMap = new()
     {
-        ["Statements"] = (RpadLanguage.CSharp, RpadKind.Statements),
-        ["Program"] = (RpadLanguage.CSharp, RpadKind.Program),
-        ["Expression"] = (RpadLanguage.CSharp, RpadKind.Expression),
-        ["VBStatements"] = (RpadLanguage.Vb, RpadKind.Statements),
-        ["VBProgram"] = (RpadLanguage.Vb, RpadKind.Program),
-        ["VBExpression"] = (RpadLanguage.Vb, RpadKind.Expression),
+        ["Statements"] = (MdRunLanguage.CSharp, MdRunKind.Statements),
+        ["Program"] = (MdRunLanguage.CSharp, MdRunKind.Program),
+        ["Expression"] = (MdRunLanguage.CSharp, MdRunKind.Expression),
+        ["VBStatements"] = (MdRunLanguage.Vb, MdRunKind.Statements),
+        ["VBProgram"] = (MdRunLanguage.Vb, MdRunKind.Program),
+        ["VBExpression"] = (MdRunLanguage.Vb, MdRunKind.Expression),
     };
 
     // LINQPad omits its standard imports from query headers. Persist this compatibility profile
@@ -36,13 +36,13 @@ public static class LinqConverter
 
     /// <summary>
     /// Converts <paramref name="linqContent"/> (the full text of a <c>.linq</c> file) to an
-    /// <see cref="RpadDocument"/>, ready for <see cref="RpadWriter.Write"/>. Throws
+    /// <see cref="MdRunDocument"/>, ready for <see cref="MdRunWriter.Write"/>. Throws
     /// <see cref="FormatException"/> if the file has no recognizable <c>&lt;Query&gt;</c> header, or
     /// its <c>Kind</c> has no Invoklet-supported equivalent (e.g. F#, SQL).
     /// </summary>
     /// <param name="linqContent">The full text of a <c>.linq</c> file.</param>
     /// <param name="title">Heading for the converted document — typically the source file's own name without extension.</param>
-    public static RpadDocument Convert(string linqContent, string title = "Untitled")
+    public static MdRunDocument Convert(string linqContent, string title = "Untitled")
     {
         var (queryXml, code) = SplitQueryHeader(linqContent);
 
@@ -82,7 +82,7 @@ public static class LinqConverter
         var removedNamespaces = query.Elements("RemoveNamespace")
             .Select(e => e.Value.Trim())
             .ToHashSet(StringComparer.Ordinal);
-        var namespaces = mapped.Language == RpadLanguage.CSharp
+        var namespaces = mapped.Language == MdRunLanguage.CSharp
             ? CSharpDefaultNamespaces.Where(ns => !removedNamespaces.Contains(ns))
                 .Concat(explicitNamespaces).Distinct(StringComparer.Ordinal).ToList()
             : explicitNamespaces.ToList();
@@ -92,7 +92,7 @@ public static class LinqConverter
             .Where(r => r.Length > 0)
             .ToList();
 
-        var frontMatter = new RpadFrontMatter
+        var frontMatter = new MdRunFrontMatter
         {
             Language = mapped.Language,
             Kind = mapped.Kind,
@@ -102,15 +102,15 @@ public static class LinqConverter
         };
 
         // BodyBeforeCode/BodyAfterCode must carry the actual Markdown fence markers themselves
-        // (see RpadDocument's own doc comments) — RpadWriter.Write concatenates them around RunCode
-        // verbatim, it doesn't know how to fence a code block on its own (only RpadWriter.NewFile
+        // (see MdRunDocument's own doc comments) — MdRunWriter.Write concatenates them around RunCode
+        // verbatim, it doesn't know how to fence a code block on its own (only MdRunWriter.NewFile
         // does, for a from-scratch document). Mirrors NewFile's own literal layout exactly so a
         // converted file looks like any other freshly-created one, not a special case.
         var languageId = mapped.Language.ToLanguageId();
         var bodyBeforeCode = $"\n# {title}\n\n```{languageId} run\n";
         const string bodyAfterCode = "```\n";
 
-        return new RpadDocument
+        return new MdRunDocument
         {
             FrontMatter = frontMatter,
             RunCode = code,

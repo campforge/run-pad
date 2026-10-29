@@ -1,5 +1,5 @@
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 
 namespace Invoklet.Contracts.IntelliSense;
 
@@ -171,9 +171,9 @@ public interface IIntelliSenseService : IDisposable
 
     // Call when the tab's .rpad front-matter `kind:` changes (including once at initial load) so live
     // analysis mirrors the same kind-specific transform the compiler applies before running/debugging
-    // (e.g. RpadKind.Program's implicit `Main();` call) — otherwise the user's own entry point can be
+    // (e.g. MdRunKind.Program's implicit `Main();` call) — otherwise the user's own entry point can be
     // flagged as unused.
-    void UpdateKind(RpadKind kind);
+    void UpdateKind(MdRunKind kind);
 
     // Turns Invoklet's own analyzers (RPAD… diagnostics) on or off; they are an experimental feature,
     // off until the host says otherwise. Takes effect on the next analysis pass (NotifyTextChanged).

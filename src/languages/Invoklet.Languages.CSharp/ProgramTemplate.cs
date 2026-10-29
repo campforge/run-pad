@@ -1,4 +1,4 @@
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -26,9 +26,9 @@ internal static class ProgramTemplate
     private static string SkeletonWith(string indent) => $"void Main()\n{{\n{indent}${{0}}\n}}\n\n{Comment}\n";
 
     // <indent> is one level of the editor's indentation, used for the lines the template moves into Main.
-    public static string? CodeForKind(string code, RpadKind kind, string indent = DefaultIndent)
+    public static string? CodeForKind(string code, MdRunKind kind, string indent = DefaultIndent)
     {
-        if (kind != RpadKind.Program || ProgramEntryPointDetector.DetectMain(code, ParseOptions).Found) return null;
+        if (kind != MdRunKind.Program || ProgramEntryPointDetector.DetectMain(code, ParseOptions).Found) return null;
         // A classic program (a class with a static Main, no top-level statements) runs as it is.
         if (!string.IsNullOrWhiteSpace(code) && ProgramEntryPointDetector.IsCompiledAsWritten(code, ParseOptions)
             && HasStaticMain(code)) return null;

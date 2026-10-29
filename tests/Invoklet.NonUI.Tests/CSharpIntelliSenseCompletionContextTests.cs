@@ -1,5 +1,5 @@
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -43,7 +43,7 @@ public class CSharpIntelliSenseCompletionContextTests
     public async Task Completion_Should_ReportTheContextItWasBuiltFor(string code, char? typed, string expected)
     {
         using var service = CreateService();
-        service.UpdateKind(RpadKind.Statements);
+        service.UpdateKind(MdRunKind.Statements);
 
         var trigger = typed is { } ch ? CompletionTrigger.Insertion(ch) : CompletionTrigger.Invoked;
         var list = await CompleteAsync(service, code, trigger);
@@ -59,7 +59,7 @@ public class CSharpIntelliSenseCompletionContextTests
     public async Task Completion_Should_OfferNothing_WhereNothingCompletes(string code)
     {
         using var service = CreateService();
-        service.UpdateKind(RpadKind.Statements);
+        service.UpdateKind(MdRunKind.Statements);
 
         Assert.Null(await CompleteAsync(service, code, CompletionTrigger.Invoked));
     }
@@ -68,7 +68,7 @@ public class CSharpIntelliSenseCompletionContextTests
     public async Task Keywords_Should_BeMarkedAsKeywords()
     {
         using var service = CreateService();
-        service.UpdateKind(RpadKind.Statements);
+        service.UpdateKind(MdRunKind.Statements);
 
         var list = await CompleteAsync(service, "var x = 1;\n|", CompletionTrigger.Invoked);
 
@@ -80,7 +80,7 @@ public class CSharpIntelliSenseCompletionContextTests
     public async Task InvokletExtensions_Should_WinATie_OverOtherMembers()
     {
         using var service = CreateService();
-        service.UpdateKind(RpadKind.Statements);
+        service.UpdateKind(MdRunKind.Statements);
 
         var list = await CompleteAsync(service, "var n = 1;\nn.|", CompletionTrigger.Insertion('.'));
 

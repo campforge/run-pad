@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 
 namespace Invoklet.Languages.VB;
 
@@ -18,9 +18,9 @@ internal static partial class VbProgramTemplate
     public static string Skeleton { get; } = Wrap("", DefaultIndent);
 
     // <indent> is one level of the editor's indentation: Sub Main sits one level in, its body two.
-    public static string? CodeForKind(string code, RpadKind kind, string indent = DefaultIndent)
+    public static string? CodeForKind(string code, MdRunKind kind, string indent = DefaultIndent)
     {
-        if (kind != RpadKind.Program || DeclaresModuleOrClass().IsMatch(code)) return null;
+        if (kind != MdRunKind.Program || DeclaresModuleOrClass().IsMatch(code)) return null;
         return Wrap(code, indent);
     }
 

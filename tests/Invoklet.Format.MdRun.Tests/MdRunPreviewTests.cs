@@ -1,9 +1,9 @@
 using Markdig;
 using Xunit;
 
-namespace Invoklet.Format.RPad.Tests;
+namespace Invoklet.Format.MdRun.Tests;
 
-public class RpadPreviewTests
+public class MdRunPreviewTests
 {
     private const string File = """
         ---
@@ -31,9 +31,9 @@ public class RpadPreviewTests
     [Fact]
     public void ToMarkdown_Should_ShowTheFrontMatterAsATable_AndKeepTheBody()
     {
-        var doc = RpadParser.TryParse(File.ReplaceLineEndings("\n"))!;
+        var doc = MdRunParser.TryParse(File.ReplaceLineEndings("\n"))!;
 
-        var markdown = RpadPreview.ToMarkdown(doc, "void Main() { }\n");
+        var markdown = MdRunPreview.ToMarkdown(doc, "void Main() { }\n");
 
         Assert.Equal("""
             | Setting | Value |
@@ -61,9 +61,9 @@ public class RpadPreviewTests
     [Fact]
     public void ToMarkdown_Should_ShowTheEditorText_NotTheSavedCode()
     {
-        var doc = RpadParser.TryParse(File.ReplaceLineEndings("\n"))!;
+        var doc = MdRunParser.TryParse(File.ReplaceLineEndings("\n"))!;
 
-        var markdown = RpadPreview.ToMarkdown(doc, "Console.WriteLine(42);");
+        var markdown = MdRunPreview.ToMarkdown(doc, "Console.WriteLine(42);");
 
         Assert.Contains("```csharp run\nConsole.WriteLine(42);\n```", markdown);
         Assert.DoesNotContain("void Main", markdown);
@@ -72,9 +72,9 @@ public class RpadPreviewTests
     [Fact]
     public void ToMarkdown_Should_FenceTheCode_OfADocumentWithoutABody()
     {
-        var doc = new RpadDocument { FrontMatter = new RpadFrontMatter { Language = RpadLanguage.Vb } };
+        var doc = new MdRunDocument { FrontMatter = new MdRunFrontMatter { Language = MdRunLanguage.Vb } };
 
-        var markdown = RpadPreview.ToMarkdown(doc, "Console.WriteLine(1)\n");
+        var markdown = MdRunPreview.ToMarkdown(doc, "Console.WriteLine(1)\n");
 
         Assert.EndsWith("\n```vb run\nConsole.WriteLine(1)\n```\n", markdown);
         Assert.Contains("| Language | Visual Basic |", markdown);
@@ -83,17 +83,17 @@ public class RpadPreviewTests
     [Fact]
     public void ToMarkdown_Should_KeepTheTableIntact_WhenValuesHoldMarkdown()
     {
-        var doc = new RpadDocument
+        var doc = new MdRunDocument
         {
-            FrontMatter = new RpadFrontMatter
+            FrontMatter = new MdRunFrontMatter
             {
                 TargetSdk = new TargetSdk("net|*x*"),
                 References = ["a|b.dll", "``tick`.dll"],
-                Arguments = [new() { Name = "value", Default = RpadValue.Of("two\nlines") }],
+                Arguments = [new() { Name = "value", Default = MdRunValue.Of("two\nlines") }],
             },
         };
 
-        var html = Markdown.ToHtml(RpadPreview.ToMarkdown(doc, ""), new MarkdownPipelineBuilder().UsePipeTables().Build());
+        var html = Markdown.ToHtml(MdRunPreview.ToMarkdown(doc, ""), new MarkdownPipelineBuilder().UsePipeTables().Build());
 
         Assert.Contains("<td>net|*x*</td>", html);
         Assert.Contains("<code>a|b.dll</code>", html);
@@ -107,9 +107,9 @@ public class RpadPreviewTests
     [InlineData("\r\n")]
     public void ToMarkdown_Should_GiveTheLineWhereTheCodeStarts(string newLine)
     {
-        var doc = RpadParser.TryParse(File.ReplaceLineEndings(newLine))!;
+        var doc = MdRunParser.TryParse(File.ReplaceLineEndings(newLine))!;
 
-        var markdown = RpadPreview.ToMarkdown(doc, "void Main()\n{\n}\n", out var codeLine);
+        var markdown = MdRunPreview.ToMarkdown(doc, "void Main()\n{\n}\n", out var codeLine);
 
         Assert.Equal("void Main()", markdown.ReplaceLineEndings("\n").Split('\n')[codeLine]);
     }
@@ -117,9 +117,9 @@ public class RpadPreviewTests
     [Fact]
     public void ToMarkdown_Should_GiveTheLineAfterTheFence_OfADocumentWithoutABody()
     {
-        var doc = new RpadDocument { FrontMatter = new RpadFrontMatter() };
+        var doc = new MdRunDocument { FrontMatter = new MdRunFrontMatter() };
 
-        var markdown = RpadPreview.ToMarkdown(doc, "Console.WriteLine(1);\n", out var codeLine);
+        var markdown = MdRunPreview.ToMarkdown(doc, "Console.WriteLine(1);\n", out var codeLine);
 
         Assert.Equal("Console.WriteLine(1);", markdown.Split('\n')[codeLine]);
     }

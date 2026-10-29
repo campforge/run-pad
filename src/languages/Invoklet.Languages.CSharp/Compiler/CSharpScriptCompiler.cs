@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 using System.Text;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Compiler;
 using Microsoft.CodeAnalysis;
@@ -37,7 +37,7 @@ public sealed class CSharpScriptCompiler(CompiledDotnetLanguageHostOptions optio
             builder.Append("global using global::").Append(ns).Append(";\n");
         builder.Append("[assembly: global::System.Runtime.Versioning.TargetFrameworkAttribute(")
             .Append($"\".NETCoreApp,Version=v{target.Major}.{target.Minor}\", FrameworkDisplayName = \".NET {target.Major}.{target.Minor}\")]\n");
-        builder.Append(RpadArgumentContract.FromJson(Options.ArgumentContractJson).GenerateCSharpFacade());
+        builder.Append(MdRunArgumentContract.FromJson(Options.ArgumentContractJson).GenerateCSharpFacade());
         return builder.ToString();
     }
 
@@ -82,14 +82,14 @@ public sealed class CSharpScriptCompiler(CompiledDotnetLanguageHostOptions optio
     protected override GeneratorDriver CreateGeneratorDriver(ImmutableArray<ISourceGenerator> generators, ParseOptions parseOptions) =>
         CSharpGeneratorDriver.Create(generators, parseOptions: (CSharpParseOptions)parseOptions);
 
-    // RpadKind.Program's wrapper (RpadKindTransform) glues a top-level call statement in front of a
+    // MdRunKind.Program's wrapper (MdRunKindTransform) glues a top-level call statement in front of a
     // generated class, so Roslyn always treats that top-level code as the real entry point; a static
     // Main inside the wrapper class is then a second entry-point candidate and Roslyn reports CS7022
     // on it, even though Invoklet's own trampoline is what actually calls it. Tied to Program kind and
     // the generated wrapper/trampoline structure, not to the diagnostic's message text or class name
     // alone, so Statements/Expression code cannot lose a genuine user-authored CS7022.
     protected override IEnumerable<Diagnostic> FilterDiagnostics(IEnumerable<Diagnostic> diagnostics) =>
-        Options.Kind == Invoklet.Format.RPad.RpadKind.Program
+        Options.Kind == Invoklet.Format.MdRun.MdRunKind.Program
             ? diagnostics.Where(d => !IsSyntheticWrapperEntryPointWarning(d))
             : diagnostics;
 
@@ -100,9 +100,9 @@ public sealed class CSharpScriptCompiler(CompiledDotnetLanguageHostOptions optio
         if (d.Id != "CS7022" || d.Location.SourceTree is not { } tree) return false;
         var node = tree.GetRoot().FindNode(d.Location.SourceSpan);
         var enclosingClass = node.FirstAncestorOrSelf<ClassDeclarationSyntax>();
-        return enclosingClass?.Identifier.ValueText == RpadKindTransform.ProgramWrapperClassName
+        return enclosingClass?.Identifier.ValueText == MdRunKindTransform.ProgramWrapperClassName
             && enclosingClass.Members.OfType<MethodDeclarationSyntax>()
-                .Any(m => m.Identifier.ValueText == RpadKindTransform.TrampolineMethodName);
+                .Any(m => m.Identifier.ValueText == MdRunKindTransform.TrampolineMethodName);
     }
 
     internal static CSharpParseOptions ParseOptions(ScriptTarget target) => ParseOptions(target.Major, target.Minor);

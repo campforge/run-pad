@@ -1,6 +1,6 @@
 using Invoklet.Build.Core.Models;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
@@ -35,7 +35,7 @@ public class CSharpLanguageHostProgramKindCompileTests
             },
             OutputDirectory = outputDir,
             RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
-            Kind = RpadKind.Program,
+            Kind = MdRunKind.Program,
             Usings = usings ?? [],
         };
         return new CSharpLanguageHost(options, NullLoggerFactory.Instance);

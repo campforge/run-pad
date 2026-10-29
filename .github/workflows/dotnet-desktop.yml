@@ -96,7 +96,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          for proj in tests/Invoklet.Format.RPad.Tests tests/Invoklet.Runtime.Tests \
+          for proj in tests/Invoklet.Format.MdRun.Tests tests/Invoklet.Runtime.Tests \
                       tests/Invoklet.Avalonia.HtmlRenderer.Tests tests/Invoklet.Cli.Tests tests/AvaloniaEdit.Tests \
                       tests/MarkView.Avalonia.Tests tests/MarkView.Avalonia.SyntaxHighlighting.Tests; do
             dotnet test "$proj" --no-build --configuration Release --verbosity normal
@@ -325,7 +325,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          for proj in tests/Invoklet.Format.RPad.Tests tests/Invoklet.Runtime.Tests \
+          for proj in tests/Invoklet.Format.MdRun.Tests tests/Invoklet.Runtime.Tests \
                       tests/Invoklet.Avalonia.HtmlRenderer.Tests tests/Invoklet.Cli.Tests tests/AvaloniaEdit.Tests \
                       tests/MarkView.Avalonia.Tests tests/MarkView.Avalonia.SyntaxHighlighting.Tests; do
             dotnet test "$proj" --no-build --configuration Release --verbosity normal

@@ -1,4 +1,4 @@
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Windows.Models;
 using Xunit;
 
@@ -8,31 +8,31 @@ namespace Invoklet.NonUI.Tests;
 // set runs use, as a draft applied on Save.
 public class ScriptArgumentsViewModelTests
 {
-    private static RpadFrontMatter Script() => new()
+    private static MdRunFrontMatter Script() => new()
     {
         Arguments =
         [
-            new() { Name = "environment", Type = RpadArgumentType.Enum, Default = RpadValue.Of("dev"), Values = ["dev", "test"] },
-            new() { Name = "count", Type = RpadArgumentType.Int },
-            new() { Name = "tags", Type = RpadArgumentType.StringList, Default = RpadValue.List([RpadValue.Of("two\nlines")]) },
+            new() { Name = "environment", Type = MdRunArgumentType.Enum, Default = MdRunValue.Of("dev"), Values = ["dev", "test"] },
+            new() { Name = "count", Type = MdRunArgumentType.Int },
+            new() { Name = "tags", Type = MdRunArgumentType.StringList, Default = MdRunValue.List([MdRunValue.Of("two\nlines")]) },
         ],
         ArgumentSets = new(StringComparer.Ordinal)
         {
-            ["smoke"] = new(StringComparer.Ordinal) { ["environment"] = RpadValue.Of("test"), ["count"] = RpadValue.Of("3") },
+            ["smoke"] = new(StringComparer.Ordinal) { ["environment"] = MdRunValue.Of("test"), ["count"] = MdRunValue.Of("3") },
         },
         SelectedArgumentSet = "smoke",
     };
 
-    private static ScriptArgumentsViewModel Load(RpadFrontMatter fm)
+    private static ScriptArgumentsViewModel Load(MdRunFrontMatter fm)
     {
         var vm = new ScriptArgumentsViewModel();
         vm.Load(fm);
         return vm;
     }
 
-    private static RpadFrontMatter Applied(ScriptArgumentsViewModel vm)
+    private static MdRunFrontMatter Applied(ScriptArgumentsViewModel vm)
     {
-        var fm = new RpadFrontMatter();
+        var fm = new MdRunFrontMatter();
         vm.ApplyTo(fm);
         return fm;
     }
@@ -82,7 +82,7 @@ public class ScriptArgumentsViewModelTests
     {
         var fm = Applied(Load(Script()));
 
-        Assert.Equal(RpadArguments.Resolve(Script()).Arguments, RpadArguments.Resolve(fm).Arguments);
+        Assert.Equal(MdRunArguments.Resolve(Script()).Arguments, MdRunArguments.Resolve(fm).Arguments);
         Assert.Equal("two\nlines", fm.Arguments[2].Default!.Items![0].Text);
     }
 
@@ -94,14 +94,14 @@ public class ScriptArgumentsViewModelTests
         vm.AddArgumentCommand.Execute().Subscribe();
         var row = vm.Arguments[^1];
         row.Name = "since";
-        row.Type = ArgumentRowViewModel.Types.First(t => t.Type == RpadArgumentType.DateTime);
+        row.Type = ArgumentRowViewModel.Types.First(t => t.Type == MdRunArgumentType.DateTime);
         vm.Sets[0].Values[^1].Text = "2026-10-26";
         var fm = Applied(vm);
 
         Assert.True(vm.HasChanges);
-        Assert.Equal(RpadArgumentType.DateTime, fm.Arguments[^1].Type);
+        Assert.Equal(MdRunArgumentType.DateTime, fm.Arguments[^1].Type);
         Assert.Equal("2026-10-26", fm.ArgumentSets["smoke"]["since"].Text);
-        Assert.Contains("--since", RpadArguments.Resolve(fm).Arguments);
+        Assert.Contains("--since", MdRunArguments.Resolve(fm).Arguments);
     }
 
     // A renamed argument keeps its values in the sets; a removed one takes them along.
@@ -130,7 +130,7 @@ public class ScriptArgumentsViewModelTests
 
         Assert.False(fm.ArgumentSets["smoke"].ContainsKey("environment"));
         Assert.Equal(["--environment", "dev", "--count", "3", "--tags", "a", "--tags", "", "--tags", "b c"],
-            RpadArguments.Resolve(fm).Arguments);
+            MdRunArguments.Resolve(fm).Arguments);
     }
 
     [Fact]
@@ -206,7 +206,7 @@ public class ScriptArgumentsViewModelTests
     public void AnUndeclaredSetValue_Should_BeKept_AndReported()
     {
         var fm = Script();
-        fm.ArgumentSets["smoke"]["old"] = RpadValue.Of("x");
+        fm.ArgumentSets["smoke"]["old"] = MdRunValue.Of("x");
         var vm = Load(fm);
 
         Assert.Contains(vm.Problems, p => p.Contains("'old', which is not a declared argument"));
@@ -216,7 +216,7 @@ public class ScriptArgumentsViewModelTests
     [Fact]
     public void AScriptWithoutArguments_Should_StayWithout()
     {
-        var fm = new RpadFrontMatter();
+        var fm = new MdRunFrontMatter();
         var vm = Load(fm);
 
         vm.ApplyTo(fm);

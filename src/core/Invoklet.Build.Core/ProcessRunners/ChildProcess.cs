@@ -96,7 +96,7 @@ public sealed class ChildProcess : IChildProcess
     // ── Factories ─────────────────────────────────────────────────────────────
 
     // An environment variable, not another positional
-    // argument like assemblyPath/parentPid: RpadKind.Statements/Expression compile to C# top-level
+    // argument like assemblyPath/parentPid: MdRunKind.Statements/Expression compile to C# top-level
     // statements, which have an implicit `string[] args` in scope, so any extra CLI argument here
     // would leak straight into the user's own `args` (already true, if unobserved, of --pid above).
     // An env var is invisible to `args` and read back via Invoklet.Runtime.Util.CurrentQueryPath's own

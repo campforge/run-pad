@@ -1,7 +1,7 @@
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.DotnetCommon;
 using Moq;
 
@@ -46,7 +46,7 @@ internal static class TestLanguageRegistry
         public LanguageHostCapabilities Capabilities => inner.Capabilities;
         public IReadOnlyDictionary<string, string> Snippets => inner.Snippets;
         public EditorLanguageProfile EditorProfile => inner.EditorProfile;
-        public string? CodeForKind(string code, RpadKind kind, string indent = "    ") => inner.CodeForKind(code, kind, indent);
+        public string? CodeForKind(string code, MdRunKind kind, string indent = "    ") => inner.CodeForKind(code, kind, indent);
         public IIntelliSenseService? CreateIntelliSense(CancellationToken cancellationToken) => create();
         public ILanguageHost Create(ILanguageHostOptions? options = null) => inner.Create(options);
         public ILanguageHost Create(ExecutionRequest request) => inner.Create(request);

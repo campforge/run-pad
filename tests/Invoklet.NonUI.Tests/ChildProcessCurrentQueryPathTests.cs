@@ -5,7 +5,7 @@ using Xunit;
 namespace Invoklet.Runtime.UI.Tests;
 
 // An environment variable rather than another
-// positional CLI argument (see ChildProcess.CurrentQueryPathEnvVar's own comment: RpadKind.Statements/
+// positional CLI argument (see ChildProcess.CurrentQueryPathEnvVar's own comment: MdRunKind.Statements/
 // Expression compile to top-level statements, which have an implicit `string[] args` in scope, so an
 // extra argument would leak into the user's own args). This tests ForExecution's ProcessStartInfo
 // directly (StartInfoForTests, internal + InternalsVisibleTo — Invoklet.Build.Core has no dedicated test

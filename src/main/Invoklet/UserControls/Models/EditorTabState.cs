@@ -2,7 +2,7 @@ using System.Diagnostics;
 using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 
 namespace Invoklet.UserControls.Models;
 
@@ -38,9 +38,9 @@ internal sealed class EditorTabState
     public readonly Stopwatch RunStopwatch = new();
 
     // Set when the active file is an .rpad document; null for untitled tabs
-    public RpadDocument? RpadDocument { get; set; }
+    public MdRunDocument? MdRunDocument { get; set; }
 
-    // Set when the file on disk isn't a valid .rpad document (RpadParser.Parse error): the
+    // Set when the file on disk isn't a valid .rpad document (MdRunParser.Parse error): the
     // editor then holds the full raw file so Save writes it back verbatim, and Run/Debug are refused.
     public string? DocumentParseError { get; set; }
 

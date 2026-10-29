@@ -1,20 +1,20 @@
 using System.Globalization;
 using System.Text;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 
 namespace Invoklet.Contracts.Connections;
 
 /// <summary>What a driver's <see cref="IConnectionDriver.CreateClient"/> writes code with.</summary>
 public sealed class ConnectionCodeContext
 {
-    internal ConnectionCodeContext(RpadConnection connection, string className, ConnectionSchema? schema)
+    internal ConnectionCodeContext(MdRunConnection connection, string className, ConnectionSchema? schema)
     {
         Connection = connection;
         ClassName = className;
         Schema = schema;
     }
 
-    public RpadConnection Connection { get; }
+    public MdRunConnection Connection { get; }
 
     /// <summary>The endpoint's description, for an <see cref="IConnectionSchemaDriver"/>; null otherwise.</summary>
     public ConnectionSchema? Schema { get; }
@@ -29,12 +29,12 @@ public sealed class ConnectionCodeContext
     /// </summary>
     public string Text(string text)
     {
-        var parts = RpadPlaceholders.Parse(text).Parts;
+        var parts = MdRunPlaceholders.Parse(text).Parts;
         if (parts.Count == 0) return "\"\"";
         return string.Join(" + ", parts.Select(part => part.Kind switch
         {
-            RpadPlaceholders.Kind.Secret => $"global::Util.GetSecret({Literal(part.Value)})",
-            RpadPlaceholders.Kind.Environment => $"(global::System.Environment.GetEnvironmentVariable({Literal(part.Value)}) ?? throw new global::System.InvalidOperationException({Literal($"Connection '{Connection.Name}': the environment variable '{part.Value}' is not set.")}))",
+            MdRunPlaceholders.Kind.Secret => $"global::Util.GetSecret({Literal(part.Value)})",
+            MdRunPlaceholders.Kind.Environment => $"(global::System.Environment.GetEnvironmentVariable({Literal(part.Value)}) ?? throw new global::System.InvalidOperationException({Literal($"Connection '{Connection.Name}': the environment variable '{part.Value}' is not set.")}))",
             _ => Literal(part.Value),
         }));
     }
@@ -103,25 +103,25 @@ public sealed record GeneratedConnections(string Source, IReadOnlyList<string> E
     /// without a schema is an error naming why it couldn't be read.</param>
     /// <param name="scriptDirectory">The script's folder, which a schema may depend on; null for a script never saved.</param>
     /// <param name="readSchemaFromDisk">Whether a missing in-memory schema may be loaded from disk.</param>
-    public static GeneratedConnections? For(IReadOnlyList<RpadConnection> connections, RpadLanguage language,
+    public static GeneratedConnections? For(IReadOnlyList<MdRunConnection> connections, MdRunLanguage language,
         IEnumerable<string> scriptPackages, ConnectionDriverRegistry drivers, ConnectionSchemaCache? schemas = null,
         string? scriptDirectory = null, bool readSchemaFromDisk = true)
     {
         if (connections.Count == 0) return null;
-        if (language != RpadLanguage.CSharp)
+        if (language != MdRunLanguage.CSharp)
             return new GeneratedConnections("", ["Connections can be used in C# scripts only, for now."], []);
         var files = new List<GeneratedSourceFile>();
         var schemaFiles = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        var errors = RpadConnection.Validate(connections).ToList();
+        var errors = MdRunConnection.Validate(connections).ToList();
         var packages = new HashSet<string>(scriptPackages, StringComparer.OrdinalIgnoreCase);
         var classes = new StringBuilder();
         var properties = new StringBuilder();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var symbols = new HashSet<string>(connections.Select(c => RpadConnection.CodeName(c.Name)), StringComparer.Ordinal) { "Connections" };
+        var symbols = new HashSet<string>(connections.Select(c => MdRunConnection.CodeName(c.Name)), StringComparer.Ordinal) { "Connections" };
         foreach (var connection in connections)
         {
-            var codeName = RpadConnection.CodeName(connection.Name);
+            var codeName = MdRunConnection.CodeName(connection.Name);
             if (codeName.Length == 0 || !char.IsAsciiLetter(codeName[0]) || !seen.Add(codeName)) continue; // reported by Validate
             if (drivers.Find(connection.Driver) is not { } driver)
             {
@@ -130,7 +130,7 @@ public sealed record GeneratedConnections(string Source, IReadOnlyList<string> E
                 continue;
             }
             var problems = driver.Validate(connection);
-            if (problems.Count > 0 || connection.Params.Values.SelectMany(v => v.Texts()).Any(t => RpadPlaceholders.Parse(t).Error is not null))
+            if (problems.Count > 0 || connection.Params.Values.SelectMany(v => v.Texts()).Any(t => MdRunPlaceholders.Parse(t).Error is not null))
             {
                 errors.AddRange(problems.Select(p => $"Connection '{connection.Name}': {p}"));
                 continue;

@@ -1,7 +1,7 @@
 using Invoklet.Build.Core.Models;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
@@ -58,7 +58,7 @@ public class RealNetcoredbgDebugTests : IDisposable
         public string? HitCondition => null;
     }
 
-    private CSharpLanguageHost CreateHost(string netcoredbg, RpadKind kind = RpadKind.Program, int? breakpointLine = BreakpointLine)
+    private CSharpLanguageHost CreateHost(string netcoredbg, MdRunKind kind = MdRunKind.Program, int? breakpointLine = BreakpointLine)
     {
         var sdk = new DotnetSdkProvider().Get().First();
         var options = new CompiledDotnetLanguageHostOptions
@@ -145,7 +145,7 @@ public class RealNetcoredbgDebugTests : IDisposable
     public async Task RunDebugAsync_Should_ReportAnUnhandledExceptionStop_SurviveARejectedStep_AndEndOnContinue()
     {
         var netcoredbg = RequireNetcoredbg();
-        await using var host = CreateHost(netcoredbg, RpadKind.Statements, breakpointLine: null);
+        await using var host = CreateHost(netcoredbg, MdRunKind.Statements, breakpointLine: null);
         var output = new List<string>();
         var stops = new List<IBreakpointHitContext>();
         host.BreakpointHit += ctx =>

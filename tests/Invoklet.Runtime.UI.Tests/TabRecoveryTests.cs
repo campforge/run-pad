@@ -3,7 +3,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -33,7 +33,7 @@ public sealed class TabRecoveryTests : IDisposable
         theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(new InterfaceTheme("Test", ThemeVariant.Dark, true),
             new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
         var vm = new EditorTabItemViewModel(path, [], prefs.Object, new Mock<IEditorTabActions>().Object,
-            RpadLanguage.CSharp, RpadKind.Statements)
+            MdRunLanguage.CSharp, MdRunKind.Statements)
         { RestoredRecovery = snapshot };
         var ctrl = new EditorsTabItemControl(vm, theme.Object, _windows.Object, new Mock<ILanguageHostRegistry>().Object,
             prefs.Object, null, new Mock<IBuildCacheService>().Object);
@@ -49,15 +49,15 @@ public sealed class TabRecoveryTests : IDisposable
         var (ctrl, vm) = Open();
         var text = "// ${0}\r\nПривет\n\r\n";
         ctrl.State.Editor.Text = text;
-        ctrl.State.RpadDocument!.FrontMatter.Arguments = [new() { Name = "values", Type = RpadArgumentType.StringList, Default = RpadValue.List(new[] { "", "a b", "Ж" }.Select(RpadValue.Of)) }];
-        ctrl.State.RpadDocument.FrontMatter.References = ["$(CurrentQueryPath)/a.dll"];
+        ctrl.State.MdRunDocument!.FrontMatter.Arguments = [new() { Name = "values", Type = MdRunArgumentType.StringList, Default = MdRunValue.List(new[] { "", "a b", "Ж" }.Select(MdRunValue.Of)) }];
+        ctrl.State.MdRunDocument.FrontMatter.References = ["$(CurrentQueryPath)/a.dll"];
         ctrl.State.Editor.CaretOffset = 5;
         var snapshot = ctrl.CaptureRecovery();
-        ctrl.State.RpadDocument.FrontMatter.Arguments[0].Default!.Items!.Add(RpadValue.Of("later"));
+        ctrl.State.MdRunDocument.FrontMatter.Arguments[0].Default!.Items!.Add(MdRunValue.Of("later"));
         var (restored, restoredVm) = Open(snapshot: snapshot);
         Assert.Equal(text, restored.State.Editor.Text);
-        Assert.Equal(new[] { "", "a b", "Ж" }, restored.State.RpadDocument!.FrontMatter.Arguments[0].Default!.Items!.Select(i => i.Text));
-        Assert.Equal(snapshot.Document!.FrontMatter.References, restored.State.RpadDocument.FrontMatter.References);
+        Assert.Equal(new[] { "", "a b", "Ж" }, restored.State.MdRunDocument!.FrontMatter.Arguments[0].Default!.Items!.Select(i => i.Text));
+        Assert.Equal(snapshot.Document!.FrontMatter.References, restored.State.MdRunDocument.FrontMatter.References);
         Assert.True(restoredVm.IsDirty);
         Assert.Null(restoredVm.FilePath);
         Assert.Equal(5, restored.State.Editor.CaretOffset);
@@ -67,12 +67,12 @@ public sealed class TabRecoveryTests : IDisposable
     public async Task DirtyNamedSnapshot_Should_KeepOriginalDiskBaseline_AndAskBeforeOverwritingExternalChanges()
     {
         var path = Path.Combine(_root, "dirty.rpad");
-        File.WriteAllText(path, RpadWriter.NewFile("old", "test"));
+        File.WriteAllText(path, MdRunWriter.NewFile("old", "test"));
         var (ctrl, vm) = Open(path);
         ctrl.State.Editor.Text = "unsaved";
         var snapshot = ctrl.CaptureRecovery();
         var originalHash = vm.DiskState!.Hash;
-        File.WriteAllText(path, RpadWriter.NewFile("external", "test"));
+        File.WriteAllText(path, MdRunWriter.NewFile("external", "test"));
         var external = File.ReadAllBytes(path);
         var (restored, restoredVm) = Open(path, snapshot);
         _windows.Setup(w => w.ShowSaveConflictDialogAsync(It.IsAny<string>())).ReturnsAsync(SaveConflictChoice.Cancel);
@@ -87,7 +87,7 @@ public sealed class TabRecoveryTests : IDisposable
     public async Task UnknownRecoveredBaseline_Should_NotSilentlyAcceptTheCurrentFile()
     {
         var path = Path.Combine(_root, "unknown.rpad");
-        File.WriteAllText(path, RpadWriter.NewFile("disk", "test"));
+        File.WriteAllText(path, MdRunWriter.NewFile("disk", "test"));
         var (ctrl, _) = Open();
         var frame = ctrl.CaptureRecovery() with { FilePath = path, BaselineKnown = false, IsDirty = true };
         var (_, vm) = Open(path, frame);
@@ -107,7 +107,7 @@ public sealed class TabRecoveryTests : IDisposable
         File.WriteAllText(path, "external");
         var (restored, _) = Open(path, snapshot);
         Assert.Equal(raw, restored.State.Editor.Text);
-        Assert.Null(restored.State.RpadDocument);
+        Assert.Null(restored.State.MdRunDocument);
         Assert.NotNull(restored.State.DocumentParseError);
         Assert.Equal("external", File.ReadAllText(path));
     }
@@ -117,7 +117,7 @@ public sealed class TabRecoveryTests : IDisposable
     {
         var (ctrl, vm) = Open();
         Assert.False(vm.IsDirty);
-        ctrl.State.RpadDocument!.FrontMatter.Arguments = [new() { Name = "value", Default = RpadValue.Of("metadata-only") }];
+        ctrl.State.MdRunDocument!.FrontMatter.Arguments = [new() { Name = "value", Default = MdRunValue.Of("metadata-only") }];
         Assert.True(ctrl.CaptureRecovery().IsDirty);
     }
 

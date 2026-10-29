@@ -4,7 +4,7 @@ using System.Reflection.PortableExecutable;
 using Invoklet.Build.Core.Models;
 using Invoklet.Contracts.Models;
 using Invoklet.Debug;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.Compiler;
 using Invoklet.Languages.DotnetCommon;
@@ -37,7 +37,7 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
     private static DotnetSdk LatestSdk => new DotnetSdkProvider().Get().First();
 
     private CompiledDotnetLanguageHostOptions Options(
-        DotnetSdk? sdk = null, RpadKind kind = RpadKind.Statements, IReadOnlyList<string>? usings = null,
+        DotnetSdk? sdk = null, MdRunKind kind = MdRunKind.Statements, IReadOnlyList<string>? usings = null,
         IReadOnlyList<string>? assemblyReferences = null, IReadOnlyList<string>? projectReferences = null,
         string? runtimeLib = null, string? outputDirectory = null, string? argumentContractJson = null)
     {
@@ -96,7 +96,7 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
     [InlineData(true, "Dim value As Integer = Arguments.Count\nConsole.WriteLine(value)")]
     public async Task TypedUtilArgs_Should_CompileForCSharpAndVisualBasic(bool vb, string code)
     {
-        var contract = new RpadArgumentContract(
+        var contract = new MdRunArgumentContract(
             [new("count", "int", ["3"], [])]).ToJson();
         var options = Options(argumentContractJson: contract);
         using var compiler = vb ? Vb(options) : CSharp(options);
@@ -113,7 +113,7 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
     [Fact]
     public async Task TypedUtilArgs_Should_AggregateRuntimeConversionErrors()
     {
-        var contract = new RpadArgumentContract(
+        var contract = new MdRunArgumentContract(
         [
             new("count", "int", ["not-an-int"], []),
             new("Enabled", "bool", ["maybe"], []),
@@ -130,11 +130,11 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
     [InlineData(true)]
     public async Task TypedArguments_Should_ExposeARealEnum_InCSharpAndVisualBasic(bool vb)
     {
-        var fm = new RpadFrontMatter
+        var fm = new MdRunFrontMatter
         {
-            Arguments = [new() { Name = "env", Type = RpadArgumentType.Enum, Values = ["dev", "prod"], Default = RpadValue.Of("dev") }],
+            Arguments = [new() { Name = "env", Type = MdRunArgumentType.Enum, Values = ["dev", "prod"], Default = MdRunValue.Of("dev") }],
             SelectedArgumentSet = "production",
-            ArgumentSets = new() { ["production"] = new() { ["env"] = RpadValue.Of("prod") } },
+            ArgumentSets = new() { ["production"] = new() { ["env"] = MdRunValue.Of("prod") } },
         };
         var request = ExecutionRequest.For(fm, null);
         Assert.Empty(request.ArgumentContractErrors);
@@ -157,11 +157,11 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
     [InlineData(true)]
     public async Task TypedArguments_Should_KeepAnUnsetEnumNullable(bool vb)
     {
-        var fm = new RpadFrontMatter
+        var fm = new MdRunFrontMatter
         {
-            Arguments = [new() { Name = "env", Type = RpadArgumentType.Enum, Values = ["dev", "prod"] }],
+            Arguments = [new() { Name = "env", Type = MdRunArgumentType.Enum, Values = ["dev", "prod"] }],
         };
-        var contract = RpadArgumentContract.Build(fm, out var errors);
+        var contract = MdRunArgumentContract.Build(fm, out var errors);
         Assert.Empty(errors);
         var code = vb
             ? "Dim environment As ArgumentsEnv? = Arguments.Env\nConsole.WriteLine(environment.HasValue)"
@@ -175,7 +175,7 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
     [InlineData(true)]
     public async Task TypedArguments_Should_MapEnumLabelsToSafeIdentifiers(bool vb)
     {
-        var contract = new RpadArgumentContract([new("env", "enum", ["prod-us"], ["dev", "prod-us", "true"])]);
+        var contract = new MdRunArgumentContract([new("env", "enum", ["prod-us"], ["dev", "prod-us", "true"])]);
         var code = vb
             ? "Console.WriteLine(Arguments.Env = ArgumentsEnv.ProdUs)\nConsole.WriteLine(CInt(ArgumentsEnv.[True]))"
             : "Console.WriteLine(Arguments.Env == ArgumentsEnv.ProdUs); Console.WriteLine((int)ArgumentsEnv.True);";
@@ -187,7 +187,7 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
     [Fact]
     public async Task TypedArguments_Should_RejectUnknownEnumValuesAtRuntime()
     {
-        var contract = new RpadArgumentContract([new("env", "enum", ["unknown"], ["dev", "prod"])]);
+        var contract = new MdRunArgumentContract([new("env", "enum", ["unknown"], ["dev", "prod"])]);
         var output = await RunAsync(Options(argumentContractJson: contract.ToJson()), "Console.WriteLine(Arguments.Env);");
         var message = string.Join("\n", output);
         Assert.Contains("env", message);
@@ -202,14 +202,14 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
     [InlineData(true, true)]
     public async Task TypedArguments_Should_RunTheCapturedRequestValues(bool vb, bool empty)
     {
-        var fm = new RpadFrontMatter
+        var fm = new MdRunFrontMatter
         {
-            Arguments = [new() { Name = "value", Type = RpadArgumentType.Int }],
+            Arguments = [new() { Name = "value", Type = MdRunArgumentType.Int }],
             SelectedArgumentSet = "old",
             ArgumentSets = new()
             {
-                ["old"] = new() { ["value"] = RpadValue.Of("99") },
-                ["selected"] = empty ? new() : new() { ["value"] = RpadValue.Of("3") },
+                ["old"] = new() { ["value"] = MdRunValue.Of("99") },
+                ["selected"] = empty ? new() : new() { ["value"] = MdRunValue.Of("3") },
             },
         };
         var request = ExecutionRequest.For(fm, null, argumentSet: "selected");
@@ -228,13 +228,13 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
     [Fact]
     public async Task TypedArguments_Should_ChangeOnRerun_WhenPresetChanges()
     {
-        var fm = new RpadFrontMatter
+        var fm = new MdRunFrontMatter
         {
-            Arguments = [new() { Name = "value", Type = RpadArgumentType.Int }],
+            Arguments = [new() { Name = "value", Type = MdRunArgumentType.Int }],
             ArgumentSets = new()
             {
-                ["dev"] = new() { ["value"] = RpadValue.Of("3") },
-                ["prod"] = new() { ["value"] = RpadValue.Of("7") },
+                ["dev"] = new() { ["value"] = MdRunValue.Of("3") },
+                ["prod"] = new() { ["value"] = MdRunValue.Of("7") },
             },
         };
         var directory = Path.Combine(_root, "preset-rerun");
@@ -254,7 +254,7 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
         var directory = Path.Combine(_root, "argument-types");
         foreach (var (type, value, expected) in new[] { ("int", "3", "Int32"), ("string", "text", "String") })
         {
-            var contract = new RpadArgumentContract([new("value", type, [value], [])]);
+            var contract = new MdRunArgumentContract([new("value", type, [value], [])]);
             var options = Options(outputDirectory: directory, argumentContractJson: contract.ToJson());
             var output = await RunAsync(options, "Console.WriteLine(Arguments.Value.GetType().Name);");
             Assert.True(output.Any(line => line.EndsWith(": " + expected, StringComparison.Ordinal)), string.Join("\n", output));
@@ -564,7 +564,7 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
     [Fact]
     public async Task Vb_Should_UseTheSdkDefaults()
     {
-        var output = await RunAsync(Options(kind: RpadKind.Program), """
+        var output = await RunAsync(Options(kind: MdRunKind.Program), """
             Module M
                 Sub Main()
                     Dim dc = New DumpContainer("hello")
@@ -585,7 +585,7 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
     [Fact]
     public async Task ProgramMain_GuardedByATargetFrameworkSymbol_Should_Execute()
     {
-        var output = await RunAsync(Options(kind: RpadKind.Program), """
+        var output = await RunAsync(Options(kind: MdRunKind.Program), """
             #if NET8_0_OR_GREATER
             static void Main() => Console.WriteLine("main ran");
             #endif

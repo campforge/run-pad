@@ -1,5 +1,5 @@
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.Windows.Models;
@@ -81,15 +81,15 @@ public class ImportLinqFileTests
 
             await vm.ImportLinqFileAsync();
 
-            var expectedRpadPath = Path.Combine(rootFolder, "MyQuery.rpad");
-            Assert.True(File.Exists(expectedRpadPath));
+            var expectedMdRunPath = Path.Combine(rootFolder, "MyQuery.rpad");
+            Assert.True(File.Exists(expectedMdRunPath));
             var tab = Assert.Single(vm.Tabs);
-            Assert.Equal(expectedRpadPath, tab.FilePath);
+            Assert.Equal(expectedMdRunPath, tab.FilePath);
 
-            var parsed = RpadParser.TryParse(await File.ReadAllTextAsync(expectedRpadPath, TestContext.Current.CancellationToken));
+            var parsed = MdRunParser.TryParse(await File.ReadAllTextAsync(expectedMdRunPath, TestContext.Current.CancellationToken));
             Assert.NotNull(parsed);
-            Assert.Equal(RpadLanguage.CSharp, parsed!.FrontMatter.Language);
-            Assert.Equal(RpadKind.Statements, parsed.FrontMatter.Kind);
+            Assert.Equal(MdRunLanguage.CSharp, parsed!.FrontMatter.Language);
+            Assert.Equal(MdRunKind.Statements, parsed.FrontMatter.Kind);
             Assert.Contains("Newtonsoft.Json", parsed.FrontMatter.Packages.Keys);
             Assert.Contains("Console.WriteLine(\"hi\");", parsed.RunCode);
         }
@@ -97,26 +97,26 @@ public class ImportLinqFileTests
     }
 
     [Fact]
-    public async Task ImportLinqFileAsync_Should_AvoidOverwriting_WhenAnRpadWithTheSameNameAlreadyExists()
+    public async Task ImportLinqFileAsync_Should_AvoidOverwriting_WhenAnMdRunWithTheSameNameAlreadyExists()
     {
         var rootFolder = Directory.CreateTempSubdirectory("Invoklet-linq-import-test").FullName;
         try
         {
             var linqPath = Path.Combine(rootFolder, "MyQuery.linq");
             await File.WriteAllTextAsync(linqPath, ValidLinq, TestContext.Current.CancellationToken);
-            var existingRpadPath = Path.Combine(rootFolder, "MyQuery.rpad");
-            await File.WriteAllTextAsync(existingRpadPath, "not touched", TestContext.Current.CancellationToken);
+            var existingMdRunPath = Path.Combine(rootFolder, "MyQuery.rpad");
+            await File.WriteAllTextAsync(existingMdRunPath, "not touched", TestContext.Current.CancellationToken);
 
             var (vm, windowService) = CreateMainVm(rootFolder);
             windowService.Setup(w => w.ShowOpenLinqFileDialogAsync(rootFolder)).ReturnsAsync(linqPath);
 
             await vm.ImportLinqFileAsync();
 
-            Assert.Equal("not touched", await File.ReadAllTextAsync(existingRpadPath, TestContext.Current.CancellationToken));
-            var newRpadPath = Path.Combine(rootFolder, "MyQuery 2.rpad");
-            Assert.True(File.Exists(newRpadPath));
+            Assert.Equal("not touched", await File.ReadAllTextAsync(existingMdRunPath, TestContext.Current.CancellationToken));
+            var newMdRunPath = Path.Combine(rootFolder, "MyQuery 2.rpad");
+            Assert.True(File.Exists(newMdRunPath));
             var tab = Assert.Single(vm.Tabs);
-            Assert.Equal(newRpadPath, tab.FilePath);
+            Assert.Equal(newMdRunPath, tab.FilePath);
         }
         finally { Directory.Delete(rootFolder, recursive: true); }
     }

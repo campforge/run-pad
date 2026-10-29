@@ -1,5 +1,5 @@
 using Invoklet.Contracts;
-using Invoklet.Format.RPad;
+using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.Services.Recovery;
@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;
 
-// NewRpadFile used to write a real (sample-boilerplate-filled)
+// NewMdRunFile used to write a real (sample-boilerplate-filled)
 // file to disk immediately via IFileSystemService.CreateNewFile — a script only started existing on
 // disk (and in the file tree) once the user explicitly saved it. language/kind are now carried on
 // the tab itself (EditorTabItemViewModel.NewFileLanguage/NewFileKind) since there's no front matter
@@ -38,17 +38,17 @@ public class MainWindowViewModelNewFileTests
     }
 
     [Fact]
-    public void NewRpadFile_Should_NotTouchDisk()
+    public void NewMdRunFile_Should_NotTouchDisk()
     {
         var rootFolder = Directory.CreateTempSubdirectory("Invoklet-newfile-test").FullName;
         try
         {
             var (vm, fileSystem) = CreateViewModel(rootFolder);
 
-            vm.NewRpadFile();
+            vm.NewMdRunFile();
 
             fileSystem.Verify(
-                f => f.CreateNewFile(It.IsAny<string>(), It.IsAny<RpadLanguage>(), It.IsAny<RpadKind>(), It.IsAny<string>()),
+                f => f.CreateNewFile(It.IsAny<string>(), It.IsAny<MdRunLanguage>(), It.IsAny<MdRunKind>(), It.IsAny<string>()),
                 Times.Never);
             Assert.Empty(Directory.GetFiles(rootFolder));
         }
@@ -56,48 +56,48 @@ public class MainWindowViewModelNewFileTests
     }
 
     [Fact]
-    public void NewRpadFile_Should_OpenAnUntitledTab_DefaultingToCSharpStatements()
+    public void NewMdRunFile_Should_OpenAnUntitledTab_DefaultingToCSharpStatements()
     {
         var rootFolder = Directory.CreateTempSubdirectory("Invoklet-newfile-test").FullName;
         try
         {
             var (vm, _) = CreateViewModel(rootFolder);
 
-            vm.NewRpadFile();
+            vm.NewMdRunFile();
 
             var tab = Assert.Single(vm.Tabs, t => t.FilePath is null);
-            Assert.Equal(RpadLanguage.CSharp, tab.NewFileLanguage);
-            Assert.Equal(RpadKind.Statements, tab.NewFileKind);
+            Assert.Equal(MdRunLanguage.CSharp, tab.NewFileLanguage);
+            Assert.Equal(MdRunKind.Statements, tab.NewFileKind);
             Assert.False(tab.HasFilePath);
         }
         finally { Directory.Delete(rootFolder, recursive: true); }
     }
 
     [Fact]
-    public void NewRpadFile_Should_CarryTheRequestedLanguageAndKind_OnTheNewTab()
+    public void NewMdRunFile_Should_CarryTheRequestedLanguageAndKind_OnTheNewTab()
     {
         var rootFolder = Directory.CreateTempSubdirectory("Invoklet-newfile-test").FullName;
         try
         {
             var (vm, _) = CreateViewModel(rootFolder);
 
-            vm.NewRpadFile(RpadLanguage.Vb, RpadKind.Program);
+            vm.NewMdRunFile(MdRunLanguage.Vb, MdRunKind.Program);
 
-            var tab = Assert.Single(vm.Tabs, t => t.FilePath is null && t.NewFileLanguage == RpadLanguage.Vb);
-            Assert.Equal(RpadKind.Program, tab.NewFileKind);
+            var tab = Assert.Single(vm.Tabs, t => t.FilePath is null && t.NewFileLanguage == MdRunLanguage.Vb);
+            Assert.Equal(MdRunKind.Program, tab.NewFileKind);
         }
         finally { Directory.Delete(rootFolder, recursive: true); }
     }
 
     [Fact]
-    public void NewRpadFile_Should_MakeTheNewTabActive()
+    public void NewMdRunFile_Should_MakeTheNewTabActive()
     {
         var rootFolder = Directory.CreateTempSubdirectory("Invoklet-newfile-test").FullName;
         try
         {
             var (vm, _) = CreateViewModel(rootFolder);
 
-            vm.NewRpadFile(RpadLanguage.Vb);
+            vm.NewMdRunFile(MdRunLanguage.Vb);
 
             Assert.Same(vm.Tabs[^1], vm.ActiveTab);
             Assert.Null(vm.ActiveTab!.FilePath);
@@ -106,15 +106,15 @@ public class MainWindowViewModelNewFileTests
     }
 
     [Fact]
-    public void NewRpadFile_Should_UseIncrementingUntitledNames()
+    public void NewMdRunFile_Should_UseIncrementingUntitledNames()
     {
         var rootFolder = Directory.CreateTempSubdirectory("Invoklet-newfile-test").FullName;
         try
         {
             var (vm, _) = CreateViewModel(rootFolder);
 
-            vm.NewRpadFile();
-            vm.NewRpadFile();
+            vm.NewMdRunFile();
+            vm.NewMdRunFile();
 
             Assert.Equal(["Untitled1", "Untitled2"], vm.Tabs.Select(t => t.FileName));
         }
