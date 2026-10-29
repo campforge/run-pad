@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging.Abstractions;
 using Invoklet.Connectors.Grpc;
 using Invoklet.Connectors.Http;
 using Invoklet.Connectors.Sqlite;
@@ -8,6 +7,7 @@ using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
 using Invoklet.Languages.VB;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Invoklet.Cli;
 

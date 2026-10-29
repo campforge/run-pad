@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
 using Invoklet.Contracts;
 using Invoklet.Format.RPad;
 using Invoklet.Languages.CSharp;
@@ -7,6 +5,8 @@ using Invoklet.Languages.VB;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.UserControls.Models;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

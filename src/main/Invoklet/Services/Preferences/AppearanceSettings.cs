@@ -1,5 +1,5 @@
-using Invoklet.Services.Scaling;
 using Invoklet.Avalonia.Themes;
+using Invoklet.Services.Scaling;
 
 namespace Invoklet.Services.Preferences;
 

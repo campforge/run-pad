@@ -2,8 +2,8 @@ using Avalonia;
 using Avalonia.Media;
 using Avalonia.Platform;
 using Avalonia.Threading;
-using Invoklet.Services.Preferences;
 using Invoklet.Avalonia.Themes;
+using Invoklet.Services.Preferences;
 using TextMateSharp.Grammars;
 
 namespace Invoklet.Services;

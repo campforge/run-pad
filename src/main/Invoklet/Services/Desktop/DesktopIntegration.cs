@@ -1,22 +1,22 @@
 using Avalonia;
-using Invoklet.Services.Preferences;
 using Invoklet.Desktop;
+using Invoklet.Services.Preferences;
 
 namespace Invoklet.Services.Desktop;
 
 /// <summary>
 /// The desktop integration this build carries: Invoklet.csproj references the one for the OS it is
-/// built for (Invoklet_LINUX, Invoklet_MACOS, Invoklet_WINDOWS). <see cref="Configure"/> runs it before
+/// built for (INVOKLET_LINUX, INVOKLET_MACOS, INVOKLET_WINDOWS). <see cref="Configure"/> runs it before
 /// Avalonia starts; the same instance is then registered in DI as <see cref="IDesktopIntegration"/>.
 /// </summary>
 internal static class DesktopIntegration
 {
     public static IDesktopIntegration Current { get; } =
-#if Invoklet_LINUX
+#if INVOKLET_LINUX
         new Invoklet.Desktop.Linux.LinuxDesktopIntegration();
-#elif Invoklet_MACOS
+#elif INVOKLET_MACOS
         new Invoklet.Desktop.MacOS.MacOSDesktopIntegration();
-#elif Invoklet_WINDOWS
+#elif INVOKLET_WINDOWS
         new Invoklet.Desktop.Windows.WindowsDesktopIntegration();
 #else
         new PlainDesktopIntegration();

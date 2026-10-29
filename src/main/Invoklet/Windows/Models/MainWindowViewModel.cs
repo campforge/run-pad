@@ -2,6 +2,9 @@ using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Linq;
 using Avalonia.Threading;
+using Invoklet.Contracts;
+using Invoklet.Contracts.Models;
+using Invoklet.Format.RPad;
 using Invoklet.Services;
 using Invoklet.Services.Examples;
 using Invoklet.Services.Preferences;
@@ -11,9 +14,6 @@ using Invoklet.UserControls.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using ReactiveUI;
-using Invoklet.Contracts;
-using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
 
 namespace Invoklet.Windows.Models;
 

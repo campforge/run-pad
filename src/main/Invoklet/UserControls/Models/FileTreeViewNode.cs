@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
-using ReactiveUI;
 using Invoklet.Format.RPad;
+using ReactiveUI;
 
 namespace Invoklet.UserControls.Models;
 

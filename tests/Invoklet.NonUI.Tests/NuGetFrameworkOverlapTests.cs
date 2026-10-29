@@ -1,5 +1,4 @@
 using System.IO.Compression;
-using Microsoft.Extensions.Logging.Abstractions;
 using Invoklet.Build.Core.Models;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.RPad;
@@ -8,6 +7,7 @@ using Invoklet.Languages.CSharp.Compiler;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using DiagnosticSeverity = Invoklet.Contracts.IntelliSense.DiagnosticSeverity;
 

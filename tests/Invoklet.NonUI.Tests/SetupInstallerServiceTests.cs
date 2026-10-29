@@ -1,7 +1,7 @@
 using System.Formats.Tar;
 using System.IO.Compression;
-using Moq;
 using Invoklet.Services.Setup;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

@@ -1,7 +1,23 @@
 # Changelog
 
-Notable changes in each RunPad release. Downloads are on the
+Notable changes in each Invoklet release. Downloads are on the
 [releases page](https://github.com/tervforge/invoklet/releases).
+
+## [0.10.1] — 2026-10-29
+
+### Changed
+
+- RunPad is now Invoklet, hosted by Tervforge, with a new application icon and updated documentation.
+- **Breaking change:** assemblies, namespaces, command-line executable and application data paths
+  now use the Invoklet name. Existing settings, recovery sessions and secrets are not automatically
+  migrated from the former RunPad folders. Scripts that explicitly reference `RunPad.Runtime` must
+  use `Invoklet.Runtime` instead.
+
+### Fixed
+
+- Use the updated application icon in windows, executables and desktop packages.
+- Restore platform-specific window decorations and desktop integration on macOS, Windows and Linux
+  after the application rename.
 
 ## [0.10.0] — 2026-10-28
 
@@ -830,4 +846,5 @@ better choice. RunPad began as DotPad two days after the last commit to the fork
 [0.9.4]: https://github.com/tervforge/invoklet/releases/tag/v0.9.4
 
 [0.10.0]: https://github.com/tervforge/invoklet/releases/tag/v0.10.0
+[0.10.1]: https://github.com/tervforge/invoklet/releases/tag/v0.10.1
 [0.9.5]: https://github.com/tervforge/invoklet/releases/tag/v0.9.5

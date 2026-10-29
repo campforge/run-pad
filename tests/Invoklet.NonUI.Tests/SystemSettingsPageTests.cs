@@ -1,12 +1,12 @@
 using Avalonia;
 using Avalonia.Styling;
-using Moq;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Desktop;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.Windows.Models;
+using Moq;
 using TextMateSharp.Grammars;
 using Xunit;
 

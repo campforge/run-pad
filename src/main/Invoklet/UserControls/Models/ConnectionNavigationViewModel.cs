@@ -1,10 +1,10 @@
 using System.Collections.ObjectModel;
+using Invoklet.Contracts.Connections;
+using Invoklet.Format.RPad;
 using Invoklet.Services.Connections;
 using Invoklet.Services.Secrets;
 using Invoklet.Windows.Models;
 using ReactiveUI;
-using Invoklet.Contracts.Connections;
-using Invoklet.Format.RPad;
 
 namespace Invoklet.UserControls.Models;
 

@@ -3,10 +3,10 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Invoklet.Format.RPad;
 using Invoklet.Services;
 using Invoklet.Windows.Models;
 using ReactiveUI;
-using Invoklet.Format.RPad;
 
 namespace Invoklet.Windows;
 

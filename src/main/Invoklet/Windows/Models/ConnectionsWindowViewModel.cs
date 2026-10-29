@@ -1,12 +1,12 @@
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Text.Json;
+using Invoklet.Contracts.Connections;
+using Invoklet.Format.RPad;
 using Invoklet.Services.Connections;
 using Invoklet.Services.Secrets;
 using Invoklet.Shared;
 using ReactiveUI;
-using Invoklet.Contracts.Connections;
-using Invoklet.Format.RPad;
 
 namespace Invoklet.Windows.Models;
 

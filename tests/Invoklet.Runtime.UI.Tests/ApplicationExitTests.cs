@@ -2,9 +2,9 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
-using Moq;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

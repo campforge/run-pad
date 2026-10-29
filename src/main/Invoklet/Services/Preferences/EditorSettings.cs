@@ -1,6 +1,6 @@
-using Invoklet.Services.Scaling;
 using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Format.RPad;
+using Invoklet.Services.Scaling;
 
 namespace Invoklet.Services.Preferences;
 

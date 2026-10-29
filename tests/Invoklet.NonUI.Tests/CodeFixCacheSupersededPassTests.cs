@@ -1,9 +1,9 @@
+using Invoklet.Languages.CSharp;
+using Invoklet.Languages.CSharp.IntelliSense;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging.Abstractions;
-using Invoklet.Languages.CSharp;
-using Invoklet.Languages.CSharp.IntelliSense;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

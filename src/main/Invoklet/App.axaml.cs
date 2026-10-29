@@ -3,6 +3,15 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using Invoklet.Connectors.Grpc;
+using Invoklet.Connectors.Http;
+using Invoklet.Connectors.Sqlite;
+using Invoklet.Contracts;
+using Invoklet.Contracts.Connections;
+using Invoklet.Languages.CSharp;
+using Invoklet.Languages.DotnetCommon;
+using Invoklet.Languages.DotnetCommon.Sdk;
+using Invoklet.Languages.VB;
 using Invoklet.Logging;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
@@ -19,15 +28,6 @@ using Invoklet.Windows;
 using Invoklet.Windows.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Invoklet.Connectors.Grpc;
-using Invoklet.Connectors.Http;
-using Invoklet.Connectors.Sqlite;
-using Invoklet.Contracts;
-using Invoklet.Contracts.Connections;
-using Invoklet.Languages.CSharp;
-using Invoklet.Languages.DotnetCommon;
-using Invoklet.Languages.DotnetCommon.Sdk;
-using Invoklet.Languages.VB;
 using ConnectionsWindow = Invoklet.Windows.ConnectionsWindow;
 using DependenciesWindow = Invoklet.Windows.DependenciesWindow;
 using MainWindow = Invoklet.Windows.MainWindow;
@@ -36,15 +36,15 @@ using SecretStoreWindow = Invoklet.Windows.SecretStoreWindow;
 using SetupWizardWindow = Invoklet.Windows.SetupWizardWindow;
 using SplashWindow = Invoklet.Windows.SplashWindow;
 
-namespace Invoklet;
+using Windows_ConnectionsWindow = Invoklet.Windows.ConnectionsWindow;
+using Windows_DependenciesWindow = Invoklet.Windows.DependenciesWindow;
+using Windows_MainWindow = Invoklet.Windows.MainWindow;
+using Windows_PreferencesWindow = Invoklet.Windows.PreferencesWindow;
+using Windows_SecretStoreWindow = Invoklet.Windows.SecretStoreWindow;
+using Windows_SetupWizardWindow = Invoklet.Windows.SetupWizardWindow;
+using Windows_SplashWindow = Invoklet.Windows.SplashWindow;
 
-using Windows_ConnectionsWindow = Windows.ConnectionsWindow;
-using Windows_DependenciesWindow = Windows.DependenciesWindow;
-using Windows_MainWindow = Windows.MainWindow;
-using Windows_PreferencesWindow = Windows.PreferencesWindow;
-using Windows_SecretStoreWindow = Windows.SecretStoreWindow;
-using Windows_SetupWizardWindow = Windows.SetupWizardWindow;
-using Windows_SplashWindow = Windows.SplashWindow;
+namespace Invoklet;
 
 public class App : Application
 {

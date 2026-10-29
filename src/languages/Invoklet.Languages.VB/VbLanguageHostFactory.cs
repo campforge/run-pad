@@ -1,8 +1,8 @@
-using Microsoft.Extensions.Logging;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Models;
 using Invoklet.Format.RPad;
 using Invoklet.Languages.DotnetCommon;
+using Microsoft.Extensions.Logging;
 
 namespace Invoklet.Languages.VB;
 

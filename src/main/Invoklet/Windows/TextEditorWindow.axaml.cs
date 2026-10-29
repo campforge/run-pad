@@ -1,12 +1,12 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Invoklet.Avalonia.CodeTextEditor;
+using Invoklet.Avalonia.Themes;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.Services.Scaling;
 using Invoklet.UserControls;
 using Invoklet.Windows.Models;
-using Invoklet.Avalonia.CodeTextEditor;
-using Invoklet.Avalonia.Themes;
 
 namespace Invoklet.Windows;
 

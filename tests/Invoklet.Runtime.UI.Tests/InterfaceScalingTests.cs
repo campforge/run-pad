@@ -9,7 +9,6 @@ using Avalonia.Layout;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using Moq;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Format.RPad;
@@ -19,6 +18,7 @@ using Invoklet.Services.Preferences;
 using Invoklet.Services.Scaling;
 using Invoklet.UserControls;
 using Invoklet.UserControls.Models;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

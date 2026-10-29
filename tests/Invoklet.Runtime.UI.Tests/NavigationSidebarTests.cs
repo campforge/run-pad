@@ -10,7 +10,6 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
-using Moq;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Connectors.Http;
 using Invoklet.Contracts;
@@ -27,6 +26,7 @@ using Invoklet.UserControls;
 using Invoklet.UserControls.Models;
 using Invoklet.Windows;
 using Invoklet.Windows.Models;
+using Moq;
 using Xunit;
 using ShapePath = Avalonia.Controls.Shapes.Path;
 

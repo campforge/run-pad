@@ -3,8 +3,6 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml.Styling;
-using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
 using Invoklet.Contracts;
 using Invoklet.Format.RPad;
 using Invoklet.Languages.CSharp;
@@ -12,6 +10,8 @@ using Invoklet.Languages.VB;
 using Invoklet.Services.Preferences;
 using Invoklet.UserControls;
 using Invoklet.UserControls.Models;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

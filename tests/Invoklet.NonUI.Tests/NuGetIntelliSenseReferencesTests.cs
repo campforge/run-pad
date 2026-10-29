@@ -1,11 +1,11 @@
 using System.IO.Compression;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.Extensions.Logging.Abstractions;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.RPad;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Languages.DotnetCommon.Compiler;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using MetadataReference = Microsoft.CodeAnalysis.MetadataReference;
 

@@ -1,16 +1,16 @@
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Runtime.CompilerServices;
+using Invoklet.Avalonia.Themes;
+using Invoklet.Contracts;
+using Invoklet.Desktop;
+using Invoklet.Format.RPad;
 using Invoklet.Services;
 using Invoklet.Services.Desktop;
 using Invoklet.Services.Preferences;
 using Invoklet.Services.Scaling;
 using Invoklet.Shared;
 using ReactiveUI;
-using Invoklet.Avalonia.Themes;
-using Invoklet.Contracts;
-using Invoklet.Desktop;
-using Invoklet.Format.RPad;
 
 namespace Invoklet.Windows.Models;
 

@@ -5,14 +5,14 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using Moq;
-using ReactiveUI;
 using Invoklet.Contracts;
 using Invoklet.Format.RPad;
 using Invoklet.Services.Preferences;
 using Invoklet.UserControls.Models;
 using Invoklet.Windows;
 using Invoklet.Windows.Models;
+using Moq;
+using ReactiveUI;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

@@ -18,6 +18,6 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\core\Invoklet.Format.RPad\Invoklet.Format.RPad.csproj" />
+    <ProjectReference Include="..\..\src\core\Invoklet.Format.MdRun\Invoklet.Format.MdRun.csproj" />
   </ItemGroup>
 </Project>

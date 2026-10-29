@@ -1,7 +1,7 @@
 using System.Xml;
 using System.Xml.Linq;
-using NuGet.Configuration;
 using Invoklet.Contracts;
+using NuGet.Configuration;
 
 namespace Invoklet.Languages.DotnetCommon;
 

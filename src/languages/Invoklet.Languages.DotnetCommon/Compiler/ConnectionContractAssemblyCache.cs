@@ -2,8 +2,8 @@ using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.CodeAnalysis;
 using Invoklet.Contracts.Connections;
+using Microsoft.CodeAnalysis;
 
 namespace Invoklet.Languages.DotnetCommon.Compiler;
 

@@ -10,8 +10,6 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
 using AvaloniaEdit.Rendering;
-using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
 using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Build.Core.Models;
@@ -23,6 +21,8 @@ using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.Windows;
 using Invoklet.Windows.Models;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using TextMateSharp.Grammars;
 using Xunit;
 

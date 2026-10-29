@@ -2,12 +2,12 @@ using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using System.Text.Json;
 using Avalonia.Headless.XUnit;
-using Moq;
 using Invoklet.Contracts;
 using Invoklet.Format.RPad;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.Windows.Models;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

@@ -1,7 +1,7 @@
+using Invoklet.Format.RPad;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Invoklet.Format.RPad;
 
 namespace Invoklet.Languages.CSharp;
 

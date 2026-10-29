@@ -1,6 +1,6 @@
-using Moq;
 using Invoklet.Services.Preferences;
 using Invoklet.UserControls.Models;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

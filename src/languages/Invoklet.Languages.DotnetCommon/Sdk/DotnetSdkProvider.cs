@@ -1,7 +1,7 @@
 using System.Diagnostics;
-using NuGet.Versioning;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Models;
+using NuGet.Versioning;
 
 namespace Invoklet.Languages.DotnetCommon.Sdk;
 

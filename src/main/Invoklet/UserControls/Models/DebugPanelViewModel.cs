@@ -1,9 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Linq;
+using Invoklet.Contracts.Models;
 using Invoklet.Shared;
 using ReactiveUI;
-using Invoklet.Contracts.Models;
 
 namespace Invoklet.UserControls.Models;
 

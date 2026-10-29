@@ -1,6 +1,6 @@
-using Moq;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.UserControls;
+using Moq;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;

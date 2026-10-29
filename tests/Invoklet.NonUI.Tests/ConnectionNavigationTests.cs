@@ -1,4 +1,3 @@
-using Moq;
 using Invoklet.Connectors.Http;
 using Invoklet.Contracts.Connections;
 using Invoklet.Format.RPad;
@@ -7,6 +6,7 @@ using Invoklet.Services.Examples;
 using Invoklet.Services.Secrets;
 using Invoklet.UserControls.Models;
 using Invoklet.Windows.Models;
+using Moq;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;

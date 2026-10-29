@@ -1,5 +1,5 @@
-using Moq;
 using Invoklet.Services.Recovery;
+using Moq;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;

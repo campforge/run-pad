@@ -26,7 +26,7 @@
     <ProjectReference Include="..\..\core\Invoklet.Build.Core\Invoklet.Build.Core.csproj" />
     <ProjectReference Include="..\..\core\Invoklet.Contracts\Invoklet.Contracts.csproj" />
     <ProjectReference Include="..\..\core\Invoklet.Debug\Invoklet.Debug.csproj" />
-    <ProjectReference Include="..\..\core\Invoklet.Format.RPad\Invoklet.Format.RPad.csproj" />
+    <ProjectReference Include="..\..\core\Invoklet.Format.MdRun\Invoklet.Format.MdRun.csproj" />
     <ProjectReference Include="..\Invoklet.Languages.DotnetCommon\Invoklet.Languages.DotnetCommon.csproj" />
   </ItemGroup>
 

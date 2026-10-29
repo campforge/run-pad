@@ -44,7 +44,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Invoklet.Build.Core", "src\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Invoklet.Contracts", "src\core\Invoklet.Contracts\Invoklet.Contracts.csproj", "{E6F7A8B9-CADB-4ECF-DEF0-123456789ABD}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Invoklet.Format.RPad", "src\core\Invoklet.Format.RPad\Invoklet.Format.RPad.csproj", "{D1E2F3A4-B5C6-47D8-E9F0-A1B2C3D4E5F6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Invoklet.Format.MdRun", "src\core\Invoklet.Format.MdRun\Invoklet.Format.MdRun.csproj", "{D1E2F3A4-B5C6-47D8-E9F0-A1B2C3D4E5F6}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Invoklet.Languages.CSharp", "src\languages\Invoklet.Languages.CSharp\Invoklet.Languages.CSharp.csproj", "{A1B2C3D4-E5F6-7A8B-9C0D-E1F2A3B4C5D6}"
 EndProject

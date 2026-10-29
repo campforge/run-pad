@@ -1,8 +1,8 @@
 using System.Collections.ObjectModel;
-using Invoklet.Services;
-using Invoklet.Services.Preferences;
 using Invoklet.Contracts;
 using Invoklet.Format.RPad;
+using Invoklet.Services;
+using Invoklet.Services.Preferences;
 
 namespace Invoklet.UserControls.Models;
 

@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Text.Json.Nodes;
-using Microsoft.Extensions.Logging.Abstractions;
 using Invoklet.Build.Core.Models;
 using Invoklet.Contracts.Models;
 using Invoklet.Format.RPad;
@@ -10,6 +9,7 @@ using Invoklet.Languages.DotnetCommon.Sdk;
 using Invoklet.Runtime.UI.Tests;
 using Invoklet.Services.Secrets;
 using Invoklet.Windows.Models;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;
