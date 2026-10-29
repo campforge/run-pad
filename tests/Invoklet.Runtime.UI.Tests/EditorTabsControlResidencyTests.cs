@@ -21,7 +21,7 @@ namespace Invoklet.Runtime.UI.Tests;
 // was out of sight, and one with unsaved work stay loaded.
 public class EditorTabsControlResidencyTests
 {
-    private static (EditorTabsControl Tabs, MainWindowViewModel Vm, string Folder) CreateHarness()
+    private static (EditorTabsControl Tabs, MainWindowViewModel Vm, string Folder) CreateHarness(Func<IIntelliSenseService>? intelliSense = null)
     {
         var folder = Directory.CreateTempSubdirectory("Invoklet-residency-test").FullName;
         var prefs = new Mock<IPreferencesService>();
@@ -39,7 +39,7 @@ public class EditorTabsControlResidencyTests
             new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
         var vm = new MainWindowViewModel([], fileSystem.Object, new Mock<IWindowService>().Object, prefs.Object, new LanguageHostRegistry());
         var tabs = new EditorTabsControl(theme.Object, new Mock<IWindowService>().Object,
-            new Mock<ILanguageHostRegistry>().WithCSharpIntelliSense(() => new Mock<IIntelliSenseService>().Object),
+            new Mock<ILanguageHostRegistry>().WithCSharpIntelliSense(intelliSense ?? (() => new Mock<IIntelliSenseService>().Object)),
             prefs.Object, new Mock<IBuildCacheService>().Object, residency: new TabResidencyManager());
         new Window { Content = tabs }.Show();
         tabs.Attach(vm);
@@ -186,6 +186,27 @@ public class EditorTabsControlResidencyTests
             Assert.Equal("a > 0", breakpoint.Condition);
             Assert.False(breakpoint.IsEnabled);
             Assert.Equal(4, reloaded.CaretOffset);
+        }
+        finally { tabs.Dispose(); Directory.Delete(folder, true); }
+    }
+
+    [AvaloniaFact]
+    public async Task ATabWhoseEditorServicesFailToCreate_Should_StillLoad_WithoutThem()
+    {
+        var failing = false;
+        var (tabs, vm, folder) = CreateHarness(() =>
+            failing ? throw new InvalidOperationException("no workspace") : new Mock<IIntelliSenseService>().Object);
+        try
+        {
+            await TestWait.WhileAsync(() => vm.Tabs.Count == 0 || !tabs.IsLoadedForTests(vm.Tabs[0]));
+            for (var i = 0; i < 4; i++) await AddTabAsync(tabs, vm);
+            var first = vm.Tabs[0];
+            Assert.False(tabs.IsLoadedForTests(first));
+
+            failing = true;
+            await SelectAsync(tabs, vm, first);
+
+            Assert.True(tabs.IsLoadedForTests(first)); // not an empty tab with only its header
         }
         finally { tabs.Dispose(); Directory.Delete(folder, true); }
     }

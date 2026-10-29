@@ -292,10 +292,15 @@ public partial class EditorTabsControl : UserControl, IDisposable
         {
             using var creation = new CancellationTokenSource();
             _creating[vm] = creation;
-            IIntelliSenseService? intelliSense;
+            IIntelliSenseService? intelliSense = null;
             try
             {
                 intelliSense = await CreateIntelliSenseAsync(vm, creation.Token);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // The tab is worth more without code intelligence than not at all.
+                _runLogger?.LogWarning("Could not create the editor services of a tab being loaded ({ErrorType})", ex.GetType().Name);
             }
             finally
             {
@@ -309,8 +314,31 @@ public partial class EditorTabsControl : UserControl, IDisposable
                 return;
             }
 
-            var ctrl = CreateControl(vm, intelliSense);
-            if (_viewStates.Remove(vm, out var viewState)) ctrl.RestoreViewState(viewState);
+            EditorsTabItemControl ctrl;
+            try
+            {
+                ctrl = CreateControl(vm, intelliSense);
+            }
+            catch (Exception ex)
+            {
+                // The tab stays unloaded, as before: selecting it again tries again.
+                intelliSense?.Dispose();
+                _runLogger?.LogWarning("Could not build the control of a tab being loaded ({ErrorType})", ex.GetType().Name);
+                if (_windowService is not null)
+                    await _windowService.ShowErrorAsync("Tab Not Loaded", $"Could not load '{vm.FileName}': {ex.Message}");
+                return;
+            }
+
+            try
+            {
+                if (_viewStates.Remove(vm, out var viewState)) ctrl.RestoreViewState(viewState);
+            }
+            catch (Exception ex)
+            {
+                // Only the caret, scroll position and breakpoints are lost; the tab itself is fine.
+                _runLogger?.LogWarning("Could not restore the view of a tab being loaded ({ErrorType})", ex.GetType().Name);
+            }
+
             entry.Tab.Content = ctrl;
             _tabs[vm] = (entry.Tab, ctrl);
         }
