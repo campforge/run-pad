@@ -38,6 +38,7 @@ public partial class TextEditorWindow : Window
         };
         EditorHost.Content = editor;
         Editor = editor;
+        Closed += (_, _) => editor.Dispose();
 
         // SetLanguage needs the editor in the visual tree (same as every other CodeTextEditor host)
         EventHandler<global::Avalonia.VisualTreeAttachmentEventArgs>? onAttached = null;
