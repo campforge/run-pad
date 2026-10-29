@@ -32,6 +32,7 @@ public class DependenciesArgumentsLayoutTests
         {
             Arguments =
             [
+                new() { Name = "value", Type = MdRunArgumentType.String, Default = MdRunValue.Of("text") },
                 new() { Name = "verbose", Type = MdRunArgumentType.Bool },
                 new() { Name = "environment", Type = MdRunArgumentType.Enum, Default = MdRunValue.Of("test"), Values = ["dev", "test", "prod"] },
             ],
@@ -50,11 +51,12 @@ public class DependenciesArgumentsLayoutTests
             var enumValues = Assert.IsType<TextBox>(Assert.Single(named("Enum values")));
             Assert.Equal(plainValue.TranslatePoint(default, rows)!.Value.X, enumValues.TranslatePoint(default, rows)!.Value.X, 1);
 
-            var enumDefault = Assert.IsType<ComboBox>(Assert.Single(named("Default value"), c => c is ComboBox));
+            var enumDefault = Assert.IsType<ComboBox>(Assert.Single(named("Default value"), c =>
+                c is ComboBox combo && combo.DataContext is ArgumentRowViewModel row && row.IsEnum));
             Assert.Equal(["dev", "test", "prod"], enumDefault.Items.Cast<string>());
             Assert.Equal("test", enumDefault.SelectedItem);
             enumDefault.SelectedItem = "prod";
-            Assert.Equal("prod", vm.Arguments.Arguments[1].DefaultText);
+            Assert.Equal("prod", vm.Arguments.Arguments[2].DefaultText);
 
             // The footer's buttons are as tall as the fields.
             Assert.Equal(plainValue.Bounds.Height, window.FindControl<Button>("CancelButton")!.Bounds.Height);
