@@ -8,6 +8,7 @@ using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
+using Invoklet.Services.Tabs;
 using Invoklet.UserControls;
 using Invoklet.UserControls.Models;
 using Invoklet.Windows.Models;
@@ -41,7 +42,7 @@ public class EditorTabsControlResidencyTests
         var vm = new MainWindowViewModel([], fileSystem.Object, new Mock<IWindowService>().Object, prefs.Object, new LanguageHostRegistry());
         var tabs = new EditorTabsControl(theme.Object, new Mock<IWindowService>().Object,
             new Mock<ILanguageHostRegistry>().WithCSharpIntelliSense(intelliSense ?? (() => new Mock<IIntelliSenseService>().Object)),
-            prefs.Object, new Mock<IBuildCacheService>().Object, residency: new TabResidencyManager());
+            prefs.Object, new Mock<IBuildCacheService>().Object, lifecycle: new TabLifecycleManager(new RecentTabsResidencyPolicy()));
         new Window { Content = tabs }.Show();
         tabs.Attach(vm);
         return (tabs, vm, folder);
