@@ -3,6 +3,13 @@
 Notable changes in each Invoklet release. Downloads are on the
 [releases page](https://github.com/tervforge/invoklet/releases).
 
+## [Unreleased]
+
+### Changed
+
+- Refine the application icon with a raised hammer, three sparks and shaded surfaces across
+  windows, desktop packages and documentation.
+
 ## [0.10.1] — 2026-10-29
 
 ### Changed
