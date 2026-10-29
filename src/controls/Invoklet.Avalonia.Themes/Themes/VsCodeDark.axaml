@@ -1,0 +1,115 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:themes="using:Invoklet.Avalonia.Themes">
+    <Styles.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+
+                <ResourceDictionary x:Key="{x:Static themes:InvokletThemeVariants.VsCodeDark}">
+                    <SolidColorBrush x:Key="Invoklet.Sidebar.BackgroundBrush"           Color="#252526" />
+                    <SolidColorBrush x:Key="Invoklet.Toolbar.BackgroundBrush"           Color="#3C3C3C" />
+                    <SolidColorBrush x:Key="Invoklet.TitleBar.BackgroundBrush"          Color="#252526" />
+                    <SolidColorBrush x:Key="Invoklet.Toolbar.BorderBrush"               Color="#2D2D2D" />
+                    <SolidColorBrush x:Key="Invoklet.Editor.BackgroundBrush"            Color="#121414" />
+                    <SolidColorBrush x:Key="Invoklet.Editor.SelectionBrush"             Color="#264F78" />
+                    <SolidColorBrush x:Key="Invoklet.Output.BackgroundBrush"            Color="#1E1E1E" />
+                    <SolidColorBrush x:Key="Invoklet.Output.ErrorForeground"            Color="#F14C4C" />
+                    <SolidColorBrush x:Key="Invoklet.Output.StackTraceForeground"       Color="#CD9591" />
+                    <SolidColorBrush x:Key="Invoklet.Panel.BackgroundBrush"             Color="#252526" />
+                    <SolidColorBrush x:Key="Invoklet.StatusBar.BackgroundBrush"         Color="#252526" />
+                    <SolidColorBrush x:Key="Invoklet.StatusBar.ForegroundBrush"         Color="#CCCCCC" />
+                    <SolidColorBrush x:Key="Invoklet.Status.RunningBrush"               Color="#4FC1FF" />
+                    <SolidColorBrush x:Key="Invoklet.Status.CancelledBrush"             Color="#9E9E9E" />
+                    <SolidColorBrush x:Key="Invoklet.Status.SuccessBrush"               Color="#4EC94E" />
+                    <SolidColorBrush x:Key="Invoklet.Status.ErrorBrush"                 Color="#F14C4C" />
+                    <SolidColorBrush x:Key="Invoklet.Status.PausedBrush"                Color="#FFA500" />
+                    <SolidColorBrush x:Key="Invoklet.Separator.BackgroundBrush"         Color="#454545" />
+                    <SolidColorBrush x:Key="Invoklet.Border.BackgroundBrush"            Color="#3C3C3C" />
+                    <SolidColorBrush x:Key="Invoklet.Text.PrimaryBrush"                 Color="#CCCCCC" />
+                    <!-- Fluent's menu popups: a menu bar's dropdowns and submenus draw their own border with these. -->
+                    <SolidColorBrush x:Key="MenuFlyoutPresenterBackground" Color="#252526" />
+                    <SolidColorBrush x:Key="MenuFlyoutPresenterBorderBrush" Color="#3C3C3C" />
+                    <!-- Fluent's ComboBox dropdown: the same surface as the menus. -->
+                    <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="#252526" />
+                    <SolidColorBrush x:Key="ComboBoxDropDownBorderBrush" Color="#3C3C3C" />
+                    <!-- Fluent's plain buttons (and DropDownButton): the secondary button's surface. -->
+                    <SolidColorBrush x:Key="ButtonBackground" Color="#121414" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#505050" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3C3C3C" />
+                    <SolidColorBrush x:Key="ButtonBorderBrush" Color="#3C3C3C" />
+                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#3C3C3C" />
+                    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#3C3C3C" />
+                    <SolidColorBrush x:Key="ButtonForeground" Color="#CCCCCC" />
+                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#CCCCCC" />
+                    <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#CCCCCC" />
+                    <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="#121414" />
+                    <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="#3C3C3C" />
+                    <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#9E9E9E" />
+                    <SolidColorBrush x:Key="MenuFlyoutItemForeground" Color="#CCCCCC" />
+                    <SolidColorBrush x:Key="MenuFlyoutItemForegroundPointerOver" Color="#CCCCCC" />
+                    <SolidColorBrush x:Key="MenuFlyoutItemForegroundPressed" Color="#CCCCCC" />
+                    <SolidColorBrush x:Key="MenuFlyoutItemKeyboardAcceleratorTextForeground" Color="#CCCCCC" />
+                    <SolidColorBrush x:Key="MenuFlyoutItemKeyboardAcceleratorTextForegroundPointerOver" Color="#CCCCCC" />
+                    <SolidColorBrush x:Key="MenuFlyoutItemKeyboardAcceleratorTextForegroundPressed" Color="#CCCCCC" />
+                    <SolidColorBrush x:Key="MenuFlyoutItemForegroundDisabled" Color="#9E9E9E" />
+                    <SolidColorBrush x:Key="MenuFlyoutItemKeyboardAcceleratorTextForegroundDisabled" Color="#9E9E9E" />
+                    <SolidColorBrush x:Key="Invoklet.Text.SecondaryBrush"               Color="#9E9E9E" />
+                    <SolidColorBrush x:Key="Invoklet.Accent.BackgroundBrush"            Color="#0E639C" />
+                    <SolidColorBrush x:Key="Invoklet.Accent.ForegroundBrush"            Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="Invoklet.ToolTab.SelectedBackgroundBrush" Color="#333D44" />
+                    <SolidColorBrush x:Key="Invoklet.ToolTab.SelectedForegroundBrush" Color="#CCCCCC" />
+                    <SolidColorBrush x:Key="Invoklet.ToolTab.SelectedBorderBrush" Color="#567992" />
+                    <!-- Default (primary) dialog button: white text at least 4.5:1 in every state. -->
+                    <SolidColorBrush x:Key="Invoklet.Button.Primary.BackgroundBrush"     Color="#0078C9" />
+                    <SolidColorBrush x:Key="Invoklet.Button.Primary.HoverBrush"          Color="#006CB5" />
+                    <SolidColorBrush x:Key="Invoklet.Button.Primary.PressedBrush"        Color="#0060A0" />
+                    <SolidColorBrush x:Key="Invoklet.Button.Primary.ForegroundBrush"     Color="#FFFFFF" />
+                    <!-- Shared keyboard-focus ring; independent of selection and primary actions. -->
+                    <SolidColorBrush x:Key="Invoklet.Focus.BorderBrush"                  Color="#86CDFF" />
+                    <SolidColorBrush x:Key="Invoklet.Focus.ContrastBrush"                Color="#111111" />
+                    <Thickness        x:Key="Invoklet.Focus.Thickness">2</Thickness>
+                    <Thickness        x:Key="Invoklet.Focus.ContrastThickness">1</Thickness>
+                    <CornerRadius     x:Key="Invoklet.Focus.CornerRadius">4</CornerRadius>
+                    <CornerRadius     x:Key="Invoklet.Focus.InnerCornerRadius">2</CornerRadius>
+                    <SolidColorBrush x:Key="Invoklet.Tab.AccentBrush"                    Color="#007ACC" />
+                    <Color             x:Key="Invoklet.Tab.AccentColor"                               >#007ACC</Color>
+                    <SolidColorBrush x:Key="Invoklet.Tab.DirtyBrush"                     Color="#CCA700" />
+                    <SolidColorBrush x:Key="Invoklet.Toolbar.Button.HoverBrush"         Color="#505050" />
+                    <SolidColorBrush x:Key="Invoklet.Icon.PlayBrush"                    Color="#4EC94E" />
+                    <SolidColorBrush x:Key="Invoklet.Icon.StopBrush"                    Color="#E05555" />
+                    <SolidColorBrush x:Key="Invoklet.Icon.DebugBrush"                   Color="#F5A623" />
+                    <SolidColorBrush x:Key="Invoklet.Icon.StepBrush"                    Color="#4FC1FF" />
+                    <SolidColorBrush x:Key="Invoklet.Icon.DisabledBrush"               Color="#5C5C5C" />
+                    <SolidColorBrush x:Key="Invoklet.Margin.BreakpointBrush"           Color="#E51400" />
+                    <SolidColorBrush x:Key="Invoklet.Margin.BreakpointVerifiedBrush"   Color="#89D185" />
+                    <SolidColorBrush x:Key="Invoklet.Margin.BreakpointUnverifiedBrush" Color="#CCA700" />
+                    <SolidColorBrush x:Key="Invoklet.Margin.BreakpointPreviewBrush"    Color="#8B3030" />
+                    <SolidColorBrush x:Key="Invoklet.Margin.BreakpointConditionBadgeBrush" Color="#B18AE0" />
+                    <SolidColorBrush x:Key="Invoklet.Margin.DebugArrowBrush"           Color="#FFCC00" />
+                    <SolidColorBrush x:Key="Invoklet.Margin.DebugLineBrush"            Color="#33FFD800" />
+                    <SolidColorBrush x:Key="Invoklet.Margin.LineNumberBrush"          Color="#858585" />
+                    <SolidColorBrush x:Key="Invoklet.Margin.CodeFixErrorBrush"     Color="#F14C4C" />
+                    <SolidColorBrush x:Key="Invoklet.Margin.CodeFixWarningBrush"   Color="#CCA700" />
+                    <SolidColorBrush x:Key="Invoklet.Folding.ChevronBrush"            Color="#858585" />
+                    <SolidColorBrush x:Key="Invoklet.Folding.ChevronHoverBrush"       Color="#C5C5C5" />
+                    <SolidColorBrush x:Key="Invoklet.Folding.LineBrush"               Color="#404040" />
+                    <SolidColorBrush x:Key="Invoklet.Margin.CurrentLineBrush"          Color="#12FFFFFF" />
+                    <SolidColorBrush x:Key="Invoklet.Editor.BraceMatchBrush"           Color="#5A7E57B0" />
+                    <SolidColorBrush x:Key="Invoklet.Editor.BraceMismatchBrush"        Color="#50DC3C3C" />
+                    <SolidColorBrush x:Key="Invoklet.Editor.ActiveScopeGuideBrush"     Color="#8E6BB8" />
+                    <SolidColorBrush x:Key="Invoklet.Dump.TableHeaderBrush"           Color="#1B4F7D" />
+                    <SolidColorBrush x:Key="Invoklet.Dump.TableHeaderForegroundBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="Invoklet.Dump.TableBorderBrush"           Color="#3C3C3C" />
+                    <SolidColorBrush x:Key="Invoklet.Dump.TableEvenRowBrush"          Color="#252525" />
+                    <SolidColorBrush x:Key="Invoklet.Dump.StringBrush"                Color="#CE9178" />
+                    <SolidColorBrush x:Key="Invoklet.Dump.NumberBrush"                Color="#B5CEA8" />
+                    <SolidColorBrush x:Key="Invoklet.Dump.BoolBrush"                  Color="#569CD6" />
+                    <SolidColorBrush x:Key="Invoklet.Dump.EnumBrush"                  Color="#4EC9B0" />
+                    <SolidColorBrush x:Key="Invoklet.Dump.DateTimeBrush"              Color="#C8A0D4" />
+                    <SolidColorBrush x:Key="Invoklet.Dump.PropertyNameBrush"          Color="#9CDCFE" />
+                </ResourceDictionary>
+
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Styles.Resources>
+</Styles>

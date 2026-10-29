@@ -54,7 +54,7 @@ public class ForegroundTextTransformation : TextTransformation
 
     // Bundled TextMateSharp themes (ThemeService.cs's ThemeName.* set, including the
     // default Dark+) mark the comment scope's tokenColors fontStyle as "italic" — the same convention
-    // VS Code's own built-in themes use. Live user report: RunPad doesn't need to mirror that here —
+    // VS Code's own built-in themes use. Live user report: Invoklet doesn't need to mirror that here —
     // a comment is already distinguished by color; italicizing it on top is unwanted noise, not a
     // deliberate readability choice. Always Normal regardless of what the active theme's fontStyle
     // says (internal, not private, so a test can exercise this directly without needing a full

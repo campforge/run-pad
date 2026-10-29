@@ -84,7 +84,7 @@ jobs:
 
       # PRs pay per-minute for Windows runners (2x the Linux rate) — build-linux already runs the
       # FULL suite on every PR, so this lane skips only the expensive, redundant-on-this-OS parts:
-      # RunPad.Runtime.UI.Tests (215 headless-Avalonia tests, forced fully serial, since
+      # Invoklet.Runtime.UI.Tests (215 headless-Avalonia tests, forced fully serial, since
       # AvaloniaTestFramework disables collection parallelism assembly-wide) and RealBuildTestCollection
       # (real `dotnet build` child-process spawns, ~5s floor each regardless of caching — measured directly).
       # Everything else — the actual cross-platform
@@ -96,12 +96,12 @@ jobs:
         shell: bash
         run: |
           set -e
-          for proj in tests/RunPad.Format.RPad.Tests tests/RunPad.Runtime.Tests \
-                      tests/RunPad.Avalonia.HtmlRenderer.Tests tests/RunPad.Cli.Tests tests/AvaloniaEdit.Tests \
+          for proj in tests/Invoklet.Format.RPad.Tests tests/Invoklet.Runtime.Tests \
+                      tests/Invoklet.Avalonia.HtmlRenderer.Tests tests/Invoklet.Cli.Tests tests/AvaloniaEdit.Tests \
                       tests/MarkView.Avalonia.Tests tests/MarkView.Avalonia.SyntaxHighlighting.Tests; do
             dotnet test "$proj" --no-build --configuration Release --verbosity normal
           done
-          dotnet test tests/RunPad.NonUI.Tests --no-build --configuration Release --verbosity normal \
+          dotnet test tests/Invoklet.NonUI.Tests --no-build --configuration Release --verbosity normal \
             --filter "Category!=RealBuild"
 
       # RealBuild is skipped above, but ScriptCompilerTests'/ScriptPackageRestoreTests' cleanup (deleting
@@ -112,16 +112,16 @@ jobs:
       - name: 🧪 Test (RealBuild cleanup classes, Windows)
         if: github.event_name == 'pull_request'
         run: >
-          dotnet test tests/RunPad.NonUI.Tests --no-build --configuration Release --verbosity normal
-          --filter "FullyQualifiedName~RunPad.Runtime.UI.Tests.ScriptCompilerTests|FullyQualifiedName~RunPad.Runtime.UI.Tests.ScriptPackageRestoreTests"
+          dotnet test tests/Invoklet.NonUI.Tests --no-build --configuration Release --verbosity normal
+          --filter "FullyQualifiedName~Invoklet.Runtime.UI.Tests.ScriptCompilerTests|FullyQualifiedName~Invoklet.Runtime.UI.Tests.ScriptPackageRestoreTests"
 
       # The headless UI assembly is skipped above for cost, but its isolated-session setup failed
       # (Dispatcher.VerifyAccess in HeadlessUnitTestSession.EnsureIsolatedApplication) only in the
       # post-merge Windows run. The failure depends on what
       # a previous test left running, so the whole assembly runs here (a class filter changes the order).
-      - name: 🧪 Test (RunPad.Runtime.UI.Tests, Windows)
+      - name: 🧪 Test (Invoklet.Runtime.UI.Tests, Windows)
         if: github.event_name == 'pull_request'
-        run: dotnet test tests/RunPad.Runtime.UI.Tests --no-build --configuration Release --verbosity normal
+        run: dotnet test tests/Invoklet.Runtime.UI.Tests --no-build --configuration Release --verbosity normal
 
       - name: 🧪 Test (full suite)
         if: github.event_name != 'pull_request'
@@ -129,7 +129,7 @@ jobs:
 
       # Release assets go straight to one draft GitHub Release (the Actions artifact quota is
       # exhausted). The draft is tagged after
-      # RunPad.csproj's <Version>, tied to this commit and run, and reused if this run is retried;
+      # Invoklet.csproj's <Version>, tied to this commit and run, and reused if this run is retried;
       # the `release` job publishes it only after every platform uploaded its archives. A version
       # that is already published fails here — bump <Version> before merging to cut a new release.
       # The version's section of CHANGELOG.md becomes the release notes.
@@ -140,7 +140,7 @@ jobs:
         with:
           script: |
             const helper = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/draft-release.js`);
-            const version = helper.readVersionFromFile('src/main/RunPad/RunPad.csproj');
+            const version = helper.readVersionFromFile('src/main/Invoklet/Invoklet.csproj');
             const notes = helper.readReleaseNotesFromFile('CHANGELOG.md', version);
             const release = await helper.prepareDraft({ github, context, core, version, notes });
             core.setOutput('release-id', String(release.id));
@@ -151,12 +151,12 @@ jobs:
       # next version via the fixed UpgradeCode in installer/windows/Package.wxs).
       - name: 📦 Publish (win-x64)
         if: github.event_name == 'push'
-        run: dotnet publish src/main/RunPad/RunPad.csproj -c Release -r win-x64 --self-contained true -o publish/win-x64
+        run: dotnet publish src/main/Invoklet/Invoklet.csproj -c Release -r win-x64 --self-contained true -o publish/win-x64
 
       - name: 🗜️ Archive (win-x64)
         if: github.event_name == 'push'
         shell: pwsh
-        run: Compress-Archive -Path publish/win-x64/* -DestinationPath RunPad-win-x64.zip
+        run: Compress-Archive -Path publish/win-x64/* -DestinationPath Invoklet-win-x64.zip
 
       # Pinned to WiX v5 specifically — v6+ added an Open Source Maintenance Fee EULA-acceptance gate
       # (harmless for a $0-revenue project, the fee itself only applies above $10k/year, but v5 avoids
@@ -176,8 +176,8 @@ jobs:
           DOTNET_ROLL_FORWARD: LatestMajor
         run: >
           wix build installer/windows/Package.wxs -ext WixToolset.UI.wixext
-          -d RunPadVersion=${{ steps.draft.outputs.version }} -d PublishDir=publish/win-x64
-          -arch x64 -out RunPad-win-x64.msi
+          -d InvokletVersion=${{ steps.draft.outputs.version }} -d PublishDir=publish/win-x64
+          -arch x64 -out Invoklet-win-x64.msi
 
       - name: ⬆️ Upload to draft release (win-x64)
         if: github.event_name == 'push'
@@ -192,7 +192,7 @@ jobs:
               github, context, core,
               releaseId: process.env.RELEASE_ID,
               version: process.env.RELEASE_VERSION,
-              files: ['RunPad-win-x64.zip', 'RunPad-win-x64.msi'],
+              files: ['Invoklet-win-x64.zip', 'Invoklet-win-x64.msi'],
             });
 
   build-linux:
@@ -245,11 +245,11 @@ jobs:
       # install, Start Menu-equivalent .desktop entry).
       - name: 📦 Publish (linux-x64)
         if: github.event_name == 'push'
-        run: dotnet publish src/main/RunPad/RunPad.csproj -c Release -r linux-x64 --self-contained true -o publish/linux-x64
+        run: dotnet publish src/main/Invoklet/Invoklet.csproj -c Release -r linux-x64 --self-contained true -o publish/linux-x64
 
       - name: 🗜️ Archive (linux-x64)
         if: github.event_name == 'push'
-        run: tar -czf RunPad-linux-x64.tar.gz -C publish/linux-x64 .
+        run: tar -czf Invoklet-linux-x64.tar.gz -C publish/linux-x64 .
 
       - name: ⬇️ Download appimagetool
         if: github.event_name == 'push'
@@ -284,7 +284,7 @@ jobs:
               github, context, core,
               releaseId: process.env.RELEASE_ID,
               version,
-              files: ['RunPad-linux-x64.tar.gz', 'dist/RunPad-x86_64.AppImage', `dist/runpad_${version}_amd64.deb`],
+              files: ['Invoklet-linux-x64.tar.gz', 'dist/Invoklet-x86_64.AppImage', `dist/invoklet_${version}_amd64.deb`],
             });
 
   build-macos:
@@ -318,19 +318,19 @@ jobs:
 
       # PRs pay per-minute for macOS runners (10x the Linux rate) — build-linux already runs the FULL
       # suite on every PR, so this lane skips only the expensive, redundant-on-this-OS parts: see
-      # build-windows' own comment on the same step for the full rationale (RunPad.Runtime.UI.Tests'
+      # build-windows' own comment on the same step for the full rationale (Invoklet.Runtime.UI.Tests'
       # forced serialization + RealBuildTestCollection's real `dotnet build` floor cost).
       - name: 🧪 Test (fast PR subset)
         if: github.event_name == 'pull_request'
         shell: bash
         run: |
           set -e
-          for proj in tests/RunPad.Format.RPad.Tests tests/RunPad.Runtime.Tests \
-                      tests/RunPad.Avalonia.HtmlRenderer.Tests tests/RunPad.Cli.Tests tests/AvaloniaEdit.Tests \
+          for proj in tests/Invoklet.Format.RPad.Tests tests/Invoklet.Runtime.Tests \
+                      tests/Invoklet.Avalonia.HtmlRenderer.Tests tests/Invoklet.Cli.Tests tests/AvaloniaEdit.Tests \
                       tests/MarkView.Avalonia.Tests tests/MarkView.Avalonia.SyntaxHighlighting.Tests; do
             dotnet test "$proj" --no-build --configuration Release --verbosity normal
           done
-          dotnet test tests/RunPad.NonUI.Tests --no-build --configuration Release --verbosity normal \
+          dotnet test tests/Invoklet.NonUI.Tests --no-build --configuration Release --verbosity normal \
             --filter "Category!=RealBuild"
 
       - name: 🧪 Test (full suite)
@@ -338,7 +338,7 @@ jobs:
         run: dotnet test --no-build --configuration Release --verbosity normal
 
       # Release assets — only built on an actual merge to main, not on every PR. Bundled as a real
-      # RunPad.app (Contents/MacOS + Info.plist + icon), not just a raw publish folder, so it's
+      # Invoklet.app (Contents/MacOS + Info.plist + icon), not just a raw publish folder, so it's
       # double-clickable/shows up properly in Finder/Dock, then shipped as one disk image per
       # architecture (app + Applications symlink + first-launch ReadMe, native hdiutil). The bundle is
       # ad-hoc signed and verified by make-macos-app-bundle.sh
@@ -346,27 +346,27 @@ jobs:
       # ReadMe/README point to Gatekeeper's "Open Anyway" instead of any quarantine workaround.
       - name: 📦 Publish (osx-x64)
         if: github.event_name == 'push'
-        run: dotnet publish src/main/RunPad/RunPad.csproj -c Release -r osx-x64 --self-contained true -o publish/osx-x64
+        run: dotnet publish src/main/Invoklet/Invoklet.csproj -c Release -r osx-x64 --self-contained true -o publish/osx-x64
 
       - name: 📦 Publish (osx-arm64)
         if: github.event_name == 'push'
-        run: dotnet publish src/main/RunPad/RunPad.csproj -c Release -r osx-arm64 --self-contained true -o publish/osx-arm64
+        run: dotnet publish src/main/Invoklet/Invoklet.csproj -c Release -r osx-arm64 --self-contained true -o publish/osx-arm64
 
       - name: 🧳 Bundle .app (osx-x64)
         if: github.event_name == 'push'
-        run: bash scripts/make-macos-app-bundle.sh publish/osx-x64 RunPad-osx-x64
+        run: bash scripts/make-macos-app-bundle.sh publish/osx-x64 Invoklet-osx-x64
 
       - name: 🧳 Bundle .app (osx-arm64)
         if: github.event_name == 'push'
-        run: bash scripts/make-macos-app-bundle.sh publish/osx-arm64 RunPad-osx-arm64
+        run: bash scripts/make-macos-app-bundle.sh publish/osx-arm64 Invoklet-osx-arm64
 
       - name: 💿 Bundle DMG (osx-x64)
         if: github.event_name == 'push'
-        run: bash scripts/make-macos-dmg.sh RunPad-osx-x64/RunPad.app RunPad-osx-x64.dmg
+        run: bash scripts/make-macos-dmg.sh Invoklet-osx-x64/Invoklet.app Invoklet-osx-x64.dmg
 
       - name: 💿 Bundle DMG (osx-arm64)
         if: github.event_name == 'push'
-        run: bash scripts/make-macos-dmg.sh RunPad-osx-arm64/RunPad.app RunPad-osx-arm64.dmg
+        run: bash scripts/make-macos-dmg.sh Invoklet-osx-arm64/Invoklet.app Invoklet-osx-arm64.dmg
 
       - name: ⬆️ Upload to draft release (macOS)
         if: github.event_name == 'push'
@@ -381,7 +381,7 @@ jobs:
               github, context, core,
               releaseId: process.env.RELEASE_ID,
               version: process.env.RELEASE_VERSION,
-              files: ['RunPad-osx-x64.dmg', 'RunPad-osx-arm64.dmg'],
+              files: ['Invoklet-osx-x64.dmg', 'Invoklet-osx-arm64.dmg'],
             });
 
   # Runs only when all three platform jobs succeeded (default success() on needs). Verifies the

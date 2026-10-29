@@ -2,13 +2,13 @@
     "version": "0.4.0",
     "configurations": [
         {
-            "name": "RunPad (Debug)",
+            "name": "Invoklet (Debug)",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/main/RunPad/bin/Debug/net10.0/RunPad.dll",
+            "program": "${workspaceFolder}/src/main/Invoklet/bin/Debug/net10.0/Invoklet.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/src/main/RunPad",
+            "cwd": "${workspaceFolder}/src/main/Invoklet",
             "stopAtEntry": false,
             "console": "internalConsole",
             "justMyCode": false,
@@ -17,13 +17,13 @@
             }
         },
         {
-            "name": "RunPad (Release)",
+            "name": "Invoklet (Release)",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/main/RunPad/bin/Release/net10.0/RunPad.dll",
+            "program": "${workspaceFolder}/src/main/Invoklet/bin/Release/net10.0/Invoklet.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/src/main/RunPad",
+            "cwd": "${workspaceFolder}/src/main/Invoklet",
             "stopAtEntry": false,
             "console": "internalConsole",
             "justMyCode": false,

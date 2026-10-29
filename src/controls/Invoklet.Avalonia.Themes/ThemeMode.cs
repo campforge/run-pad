@@ -1,0 +1,3 @@
+namespace Invoklet.Avalonia.Themes;
+
+public enum ThemeMode { System, Dark, Light }

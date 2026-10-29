@@ -1,9 +1,9 @@
-# RunPad
+# Invoklet
 
 **A native, fast, cross-platform C# scratchpad for .NET** — free and open source.
 
 - **Native** — a real desktop app built on [Avalonia UI](https://avaloniaui.net/), with no embedded
-  browser: even `.Dump()` results are drawn by RunPad's own renderer.
+  browser: even `.Dump()` results are drawn by Invoklet's own renderer.
 - **Fast** — scripts compile in-process with Roslyn, without MSBuild, and an unchanged script skips the
   build entirely.
 - **Cross-platform** — the same app on Windows, Linux and macOS (Apple Silicon and Intel).
@@ -12,14 +12,14 @@ Write C# against the .NET SDK you already have, run it in a keystroke and explor
 `.Dump()`. Every script is a `.rpad` file — Markdown with a short YAML header and one runnable code
 block — so your notes live right next to the code.
 
-![RunPad main window](https://tervforge.github.io/invoklet-docs/assets/screenshots/overview.png)
+![Invoklet main window](https://tervforge.github.io/invoklet-docs/assets/screenshots/overview.png)
 
 ## Features
 
 - **Three script kinds** — top-level statements, a `Main` program or a single expression.
 - **C# IntelliSense** — completion with automatic imports, signature help, quick info, semantic
   highlighting, rename, Find References, Go to Definition, formatting.
-- **Live diagnostics** — compiler errors, Roslyn analyzers, RunPad's own analyzers and lightbulb
+- **Live diagnostics** — compiler errors, Roslyn analyzers, Invoklet's own analyzers and lightbulb
   quick fixes as you type.
 - **Debugger** — breakpoints with conditions and hit counts, stepping, locals, watches, call stack,
   threads and exception breaks (via [netcoredbg](https://github.com/Samsung/netcoredbg)).
@@ -35,11 +35,11 @@ Installers and portable builds are on the [releases page](https://github.com/ter
 
 | OS | Package |
 | --- | --- |
-| Windows | `RunPad-win-x64.msi`, or the portable `RunPad-win-x64.zip` |
-| Linux | `runpad_<version>_amd64.deb`, `RunPad-x86_64.AppImage` or `RunPad-linux-x64.tar.gz` |
-| macOS | `RunPad-osx-arm64.dmg` (Apple Silicon) or `RunPad-osx-x64.dmg` (Intel) |
+| Windows | `Invoklet-win-x64.msi`, or the portable `Invoklet-win-x64.zip` |
+| Linux | `invoklet_<version>_amd64.deb`, `Invoklet-x86_64.AppImage` or `Invoklet-linux-x64.tar.gz` |
+| macOS | `Invoklet-osx-arm64.dmg` (Apple Silicon) or `Invoklet-osx-x64.dmg` (Intel) |
 
-RunPad needs the [.NET SDK](https://dotnet.microsoft.com/download) to compile scripts. The macOS build
+Invoklet needs the [.NET SDK](https://dotnet.microsoft.com/download) to compile scripts. The macOS build
 is not notarized yet — see the [installation guide](https://tervforge.github.io/invoklet-docs/install/)
 for the first-launch steps on each OS.
 
@@ -57,7 +57,7 @@ You need the .NET 10 SDK (`global.json` pins the version).
 
 ```bash
 dotnet build                                         # whole solution
-dotnet run --project src/main/RunPad/RunPad.csproj   # start the app
+dotnet run --project src/main/Invoklet/Invoklet.csproj   # start the app
 dotnet test                                          # all tests
 ```
 
@@ -71,11 +71,11 @@ pull request means you agree to the [Contributor License Agreement](CLA.md).
 
 ## AvaloniaEdit fork
 
-RunPad's code editor is built on a **fork of [AvaloniaEdit](https://github.com/AvaloniaUI/AvaloniaEdit)
+Invoklet's code editor is built on a **fork of [AvaloniaEdit](https://github.com/AvaloniaUI/AvaloniaEdit)
 and AvaloniaEdit.TextMate**, taken from the 12.0.0 packages and kept in
 [`src/controls/AvaloniaEdit`](src/controls/AvaloniaEdit) and
 [`src/controls/AvaloniaEdit.TextMate`](src/controls/AvaloniaEdit.TextMate), so the editor control
-itself can be changed for RunPad — completion behavior, font rendering, macOS clipboard and
+itself can be changed for Invoklet — completion behavior, font rendering, macOS clipboard and
 highlighting fixes. The fork keeps its upstream MIT license (`LICENSE` in each folder); its origin
 and changes are described in [`src/controls/AvaloniaEdit/README.md`](src/controls/AvaloniaEdit/README.md).
 
@@ -94,9 +94,9 @@ folder); its origin and changes are described in
 - [netcoredbg](https://github.com/Samsung/netcoredbg) — the debugger, driven over the Debug Adapter
   Protocol.
 - [Avalonia UI](https://avaloniaui.net/), and [AvaloniaEdit](https://github.com/AvaloniaUI/AvaloniaEdit)
-  with its predecessor AvalonEdit from SharpDevelop — the editor RunPad's fork is based on.
+  with its predecessor AvalonEdit from SharpDevelop — the editor Invoklet's fork is based on.
 - [MarkView.Avalonia](https://github.com/Kryptos-FR/MarkView.Avalonia) and
-  [Markdig](https://github.com/xoofx/markdig) — the Markdown viewer RunPad's fork is based on.
+  [Markdig](https://github.com/xoofx/markdig) — the Markdown viewer Invoklet's fork is based on.
 - [Roslyn](https://github.com/dotnet/roslyn) for compiling and IntelliSense;
   [ILSpy](https://github.com/icsharpcode/ILSpy) for decompiling;
   [Spectre.Console](https://spectreconsole.net/) for the command-line output.
@@ -106,16 +106,16 @@ folder); its origin and changes are described in
 
 ## License
 
-Copyright (C) 2026 Vadim S ([hobobyte](https://github.com/hobobyte)). RunPad is licensed under the
+Copyright (C) 2026 Vadim S ([hobobyte](https://github.com/hobobyte)). Invoklet is licensed under the
 [GNU General Public License v3.0](LICENSE).
 
-The `RunPad.Runtime` library ([`src/runtime/RunPad.Runtime`](src/runtime/RunPad.Runtime)) — the only
-RunPad assembly your scripts are compiled against and shipped with — is licensed under the
-[MIT License](src/runtime/RunPad.Runtime/LICENSE), so programs written in RunPad can be distributed
+The `Invoklet.Runtime` library ([`src/runtime/Invoklet.Runtime`](src/runtime/Invoklet.Runtime)) — the only
+Invoklet assembly your scripts are compiled against and shipped with — is licensed under the
+[MIT License](src/runtime/Invoklet.Runtime/LICENSE), so programs written in Invoklet can be distributed
 under any license. The installers show an [end-user agreement](installer/EULA.txt) that summarizes
 these terms; it adds no restrictions to the GPL-3.0.
 
 Third-party code keeps its own license: the [AvaloniaEdit fork](#avaloniaedit-fork) (MIT), the
-[MarkView.Avalonia fork](#markviewavalonia-fork) (MIT) and the HTML renderer in [`src/controls/RunPad.Avalonia.HtmlRenderer`](src/controls/RunPad.Avalonia.HtmlRenderer)
-(BSD-3-Clause and MIT), with license files next to the code. Every third-party component RunPad ships,
+[MarkView.Avalonia fork](#markviewavalonia-fork) (MIT) and the HTML renderer in [`src/controls/Invoklet.Avalonia.HtmlRenderer`](src/controls/Invoklet.Avalonia.HtmlRenderer)
+(BSD-3-Clause and MIT), with license files next to the code. Every third-party component Invoklet ships,
 with its license text, is listed in [`THIRD-PARTY-NOTICES.txt`](THIRD-PARTY-NOTICES.txt).

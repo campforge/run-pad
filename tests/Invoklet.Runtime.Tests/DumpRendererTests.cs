@@ -1,0 +1,510 @@
+using Xunit;
+
+namespace Invoklet.Runtime.Tests;
+
+public class DumpRendererTests
+{
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private enum TestColor { Red, Green, Blue }
+
+    private sealed class Point { public int X { get; set; } public int Y { get; set; } }
+
+    private sealed class Throwing
+    {
+        public string Safe => "ok";
+        public string Broken => throw new InvalidOperationException("boom");
+    }
+
+    // Node with a complex child property — used to trigger depth truncation
+    private sealed class Node { public string Name { get; set; } = ""; public Node? Child { get; set; } }
+
+    // LINQPad-compatible ICustomMemberProvider (2026-07-28) — 3 methods (GetNames/GetTypes/GetValues),
+    // not the 2 Invoklet originally shipped with. "Value" is deliberately null so GetTypes()'s whole
+    // point (a null value's DECLARED type, unrecoverable from the boxed null itself) is exercised.
+    private sealed class CustomProvider : ICustomMemberProvider
+    {
+        public IEnumerable<string> GetNames() => ["Name", "Value"];
+        public IEnumerable<Type> GetTypes() => [typeof(string), typeof(Point)];
+        public IEnumerable<object?> GetValues() => ["hi", null];
+    }
+
+    // ── Null ──────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Render_Null_ProducesNullSpan()
+    {
+        // Act
+        var result = DumpRenderer.Render(null, null);
+
+        // Assert
+        Assert.Contains("dp-null", result);
+        Assert.Contains("null", result);
+    }
+
+    // ── Primitives ────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Render_String_ProducesQuotedStringSpan()
+    {
+        // Act
+        var result = DumpRenderer.Render("hello", null);
+
+        // Assert
+        Assert.Contains("dp-string", result);
+        Assert.Contains("hello", result);
+        Assert.Contains("&quot;", result);
+    }
+
+    [Theory]
+    [InlineData(499)]
+    [InlineData(500)]
+    [InlineData(501)]
+    [InlineData(5000)]
+    public void Render_LongString_KeepsTheWholeValue(int length)
+    {
+        var s = new string('x', length);
+
+        var result = DumpRenderer.Render(s, null);
+
+        Assert.Contains("&quot;" + s + "&quot;", result);
+        Assert.DoesNotContain("…", result);
+    }
+
+    [Theory]
+    [InlineData(499)]
+    [InlineData(500)]
+    public void Render_SurrogatePairAtTheFormerBoundary_StaysIntact(int prefixLength)
+    {
+        var s = new string('x', prefixLength) + "😀" + "tail";
+
+        var result = DumpRenderer.Render(s, null);
+
+        Assert.Contains("😀tail&quot;", result);
+        Assert.DoesNotContain("…", result);
+    }
+
+    [Fact]
+    public void Render_LongStringInObjectMember_KeepsTheWholeValue()
+    {
+        var s = new string('y', 800) + "end";
+
+        var result = DumpRenderer.Render(new Node { Name = s }, null);
+
+        Assert.Contains(s, result);
+        Assert.DoesNotContain("…", result);
+    }
+
+    [Fact]
+    public void Render_LongStringsInCollections_KeepTheWholeValue()
+    {
+        var s = new string('z', 700) + "end";
+
+        var list = DumpRenderer.Render(new List<string> { s }, null);
+        var objects = DumpRenderer.Render(new List<Node> { new() { Name = s } }, null);
+
+        Assert.Contains(s, list);
+        Assert.Contains(s, objects);
+        Assert.DoesNotContain("…", list);
+        Assert.DoesNotContain("…", objects);
+    }
+
+    [Theory]
+    [InlineData(true, ">true<")]
+    [InlineData(false, ">false<")]
+    public void Render_Bool_ProducesBoolSpan(bool value, string expectedSpan)
+    {
+        var result = DumpRenderer.Render(value, null);
+
+        Assert.Contains("dp-bool", result);
+        Assert.Contains(expectedSpan, result);
+    }
+
+    [Fact]
+    public void Render_Integer_ProducesNumberSpan()
+    {
+        // Act
+        var result = DumpRenderer.Render(42, null);
+
+        // Assert
+        Assert.Contains("dp-number", result);
+        Assert.Contains("42", result);
+    }
+
+    [Fact]
+    public void Render_Char_ProducesSingleQuotedSpan()
+    {
+        // Act
+        var result = DumpRenderer.Render('A', null);
+
+        // Assert
+        Assert.Contains("dp-string", result);
+        Assert.Contains("&apos;", result);
+        Assert.Contains("A", result);
+    }
+
+    [Fact]
+    public void Render_Enum_ProducesEnumSpan()
+    {
+        // Act
+        var result = DumpRenderer.Render(TestColor.Green, null);
+
+        // Assert
+        Assert.Contains("dp-enum", result);
+        Assert.Contains("Green", result);
+    }
+
+    [Fact]
+    public void Render_Guid_ProducesStringSpan()
+    {
+        // Arrange
+        var guid = Guid.Parse("12345678-1234-1234-1234-123456789012");
+
+        // Act
+        var result = DumpRenderer.Render(guid, null);
+
+        // Assert
+        Assert.Contains("dp-string", result);
+        Assert.Contains("12345678", result);
+    }
+
+    [Fact]
+    public void Render_DateTime_ProducesDatetimeSpanWithIso8601()
+    {
+        // Arrange
+        var dt = new DateTime(2024, 6, 15, 12, 0, 0, DateTimeKind.Utc);
+
+        // Act
+        var result = DumpRenderer.Render(dt, null);
+
+        // Assert
+        Assert.Contains("dp-datetime", result);
+        Assert.Contains("2024-06-15", result);
+    }
+
+    // ── HTML encoding ─────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Render_StringWithHtmlSpecialChars_EncodesOutput()
+    {
+        // Act
+        var result = DumpRenderer.Render("<b>test & \"check\"</b>", null);
+
+        // Assert
+        Assert.Contains("&lt;b&gt;", result);
+        Assert.Contains("&amp;", result);
+        Assert.Contains("&quot;check&quot;", result);
+        Assert.DoesNotContain("<b>", result);
+    }
+
+    // ── Label ─────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Render_WithLabel_PrefixesLabelDiv()
+    {
+        // Act
+        var result = DumpRenderer.Render(42, "my label");
+
+        // Assert
+        Assert.StartsWith("<div class=\"dp-label\">my label</div>", result);
+    }
+
+    [Fact]
+    public void Render_LabelWithHtmlChars_LabelIsEncoded()
+    {
+        // Act
+        var result = DumpRenderer.Render(1, "<script>");
+
+        // Assert
+        Assert.Contains("&lt;script&gt;", result);
+        Assert.DoesNotContain("<script>", result);
+    }
+
+    // ── Collections ───────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Render_EmptyList_ShowsEmptyMessage()
+    {
+        // Act
+        var result = DumpRenderer.Render(new List<int>(), null);
+
+        // Assert
+        Assert.Contains("empty", result);
+    }
+
+    [Fact]
+    public void Render_PrimitiveList_ShowsIndexAndValueColumns()
+    {
+        // Arrange
+        var list = new List<int> { 10, 20, 30 };
+
+        // Act
+        var result = DumpRenderer.Render(list, null);
+
+        // Assert
+        Assert.Contains("dp-table", result);
+        Assert.Contains("#", result);
+        Assert.Contains("Value", result);
+        Assert.Contains("10", result);
+        Assert.Contains("20", result);
+    }
+
+    [Fact]
+    public void Render_ListOfPocos_ShowsPropertyColumns()
+    {
+        // Arrange
+        var list = new List<Point> { new() { X = 1, Y = 2 }, new() { X = 3, Y = 4 } };
+
+        // Act
+        var result = DumpRenderer.Render(list, null);
+
+        // Assert
+        Assert.Contains("dp-table", result);
+        Assert.Contains(">X<", result);
+        Assert.Contains(">Y<", result);
+        Assert.Contains("1", result);
+    }
+
+    // ── Dictionary ────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Render_Dictionary_ShowsKeyValueTable()
+    {
+        // Arrange
+        var dict = new Dictionary<string, int> { ["alpha"] = 1, ["beta"] = 2 };
+
+        // Act
+        var result = DumpRenderer.Render(dict, null);
+
+        // Assert
+        Assert.Contains("dp-table", result);
+        Assert.Contains(">Key<", result);
+        Assert.Contains(">Value<", result);
+        Assert.Contains("alpha", result);
+        Assert.Contains("beta", result);
+    }
+
+    // ── POCO object ───────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Render_PocoObject_ShowsPropertyGrid()
+    {
+        // Arrange
+        var point = new Point { X = 5, Y = 10 };
+
+        // Act
+        var result = DumpRenderer.Render(point, null);
+
+        // Assert
+        Assert.Contains("dp-type", result);
+        Assert.Contains("dp-propname", result);
+        Assert.Contains("X", result);
+        Assert.Contains("Y", result);
+        Assert.Contains("5", result);
+        Assert.Contains("10", result);
+    }
+
+    [Fact]
+    public void Render_ObjectWithThrowingProperty_ShowsErrorSpan()
+    {
+        // Act
+        var result = DumpRenderer.Render(new Throwing(), null);
+
+        // Assert — reflection wraps exceptions in TargetInvocationException, so we just check the error class exists
+        Assert.Contains("dp-error", result);
+        Assert.Contains("ok", result); // Safe property still renders
+    }
+
+    // ── Include/Exclude ───────────────────────────────────────
+
+    [Fact]
+    public void Render_PocoObject_WithExclude_HidesTheExcludedProperty()
+    {
+        // Arrange
+        var point = new Point { X = 5, Y = 10 };
+
+        // Act
+        var result = DumpRenderer.Render(point, null, new DumpOptions { MembersToExclude = "Y" });
+
+        // Assert
+        Assert.Contains(">X<", result);
+        Assert.DoesNotContain(">Y<", result);
+    }
+
+    [Fact]
+    public void Render_PocoObject_WithInclude_ShowsOnlyTheIncludedProperties()
+    {
+        // Arrange
+        var point = new Point { X = 5, Y = 10 };
+
+        // Act
+        var result = DumpRenderer.Render(point, null, new DumpOptions { MembersToInclude = "X" });
+
+        // Assert
+        Assert.Contains(">X<", result);
+        Assert.DoesNotContain(">Y<", result);
+    }
+
+    [Fact]
+    public void Render_PocoObject_WithIncludeAndExclude_AppliesIncludeFirstThenExclude()
+    {
+        // Arrange — Include narrows down to Name+Child, Exclude then removes Child from what's left.
+        var node = new Node { Name = "root" };
+
+        // Act
+        var result = DumpRenderer.Render(node, null, new DumpOptions { MembersToInclude = "Name,Child", MembersToExclude = "Child" });
+
+        // Assert
+        Assert.Contains(">Name<", result);
+        Assert.DoesNotContain(">Child<", result);
+    }
+
+    [Fact]
+    public void Render_Exclude_AppliesToThePropertyGridOfAnEnumerableOfObjects_Too()
+    {
+        // Arrange — GetMembers is the same chokepoint RenderEnumerable's property-grid branch uses.
+        var points = new List<Point> { new() { X = 1, Y = 2 }, new() { X = 3, Y = 4 } };
+
+        // Act
+        var result = DumpRenderer.Render(points, null, new DumpOptions { MembersToExclude = "Y" });
+
+        // Assert
+        Assert.Contains(">X<", result);
+        Assert.DoesNotContain(">Y<", result);
+    }
+
+    // ── Depth limiting ────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Render_ComplexObjectAtDepthZero_ShowsTruncated()
+    {
+        // Arrange
+        var obj = new Point { X = 1, Y = 2 };
+
+        // Act
+        var result = DumpRenderer.Render(obj, null, maxDepth: 0);
+
+        // Assert
+        Assert.Contains("dp-truncated", result);
+    }
+
+    [Fact]
+    public void Render_NestedObject_TruncatesAtMaxDepth()
+    {
+        // Arrange — Node.Child is a complex type; with maxDepth=1 it renders at depth 1 = maxDepth → truncated
+        var list = new List<Node> { new() { Name = "root", Child = new Node { Name = "child" } } };
+
+        // Act
+        var result = DumpRenderer.Render(list, null, maxDepth: 1);
+
+        // Assert
+        Assert.Contains("dp-truncated", result);
+    }
+
+    // ── ICustomMemberProvider.GetTypes() (LINQPad compatibility, 2026-07-28) ────────────────────
+
+    [Fact]
+    public void Render_CustomMemberProvider_UsesGetNamesAndGetValues()
+    {
+        var result = DumpRenderer.Render(new CustomProvider(), null);
+
+        Assert.Contains(">Name<", result);
+        Assert.Contains("hi", result);
+    }
+
+    [Fact]
+    public void Render_CustomMemberProvider_ANullValue_RendersItsDeclaredTypeFromGetTypes()
+    {
+        // CustomProvider's second value is null, with a declared type of Point (per GetTypes()) —
+        // reflection over the boxed null itself can't recover that; only GetTypes() can.
+        var result = DumpRenderer.Render(new CustomProvider(), null);
+
+        Assert.Contains("null (Point)", result);
+    }
+
+    // ── DumpFormatStrings (LINQPad compatibility, 2026-07-28) ───────────────────────────────────
+
+    [Fact]
+    public void Render_Integer_WithIntegralNumberFormatString_AppliesIt()
+    {
+        // UseInvariantCultureForNumbers pins the expected separator regardless of the machine's own
+        // current culture (e.g. ru-RU groups with a space, not a comma) — this test is about the
+        // format STRING being applied at all, not about culture-dependent formatting, which is its
+        // own separate, already-existing behavior (see DumpRendererTests' number-format coverage).
+        var options = new DumpOptions
+        {
+            FormatStrings = new DumpFormatStrings { IntegralNumber = "N0" },
+            UseInvariantCultureForNumbers = true,
+        };
+
+        var result = DumpRenderer.Render(1234567, null, options);
+
+        Assert.Contains("1,234,567", result);
+    }
+
+    [Fact]
+    public void Render_Double_WithRealNumberFormatString_AppliesIt()
+    {
+        var options = new DumpOptions
+        {
+            FormatStrings = new DumpFormatStrings { RealNumber = "F2" },
+            UseInvariantCultureForNumbers = true,
+        };
+
+        var result = DumpRenderer.Render(3.14159, null, options);
+
+        Assert.Contains("3.14", result);
+        Assert.DoesNotContain("3.14159", result);
+    }
+
+    [Fact]
+    public void Render_DateTime_WithDateTimeFormatString_AppliesItInsteadOfRoundTrip()
+    {
+        var options = new DumpOptions { FormatStrings = new DumpFormatStrings { DateTime = "yyyy-MM-dd" } };
+        var dt = new DateTime(2024, 6, 15, 12, 0, 0, DateTimeKind.Utc);
+
+        var result = DumpRenderer.Render(dt, null, options);
+
+        Assert.Contains("2024-06-15", result);
+        Assert.DoesNotContain("T12:00:00", result); // "o" round-trip's time component would appear if the format string were ignored
+    }
+
+    [Fact]
+    public void Render_DateTime_WithNoFormatString_DefaultsToRoundTrip()
+    {
+        var dt = new DateTime(2024, 6, 15, 12, 0, 0, DateTimeKind.Utc);
+
+        var result = DumpRenderer.Render(dt, null, new DumpOptions());
+
+        Assert.Contains(dt.ToString("o"), result);
+    }
+
+    // ── DateOnly/TimeOnly (LINQPad compatibility, 2026-07-28) ───────────────────────────────────
+    // Invoklet.Runtime itself targets netstandard2.0 (predates DateOnly/TimeOnly, added in .NET 6) and
+    // detects/formats them by type-name string via reflection instead of a direct type reference —
+    // see DumpRenderer.IsDateOnlyOrTimeOnly's own comment. This test project targets net10.0, so the
+    // real struct types ARE available here to construct real values against that reflection path.
+
+    [Fact]
+    public void Render_DateOnly_RendersAsDatetimeSpan_WithRoundTripFormatByDefault()
+    {
+        var date = new DateOnly(2024, 6, 15);
+
+        var result = DumpRenderer.Render(date, null);
+
+        Assert.Contains("dp-datetime", result);
+        Assert.Contains(date.ToString("o"), result);
+    }
+
+    [Fact]
+    public void Render_TimeOnly_WithTimeOnlyFormatString_AppliesIt()
+    {
+        var options = new DumpOptions { FormatStrings = new DumpFormatStrings { TimeOnly = "HH:mm" } };
+        var time = new TimeOnly(13, 45, 30);
+
+        var result = DumpRenderer.Render(time, null, options);
+
+        Assert.Contains("13:45", result);
+        Assert.DoesNotContain("13:45:30", result);
+    }
+}

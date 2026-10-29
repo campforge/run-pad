@@ -1,6 +1,6 @@
 # Roadmap
 
-Planned work for RunPad. Missing something? [Open an issue](https://github.com/tervforge/invoklet/issues).
+Planned work for Invoklet. Missing something? [Open an issue](https://github.com/tervforge/invoklet/issues).
 
 ## Editor
 
@@ -16,7 +16,7 @@ Planned work for RunPad. Missing something? [Open an issue](https://github.com/t
 
 ## Plugins
 
-- **Plugin system** — extensions loaded at runtime instead of being compiled into RunPad.
+- **Plugin system** — extensions loaded at runtime instead of being compiled into Invoklet.
 - **Languages as plugins** — support for other languages delivered as plugins, on the same host
   interface that C# and Visual Basic already use.
 - **Visual Basic editor intelligence** — completion, signature help, live diagnostics and quick fixes

@@ -1,0 +1,46 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Invoklet.Windows.ReloadFileDialog"
+        Icon="/Assets/icon.ico"
+        Width="420"
+        MinWidth="340" MinHeight="140"
+        CanResize="False"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Invoklet.Panel.BackgroundBrush}"
+        Foreground="{DynamicResource Invoklet.Text.PrimaryBrush}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://Invoklet.Avalonia.Themes/Metrics.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid RowDefinitions="Auto,Auto" Margin="16">
+
+        <TextBlock x:Name="MessageBlock"
+                   Grid.Row="0"
+                   FontSize="{DynamicResource Invoklet.Type.Body}"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,16"/>
+
+        <!-- Enter, Escape and closing the window keep the unsaved edits: losing them is never
+             the default. -->
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="{DynamicResource Invoklet.Space.Control}">
+            <Button Classes="secondary" x:Name="ReloadButton"
+                    MinWidth="88"
+                    Click="ReloadButton_Click"/>
+            <Button Classes="primary" x:Name="KeepButton"
+                    MinWidth="88"
+                    Click="KeepButton_Click"
+                    IsDefault="True"
+                    IsCancel="True"/>
+        </StackPanel>
+
+    </Grid>
+
+</Window>

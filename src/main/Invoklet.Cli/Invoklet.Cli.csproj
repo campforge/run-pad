@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>invoklet</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Spectre.Console" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\connectors\Invoklet.Connectors.Http\Invoklet.Connectors.Http.csproj" />
+    <ProjectReference Include="..\..\connectors\Invoklet.Connectors.Grpc\Invoklet.Connectors.Grpc.csproj" />
+    <ProjectReference Include="..\..\connectors\Invoklet.Connectors.Sqlite\Invoklet.Connectors.Sqlite.csproj" />
+    <ProjectReference Include="..\..\core\Invoklet.Format.RPad\Invoklet.Format.RPad.csproj" />
+    <ProjectReference Include="..\..\languages\Invoklet.Languages.CSharp\Invoklet.Languages.CSharp.csproj" />
+    <ProjectReference Include="..\..\languages\Invoklet.Languages.VB\Invoklet.Languages.VB.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Invoklet.Cli.Tests" />
+  </ItemGroup>
+
+</Project>

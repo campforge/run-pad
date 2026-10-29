@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Invoklet.Connectors.Grpc</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Grpc.Net.Client" />
+    <PackageReference Include="Grpc.Reflection" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Invoklet.NonUI.Tests" />
+    <InternalsVisibleTo Include="Invoklet.Runtime.UI.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\core\Invoklet.Contracts\Invoklet.Contracts.csproj" />
+  </ItemGroup>
+</Project>

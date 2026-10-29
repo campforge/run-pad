@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Invoklet.NonUI.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Split out to cut CI time — this project is Invoklet.Runtime.UI.Tests' non-Avalonia half:
+         every test here exercises language hosts/IntelliSense/decompiler/DAP/view-model logic that
+         never touches a live Avalonia Application, so it doesn't reference Avalonia.Headless(.XUnit)
+         at all and — unlike Invoklet.Runtime.UI.Tests, where [assembly: AvaloniaTestFramework] disables
+         collection parallelism for the WHOLE assembly regardless of whether a given test uses Avalonia
+         (confirmed empirically) — gets ordinary xunit parallel test-collection
+         execution "for free". Still xunit.v3 (not the classic xunit 2.x the other simple projects use)
+         because several of these files use xunit v3's TestContext.Current.CancellationToken.
+    -->
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" VersionOverride="3.1.5">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="coverlet.collector">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Moq" />
+    <!-- A gRPC server with server reflection, for the gRPC connection's tests. -->
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Grpc.AspNetCore.Server.Reflection" />
+  </ItemGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Protobuf Include="Grpc\inventory.proto" GrpcServices="Server" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\main\Invoklet\Invoklet.csproj" />
+    <!-- Pure managed code, so their tests build on every OS although each OS's Invoklet ships only its own. -->
+    <ProjectReference Include="..\..\src\desktop\Invoklet.Desktop.Linux\Invoklet.Desktop.Linux.csproj" />
+    <ProjectReference Include="..\..\src\desktop\Invoklet.Desktop.MacOS\Invoklet.Desktop.MacOS.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

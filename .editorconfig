@@ -164,6 +164,6 @@ dotnet_naming_symbols.non_field_member_symbols.applicable_kinds = method, proper
 dotnet_naming_style.pascal_case_style.capitalization = pascal_case
 
 # ── Vendored / generated code – skip formatting & analysis ───────────────────
-[src/controls/RunPad.Avalonia.HtmlRenderer/External/**/*.cs]
+[src/controls/Invoklet.Avalonia.HtmlRenderer/External/**/*.cs]
 generated_code = true
 dotnet_analyzer_diagnostic.severity = none

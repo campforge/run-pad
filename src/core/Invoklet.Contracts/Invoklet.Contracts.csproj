@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Invoklet.Format.RPad\Invoklet.Format.RPad.csproj" />
+  </ItemGroup>
+</Project>
