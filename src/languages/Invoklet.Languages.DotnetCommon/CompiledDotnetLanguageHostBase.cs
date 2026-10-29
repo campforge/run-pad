@@ -451,7 +451,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
 
     // Recognizes both sentinel-prefixed lines a running script can emit on stdout: RsPrefix for
     // ObjectExtensions.Dump (DumpHtml, unconditional) and InputRequestPrefix for Util.ReadLine/
-    // GetPassword (only while _currentInputStream is set, i.e. a real RunAsync process — RunDebugAsync
+    // GetSecret/SetSecret (only while _currentInputStream is set, i.e. a real RunAsync process — RunDebugAsync
     // shares this same wrapper but never sets that field, so a script calling Util.ReadLine under the
     // debugger falls through to the plain-output branch instead of firing an unanswerable request).
     //

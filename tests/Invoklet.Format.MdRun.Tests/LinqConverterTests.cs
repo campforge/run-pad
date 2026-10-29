@@ -28,7 +28,7 @@ public class LinqConverterTests
     }
 
     // LINQPad's password manager by name is Invoklet's Secret Store: Util.GetPassword(name) asks for
-    // and keeps a password there, while Invoklet's own Util.GetPassword(prompt) keeps nothing.
+    // and keeps a password there, as Util.GetSecret does; Invoklet has no Util.GetPassword.
     [Fact]
     public void Convert_Should_TurnLinqPadPasswordCalls_IntoSecretStoreCalls()
     {

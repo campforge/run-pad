@@ -12,7 +12,7 @@ using Xunit;
 namespace Invoklet.Runtime.UI.Tests;
 
 // ILanguageHost.InputRequested/SendInputAsync, the
-// host-side half of Invoklet.Runtime.Util.ReadLine/GetPassword (see UtilTests.cs for the runtime-side
+// host-side half of Invoklet.Runtime.Util.ReadLine/GetSecret (see UtilTests.cs for the runtime-side
 // half). '\x1f' below mirrors Invoklet.Runtime.Util.InputRequestPrefixChar/
 // CompiledDotnetLanguageHostBase.InputRequestPrefix directly (internal to their own assemblies, not
 // visible here — Invoklet.Runtime only grants InternalsVisibleTo to Invoklet.Runtime.Tests).
@@ -179,7 +179,7 @@ public class CompiledDotnetLanguageHostInputTests
     }
 
     [Fact]
-    public async Task InputRequested_Should_ReportIsPasswordTrue_ForAGetPasswordRequest()
+    public async Task InputRequested_Should_ReportIsPasswordTrue_ForAMaskedRequest()
     {
         var stdout = new MemoryStream(Encoding.UTF8.GetBytes(BuildSentinelLine("Password?", isPassword: true) + "\n"));
         var (host, outputDir) = CreateHost(new FakeChildProcess(stdout));

@@ -285,7 +285,7 @@
 
         </TabControl>
 
-        <!-- Row 4: interactive input (Util.ReadLine/GetPassword) — hidden until the
+        <!-- Row 4: interactive input (Util.ReadLine, or Util.GetSecret asking for a missing secret) — hidden until the
              running script actually asks for input; ShowInputPrompt/HideInputPrompt toggle it. -->
         <Border x:Name="InputPromptBar"
                 Grid.Row="4"
