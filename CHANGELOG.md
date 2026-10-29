@@ -1,7 +1,7 @@
 # Changelog
 
 Notable changes in each RunPad release. Downloads are on the
-[releases page](https://github.com/campforge/run-pad/releases).
+[releases page](https://github.com/tervforge/invoklet/releases).
 
 ## [0.10.0] — 2026-10-28
 
@@ -664,7 +664,7 @@ The first public release.
 
 ### Changed
 
-- RunPad is now developed in the open at [campforge/run-pad](https://github.com/campforge/run-pad),
+- RunPad is now developed in the open at [tervforge/invoklet](https://github.com/tervforge/invoklet),
   with a [roadmap](ROADMAP.md) and a [contributing guide](CONTRIBUTING.md).
 - Every package ships the license texts and `THIRD-PARTY-NOTICES.txt`, which lists every
   third-party component with its license, next to the application.
@@ -679,7 +679,7 @@ The first public release.
 ### Added
 
 - A plain text editor window for configuration and other text files.
-- The [user guide](https://campforge.github.io/run-pad-docs/), with screenshots and downloadable
+- The [user guide](https://tervforge.github.io/invoklet-docs/), with screenshots and downloadable
   examples.
 - The installers show an end-user license agreement.
 
@@ -807,27 +807,27 @@ Even this groundwork showed how large the rest of the changes would be — the d
 features had not been started yet — so writing a new application from scratch turned out to be the
 better choice. RunPad began as DotPad two days after the last commit to the fork.
 
-[0.5.0]: https://github.com/campforge/run-pad/releases/tag/v0.5.0
-[0.4.2]: https://github.com/campforge/run-pad/releases/tag/v0.4.2
-[0.4.1]: https://github.com/campforge/run-pad/releases/tag/v0.4.1
-[0.4.0]: https://github.com/campforge/run-pad/releases/tag/v0.4.0
-[0.3.0]: https://github.com/campforge/run-pad/releases/tag/v0.3.0
-[0.2.0]: https://github.com/campforge/run-pad/releases/tag/v0.2.0
+[0.5.0]: https://github.com/tervforge/invoklet/releases/tag/v0.5.0
+[0.4.2]: https://github.com/tervforge/invoklet/releases/tag/v0.4.2
+[0.4.1]: https://github.com/tervforge/invoklet/releases/tag/v0.4.1
+[0.4.0]: https://github.com/tervforge/invoklet/releases/tag/v0.4.0
+[0.3.0]: https://github.com/tervforge/invoklet/releases/tag/v0.3.0
+[0.2.0]: https://github.com/tervforge/invoklet/releases/tag/v0.2.0
 
-[0.6.0]: https://github.com/campforge/run-pad/releases/tag/v0.6.0
+[0.6.0]: https://github.com/tervforge/invoklet/releases/tag/v0.6.0
 
-[0.7.0]: https://github.com/campforge/run-pad/releases/tag/v0.7.0
+[0.7.0]: https://github.com/tervforge/invoklet/releases/tag/v0.7.0
 
-[0.8.0]: https://github.com/campforge/run-pad/releases/tag/v0.8.0
+[0.8.0]: https://github.com/tervforge/invoklet/releases/tag/v0.8.0
 
-[0.9.0]: https://github.com/campforge/run-pad/releases/tag/v0.9.0
+[0.9.0]: https://github.com/tervforge/invoklet/releases/tag/v0.9.0
 
-[0.9.1]: https://github.com/campforge/run-pad/releases/tag/v0.9.1
+[0.9.1]: https://github.com/tervforge/invoklet/releases/tag/v0.9.1
 
-[0.9.2]: https://github.com/campforge/run-pad/releases/tag/v0.9.2
+[0.9.2]: https://github.com/tervforge/invoklet/releases/tag/v0.9.2
 
-[0.9.3]: https://github.com/campforge/run-pad/releases/tag/v0.9.3
-[0.9.4]: https://github.com/campforge/run-pad/releases/tag/v0.9.4
+[0.9.3]: https://github.com/tervforge/invoklet/releases/tag/v0.9.3
+[0.9.4]: https://github.com/tervforge/invoklet/releases/tag/v0.9.4
 
-[0.10.0]: https://github.com/campforge/run-pad/releases/tag/v0.10.0
-[0.9.5]: https://github.com/campforge/run-pad/releases/tag/v0.9.5
+[0.10.0]: https://github.com/tervforge/invoklet/releases/tag/v0.10.0
+[0.9.5]: https://github.com/tervforge/invoklet/releases/tag/v0.9.5

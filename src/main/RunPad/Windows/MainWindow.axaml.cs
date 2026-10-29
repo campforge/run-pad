@@ -321,9 +321,9 @@ public sealed partial class MainWindow : Window, IDisposable, IStartupWindow
         if (NativeMenu.GetMenu(this) is { } nativeMenu) MainMenuDefinition.UpdateGestures(MainMenuEntries, nativeMenu);
     }
 
-    internal const string UserGuideUrl = "https://campforge.github.io/run-pad-docs/";
-    internal const string ReleaseNotesUrl = "https://github.com/campforge/run-pad/releases";
-    internal const string ReportIssueUrl = "https://github.com/campforge/run-pad/issues/new";
+    internal const string UserGuideUrl = "https://tervforge.github.io/invoklet-docs/";
+    internal const string ReleaseNotesUrl = "https://github.com/tervforge/invoklet/releases";
+    internal const string ReportIssueUrl = "https://github.com/tervforge/invoklet/issues/new";
 
     // A conventional IDE layout, the same on every OS. Every item calls the code behind the matching
     // toolbar button or shortcut (OnWindowKeyDown, EditorTabsControl.*Active), never a copy of it.
