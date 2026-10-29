@@ -77,8 +77,9 @@ public class EditorTabsControlShowAllTabsTests
         {
             var pathA = Path.Combine(rootFolder, "A.inv");
             File.WriteAllText(pathA, MdRunWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "A"));
-            mainVm.OpenTab(pathA);
-            await TestWait.WhileAsync(() => mainVm.Tabs.Count < 2);
+            mainVm.OpenTab(pathA); // replaces the pristine blank tab, so a second tab is added explicitly
+            mainVm.NewMdRunFile();
+            Assert.Equal(2, mainVm.Tabs.Count);
 
             var menu = editorTabs.BuildAllTabsMenu();
 

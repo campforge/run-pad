@@ -213,7 +213,9 @@ public sealed class EditorTabIntelliSenseContextRefreshTests : IDisposable
                 schemas.Cache.Put(Stock, Version(3));
                 schemas.Cache.Put(Stock, Version(4));
             }, TestContext.Current.CancellationToken);
-            await TestWait.WhileAsync(() => service.Entered < 3);
+            // Overtaken updates are cancelled and merged, so the number of entries is not fixed:
+            // wait until they stop arriving.
+            await TestWait.SettleAsync(() => service.Entered);
             service.Gate.Set();
 
             await TestWait.WhileAsync(() => service.Applied.IsEmpty);

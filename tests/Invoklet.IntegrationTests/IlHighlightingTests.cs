@@ -19,7 +19,7 @@ using Moq;
 using TextMateSharp.Grammars;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.IntegrationTests;
 
 // IL syntax highlighting in the two places that show IL: a CodeTextEditor switched between the C# and IL
 // grammars (the Assembly Explorer's code pane) and the read-only IL tab of the script editor. Colours are

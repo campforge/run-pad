@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Invoklet.Runtime.UI.Tests" />
+    <InternalsVisibleTo Include="Invoklet.IntegrationTests" />
     <InternalsVisibleTo Include="Invoklet.NonUI.Tests" />
   </ItemGroup>
 
