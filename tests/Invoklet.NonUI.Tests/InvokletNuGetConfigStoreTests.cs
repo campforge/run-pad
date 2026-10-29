@@ -1,6 +1,6 @@
-using NuGet.Configuration;
 using Invoklet.Contracts;
 using Invoklet.Languages.DotnetCommon;
+using NuGet.Configuration;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;

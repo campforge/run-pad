@@ -9,7 +9,6 @@ using Avalonia.Input;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using Moq;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Connectors.Http;
 using Invoklet.Contracts.Connections;
@@ -19,6 +18,7 @@ using Invoklet.Services.Secrets;
 using Invoklet.TemplatedControls;
 using Invoklet.Windows;
 using Invoklet.Windows.Models;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

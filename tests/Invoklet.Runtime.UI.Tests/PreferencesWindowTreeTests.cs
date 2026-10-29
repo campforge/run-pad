@@ -4,8 +4,6 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Languages.CSharp;
@@ -14,6 +12,8 @@ using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.Windows;
 using Invoklet.Windows.Models;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using TextMateSharp.Grammars;
 using Xunit;
 

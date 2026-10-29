@@ -4,12 +4,12 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Styling;
-using Moq;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.Windows;
 using Invoklet.Windows.Models;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

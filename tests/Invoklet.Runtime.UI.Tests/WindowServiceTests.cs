@@ -1,7 +1,7 @@
 using Avalonia.Headless.XUnit;
-using Moq;
 using Invoklet.Services;
 using Invoklet.Windows;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

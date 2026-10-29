@@ -4,7 +4,6 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using AvaloniaEdit.Document;
-using Moq;
 using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
@@ -17,6 +16,7 @@ using Invoklet.UserControls;
 using Invoklet.UserControls.Models;
 using Invoklet.Windows;
 using Invoklet.Windows.Models;
+using Moq;
 using TextMateSharp.Grammars;
 using Xunit;
 

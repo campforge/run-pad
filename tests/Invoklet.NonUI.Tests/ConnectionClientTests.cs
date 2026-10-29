@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using Microsoft.Extensions.Logging.Abstractions;
 using Invoklet.Connectors.Http;
 using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.IntelliSense;
@@ -11,6 +10,7 @@ using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
 using Invoklet.Runtime.UI.Tests;
 using Invoklet.Services.Secrets;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;

@@ -3,7 +3,6 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Styling;
-using Moq;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
@@ -13,6 +12,7 @@ using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
 using Invoklet.UserControls;
 using Invoklet.Windows.Models;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

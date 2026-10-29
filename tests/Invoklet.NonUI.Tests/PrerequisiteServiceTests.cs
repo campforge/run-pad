@@ -1,8 +1,8 @@
-using Moq;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Models;
 using Invoklet.Services.Preferences;
 using Invoklet.Services.Setup;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

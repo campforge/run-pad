@@ -1,5 +1,5 @@
-using NuGet.Configuration;
 using Invoklet.Languages.DotnetCommon;
+using NuGet.Configuration;
 
 namespace Invoklet.Languages.CSharp;
 

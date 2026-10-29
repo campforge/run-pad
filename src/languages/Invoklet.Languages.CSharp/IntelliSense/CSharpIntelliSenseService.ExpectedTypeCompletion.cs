@@ -1,7 +1,7 @@
+using Invoklet.Contracts.IntelliSense;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Invoklet.Contracts.IntelliSense;
 
 namespace Invoklet.Languages.CSharp.IntelliSense;
 

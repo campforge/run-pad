@@ -2,9 +2,9 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Reactive;
 using System.Reactive.Linq;
+using Invoklet.Contracts;
 using Invoklet.Shared;
 using ReactiveUI;
-using Invoklet.Contracts;
 
 namespace Invoklet.Windows.Models;
 

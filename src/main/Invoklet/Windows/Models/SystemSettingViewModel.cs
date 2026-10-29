@@ -1,6 +1,6 @@
+using Invoklet.Desktop;
 using Invoklet.Services.Preferences;
 using ReactiveUI;
-using Invoklet.Desktop;
 
 namespace Invoklet.Windows.Models;
 

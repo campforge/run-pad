@@ -1,10 +1,10 @@
 using System.Text;
-using Moq;
 using Invoklet.Contracts;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.UserControls.Models;
 using Invoklet.Windows.Models;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

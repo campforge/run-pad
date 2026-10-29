@@ -2,8 +2,6 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
 using AvaloniaEdit.Document;
-using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
 using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
@@ -16,6 +14,8 @@ using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
 using Invoklet.UserControls;
 using Invoklet.UserControls.Models;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

@@ -7,13 +7,13 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using ICSharpCode.Decompiler.CSharp;
-using Invoklet.Services;
-using Invoklet.Services.Preferences;
-using Invoklet.Windows.Models;
 using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Languages.DotnetCommon;
+using Invoklet.Services;
+using Invoklet.Services.Preferences;
+using Invoklet.Windows.Models;
 using SyntaxTree = ICSharpCode.Decompiler.CSharp.Syntax.SyntaxTree;
 
 namespace Invoklet.Windows;

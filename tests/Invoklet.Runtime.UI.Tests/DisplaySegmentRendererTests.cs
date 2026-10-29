@@ -2,11 +2,11 @@ using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
-using Microsoft.Extensions.Logging.Abstractions;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.UserControls;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

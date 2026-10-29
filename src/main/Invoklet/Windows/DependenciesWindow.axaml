@@ -3,7 +3,7 @@
         xmlns:cte="using:Invoklet.Avalonia.CodeTextEditor"
         xmlns:tc="clr-namespace:Invoklet.TemplatedControls"
         xmlns:viewModels="clr-namespace:Invoklet.Windows.Models"
-        xmlns:rpad="clr-namespace:Invoklet.Format.RPad;assembly=Invoklet.Format.RPad"
+        xmlns:rpad="clr-namespace:Invoklet.Format.RPad;assembly=Invoklet.Format.MdRun"
         x:Class="Invoklet.Windows.DependenciesWindow"
         x:DataType="viewModels:DependenciesWindowViewModel"
         Title="Dependencies"

@@ -1,13 +1,13 @@
 using System.Composition.Hosting;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using Invoklet.Contracts.IntelliSense;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
-using Invoklet.Contracts.IntelliSense;
 using ContractSeverity = Invoklet.Contracts.IntelliSense.DiagnosticSeverity;
 using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
 

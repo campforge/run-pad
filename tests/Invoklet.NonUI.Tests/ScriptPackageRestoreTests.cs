@@ -1,6 +1,5 @@
 using System.IO.Compression;
 using System.Runtime.InteropServices;
-using Microsoft.Extensions.Logging.Abstractions;
 using Invoklet.Build.Core.Models;
 using Invoklet.Format.RPad;
 using Invoklet.Languages.CSharp;
@@ -8,6 +7,7 @@ using Invoklet.Languages.CSharp.Compiler;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Compiler;
 using Invoklet.Languages.DotnetCommon.Sdk;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

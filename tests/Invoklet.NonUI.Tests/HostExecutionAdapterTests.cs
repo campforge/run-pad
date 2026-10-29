@@ -1,7 +1,7 @@
-using Moq;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Models;
 using Invoklet.Services;
+using Moq;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;

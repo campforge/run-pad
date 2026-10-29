@@ -1,6 +1,4 @@
 using Avalonia.Styling;
-using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Format.RPad;
@@ -9,6 +7,8 @@ using Invoklet.Languages.VB;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.Windows.Models;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using TextMateSharp.Grammars;
 using Xunit;
 

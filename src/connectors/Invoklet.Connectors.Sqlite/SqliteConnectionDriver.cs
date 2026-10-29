@@ -1,8 +1,8 @@
 using System.Text;
 using System.Text.Json;
-using Microsoft.Data.Sqlite;
 using Invoklet.Contracts.Connections;
 using Invoklet.Format.RPad;
+using Microsoft.Data.Sqlite;
 
 namespace Invoklet.Connectors.Sqlite;
 

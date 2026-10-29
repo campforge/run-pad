@@ -1,10 +1,10 @@
-using Microsoft.Extensions.Logging.Abstractions;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Models;
 using Invoklet.Format.RPad;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.VB;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;

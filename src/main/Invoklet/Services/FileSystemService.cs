@@ -1,6 +1,6 @@
 using System.Diagnostics;
-using Microsoft.Extensions.Logging;
 using Invoklet.Format.RPad;
+using Microsoft.Extensions.Logging;
 
 namespace Invoklet.Services;
 

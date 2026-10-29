@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <ProjectReference Include="..\Invoklet.Format.RPad\Invoklet.Format.RPad.csproj" />
+    <ProjectReference Include="..\Invoklet.Format.MdRun\Invoklet.Format.MdRun.csproj" />
   </ItemGroup>
 </Project>

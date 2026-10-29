@@ -1,6 +1,6 @@
 using System.Threading.Channels;
-using Microsoft.Extensions.Logging.Abstractions;
 using Invoklet.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

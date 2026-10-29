@@ -17,7 +17,7 @@
     <ProjectReference Include="..\..\connectors\Invoklet.Connectors.Http\Invoklet.Connectors.Http.csproj" />
     <ProjectReference Include="..\..\connectors\Invoklet.Connectors.Grpc\Invoklet.Connectors.Grpc.csproj" />
     <ProjectReference Include="..\..\connectors\Invoklet.Connectors.Sqlite\Invoklet.Connectors.Sqlite.csproj" />
-    <ProjectReference Include="..\..\core\Invoklet.Format.RPad\Invoklet.Format.RPad.csproj" />
+    <ProjectReference Include="..\..\core\Invoklet.Format.MdRun\Invoklet.Format.MdRun.csproj" />
     <ProjectReference Include="..\..\languages\Invoklet.Languages.CSharp\Invoklet.Languages.CSharp.csproj" />
     <ProjectReference Include="..\..\languages\Invoklet.Languages.VB\Invoklet.Languages.VB.csproj" />
   </ItemGroup>

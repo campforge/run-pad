@@ -1,9 +1,6 @@
 using System.Globalization;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.Extensions.Logging.Abstractions;
 using Invoklet.Build.Core.Models;
 using Invoklet.Contracts.Models;
 using Invoklet.Debug;
@@ -14,6 +11,9 @@ using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Compiler;
 using Invoklet.Languages.DotnetCommon.Sdk;
 using Invoklet.Languages.VB;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

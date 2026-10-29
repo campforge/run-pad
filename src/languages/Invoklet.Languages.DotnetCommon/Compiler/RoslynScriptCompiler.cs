@@ -6,14 +6,14 @@ using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Security.Cryptography;
 using System.Text;
+using Invoklet.Contracts.Models;
+using Invoklet.Debug;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Emit;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
-using Invoklet.Contracts.Models;
-using Invoklet.Debug;
 using RoslynDiagnostic = Microsoft.CodeAnalysis.Diagnostic;
 using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
 

@@ -8,7 +8,6 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using Moq;
 using Invoklet.Connectors.Http;
 using Invoklet.Contracts.Connections;
 using Invoklet.Format.RPad;
@@ -16,6 +15,7 @@ using Invoklet.Services.Connections;
 using Invoklet.Services.Secrets;
 using Invoklet.Windows;
 using Invoklet.Windows.Models;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

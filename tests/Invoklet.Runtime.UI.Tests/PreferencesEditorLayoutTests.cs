@@ -5,13 +5,13 @@ using Avalonia.Input;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using Moq;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.Windows;
 using Invoklet.Windows.Models;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

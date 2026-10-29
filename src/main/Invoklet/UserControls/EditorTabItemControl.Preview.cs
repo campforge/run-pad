@@ -1,11 +1,11 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Styling;
+using Invoklet.Avalonia.Themes;
+using Invoklet.Format.RPad;
 using Invoklet.UserControls.Models;
 using MarkView.Avalonia;
 using ReactiveUI;
-using Invoklet.Avalonia.Themes;
-using Invoklet.Format.RPad;
 using TextMateSharp.Grammars;
 
 namespace Invoklet.UserControls;

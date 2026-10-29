@@ -1,5 +1,5 @@
-using Microsoft.CodeAnalysis;
 using Invoklet.Contracts.IntelliSense;
+using Microsoft.CodeAnalysis;
 
 namespace Invoklet.Languages.CSharp.IntelliSense;
 

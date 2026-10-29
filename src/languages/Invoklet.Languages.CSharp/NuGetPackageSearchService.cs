@@ -1,10 +1,10 @@
+using Invoklet.Contracts;
 using NuGet.Common;
 using NuGet.Configuration;
 using NuGet.Packaging;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
-using Invoklet.Contracts;
 
 namespace Invoklet.Languages.CSharp;
 

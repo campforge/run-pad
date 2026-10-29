@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Invoklet.Languages.CSharp;
 
 /// <summary>
-/// Inspects a <see cref="Invoklet.Format.RPad.RpadKind.Program"/> script's <c>Main</c> local function
+/// Inspects a <see cref="Invoklet.Format.MdRun.RpadKind.Program"/> script's <c>Main</c> local function
 /// signature — <see cref="RpadKindTransform"/> needs both facts captured in <see cref="MainSignature"/>
 /// to build the right call statement: <c>IsStatic</c> picks between <c>__InvokletProgram.Main()</c> and
 /// <c>new __InvokletProgram().Main()</c> (a static local function can't be called through an instance

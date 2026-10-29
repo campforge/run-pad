@@ -8,14 +8,14 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
+using Invoklet.Desktop;
+using Invoklet.Format.RPad;
 using Invoklet.Services.Desktop;
 using Invoklet.Services.Preferences;
 using Invoklet.UserControls;
 using Invoklet.UserControls.Models;
 using Invoklet.Windows.Models;
 using ReactiveUI;
-using Invoklet.Desktop;
-using Invoklet.Format.RPad;
 
 namespace Invoklet.Windows;
 

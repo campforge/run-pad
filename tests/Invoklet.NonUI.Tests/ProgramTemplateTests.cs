@@ -1,7 +1,7 @@
-using Microsoft.Extensions.Logging.Abstractions;
 using Invoklet.Format.RPad;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.VB;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;

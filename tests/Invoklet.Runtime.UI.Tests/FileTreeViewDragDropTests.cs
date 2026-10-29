@@ -3,12 +3,12 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
-using Moq;
 using Invoklet.Contracts;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.UserControls;
 using Invoklet.UserControls.Models;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

@@ -1,6 +1,6 @@
+using Invoklet.Format.RPad;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Invoklet.Format.RPad;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;

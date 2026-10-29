@@ -1,16 +1,16 @@
-using Moq;
 using Invoklet.Contracts;
 using Invoklet.Format.RPad;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.Windows.Models;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;
 
 // MainWindowViewModel.ImportLinqFileAsync, the "File →
 // Import .linq Query..." entry point around LinqConverter (see LinqConverterTests.cs in
-// Invoklet.Format.RPad.Tests for the conversion logic itself, not re-tested here).
+// Invoklet.Format.MdRun.Tests for the conversion logic itself, not re-tested here).
 public class ImportLinqFileTests
 {
     private static Mock<IPreferencesService> MakePrefs()

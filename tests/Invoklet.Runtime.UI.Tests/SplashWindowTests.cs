@@ -2,9 +2,9 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
+using Invoklet.Windows;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Invoklet.Windows;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

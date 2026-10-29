@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
+using Invoklet.Format.RPad;
 using Invoklet.Services.Examples;
 using ReactiveUI;
-using Invoklet.Format.RPad;
 
 namespace Invoklet.UserControls.Models;
 

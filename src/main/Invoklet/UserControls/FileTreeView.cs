@@ -5,9 +5,9 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Invoklet.Format.RPad;
 using Invoklet.Services.Preferences;
 using Invoklet.UserControls.Models;
-using Invoklet.Format.RPad;
 
 namespace Invoklet.UserControls;
 

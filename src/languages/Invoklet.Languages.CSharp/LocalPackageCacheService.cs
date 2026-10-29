@@ -1,5 +1,5 @@
-using NuGet.Versioning;
 using Invoklet.Contracts;
+using NuGet.Versioning;
 
 namespace Invoklet.Languages.CSharp;
 

@@ -1,7 +1,7 @@
 using System.Windows.Input;
-using Moq;
 using Invoklet.Services.Secrets;
 using Invoklet.Windows.Models;
+using Moq;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;

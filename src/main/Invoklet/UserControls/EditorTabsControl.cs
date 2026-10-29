@@ -2,6 +2,12 @@ using System.Collections.Specialized;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
+using Invoklet.Avalonia.Themes;
+using Invoklet.Contracts;
+using Invoklet.Contracts.Connections;
+using Invoklet.Contracts.IntelliSense;
+using Invoklet.Contracts.Models;
+using Invoklet.Format.RPad;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -10,12 +16,6 @@ using Invoklet.UserControls.Models;
 using Invoklet.Windows.Models;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
-using Invoklet.Avalonia.Themes;
-using Invoklet.Contracts;
-using Invoklet.Contracts.Connections;
-using Invoklet.Contracts.IntelliSense;
-using Invoklet.Contracts.Models;
-using Invoklet.Format.RPad;
 
 namespace Invoklet.UserControls;
 

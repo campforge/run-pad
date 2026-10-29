@@ -1,8 +1,8 @@
 using System.Reactive.Linq;
-using Moq;
 using Invoklet.Contracts;
 using Invoklet.Format.RPad;
 using Invoklet.Windows.Models;
+using Moq;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;

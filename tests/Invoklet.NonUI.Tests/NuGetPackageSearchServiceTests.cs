@@ -1,9 +1,9 @@
 using System.IO.Compression;
+using Invoklet.Contracts;
+using Invoklet.Languages.CSharp;
 using NuGet.Configuration;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
-using Invoklet.Contracts;
-using Invoklet.Languages.CSharp;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;

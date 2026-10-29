@@ -4,8 +4,6 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Styling;
 using Avalonia.Threading;
-using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
@@ -21,6 +19,8 @@ using Invoklet.UserControls;
 using Invoklet.UserControls.Models;
 using Invoklet.Windows;
 using Invoklet.Windows.Models;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

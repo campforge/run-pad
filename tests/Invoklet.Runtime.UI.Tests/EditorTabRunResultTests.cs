@@ -4,8 +4,6 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using Microsoft.Extensions.Logging;
-using Moq;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Connections;
@@ -18,6 +16,8 @@ using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
 using Invoklet.UserControls;
 using Invoklet.UserControls.Models;
+using Microsoft.Extensions.Logging;
+using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

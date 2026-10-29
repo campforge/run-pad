@@ -1,6 +1,6 @@
-using Microsoft.Extensions.Logging.Abstractions;
 using Invoklet.Format.RPad;
 using Invoklet.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

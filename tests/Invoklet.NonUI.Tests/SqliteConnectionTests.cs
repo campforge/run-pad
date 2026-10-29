@@ -1,6 +1,4 @@
 using System.Collections.Concurrent;
-using Microsoft.Data.Sqlite;
-using Microsoft.Extensions.Logging.Abstractions;
 using Invoklet.Connectors.Sqlite;
 using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.Models;
@@ -10,6 +8,8 @@ using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
 using Invoklet.Windows.Models;
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;

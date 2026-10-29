@@ -1,6 +1,6 @@
-using Moq;
 using Invoklet.Contracts;
 using Invoklet.UserControls.Models;
+using Moq;
 using Xunit;
 using EditorBreakpoint = Invoklet.Avalonia.CodeTextEditor.Breakpoint;
 using EditorBreakpointContract = Invoklet.Avalonia.CodeTextEditor.IBreakpoint;

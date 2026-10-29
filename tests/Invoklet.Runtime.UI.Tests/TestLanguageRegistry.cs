@@ -1,9 +1,9 @@
-using Moq;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
 using Invoklet.Format.RPad;
 using Invoklet.Languages.DotnetCommon;
+using Moq;
 
 namespace Invoklet.Runtime.UI.Tests;
 

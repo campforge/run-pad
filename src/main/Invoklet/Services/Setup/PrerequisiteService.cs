@@ -1,6 +1,6 @@
 using System.ComponentModel;
-using Invoklet.Services.Preferences;
 using Invoklet.Contracts;
+using Invoklet.Services.Preferences;
 
 namespace Invoklet.Services.Setup;
 

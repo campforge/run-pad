@@ -1,8 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Text.Json;
-using ReactiveUI;
 using Invoklet.Format.RPad;
+using ReactiveUI;
 
 namespace Invoklet.Windows.Models;
 

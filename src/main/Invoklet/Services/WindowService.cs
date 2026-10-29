@@ -2,12 +2,12 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
-using Invoklet.Services.Preferences;
-using Invoklet.Windows;
-using Invoklet.Windows.Models;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.RPad;
 using Invoklet.Languages.DotnetCommon;
+using Invoklet.Services.Preferences;
+using Invoklet.Windows;
+using Invoklet.Windows.Models;
 
 namespace Invoklet.Services;
 

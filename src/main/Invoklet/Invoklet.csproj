@@ -3,9 +3,10 @@
     <OutputType>WinExe</OutputType>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets/icon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <Product>Invoklet</Product>
-    <Version>0.10.0</Version>
+    <Version>0.10.1</Version>
     <Authors>hobobyte</Authors>
     <Company>hobobyte</Company>
     <Copyright>© 2026 Vadim S (hobobyte)</Copyright>
@@ -20,11 +21,11 @@
     <InvokletDesktopOS Condition="$(RuntimeIdentifier.StartsWith('linux')) Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('Linux')))">Linux</InvokletDesktopOS>
     <InvokletDesktopOS Condition="$(RuntimeIdentifier.StartsWith('osx')) Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('OSX')))">MacOS</InvokletDesktopOS>
     <InvokletDesktopOS Condition="$(RuntimeIdentifier.StartsWith('win')) Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('Windows')))">Windows</InvokletDesktopOS>
-    <DefineConstants Condition="'$(InvokletDesktopOS)' != ''">$(DefineConstants);RUNPAD_$(InvokletDesktopOS.ToUpperInvariant())</DefineConstants>
+    <DefineConstants Condition="'$(InvokletDesktopOS)' != ''">$(DefineConstants);INVOKLET_$(InvokletDesktopOS.ToUpperInvariant())</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\desktop\Invoklet.Desktop\Invoklet.Desktop.csproj" />
-    <ProjectReference Include="..\..\desktop\Invoklet.Desktop.MacOS\Invoklet.Desktop.MacOS.csproj" />
+    <ProjectReference Condition="'$(InvokletDesktopOS)' != ''" Include="..\..\desktop\Invoklet.Desktop.$(InvokletDesktopOS)\Invoklet.Desktop.$(InvokletDesktopOS).csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -82,7 +83,7 @@
     <ProjectReference Include="..\..\controls\Invoklet.Avalonia.HtmlRenderer\Invoklet.Avalonia.HtmlRenderer.csproj" />
     <ProjectReference Include="..\..\controls\MarkView.Avalonia\MarkView.Avalonia.csproj"/>
     <ProjectReference Include="..\..\controls\MarkView.Avalonia.SyntaxHighlighting\MarkView.Avalonia.SyntaxHighlighting.csproj"/>
-    <ProjectReference Include="..\..\core\Invoklet.Format.RPad\Invoklet.Format.RPad.csproj" />
+    <ProjectReference Include="..\..\core\Invoklet.Format.MdRun\Invoklet.Format.MdRun.csproj" />
     <ProjectReference Include="..\..\core\Invoklet.Build.Core\Invoklet.Build.Core.csproj" />
     <ProjectReference Include="..\..\connectors\Invoklet.Connectors.Http\Invoklet.Connectors.Http.csproj" />
     <ProjectReference Include="..\..\connectors\Invoklet.Connectors.Grpc\Invoklet.Connectors.Grpc.csproj" />
