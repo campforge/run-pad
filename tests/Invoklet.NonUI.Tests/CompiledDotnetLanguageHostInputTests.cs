@@ -255,6 +255,39 @@ public class CompiledDotnetLanguageHostInputTests
         }
     }
 
+    // Util.SetSecret: the value is kept through SecretSaver and the script told 1 on its stdin, with
+    // nobody asked; without a saver it is told 0 (and throws).
+    [Theory]
+    [InlineData(true, "1\n")]
+    [InlineData(false, "0\n")]
+    public async Task ASetSecretRequest_Should_BeKept_AndAnswered_WithoutAskingAnyone(bool hasSaver, string answer)
+    {
+        const string json = """{"Secret":"db","Value":"p@ss"}""";
+        var line = "\x1f" + Convert.ToBase64String(Encoding.UTF8.GetBytes(json)) + "\n";
+        var process = new FakeChildProcess(new TextThenBlockingStream(line));
+        var (host, outputDir) = CreateHost(process);
+        var saved = new List<(string, string)>();
+        if (hasSaver) host.SecretSaver = (name, value) => saved.Add((name, value));
+        var asked = false;
+        host.InputRequested += (_, _) => asked = true;
+        try
+        {
+            _ = host.RunAsync("int x = 1;", (_, _) => { }, TestContext.Current.CancellationToken);
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            while (process.InputStream.Length == 0 && DateTime.UtcNow < deadline)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+
+            Assert.Equal(answer, Encoding.UTF8.GetString(process.InputStream.ToArray()));
+            Assert.Equal(hasSaver ? new List<(string, string)> { ("db", "p@ss") } : [], saved);
+            Assert.False(asked);
+        }
+        finally
+        {
+            await host.TerminateAsync(TestContext.Current.CancellationToken);
+            Directory.Delete(outputDir, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task SendInputAsync_Should_NotThrow_WhenNothingIsCurrentlyRunning()
     {
