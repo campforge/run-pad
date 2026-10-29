@@ -2,7 +2,9 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
 using Avalonia.Threading;
+using AvaloniaEdit;
 using AvaloniaEdit.Document;
+using AvaloniaEdit.TextMate;
 using Invoklet.Avalonia.CodeTextEditor;
 using TextMateSharp.Grammars;
 using Xunit;
@@ -64,5 +66,28 @@ public class TextMateFreezeTests
         installation.Freeze();
         installation.Freeze();
         editor.Dispose(); // while frozen
+    }
+
+    [AvaloniaFact]
+    public async Task Freezing_BeforeTheModelExists_Should_BeRemembered_AndResumingAfterItIsCreated_Should_ColourTheText()
+    {
+        var editor = new TextEditor();
+        new Window { Content = editor }.Show();
+        var installation = editor.InstallTextMate(new RegistryOptions(ThemeName.DarkPlus), initCurrentDocument: false);
+        installation.SetGrammar("source.cs");
+
+        installation.Freeze(); // no document yet, so no model to stop
+
+        Assert.True(installation.IsFrozen);
+        editor.Document = new TextDocument("class A { void M() { } }\n"); // the model is created now
+        Dispatcher.UIThread.RunJobs();
+        await Task.Delay(1500);
+        var frozen = IlHighlightingTests.RenderedColor(editor, 0);
+
+        installation.Resume();
+
+        var resumed = await IlHighlightingTests.SettledColorAsync(editor, 0, c => c != frozen);
+        Assert.NotEqual(frozen, resumed); // coloured only once resumed: no tokenizer ran while frozen
+        installation.Dispose();
     }
 }

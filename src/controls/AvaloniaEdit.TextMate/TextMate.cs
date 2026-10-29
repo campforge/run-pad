@@ -219,11 +219,13 @@ public static class TextMate
         {
             lock (_lock)
             {
-                if (_isDisposed || _isFrozen || _tmModel is null || _transformer is null)
+                if (_isDisposed || _isFrozen)
                     return;
+                // Remembered even before the model exists (no document yet): it is then created without
+                // its listener, so the tokenizer does not start.
                 _isFrozen = true;
                 // The model stops its tokenizer when its last listener goes.
-                _tmModel.RemoveModelTokensChangedListener(_transformer);
+                _tmModel?.RemoveModelTokensChangedListener(_transformer);
             }
         }
 
@@ -232,9 +234,11 @@ public static class TextMate
         {
             lock (_lock)
             {
-                if (_isDisposed || !_isFrozen || _tmModel is null || _transformer is null)
+                if (_isDisposed || !_isFrozen)
                     return;
                 _isFrozen = false;
+                if (_tmModel is null)
+                    return; // the model is created with its listener
                 _tmModel.AddModelTokensChangedListener(_transformer);
                 _tmModel.InvalidateLine(0);
             }
