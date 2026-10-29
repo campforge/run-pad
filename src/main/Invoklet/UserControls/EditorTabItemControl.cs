@@ -1689,7 +1689,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     internal int RunGenerationForTests => _runGeneration;
 
     // ILanguageHost.InputRequested (Util.ReadLine/
-    // GetPassword). Always called on the UI thread (see the Dispatcher.Post at the
+    // GetSecret). Always called on the UI thread (see the Dispatcher.Post at the
     // subscription site in RunAsync). internal (not private): lets tests drive the prompt directly,
     // the same rationale as BuildFindReferencesMenu (headless Avalonia has no reliable way to fake a
     // real running script asking for input).

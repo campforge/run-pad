@@ -54,7 +54,7 @@ public sealed record RunResult(RunOutcome Outcome, int? ExitCode = null)
 /// <summary>Raised after a successful compile with the path to the compiled assembly on disk — see <see cref="Invoklet.Contracts.ILanguageHost.Compiled"/>.</summary>
 public delegate void CompiledHandler(string binaryPath);
 
-/// <summary>Raised when a running script calls Util.ReadLine/GetPassword — see <see cref="Invoklet.Contracts.ILanguageHost.InputRequested"/>.</summary>
+/// <summary>Raised when a running script calls Util.ReadLine, or Util.GetSecret asks for a missing secret — see <see cref="Invoklet.Contracts.ILanguageHost.InputRequested"/>.</summary>
 public delegate void InputRequestedHandler(string? prompt, bool isPassword);
 
 /// <summary>The stage of preparing and running a script that a host reports through <see cref="Invoklet.Contracts.ILanguageHost.StageChanged"/>.</summary>

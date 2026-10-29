@@ -4,7 +4,7 @@ using Xunit;
 
 namespace Invoklet.Runtime.Tests;
 
-// Util.ReadLine/GetPassword/ReadLine<T>. Same
+// Util.ReadLine/ReadLine<T> and the question Util.GetSecret asks. Same
 // Console.SetOut/SetIn redirection technique as ObjectExtensionsTests, since this is the runtime-side
 // half of the same sentinel-prefixed stdout protocol Dump uses (a different prefix char, see
 // Util.InputRequestPrefixChar) paired with a plain-text stdin reply. [Collection(...)] — see
@@ -47,28 +47,37 @@ public class UtilTests
         }
     }
 
+    // A secret the store doesn't have is asked for, masked and named, where Invoklet answers input.
     [Fact]
-    public void GetPassword_MarksTheRequestAsPassword()
+    public void GetSecret_AsksForAMissingSecret_Masked_AndNamed()
     {
         var originalOut = Console.Out;
         var originalIn = Console.In;
+        var originalFile = Environment.GetEnvironmentVariable(Util.SecretsFileEnvVar);
+        var originalInput = Environment.GetEnvironmentVariable(Util.InputEnvVar);
         try
         {
+            Environment.SetEnvironmentVariable(Util.SecretsFileEnvVar, Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"), "secrets.json"));
+            Environment.SetEnvironmentVariable(Util.InputEnvVar, "1");
             var sw = new StringWriter();
             Console.SetOut(sw);
+            var name = "test-" + Guid.NewGuid().ToString("N"); // nothing remembered from another test
             Console.SetIn(new StringReader("hunter2\n"));
 
-            var result = Util.GetPassword("Password?");
+            var result = Util.GetSecret(name);
 
             Assert.Equal("hunter2", result);
             var json = DecodeRequest(sw.ToString());
             using var doc = JsonDocument.Parse(json);
             Assert.True(doc.RootElement.GetProperty("IsPassword").GetBoolean());
+            Assert.Equal(name, doc.RootElement.GetProperty("Secret").GetString());
         }
         finally
         {
             Console.SetOut(originalOut);
             Console.SetIn(originalIn);
+            Environment.SetEnvironmentVariable(Util.SecretsFileEnvVar, originalFile);
+            Environment.SetEnvironmentVariable(Util.InputEnvVar, originalInput);
         }
     }
 

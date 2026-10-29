@@ -8,8 +8,8 @@ using Invoklet.Runtime;
 // ReSharper disable once CheckNamespace
 
 /// <summary>
-/// Interactive input from the output panel — LINQPad-compatible <c>Util.ReadLine</c>/
-/// <c>Util.GetPassword</c>. Blocks the calling script until the user answers, right where <c>.Dump()</c>
+/// Interactive input from the output panel — LINQPad-compatible <c>Util.ReadLine</c>, and the masked
+/// question <c>Util.GetSecret</c> asks for a secret the store doesn't have. Blocks the calling script until the user answers, right where <c>.Dump()</c>
 /// output appears. Uses the same sentinel-prefixed stdout protocol as <c>ObjectExtensions.Dump</c>
 /// (see <see cref="InputRequestPrefixChar"/>, a different prefix so the two don't collide) to ask for
 /// input, paired with a plain-text reply over stdin — CompiledDotnetLanguageHostBase/
@@ -429,9 +429,6 @@ public static class Util
 
     /// <summary>Reads a single line of text typed into the output panel. <see langword="null"/> if the run was cancelled/stdin closed before an answer arrived.</summary>
     public static string? ReadLine(string? prompt = null) => ReadLineCore(prompt, isPassword: false);
-
-    /// <summary>Same as <see cref="ReadLine(string?)"/>, but the output panel masks what's typed — still plain text on the wire, just not shown on screen.</summary>
-    public static string? GetPassword(string? prompt = null) => ReadLineCore(prompt, isPassword: true);
 
     // Mirrors FileSecretStore.FileEnvVar and its file format (Invoklet's main app, which writes the
     // store), duplicated rather than shared for the same reason as the data folder above.

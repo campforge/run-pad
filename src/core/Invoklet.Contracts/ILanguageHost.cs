@@ -54,7 +54,7 @@ public interface ILanguageHost : IAsyncDisposable
     Task TerminateAsync(CancellationToken cancellationToken);
 
     /// <summary>
-    /// Raised when the running script calls <c>Util.ReadLine</c>/<c>Util.GetPassword</c> —
+    /// Raised when the running script calls <c>Util.ReadLine</c> (or <c>Util.GetSecret</c> asks for a missing secret) —
     /// the UI should prompt the user and reply via <see cref="SendInputAsync"/>. Only fires
     /// under <see cref="RunAsync"/> (not <see cref="RunDebugAsync"/> — a debug session's stdin isn't
     /// currently piped through). Always available.

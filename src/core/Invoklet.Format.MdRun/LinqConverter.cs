@@ -121,8 +121,8 @@ public static partial class LinqConverter
 
     // LINQPad's password manager calls by name: Util.GetPassword(name) reads a saved password (asking
     // for it when there is none) and Util.SetPassword(name, value) saves one. In Invoklet that is the
-    // Secret Store's Util.GetSecret/SetSecret; Invoklet's own Util.GetPassword(prompt) only asks, and
-    // keeps nothing. The calls are renamed as written, in C# and VB alike.
+    // Secret Store's Util.GetSecret/SetSecret, and Invoklet has no Util.GetPassword. The calls are
+    // renamed as written, in C# and VB alike.
     internal static string WithInvokletSecrets(string code) =>
         LinqPadPasswordCall().Replace(code, m => "Util." + (m.Groups[1].Value == "Get" ? "GetSecret" : "SetSecret") + "(");
 

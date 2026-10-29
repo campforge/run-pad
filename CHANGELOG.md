@@ -26,6 +26,9 @@ Notable changes in each Invoklet release. Downloads are on the
 - `Util.GetSecret` asks for a secret the Secret Store doesn't have yet, masked, in the input bar,
   as LINQPad's `Util.GetPassword` does, and Invoklet keeps the answer in the store. Under the
   debugger and in the command-line runner a missing secret still raises `KeyNotFoundException`.
+- **Breaking change:** `Util.GetPassword(prompt)` is removed. It only asked for masked text and kept
+  nothing, while LINQPad's `Util.GetPassword(name)` reads a saved password: use
+  `Util.GetSecret(name)`, which asks, masked, for a secret it doesn't have and keeps it.
 - `Util.SetSecret(name, value)` saves a secret from a script, as LINQPad's `Util.SetPassword` does.
   Importing a `.linq` file turns LINQPad's `Util.GetPassword(name)` and `Util.SetPassword(name, value)`
   into `Util.GetSecret` and `Util.SetSecret`.
