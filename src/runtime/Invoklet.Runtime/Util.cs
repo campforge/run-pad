@@ -447,10 +447,13 @@ public static class Util
     /// <summary>
     /// The secret named <paramref name="name"/> (letter case aside) from Invoklet's Secret Store
     /// (Tools → Secret Store), so a password, token or key stays out of the script and its file.
-    /// The store belongs to the user on this machine; on Windows it is encrypted for that user.
+    /// The store belongs to the user on this machine: on Windows it is encrypted for that user, on
+    /// macOS and Linux with a key kept in the system keychain, which Invoklet passes to the script.
     /// </summary>
     /// <exception cref="KeyNotFoundException">The store has no such secret.</exception>
     /// <exception cref="InvalidDataException">The store can't be read here.</exception>
+    /// <exception cref="InvalidOperationException">The store is encrypted with a keychain key and the
+    /// script wasn't started by Invoklet or its command line, which pass that key.</exception>
     public static string GetSecret(string name)
     {
         if (name is null) throw new ArgumentNullException(nameof(name));
@@ -473,7 +476,8 @@ public static class Util
         if (store is null || store.Version != 1)
             throw new InvalidDataException($"Invoklet's Secret Store ({path}) was written by a newer Invoklet.");
 
-        var value = store.Secrets?.FirstOrDefault(s => string.Equals(s.Key, name, StringComparison.OrdinalIgnoreCase)).Value;
+        var entry = store.Secrets?.FirstOrDefault(s => string.Equals(s.Key, name, StringComparison.OrdinalIgnoreCase)) ?? default;
+        var value = entry.Value;
         if (value is null) throw missing;
         switch (store.Protection)
         {
@@ -490,6 +494,19 @@ public static class Util
                 }
             case "DPAPI":
                 throw new InvalidDataException($"Invoklet's Secret Store ({path}) is encrypted for a Windows user and can't be read here.");
+            case SecretCipher.Protection:
+                if (Environment.GetEnvironmentVariable(SecretCipher.KeyEnvVar) is not { Length: > 0 } key)
+                    throw new InvalidOperationException(
+                        $"Invoklet's Secret Store ({path}) is encrypted with a key kept in the system keychain: run the script from Invoklet or the invoklet command line, which pass that key.");
+                try
+                {
+                    // The stored name, not the one asked for: the value is bound to it letter for letter.
+                    return SecretCipher.Decrypt(Convert.FromBase64String(key), entry.Key, value);
+                }
+                catch (Exception ex) when (ex is System.Security.Cryptography.CryptographicException or FormatException)
+                {
+                    throw new InvalidDataException($"Invoklet's Secret Store ({path}) doesn't match the key Invoklet passed, or is damaged.", ex);
+                }
             default:
                 throw new InvalidDataException($"Invoklet's Secret Store ({path}) uses an unknown protection ({store.Protection}).");
         }

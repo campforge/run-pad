@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Invoklet.Build.Core.Secrets;
 
 namespace Invoklet.Services.Secrets;
 
@@ -45,13 +46,18 @@ public interface ISecretStore
     /// <exception cref="SecretStoreConflictException">Another writer changed the file; nothing was written.</exception>
     /// <exception cref="SecretStoreBusyException">The file stayed in use; nothing was written.</exception>
     string Save(IReadOnlyList<Secret> secrets, string? expectedVersion);
+
+    /// <summary>Why the values are not encrypted on this machine, when they aren't; null otherwise.</summary>
+    string? Warning => null;
 }
 
 /// <summary>
-/// The store as one JSON file, by default <c>secrets.json</c> in Invoklet's data folder. On Windows each
-/// value is encrypted with DPAPI for the current user, as LINQPad's password manager does; on macOS
-/// and Linux the values are plain text in a file only its owner can read, like <c>~/.pgpass</c>.
-/// <c>INVOKLET_SECRETS_FILE</c> points Invoklet and its scripts at another file.
+/// The store as one JSON file, by default <c>secrets.json</c> in Invoklet's data folder, readable by its
+/// owner only. On Windows each value is encrypted with DPAPI for the current user, as LINQPad's
+/// password manager does; on macOS and Linux with a key kept in the system keychain
+/// (<see cref="SecretKeys"/>). Without a keychain (a Linux machine with no Secret Service) the values
+/// stay plain text and <see cref="Warning"/> says so. <c>INVOKLET_SECRETS_FILE</c> points Invoklet and
+/// its scripts at another file.
 /// </summary>
 /// <remarks>
 /// Invoklet.Runtime reads this file itself for <c>Util.GetSecret</c> (its own copy of the format, as
@@ -60,7 +66,7 @@ public interface ISecretStore
 public sealed class FileSecretStore : ISecretStore
 {
     /// <summary>Also read by <c>Util.GetSecret</c> in the script's process.</summary>
-    public const string FileEnvVar = "INVOKLET_SECRETS_FILE";
+    public const string FileEnvVar = SecretKeys.FileEnvVar;
 
     private const int FormatVersion = 1;
     private const string Dpapi = "DPAPI";
@@ -68,14 +74,46 @@ public sealed class FileSecretStore : ISecretStore
 
     private static readonly JsonSerializerOptions WriteOptions = new() { WriteIndented = true };
 
-    public FileSecretStore(string? filePath = null) => FilePath = filePath ?? DefaultPath();
+    private readonly ISecretKeySource? _keys;
+
+    /// <param name="filePath">The store's file; Invoklet's own store when null.</param>
+    /// <param name="keys">Where the encryption key is kept. Invoklet's own store uses the system
+    /// keychain; a store at a given path encrypts only with keys given here (or DPAPI on Windows).</param>
+    public FileSecretStore(string? filePath = null, ISecretKeySource? keys = null)
+    {
+        FilePath = filePath ?? DefaultPath();
+        _keys = keys ?? (filePath is null ? SecretKeys.Keychain : null);
+    }
 
     public string FilePath { get; }
 
-    public static string DefaultPath() =>
-        Environment.GetEnvironmentVariable(FileEnvVar) is { Length: > 0 } path
-            ? path
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Invoklet", "secrets.json");
+    public string? Warning { get; private set; }
+
+    public static string DefaultPath() => SecretKeys.DefaultStorePath();
+
+    /// <summary>
+    /// At start: encrypts a store left in plain text (by an Invoklet before encryption, or while the
+    /// keychain was unavailable) and passes the key to the scripts this process starts. A store that
+    /// can't be read is left for the Secret Store window and <c>Util.GetSecret</c> to report.
+    /// </summary>
+    public void PrepareForScripts()
+    {
+        if (_keys is null) return;
+        try
+        {
+            var snapshot = LoadSnapshot(); // exports the key of an encrypted store
+            if (SecretKeys.IsEncrypted(FilePath)) return;
+            if (snapshot.Secrets.Count > 0)
+            {
+                Save(snapshot.Secrets, snapshot.Version);
+                return;
+            }
+            // Nothing to encrypt yet: only see whether the keychain answers, creating no key.
+            try { _keys.Find(); }
+            catch (SecretKeyUnavailableException ex) { Warning = Unencrypted(ex); }
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { }
+    }
 
     public IReadOnlyList<Secret> Load() => LoadSnapshot().Secrets;
 
@@ -111,19 +149,40 @@ public sealed class FileSecretStore : ISecretStore
 
         var unprotect = file.Protection switch
         {
-            NoProtection => (Func<string, string>)(value => value),
-            Dpapi when OperatingSystem.IsWindows() => Unprotect,
+            NoProtection => (Func<string, string, string>)((_, value) => value),
+            Dpapi when OperatingSystem.IsWindows() => (_, value) => Unprotect(value),
             Dpapi => throw new InvalidDataException("The secret store is encrypted for a Windows user and can't be read here."),
+            SecretKeys.Protection => KeychainUnprotect(),
             _ => throw new InvalidDataException($"The secret store uses an unknown protection ({file.Protection})."),
         };
         try
         {
-            return new SecretStoreSnapshot([.. (file.Secrets ?? []).Select(pair => new Secret(pair.Key, unprotect(pair.Value!)))], VersionOf(bytes));
+            return new SecretStoreSnapshot([.. (file.Secrets ?? []).Select(pair => new Secret(pair.Key, unprotect(pair.Key, pair.Value!)))], VersionOf(bytes));
         }
         catch (Exception ex) when (ex is CryptographicException or FormatException)
         {
-            throw new InvalidDataException("The secret store is encrypted for another Windows user or is damaged.", ex);
+            throw new InvalidDataException(file.Protection == Dpapi
+                ? "The secret store is encrypted for another Windows user or is damaged."
+                : "The secret store doesn't match the key in the system keychain, or is damaged.", ex);
         }
+    }
+
+    // The key of a store encrypted with one, exported for the scripts this process starts.
+    private Func<string, string, string> KeychainUnprotect()
+    {
+        byte[]? key;
+        try
+        {
+            key = _keys?.Find();
+        }
+        catch (SecretKeyUnavailableException ex)
+        {
+            throw new InvalidDataException($"The secret store is encrypted, and its key can't be read: {ex.Message}", ex);
+        }
+        if (key is null)
+            throw new InvalidDataException("The secret store is encrypted with a key that isn't in this system keychain.");
+        SecretKeys.ExportForScripts(key);
+        return (name, value) => SecretKeys.Decrypt(key, name, value);
     }
 
     public string Save(IReadOnlyList<Secret> secrets, string? expectedVersion)
@@ -143,11 +202,14 @@ public sealed class FileSecretStore : ISecretStore
         if (!string.Equals(expectedVersion, currentVersion, StringComparison.Ordinal))
             throw new SecretStoreConflictException();
         var windows = OperatingSystem.IsWindows();
+        // Under the lock, so two Invoklets never create two keys for one store.
+        var key = KeyForSave(current is not null && SecretKeys.IsEncrypted(fullPath));
         var file = new StoreFile
         {
             Version = FormatVersion,
-            Protection = windows ? Dpapi : NoProtection,
-            Secrets = secrets.ToDictionary(s => s.Name, string? (s) => OperatingSystem.IsWindows() ? Protect(s.Value) : s.Value,
+            Protection = key is not null ? SecretKeys.Protection : windows ? Dpapi : NoProtection,
+            Secrets = secrets.ToDictionary(s => s.Name,
+                string? (s) => key is not null ? SecretKeys.Encrypt(key, s.Name, s.Value) : OperatingSystem.IsWindows() ? Protect(s.Value) : s.Value,
                 StringComparer.OrdinalIgnoreCase),
         };
         var bytes = JsonSerializer.SerializeToUtf8Bytes(file, WriteOptions);
@@ -166,6 +228,7 @@ public sealed class FileSecretStore : ISecretStore
                 stream.Flush(flushToDisk: true);
             }
             ReplaceStore(temp, fullPath);
+            if (key is not null) SecretKeys.ExportForScripts(key);
             return VersionOf(bytes);
         }
         finally
@@ -174,6 +237,30 @@ public sealed class FileSecretStore : ISecretStore
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
     }
+
+    // An encrypted store keeps its key: one that can't be read stops the save rather than replace
+    // values nobody could decrypt any more. A plain one gets a key, or stays plain without a keychain.
+    private byte[]? KeyForSave(bool encrypted)
+    {
+        if (_keys is null) return null;
+        if (encrypted)
+            return _keys.Find() ?? throw new SecretKeyUnavailableException(
+                "The secret store is encrypted with a key that isn't in this system keychain; nothing was written.");
+        try
+        {
+            var key = _keys.GetOrCreate();
+            Warning = null;
+            return key;
+        }
+        catch (SecretKeyUnavailableException ex)
+        {
+            Warning = Unencrypted(ex);
+            return null;
+        }
+    }
+
+    private static string Unencrypted(SecretKeyUnavailableException ex) =>
+        $"Secrets are saved unencrypted, readable by your user account only. {ex.Message}";
 
     // The file a store path finally points to, following symbolic links; the path itself otherwise.
     private static string StoreTarget(string path)
