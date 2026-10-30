@@ -33,9 +33,10 @@ public static class HtmlThemeStylesheet
         var dpDate = GetColor("Invoklet.Dump.DateTimeBrush", variant, isDark ? "#C8A0D4" : "#7B3FA0");
         var dpProp = GetColor("Invoklet.Dump.PropertyNameBrush", variant, isDark ? "#9CDCFE" : "#0F4A8A");
         var dpDumpBg = isDark ? "rgba(255,255,255,0.02)" : "transparent";
-        // A highlight is a marker pen: yellow with black text in every theme, so it reads the same on a dark and a light panel.
-        var highlightBg = isDark ? "#E6C84A" : "#FFF176";
-        const string highlightFg = "#000000";
+        // A highlight (Util.Highlight) is a marker pen of the theme: its own background and a text colour that reads on it, a yellow marker
+        // where the theme says nothing.
+        var highlightBg = GetColor("Invoklet.Dump.HighlightBrush", variant, isDark ? "#E6C84A" : "#FFE066");
+        var highlightFg = GetColor("Invoklet.Dump.HighlightForegroundBrush", variant, "#000000");
 
         // The HTML renderer has no overflow-wrap, so break-all is what lets a single long token fit.
         var preWrap = wrapLongLines ? " white-space:pre-wrap; word-break:break-all;" : "";
