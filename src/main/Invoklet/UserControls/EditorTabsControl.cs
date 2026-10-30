@@ -20,7 +20,7 @@ using ReactiveUI;
 
 namespace Invoklet.UserControls;
 
-public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost
+public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost, IActiveTabSource
 {
     private readonly Dictionary<EditorTabItemViewModel, (TabItem Tab, EditorsTabItemControl Control)> _tabs = new();
     private readonly TabLifecycleManager? _lifecycle;
@@ -268,129 +268,6 @@ public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost
             ctrl.ApplyTheme(theme);
     }
 
-    // ── Hotkey actions ─────────────────────────────────────────────────────────
-
-    public void RunOrContinueActive()
-    {
-        if (GetActiveControl() is not { } ctrl || _vm?.ActiveTab is not { } vm) return;
-        if (vm.EnableRunButton)
-        {
-            var platform = vm.SelectedSdk ?? vm.AvailableSdks.FirstOrDefault();
-            if (platform is not null)
-                _ = ctrl.RunAsync(vm.DebugModeEnabled, platform);
-        }
-        else if (vm.IsPaused)
-            ctrl.ResumeDebug(DebugAction.Continue);
-    }
-
-    public void ExecuteSelectionActive()
-    {
-        if (GetActiveControl() is not { } ctrl || _vm?.ActiveTab is not { } vm) return;
-        if ((vm.SelectedSdk ?? vm.AvailableSdks.FirstOrDefault()) is { } sdk)
-            _ = ctrl.RunSelectionAsync(sdk);
-    }
-
-    public void RestartActive()
-    {
-        if (GetActiveControl() is not { } ctrl || _vm?.ActiveTab is not { } vm) return;
-        if ((vm.SelectedSdk ?? vm.AvailableSdks.FirstOrDefault()) is { } sdk)
-            _ = ctrl.RestartAsync(sdk);
-    }
-
-    public void CancelActive()
-        => GetActiveControl()?.Cancel();
-
-    public void StepOverActive()
-    {
-        if (_vm?.ActiveTab?.IsPaused == true) GetActiveControl()?.ResumeDebug(DebugAction.StepOver);
-    }
-
-    public void StepInActive()
-    {
-        if (_vm?.ActiveTab?.IsPaused == true) GetActiveControl()?.ResumeDebug(DebugAction.StepIn);
-    }
-
-    public void StepOutActive()
-    {
-        if (_vm?.ActiveTab?.IsPaused == true) GetActiveControl()?.ResumeDebug(DebugAction.StepOut);
-    }
-
-    public void PauseActive()
-        => GetActiveControl()?.Pause();
-
-    public void RunToCursorActive()
-    {
-        if (_vm?.ActiveTab?.IsPaused == true) GetActiveControl()?.RunToCursor();
-    }
-
-    // The toolbar's bug button binds to the same flag.
-    public void ToggleDebugModeActive()
-    {
-        if (_vm?.ActiveTab is { } vm) vm.DebugModeEnabled = !vm.DebugModeEnabled;
-    }
-
-    public void ToggleOutputPanelActive()
-        => _vm?.ActiveTab?.OutputPanel.ToggleCommand.Execute().Subscribe();
-
-    public void TogglePreviewActive() => _vm?.ActiveTab?.TogglePreview();
-
-    public void TogglePreviewToSideActive() => _vm?.ActiveTab?.TogglePreviewToSide();
-
-    // View → Zoom changes the one code zoom every editor shares, also with no tab open.
-    public void ZoomInActive() => CodeZoom?.ZoomIn();
-
-    public void ZoomOutActive() => CodeZoom?.ZoomOut();
-
-    public void ResetZoomActive() => CodeZoom?.ResetCodeZoom();
-
-    private ViewScale? CodeZoom => _prefs is null ? null : ViewScale.For(_prefs);
-
-    // Explicit Save (Ctrl+S) — the gap a user hit as "IsDirty doesn't reset when I save" (2026-07-17):
-    // there was no actual Save action anywhere, only implicit saves (tab close/Run/etc.) or the
-    // always-dialog "Save As", so Ctrl+S out of muscle memory matched nothing and silently did
-    // nothing. A tab with a real path just writes in place (SaveIfNeeded — despite the name, it
-    // writes unconditionally whenever FilePath is set, IsDirty or not, which is exactly explicit-Save
-    // semantics); an untitled tab has nowhere to write to yet, so it falls through to the same
-    // Save As flow as the tab context menu — matching every other editor's Ctrl+S-on-untitled
-    // behavior.
-    public void SaveActive()
-    {
-        if (GetActiveControl() is not { } ctrl || _vm?.ActiveTab is not { } vm) return;
-        if (vm.FilePath is not null)
-            ctrl.SaveIfNeeded();
-        else
-            vm.SaveAsCommand.Execute().Subscribe();
-    }
-
-    // Ctrl+Shift+S — always opens the Save As dialog, even for a tab that already has a path, matching
-    // every other editor's "Save As" (as opposed to Ctrl+S/SaveActive above, which only falls through
-    // to the dialog for an untitled tab). Same vm.SaveAsCommand the tab's own context menu item uses
-    // (EditorTabItemControl.axaml) — this is just a second entry point to it.
-    public void SaveAsActive()
-    {
-        if (_vm?.ActiveTab is not { } vm || GetActiveControl() is null) return;
-        vm.SaveAsCommand.Execute().Subscribe();
-    }
-
-    // File → Revert to Saved: the active tab goes back to its file as it is on disk, asking first
-    // when that drops unsaved changes.
-    public void RevertActive() => _ = RevertActiveAsync();
-
-    internal async Task RevertActiveAsync()
-    {
-        if (_vm?.ActiveTab is not { FilePath: { } path } vm || GetActiveControl() is null || _windowService is null || _diskSync is null) return;
-        if (!TabDiskSync.CanReload(this, vm, path, vm.DiskState)) return;
-        var known = vm.DiskState;
-        if (!File.Exists(path))
-        {
-            await _windowService.ShowErrorAsync("Revert Failed", $"'{Path.GetFileName(path)}' no longer exists on disk.");
-            return;
-        }
-        if (vm.IsDirty && !await _windowService.ShowRevertFileDialogAsync(Path.GetFileName(path))) return;
-        if (_vm.ActiveTab != vm || !TabDiskSync.CanReload(this, vm, path, known)) return;
-        await _diskSync.ReloadAsync(this, vm, "Revert Failed");
-    }
-
     // ── Files changed by other programs ───────────────────────────────────────
 
     /// <summary>
@@ -398,26 +275,6 @@ public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost
     /// Runs when Invoklet's window is activated and when the scripts folder reports a change.
     /// </summary>
     public Task CheckFilesChangedOnDiskAsync() => _diskSync?.CheckAsync(this, _closed.Token) ?? Task.CompletedTask;
-
-    public void FormatActive()
-        => _ = GetActiveControl()?.FormatAsync();
-
-    // Ctrl+Alt+U — ReSharper-style "add all missing usings".
-    public void ResolveAllUsingsActive()
-        => _ = GetActiveControl()?.ResolveAllUsingsAsync();
-
-    public void GoToLineActive()
-        => GetActiveControl()?.ShowGoToLine();
-
-    // Ctrl+W's entry point — replaces the old direct vm.CloseActiveTab() call (MainWindow.axaml.cs)
-    // now that closing needs to go through the same confirmation as the tab's own [x] button below.
-    // Routed through the tab's own CloseCommand (real body: MainWindowViewModel.IEditorTabActions.
-    // CloseAsync) rather than a second, parallel way to trigger the same close flow.
-    public void CloseActiveTab()
-    {
-        if (_vm?.ActiveTab is not { } vm || GetActiveControl() is null) return;
-        vm.CloseCommand.Execute().Subscribe();
-    }
 
     // The per-tab confirmation above only fires when a
     // SPECIFIC tab is closed — quitting the whole app skipped it entirely. MainWindow's Closing

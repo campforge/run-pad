@@ -257,7 +257,7 @@ public class ExternalFileChangeReloadTests
         ctrl.State.Editor.Text = EditedHere + "\n";
         h.Windows.Setup(w => w.ShowRevertFileDialogAsync("demo.inv")).ReturnsAsync(revert);
 
-        await h.Tabs.RevertActiveAsync();
+        await h.Tabs.Commands.RevertAsync();
 
         h.Windows.Verify(w => w.ShowRevertFileDialogAsync("demo.inv"), Times.Once);
         Assert.Equal(revert ? Original : EditedHere, ctrl.State.Editor.Text.Trim());
@@ -271,7 +271,7 @@ public class ExternalFileChangeReloadTests
         var (vm, ctrl) = await h.OpenAsync();
         WriteExternally(h.Path, External);
 
-        await h.Tabs.RevertActiveAsync();
+        await h.Tabs.Commands.RevertAsync();
 
         h.Windows.Verify(w => w.ShowRevertFileDialogAsync(It.IsAny<string>()), Times.Never);
         Assert.Equal(External, ctrl.State.Editor.Text.Trim());
@@ -327,7 +327,7 @@ public class ExternalFileChangeReloadTests
         var saving = new TaskCompletionSource<InPlaceSaveResult>();
         h.Windows.Setup(w => w.ShowRevertFileDialogAsync(It.IsAny<string>()))
             .Returns(() => { vm.PendingSave = saving.Task; return Task.FromResult(true); });
-        await h.Tabs.RevertActiveAsync();
+        await h.Tabs.Commands.RevertAsync();
         Assert.Equal(EditedHere, ctrl.State.Editor.Text.Trim());
         vm.PendingSave = null;
     }

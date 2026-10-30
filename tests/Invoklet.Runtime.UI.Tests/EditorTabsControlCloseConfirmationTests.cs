@@ -21,7 +21,7 @@ namespace Invoklet.Runtime.UI.Tests;
 // to discard it silently — SaveIfNeeded is a no-op without a FilePath, so nothing about closing an
 // untitled tab ever asked first. MainWindowViewModel's IEditorTabActions.CloseAsync (the real body
 // behind EditorTabItemViewModel.CloseCommand — wired to both the tab's [x] button
-// and Ctrl+W, see EditorTabsControl.CloseActiveTab) now prompts Save/Don't Save/Cancel for that one
+// and Ctrl+W, see ActiveTabCommands.CloseTab) now prompts Save/Don't Save/Cancel for that one
 // specific case. These exercise the real close path end-to-end (a genuine EditorTabsControl +
 // EditorsTabItemControl + CodeTextEditor, not just the ViewModel-level flags) against a mocked
 // IWindowService, so the dialog's answer is scripted but everything downstream of it is real.
