@@ -154,7 +154,8 @@ public sealed class EditorTabsEditorServicesTests : IDisposable
             shell.Tabs.Remove(vm);
             Assert.True(csharp.Tokens[0].IsCancellationRequested);
             gate.Set();
-            await TestWait.WhileAsync(() => !honourCancellation && csharp.Created.Count == 0);
+            // The service is made first and disposed a moment later, by whoever finds the tab gone: wait for the dispose, not the creation.
+            await TestWait.WhileAsync(() => !honourCancellation && (csharp.Created.Count == 0 || csharp.Created[0].Invocations.Count == 0));
             Dispatcher.UIThread.RunJobs();
 
             Assert.Null(tabs.ControlForTests(vm));
