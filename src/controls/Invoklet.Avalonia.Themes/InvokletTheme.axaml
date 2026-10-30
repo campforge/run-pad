@@ -408,10 +408,10 @@
 
     <!-- List selections use the same subdued tool-surface treatment as panel tabs instead of the
          platform's saturated blue fill. Keep the text contrast from the theme. -->
-    <Style Selector="ListBoxItem:selected /template/ Border">
+    <!-- The row is drawn by the template's ContentPresenter, and Fluent restyles it for every state (selected, hovered, pressed),
+         so each of those states is named here or the platform's blue comes back under the pointer. -->
+    <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter, ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, ListBoxItem:selected:pressed /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource Invoklet.ToolTab.SelectedBackgroundBrush}"/>
-    </Style>
-    <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
         <Setter Property="Foreground" Value="{DynamicResource Invoklet.ToolTab.SelectedForegroundBrush}"/>
     </Style>
     <!-- Dropdown rows are rounded like menu items (PopupStyles). -->

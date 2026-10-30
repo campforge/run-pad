@@ -1,8 +1,12 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
+using Invoklet.Avalonia.Themes;
 using Invoklet.Services.QuickOpen;
 using Invoklet.Windows;
 using Xunit;
@@ -93,5 +97,34 @@ public class QuickOpenDialogTests
 
         Assert.Equal("visible", shown);
         Assert.Null(path);
+    }
+
+    // The selected row and the list use the colours of the application's theme, not the platform's blue and neutral grey.
+    [AvaloniaFact]
+    public void TheList_Should_UseTheThemesColours_ForTheSelectedRowAndTheBackground()
+    {
+        var theme = new InvokletTheme();
+        global::Avalonia.Application.Current!.Styles.Add(theme);
+        global::Avalonia.Application.Current!.RequestedThemeVariant = InvokletThemeVariants.InvokletMidnight;
+        var dialog = new QuickOpenDialog(Entries);
+        try
+        {
+            dialog.Show();
+            Dispatcher.UIThread.RunJobs();
+            var list = dialog.FindControl<ListBox>("ResultList")!;
+            var row = list.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.IsSelected);
+            var presenter = row.GetVisualDescendants().OfType<ContentPresenter>().First(p => p.Name == "PART_ContentPresenter");
+
+            Assert.True(theme.TryGetResource("Invoklet.ToolTab.SelectedBackgroundBrush", InvokletThemeVariants.InvokletMidnight, out var selected));
+            Assert.True(theme.TryGetResource("Invoklet.Editor.BackgroundBrush", InvokletThemeVariants.InvokletMidnight, out var background));
+            Assert.Equal(((ISolidColorBrush)selected!).Color, ((ISolidColorBrush)presenter.Background!).Color);
+            Assert.Equal(((ISolidColorBrush)background!).Color, ((ISolidColorBrush)list.Background!).Color);
+        }
+        finally
+        {
+            dialog.Close();
+            global::Avalonia.Application.Current!.RequestedThemeVariant = null;
+            global::Avalonia.Application.Current!.Styles.Remove(theme);
+        }
     }
 }
