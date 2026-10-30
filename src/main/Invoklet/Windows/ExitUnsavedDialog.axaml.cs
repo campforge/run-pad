@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Invoklet.Services;
@@ -16,16 +17,29 @@ public partial class ExitUnsavedDialog : InvokletDialogWindow
         : this()
     {
         Layout.Message = fileNames.Count == 1 ? "1 tab has unsaved changes." : $"{fileNames.Count} tabs have unsaved changes.";
-        var names = new StackPanel { Spacing = 4 };
+        var nameRows = new StackPanel { Spacing = 4 };
         foreach (var name in fileNames.Take(ListedNames))
         {
             var row = new TextBlock { Text = name, TextTrimming = TextTrimming.CharacterEllipsis };
             ToolTip.SetTip(row, name);
-            names.Children.Add(row);
+            nameRows.Children.Add(row);
         }
         if (fileNames.Count > ListedNames)
-            names.Children.Add(new TextBlock { Text = $"and {fileNames.Count - ListedNames} more" });
-        names.Children.Add(new TextBlock { Text = "Keep in Stash closes without writing the files; they reopen next time.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) });
+            nameRows.Children.Add(new TextBlock { Text = $"and {fileNames.Count - ListedNames} more" });
+
+        var names = new StackPanel { Spacing = 4 };
+        names.Children.Add(new ScrollViewer
+        {
+            Content = nameRows,
+            MaxHeight = 128,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+        });
+        names.Children.Add(new TextBlock
+        {
+            Text = "Keep changes in Stash and restore them next time.",
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 8, 0, 0),
+        });
         Layout.Body = names;
     }
 

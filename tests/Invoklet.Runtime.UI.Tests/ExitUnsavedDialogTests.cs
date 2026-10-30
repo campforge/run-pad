@@ -72,7 +72,9 @@ public class ExitUnsavedDialogTests
         {
             var layout = dialog.FindControl<DialogLayout>("Layout")!;
             Assert.Equal("7 tabs have unsaved changes.", layout.Message);
-            var rows = Assert.IsType<StackPanel>(layout.Body).Children.OfType<TextBlock>().ToList();
+            // The names scroll inside the window once there are many of them.
+            var scroller = Assert.IsType<ScrollViewer>(Assert.IsType<StackPanel>(layout.Body).Children.OfType<ScrollViewer>().Single());
+            var rows = Assert.IsType<StackPanel>(scroller.Content).Children.OfType<TextBlock>().ToList();
             Assert.Equal(names.Take(5), rows.Take(5).Select(t => t.Text));
             Assert.Equal("and 2 more", rows[5].Text);
             Assert.Equal("1 tab has unsaved changes.", new ExitUnsavedDialog(["only"]).FindControl<DialogLayout>("Layout")!.Message);

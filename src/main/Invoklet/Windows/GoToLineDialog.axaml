@@ -44,11 +44,11 @@
                         HorizontalAlignment="Right"
                         Spacing="{DynamicResource Invoklet.Space.Control}">
                 <Button Classes="primary" Content="OK"
-                        Width="80"
+                        MinWidth="{DynamicResource Invoklet.Size.DialogButton}"
                         Click="OkButton_Click"
                         IsDefault="True"/>
                 <Button Classes="secondary" Content="Cancel"
-                        Width="80"
+                        MinWidth="{DynamicResource Invoklet.Size.DialogButton}"
                         Click="CancelButton_Click"
                         IsCancel="True"/>
             </StackPanel>
