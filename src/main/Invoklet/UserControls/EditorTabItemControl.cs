@@ -52,6 +52,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private SquiggleRenderer? _squiggleRenderer;
     private CancellationTokenSource? _debugTooltipCloseCts;
     private CancellationTokenSource? _quickInfoCts;
+    private CancellationTokenSource? _navigationCts;
     private CancellationTokenSource? _refactoringCts;
     private EventHandler? _refactoringCaretHandler;
     private EventHandler? _intelliSenseTextChangedHandler;
@@ -865,6 +866,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var schemaWarmupCts = Interlocked.Exchange(ref _connectionSchemaWarmupCts, null);
         schemaWarmupCts?.Cancel();
         _quickInfoCts?.Cancel();
+        _navigationCts?.Cancel();
         _debugTooltipCloseCts?.Cancel();
         if (_debugValuePopup is { } debugValuePopup)
         {
@@ -1260,6 +1262,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // ── Private ───────────────────────────────────────────────────────────────
 
+    // A new navigation request replaces the one still running, as does closing the tab. Not disposed, like
+    // _quickInfoCts: the replaced request may still be reading its token.
+    private CancellationToken BeginNavigation()
+    {
+        _navigationCts?.Cancel();
+        _navigationCts = new CancellationTokenSource();
+        return _navigationCts.Token;
+    }
+
     private SymbolNavigator Navigator(IIntelliSenseService intelliSense)
         => new(intelliSense, _windowService, CSharpDecompilerService.Decompile);
 
@@ -1272,13 +1283,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private async void OnFindReferencesRequested(object? sender, EventArgs e)
     {
         if (_disposed || _intelliSense is null) return;
-        await RunUiActionAsync(() => Navigator(_intelliSense).FindReferencesAsync(new EditorNavigationTarget(State.Editor)), "Find references");
+        await RunUiActionAsync(() => Navigator(_intelliSense).FindReferencesAsync(new EditorNavigationTarget(State.Editor), BeginNavigation()), "Find references");
     }
 
     private async void OnGoToDefinitionRequested(object? sender, EventArgs e)
     {
         if (_disposed || _intelliSense is null) return;
-        await RunUiActionAsync(() => Navigator(_intelliSense).GoToDefinitionAsync(new EditorNavigationTarget(State.Editor)), "Go to definition");
+        await RunUiActionAsync(() => Navigator(_intelliSense).GoToDefinitionAsync(new EditorNavigationTarget(State.Editor), BeginNavigation()), "Go to definition");
     }
 
     private async Task RunUiActionAsync(Func<Task> action, string operation)

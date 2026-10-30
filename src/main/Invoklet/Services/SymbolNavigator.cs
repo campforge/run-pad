@@ -23,19 +23,22 @@ internal interface INavigationTarget
 /// <summary>
 /// Go to Definition / Go to Implementation and Find References of the symbol under the caret. Implementations
 /// come first when the symbol has any; a definition in the script is a jump, one outside it is decompiled
-/// (or taken from the source generated for it) and shown in the assembly explorer.
+/// (or taken from the source generated for it) and shown in the assembly explorer. A cancelled request ends with
+/// <see cref="OperationCanceledException"/> before it acts on the editor or opens a window, so a request that was
+/// replaced, or whose tab closed, leaves nothing behind.
 /// </summary>
 internal sealed class SymbolNavigator(
     IIntelliSenseService intelliSense,
     IWindowService windows,
     Func<IDefinitionResult, DecompiledMemberResult> decompile)
 {
-    public async Task GoToDefinitionAsync(INavigationTarget target)
+    public async Task GoToDefinitionAsync(INavigationTarget target, CancellationToken cancellationToken)
     {
         var text = target.Text;
         var caretOffset = target.CaretOffset;
 
-        var implementations = await intelliSense.GetImplementationsAsync(text, caretOffset, CancellationToken.None);
+        var implementations = await intelliSense.GetImplementationsAsync(text, caretOffset, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         if (implementations is { Count: > 0 })
         {
             if (implementations.Count == 1) target.JumpTo(implementations[0].Offset);
@@ -43,7 +46,8 @@ internal sealed class SymbolNavigator(
             return;
         }
 
-        var definition = await intelliSense.GetDefinitionAsync(text, caretOffset, CancellationToken.None);
+        var definition = await intelliSense.GetDefinitionAsync(text, caretOffset, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         if (definition is null) return;
 
         if (definition.IsInSource)
@@ -64,21 +68,23 @@ internal sealed class SymbolNavigator(
         DecompiledMemberResult decompiled;
         try
         {
-            decompiled = await Task.Run(() => decompile(definition));
+            decompiled = await Task.Run(() => decompile(definition), cancellationToken);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             decompiled = new DecompiledMemberResult($"// Failed to decompile: {ex.Message}", 1, definition.DisplayName);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         await windows.ShowDefinitionInAssemblyExplorerAsync(decompiled, definition);
     }
 
     // The same set of occurrences the highlight-occurrences feature computes: in a single-file scratchpad
     // the references of a symbol and its highlights are the same, they are only shown differently.
-    public async Task FindReferencesAsync(INavigationTarget target)
+    public async Task FindReferencesAsync(INavigationTarget target, CancellationToken cancellationToken)
     {
-        var highlights = await intelliSense.GetDocumentHighlightsAsync(target.Text, target.CaretOffset, CancellationToken.None);
+        var highlights = await intelliSense.GetDocumentHighlightsAsync(target.Text, target.CaretOffset, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         if (highlights is { Count: > 0 }) target.ShowReferences(highlights);
     }
 }
