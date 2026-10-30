@@ -1022,111 +1022,42 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // from under them (File.Delete/File.Move only ever touch a single file, not a whole subtree, so
     // this has no equivalent in the plain-file case below).
     // Completes at once unless a tab has to be saved first and the user is asked about it.
-    public Task DeleteFile(string filePath) => TrackWorkspaceOperation(() => DeleteFileCoreAsync(filePath));
-
-    private async Task DeleteFileCoreAsync(string filePath)
-    {
-        // Directory.Exists/File.Delete are NOT interchangeable — File.Delete on a directory path
-        // throws (silently swallowed below, before this fix), so a folder never actually left disk
-        // even though the tree acted like it had.
-        var isDirectory = _disk.IsDirectory(filePath);
-
-        // Affected tabs — the file itself, or (for a folder) every tab nested inside it.
-        // They're flushed first (a failed write aborts the delete) and only closed once the delete
-        // actually succeeded, so a failed delete leaves the very same tabs (editor state included)
-        // open instead of closing and reloading them from disk.
-        var affectedTabs = FindAffectedTabs(filePath, isDirectory);
-        if (!await TrySaveTabsBeforeFileOperationAsync(affectedTabs, "Delete Failed")) return;
-
-        try
-        {
-            _disk.Delete(filePath, isDirectory);
-        }
-        catch (Exception ex)
-        {
-            // Report instead of the previous silent catch-and-ignore — a failed delete used to leave
-            // the tree acting like the folder/file was gone while it was still on disk, with no way
-            // to tell why.
-            _ = _windowService.ShowErrorAsync(
-                "Delete Failed", $"Could not delete '{Path.GetFileName(filePath)}':\n{ex.Message}");
-            return;
-        }
-
-        foreach (var tab in affectedTabs)
-            CloseTab(tab);
-        FileTree.RemoveByPath(filePath);
-    }
+    public Task DeleteFile(string filePath) => TrackWorkspaceOperation(() => FileOperations.DeleteAsync(filePath));
 
     public Task RenameFile(string filePath, string newName)
-    {
-        // Directory.Exists/File.Move are NOT interchangeable — File.Move on a directory path throws,
-        // so renaming a folder always failed before this fix.
-        // A folder's own name has no extension to preserve (unlike a .inv file's).
-        var newPath = FileTreePaths.Renamed(filePath, newName, _disk.IsDirectory(filePath));
+        => TrackWorkspaceOperation(() => FileOperations.RenameAsync(filePath, newName));
 
-        return MoveOrRenameOnDisk(filePath, newPath, "Rename Failed", "rename", $"to '{Path.GetFileName(newPath)}'");
-    }
-
-    // File tree drag-and-drop — moves a node into a different folder (or the tree's
-    // root, contextPath null), reusing the exact same target-directory resolution CreateFolderAsync/
-    // CreateFileAsync already use (ResolveParentDir) — dropping onto a folder node moves INSIDE it,
-    // onto a file node moves alongside it (same parent), onto empty tree space moves to the root. A
-    // no-op (not an error) if that resolves to the node's own current parent — that's what dropping a
-    // node back onto where it already lives looks like; dropping a folder onto its own descendant is
-    // still a real error (Directory.Move already throws a sensible message for that on its own, no
-    // separate check needed).
+    // File tree drag-and-drop: a node dropped on a folder moves inside it, on a file alongside it, on empty
+    // space to the root of the tree.
     public Task MoveFileOrFolder(string sourcePath, string? contextPath)
+        => TrackWorkspaceOperation(() => FileOperations.MoveAsync(sourcePath, contextPath));
+
+    private FileTreeOperations FileOperations
+        => new(_disk, _windowService, new FileOperationTabs(this), new FileTreeSurface(this), TreePaths);
+
+    // The tabs and the tree as the file operations see them.
+    private sealed class FileOperationTabs(MainWindowViewModel owner) : IFileOperationTabs
     {
-        var targetDir = ResolveParentDir(contextPath);
-        var newPath = FileTreePaths.Moved(sourcePath, targetDir);
+        public IReadOnlyList<string> OpenPaths => [.. owner._openTabs.Keys];
 
-        if (FileTreePaths.IsSamePlace(newPath, sourcePath))
-            return Task.CompletedTask;
+        public Task<bool> SaveAsync(IReadOnlyList<string> paths, string errorTitle)
+            => owner.TrySaveTabsBeforeFileOperationAsync(paths.Select(p => owner._openTabs[p]).ToList(), errorTitle);
 
-        return MoveOrRenameOnDisk(sourcePath, newPath, "Move Failed", "move", $"into '{Path.GetFileName(targetDir)}'");
-    }
-
-    // Shared by RenameFile (same directory, new name) and MoveFileOrFolder (new directory, same
-    // name). Affected tab(s) are flushed to the OLD path first (a failed write aborts
-    // the operation), and only closed/reopened at the new path once the move succeeded — a failed
-    // move leaves the very same tabs open rather than closing and reloading them from disk.
-    private Task MoveOrRenameOnDisk(
-        string sourcePath, string newPath, string errorTitle, string errorVerb, string errorDestinationPhrase)
-        => TrackWorkspaceOperation(() => MoveOrRenameCoreAsync(sourcePath, newPath, errorTitle, errorVerb, errorDestinationPhrase));
-
-    private async Task MoveOrRenameCoreAsync(
-        string sourcePath, string newPath, string errorTitle, string errorVerb, string errorDestinationPhrase)
-    {
-        var isDirectory = _disk.IsDirectory(sourcePath);
-
-        var affectedTabs = FindAffectedTabs(sourcePath, isDirectory);
-        if (!await TrySaveTabsBeforeFileOperationAsync(affectedTabs, errorTitle)) return;
-
-        try
+        public void Close(IReadOnlyList<string> paths)
         {
-            _disk.Move(sourcePath, newPath, isDirectory);
-        }
-        catch (Exception ex)
-        {
-            _ = _windowService.ShowErrorAsync(
-                errorTitle,
-                $"Could not {errorVerb} '{Path.GetFileName(sourcePath)}' {errorDestinationPhrase}:\n{ex.Message}");
-            return;
+            // A tab the user closed while a save was being decided is already gone.
+            foreach (var path in paths)
+                if (owner._openTabs.TryGetValue(path, out var tab)) owner.CloseTab(tab);
         }
 
-        RefreshNodes();
-
-        var oldPaths = affectedTabs.Select(t => t.FilePath!).ToList();
-        foreach (var tab in affectedTabs)
-            CloseTab(tab);
-        foreach (var oldPath in oldPaths)
-            OpenTab(FileTreePaths.Reopened(sourcePath, newPath, oldPath, isDirectory));
+        public void Open(string path) => owner.OpenTab(path);
     }
 
-    // The tab open on `path` itself plus, for a folder, every tab nested inside it.
-    private List<EditorTabItemViewModel> FindAffectedTabs(string path, bool isDirectory)
+    private sealed class FileTreeSurface(MainWindowViewModel owner) : IFileTreeSurface
     {
-        return [.. TreePaths.AffectedPaths(_openTabs.Keys, path, isDirectory).Select(p => _openTabs[p])];
+        public void Remove(string path) => owner.FileTree.RemoveByPath(path);
+
+        public void Refresh() => owner.RefreshNodes();
     }
 
     // Creates a new folder next to whatever's selected in the file tree — INSIDE the
