@@ -27,6 +27,12 @@ exec "$HERE/usr/bin/Invoklet" "$@"
 APPRUN
 chmod +x "$APPDIR/AppRun"
 
+# NuGet extracts packages with the executable bit for the owner only (mode 0744), and publish copies the
+# modes as they are. An AppImage is run by other users, and appimagetool refuses to pack an AppDir whose
+# files are not readable, and executable where the owner can execute them, for everyone. Directories get
+# the search bit and files that are already executable for someone the bit for all.
+chmod -R a+rX "$APPDIR"
+
 mkdir -p "$OUTPUT_DIR"
 ARCH=x86_64 "$APPIMAGETOOL" "$APPDIR" "$OUTPUT_DIR/Invoklet-x86_64.AppImage"
 

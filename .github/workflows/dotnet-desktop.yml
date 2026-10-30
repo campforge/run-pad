@@ -254,7 +254,7 @@ jobs:
       - name: ⬇️ Download appimagetool
         if: github.event_name == 'push'
         run: |
-          curl -sL "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" -o /tmp/appimagetool
+          curl -fsSL "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" -o /tmp/appimagetool
           chmod +x /tmp/appimagetool
 
       - name: 🧳 Bundle AppImage (linux-x64)
