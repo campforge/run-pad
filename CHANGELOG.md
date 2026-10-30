@@ -7,9 +7,11 @@ Notable changes in each Invoklet release. Downloads are on the
 
 ### Added
 
-- Quick Open (File → Quick Open…, Ctrl+, or Cmd+P on macOS) opens a script by name: type part of the name or the first
+- Quick Open (File → Quick Open…, Ctrl+,) opens a script by name: type part of the name or the first
   letters of its words, choose with the arrow keys and press Enter. The scripts folder and the recent files are searched,
   and the recent ones come first.
+- Logging can be turned down or off in Preferences → Logging: Off, Fatal errors only (crashes of Invoklet itself), Errors,
+  Warnings, Information (as before) or Debug. The change takes effect at once, and with logging off no log file is made.
 
 ## [0.10.5] — 2026-10-30
 

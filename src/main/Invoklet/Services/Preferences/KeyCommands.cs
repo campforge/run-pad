@@ -27,8 +27,8 @@ public static class KeyCommands
 
     public static readonly KeyCommand NewFile = new("file.new", General, "New File", "Ctrl+N", "Cmd+N");
     public static readonly KeyCommand OpenFile = new("file.open", General, "Open Script", "Ctrl+O", "Cmd+O");
-    // Cmd+, belongs to Preferences on macOS; VS Code's Cmd+P is the Quick Open key there.
-    public static readonly KeyCommand QuickOpen = new("file.quickOpen", General, "Quick Open", "Ctrl+,", "Cmd+P");
+    // Ctrl+, on macOS too (LINQPad's key, and Cmd+, is Preferences there); a different key can be set in Preferences → Keyboard.
+    public static readonly KeyCommand QuickOpen = new("file.quickOpen", General, "Quick Open", "Ctrl+,");
     public static readonly KeyCommand Save = new("file.save", General, "Save", "Ctrl+S", "Cmd+S");
     public static readonly KeyCommand SaveAs = new("file.saveAs", General, "Save As", "Ctrl+Shift+S", "Cmd+Shift+S");
     public static readonly KeyCommand RevertFile = new("file.revert", General, "Revert to Saved", "");

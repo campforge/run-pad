@@ -22,6 +22,7 @@ public sealed class PreferencesService : IPreferencesService
     public LayoutSettings Layout => _settings.Layout;
     public SessionSettings Session => _settings.Session;
     public ExperimentalSettings Experimental => _settings.Experimental;
+    public LoggingSettings Logging => _settings.Logging;
     public Dictionary<string, bool> System => _settings.System;
 
     public event Action? Changed;

@@ -79,6 +79,11 @@ public class App : Application
         var serviceProvider = ConfigureServices();
         _serviceProvider = serviceProvider;
 
+        // Preferences → Logging takes effect at once.
+        var preferences = serviceProvider.GetRequiredService<IPreferencesService>();
+        var logSwitch = serviceProvider.GetRequiredService<LogLevelSwitch>();
+        preferences.Changed += () => logSwitch.Apply(preferences.Logging.Level);
+
         ILogger logger = serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger<App>();
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
             logger.LogCritical(e.ExceptionObject as Exception, "Unhandled exception (IsTerminating: {IsTerminating})", e.IsTerminating);
@@ -328,21 +333,13 @@ public class App : Application
         return provider;
     }
 
+    // The level is read from the settings file before anything is logged and then followed while Invoklet runs; see LogLevelSwitch.
+    private static readonly LogLevelSwitch LogSwitch = new(PreferencesService.ReadForStartup().Logging.Level);
+
     private static void AddLogging(ServiceCollection services)
     {
         var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Invoklet", "logs");
-        Directory.CreateDirectory(logDir);
-        services.AddLogging(lb =>
-        {
-            lb.AddConsole();
-            lb.AddProvider(new FileLoggerProvider(Path.Combine(logDir)));
-            // Debug-level logging includes DAP traffic and snippets of the user's own script code —
-            // fine for a debug build, too invasive to write to disk unconditionally in a release one.
-#if DEBUG
-            lb.SetMinimumLevel(LogLevel.Debug);
-#else
-            lb.SetMinimumLevel(LogLevel.Information);
-#endif
-        });
+        services.AddLogging(lb => AppLogging.Configure(lb, LogSwitch, new FileLoggerProvider(logDir)));
+        services.AddSingleton(LogSwitch);
     }
 }

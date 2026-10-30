@@ -246,6 +246,20 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
+                <StackPanel IsVisible="{Binding IsLoggingSelected}" Spacing="6">
+                    <TextBlock Text="Logging:" FontWeight="SemiBold"
+                               ToolTip.Tip="What Invoklet writes about its own work to its log files and console. Output of your scripts is never part of it."/>
+                    <ComboBox ItemsSource="{Binding LogVerbosityChoices}"
+                              SelectedItem="{Binding SelectedLogVerbosity}"
+                              MinWidth="360"/>
+                    <TextBlock Text="Takes effect at once. Fatal errors only keeps just the failures Invoklet cannot go on after; Off writes nothing and makes no log file."
+                               TextWrapping="Wrap"
+                               Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+                    <TextBlock Text="{Binding LogFolder, StringFormat='Log files: {0}'}"
+                               TextWrapping="Wrap"
+                               Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+                </StackPanel>
+
                 <StackPanel IsVisible="{Binding IsExperimentalSelected}" Spacing="6">
                     <TextBlock Text="Experimental:" FontWeight="SemiBold"
                                ToolTip.Tip="Features that work but are not finished yet. They are off by default and may change or go away."/>
