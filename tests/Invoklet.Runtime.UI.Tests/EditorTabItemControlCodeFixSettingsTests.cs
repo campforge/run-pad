@@ -64,7 +64,7 @@ public class EditorTabItemControlCodeFixSettingsTests
         var buildCache = new Mock<IBuildCacheService>();
 
         var ctrl = new EditorsTabItemControl(vm, MakeTheme().Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
-            intelliSense, buildCache.Object);
+            intelliSense, buildCache.Object, timings: NoPauses.Timings);
         var host = new Window { Content = ctrl };
         host.Show();
 
@@ -141,8 +141,8 @@ public class EditorTabItemControlCodeFixSettingsTests
             (IReadOnlyList<ICodeFixInfo>)[new FakeCodeFixInfo(2, "Add using System;", DiagnosticSeverity.Warning, "fix-key", "CS0246")]);
         editor.TextArea.Caret.Offset = 3;
 
-        // Give both the diagnostic-fix handler and the refactoring debounce (400ms) time to run.
-        await Task.Delay(600);
+        // With no debounce a refactoring request, were one made, would be made at once: a moment is enough for both handlers.
+        await Task.Delay(150, TestContext.Current.CancellationToken);
 
         Assert.Empty(margin.Fixes);
         intelliSense.Verify(

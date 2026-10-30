@@ -107,7 +107,8 @@ public class EditorTabItemControlPreviewTests
         // take the mouse wheel.
         theme.Setup(t => t.GetBrush(It.IsAny<string>())).Returns(Brushes.Black);
         var ctrl = new EditorsTabItemControl(vm, theme.Object, new Mock<IWindowService>().Object,
-            new Mock<ILanguageHostRegistry>().Object, prefs.Object, intelliSense: null, new Mock<IBuildCacheService>().Object);
+            new Mock<ILanguageHostRegistry>().Object, prefs.Object, intelliSense: null, new Mock<IBuildCacheService>().Object,
+            timings: NoPauses.Timings);
         window = new Window { Width = 1000, Height = 400, Content = ctrl };
         window.Show();
         return (ctrl, vm);
