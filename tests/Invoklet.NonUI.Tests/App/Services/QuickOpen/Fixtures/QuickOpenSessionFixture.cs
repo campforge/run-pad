@@ -9,7 +9,10 @@ internal sealed class QuickOpenSessionFixture
         QuickOpenMatcherFixture.Entry("Alpha"),
         QuickOpenMatcherFixture.Entry("Beta", recentRank: 0),
         QuickOpenMatcherFixture.Entry("Gamma"),
+        QuickOpenMatcherFixture.Entry("Sample One", kind: QuickOpenKind.Sample),
     ];
+
+    public static QuickOpenEntry Other { get; } = QuickOpenMatcherFixture.Entry("notes.md", kind: QuickOpenKind.OtherFile);
 
     public QuickOpenSession CreateSut() => new(Entries);
 }

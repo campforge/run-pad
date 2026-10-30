@@ -24,7 +24,7 @@ public static class QuickOpenMatcher
             return [.. entries
                 .OrderBy(e => e.RecentRank < 0 ? int.MaxValue : e.RecentRank)
                 .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(e => e.Path, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(e => e.Target, StringComparer.OrdinalIgnoreCase)
                 .Take(limit)];
         }
 
@@ -34,7 +34,7 @@ public static class QuickOpenMatcher
             .OrderByDescending(x => x.Score)
             .ThenBy(x => x.Entry.Name.Length)
             .ThenBy(x => x.Entry.Name, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(x => x.Entry.Path, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Entry.Target, StringComparer.OrdinalIgnoreCase)
             .Select(x => x.Entry)
             .Take(limit)];
     }

@@ -3,6 +3,8 @@ using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -19,17 +21,26 @@ public class QuickOpenDialogTests
 {
     private static readonly QuickOpenEntry[] Entries =
     [
-        new("/s/Alpha.inv", "Alpha", "", -1),
-        new("/s/Beta.inv", "Beta", "", 0),
-        new("/s/Gamma.inv", "Gamma", "sales", -1),
+        new(QuickOpenKind.Script, "/s/Alpha.inv", "Alpha", "", -1, new DateTime(2026, 10, 30, 9, 15, 0)),
+        new(QuickOpenKind.Script, "/s/Beta.inv", "Beta", "", 0),
+        new(QuickOpenKind.Script, "/s/Gamma.inv", "Gamma", "sales", -1),
+        new(QuickOpenKind.Sample, "quick-start.inv", "Quick start", "Getting started", -1),
     ];
 
-    private static async Task<string?> UseAsync(Action<QuickOpenDialog> act)
+    private static readonly QuickOpenEntry Notes = new(QuickOpenKind.OtherFile, "/s/notes.md", "notes.md", "", -1);
+
+    private static QuickOpenContent Content(string textOfGamma = "nothing here") => new(
+        Entries,
+        _ => Task.FromResult<IReadOnlyList<QuickOpenEntry>>([Notes]),
+        (entry, _) => Task.FromResult<string?>(entry.Name == "Gamma" ? textOfGamma : "text"),
+        "Ctrl+,");
+
+    private static async Task<QuickOpenEntry?> UseAsync(Action<QuickOpenDialog> act, QuickOpenContent? content = null)
     {
         var owner = new Window();
         owner.Show();
-        var dialog = new QuickOpenDialog(Entries);
-        var result = dialog.ShowDialog<string?>(owner);
+        var dialog = new QuickOpenDialog(content ?? Content());
+        var result = dialog.ShowDialog<QuickOpenEntry?>(owner);
         Dispatcher.UIThread.RunJobs();
         act(dialog);
         Dispatcher.UIThread.RunJobs();
@@ -42,15 +53,15 @@ public class QuickOpenDialogTests
     [AvaloniaFact]
     public async Task TheBox_Should_ListTheRecentScriptFirstAndOpenItOnEnter()
     {
-        var path = await UseAsync(d => d.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None));
+        var chosen = await UseAsync(d => d.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None));
 
-        Assert.Equal("/s/Beta.inv", path);
+        Assert.Equal("/s/Beta.inv", chosen!.Target);
     }
 
     [AvaloniaFact]
     public async Task Typing_Should_NarrowTheList_AndEnterOpensTheMatch()
     {
-        var path = await UseAsync(d =>
+        var chosen = await UseAsync(d =>
         {
             d.FindControl<TextBox>("QueryBox")!.Text = "gam";
             Dispatcher.UIThread.RunJobs();
@@ -58,13 +69,13 @@ public class QuickOpenDialogTests
             d.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
         });
 
-        Assert.Equal("/s/Gamma.inv", path);
+        Assert.Equal("/s/Gamma.inv", chosen!.Target);
     }
 
     [AvaloniaFact]
     public async Task TheArrows_Should_MoveTheSelection_WhileTheTextBoxKeepsTheFocus()
     {
-        var path = await UseAsync(d =>
+        var chosen = await UseAsync(d =>
         {
             d.KeyPressQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None);
             Dispatcher.UIThread.RunJobs();
@@ -72,22 +83,22 @@ public class QuickOpenDialogTests
             d.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
         });
 
-        Assert.Equal("/s/Alpha.inv", path);
+        Assert.Equal("/s/Alpha.inv", chosen!.Target);
     }
 
     [AvaloniaFact]
     public async Task Escape_Should_CloseTheBoxWithoutAScript()
     {
-        var path = await UseAsync(d => d.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None));
+        var chosen = await UseAsync(d => d.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None));
 
-        Assert.Null(path);
+        Assert.Null(chosen);
     }
 
     [AvaloniaFact]
     public async Task NothingMatching_Should_ShowAMessage_AndEnterOpensNothing()
     {
         string? shown = null;
-        var path = await UseAsync(d =>
+        var chosen = await UseAsync(d =>
         {
             d.FindControl<TextBox>("QueryBox")!.Text = "zzz";
             Dispatcher.UIThread.RunJobs();
@@ -96,7 +107,7 @@ public class QuickOpenDialogTests
         });
 
         Assert.Equal("visible", shown);
-        Assert.Null(path);
+        Assert.Null(chosen);
     }
 
     // The selected row and the list use the colours of the application's theme, not the platform's blue and neutral grey.
@@ -106,7 +117,7 @@ public class QuickOpenDialogTests
         var theme = new InvokletTheme();
         global::Avalonia.Application.Current!.Styles.Add(theme);
         global::Avalonia.Application.Current!.RequestedThemeVariant = InvokletThemeVariants.InvokletMidnight;
-        var dialog = new QuickOpenDialog(Entries);
+        var dialog = new QuickOpenDialog(Content());
         try
         {
             dialog.Show();
@@ -126,5 +137,155 @@ public class QuickOpenDialogTests
             global::Avalonia.Application.Current!.RequestedThemeVariant = null;
             global::Avalonia.Application.Current!.Styles.Remove(theme);
         }
+    }
+
+    private static string[] Names(QuickOpenDialog d)
+        => [.. d.FindControl<ListBox>("ResultList")!.Items.OfType<QuickOpenEntry>().Select(e => e.Name)];
+
+    [AvaloniaFact]
+    public async Task TheTitle_Should_NameTheKey()
+    {
+        string? title = null;
+        await UseAsync(d => title = d.FindControl<TextBlock>("TitleText")!.Text);
+
+        Assert.Equal("Quick Open (Ctrl+,)", title);
+    }
+
+    [AvaloniaFact]
+    public async Task TheSamples_Should_BeListedWithMyScripts_AndEitherCanBeSwitchedOff()
+    {
+        string[]? both = null, withoutScripts = null, withoutSamples = null;
+        await UseAsync(d =>
+        {
+            both = Names(d);
+            d.FindControl<CheckBox>("ScriptsCheck")!.IsChecked = false;
+            Dispatcher.UIThread.RunJobs();
+            withoutScripts = Names(d);
+            d.FindControl<CheckBox>("ScriptsCheck")!.IsChecked = true;
+            d.FindControl<CheckBox>("SamplesCheck")!.IsChecked = false;
+            Dispatcher.UIThread.RunJobs();
+            withoutSamples = Names(d);
+        });
+
+        Assert.Equal(["Beta", "Alpha", "Gamma", "Quick start"], both!);
+        Assert.Equal(["Quick start"], withoutScripts!);
+        Assert.Equal(["Beta", "Alpha", "Gamma"], withoutSamples!);
+    }
+
+    [AvaloniaFact]
+    public async Task TheOtherFiles_Should_AppearOnlyAfterTheyAreIncluded()
+    {
+        string[]? before = null, after = null;
+        await UseAsync(d =>
+        {
+            before = Names(d);
+            d.FindControl<CheckBox>("OtherFilesCheck")!.IsChecked = true;
+            Dispatcher.UIThread.RunJobs();
+        });
+        // The files are listed by a task; wait for it in the second dialog, where the check is made after the pump.
+        var owner = new Window();
+        owner.Show();
+        var dialog = new QuickOpenDialog(Content());
+        _ = dialog.ShowDialog<QuickOpenEntry?>(owner);
+        Dispatcher.UIThread.RunJobs();
+        dialog.FindControl<CheckBox>("OtherFilesCheck")!.IsChecked = true;
+        for (var i = 0; i < 200 && !Names(dialog).Contains("notes.md"); i++)
+        {
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+            Dispatcher.UIThread.RunJobs();
+        }
+        after = Names(dialog);
+        dialog.Close(null);
+        owner.Close();
+
+        Assert.DoesNotContain("notes.md", before!);
+        Assert.Contains("notes.md", after);
+    }
+
+    [AvaloniaFact]
+    public async Task TheClearButton_Should_AppearWithText_AndEmptyTheBox()
+    {
+        bool? visibleEmpty = null, visibleTyped = null;
+        string? afterClear = null;
+        await UseAsync(d =>
+        {
+            var clear = d.FindControl<Button>("ClearButton")!;
+            visibleEmpty = clear.IsVisible;
+            d.FindControl<TextBox>("QueryBox")!.Text = "gam";
+            Dispatcher.UIThread.RunJobs();
+            visibleTyped = clear.IsVisible;
+            clear.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+            afterClear = d.FindControl<TextBox>("QueryBox")!.Text;
+        });
+
+        Assert.False(visibleEmpty);
+        Assert.True(visibleTyped);
+        Assert.Equal("", afterClear);
+    }
+
+    [AvaloniaFact]
+    public async Task TheOpenButton_Should_OpenTheSelectedRow_AndCancelClosesWithoutOne()
+    {
+        var opened = await UseAsync(d =>
+            d.FindControl<Button>("OpenButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));
+        var cancelled = await UseAsync(d =>
+            d.GetLogicalDescendants().OfType<Button>().Single(b => (string?)b.Content == "Cancel")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));
+
+        Assert.Equal("/s/Beta.inv", opened!.Target);
+        Assert.Null(cancelled);
+    }
+
+    [AvaloniaFact]
+    public async Task TheOpenButton_Should_BeDisabled_WhenNothingMatches()
+    {
+        bool? enabled = null;
+        await UseAsync(d =>
+        {
+            d.FindControl<TextBox>("QueryBox")!.Text = "zzz";
+            Dispatcher.UIThread.RunJobs();
+            enabled = d.FindControl<Button>("OpenButton")!.IsEnabled;
+        });
+
+        Assert.False(enabled);
+    }
+
+    [AvaloniaFact]
+    public async Task SearchInside_Should_AddTheScriptsWhoseTextHoldsWhatWasTyped()
+    {
+        var owner = new Window();
+        owner.Show();
+        var dialog = new QuickOpenDialog(Content(textOfGamma: "var needle = 1;"));
+        _ = dialog.ShowDialog<QuickOpenEntry?>(owner);
+        Dispatcher.UIThread.RunJobs();
+        dialog.FindControl<CheckBox>("SearchInsideCheck")!.IsChecked = true;
+        dialog.FindControl<TextBox>("QueryBox")!.Text = "needle";
+        string[] names = [];
+        for (var i = 0; i < 300 && !names.Contains("Gamma"); i++)
+        {
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+            Dispatcher.UIThread.RunJobs();
+            names = Names(dialog);
+        }
+        dialog.Close(null);
+        owner.Close();
+
+        Assert.Equal(["Gamma"], names);
+    }
+
+    [AvaloniaFact]
+    public async Task TheRows_Should_ShowTheFolderAndTheLastModified()
+    {
+        string? modified = null, folder = null;
+        await UseAsync(d =>
+        {
+            var texts = d.GetVisualDescendants().OfType<TextBlock>().Select(b => b.Text).ToList();
+            modified = texts.FirstOrDefault(x => x is not null && x.Contains("2026", StringComparison.Ordinal));
+            folder = texts.FirstOrDefault(x => x == "sales");
+        });
+
+        Assert.NotNull(modified);
+        Assert.Equal("sales", folder);
     }
 }

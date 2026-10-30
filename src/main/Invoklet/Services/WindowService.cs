@@ -101,10 +101,10 @@ public sealed class WindowService : IWindowService
         return file is null ? null : file.TryGetLocalPath();
     }
 
-    public async Task<string?> ShowQuickOpenAsync(IReadOnlyList<Invoklet.Services.QuickOpen.QuickOpenEntry> entries)
+    public async Task<Invoklet.Services.QuickOpen.QuickOpenEntry?> ShowQuickOpenAsync(Invoklet.Services.QuickOpen.QuickOpenContent content)
     {
         if (MainWindow is not { } owner) return null;
-        return await new QuickOpenDialog(entries).ShowDialog<string?>(owner);
+        return await new QuickOpenDialog(content).ShowDialog<Invoklet.Services.QuickOpen.QuickOpenEntry?>(owner);
     }
 
     public async Task<string?> ShowOpenScriptFileDialogAsync(string startFolder)

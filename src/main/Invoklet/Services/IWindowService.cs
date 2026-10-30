@@ -31,8 +31,8 @@ public interface IWindowService
     /// </summary>
     Task<string?> ShowSaveFileDialogAsync(string suggestedFileName, string startFolder);
 
-    /// <summary>Quick Open: the box that narrows <paramref name="entries"/> as the user types; the chosen path, or null when closed without one.</summary>
-    Task<string?> ShowQuickOpenAsync(IReadOnlyList<Invoklet.Services.QuickOpen.QuickOpenEntry> entries);
+    /// <summary>Quick Open: the box that narrows what it is given as the user types; the chosen entry, or null when closed without one.</summary>
+    Task<Invoklet.Services.QuickOpen.QuickOpenEntry?> ShowQuickOpenAsync(Invoklet.Services.QuickOpen.QuickOpenContent content);
 
     /// <summary>Native picker for a local .inv script; null on cancellation.</summary>
     Task<string?> ShowOpenScriptFileDialogAsync(string startFolder);

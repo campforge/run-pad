@@ -15,7 +15,7 @@ internal sealed class MainWindowViewModelQuickOpenFixture : IDisposable
 
     public Mock<IWindowService> Windows { get; } = new();
 
-    public IReadOnlyList<QuickOpenEntry>? Shown { get; private set; }
+    public QuickOpenContent? Shown { get; private set; }
 
     public string ScriptPath { get; }
 
@@ -25,7 +25,7 @@ internal sealed class MainWindowViewModelQuickOpenFixture : IDisposable
         File.WriteAllText(ScriptPath, "");
     }
 
-    public MainWindowViewModel CreateSut(string? choice)
+    public MainWindowViewModel CreateSut(QuickOpenEntry? choice)
     {
         var fileSystem = new Mock<IFileSystemService>();
         fileSystem.Setup(f => f.Folder).Returns(_folder.FullName);
@@ -35,8 +35,8 @@ internal sealed class MainWindowViewModelQuickOpenFixture : IDisposable
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
         prefs.Setup(p => p.Session).Returns(new SessionSettings());
         prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
-        Windows.Setup(w => w.ShowQuickOpenAsync(It.IsAny<IReadOnlyList<QuickOpenEntry>>()))
-            .Callback<IReadOnlyList<QuickOpenEntry>>(entries => Shown = entries)
+        Windows.Setup(w => w.ShowQuickOpenAsync(It.IsAny<QuickOpenContent>()))
+            .Callback<QuickOpenContent>(content => Shown = content)
             .ReturnsAsync(choice);
         return new MainWindowViewModel(
             sdkProviders: [],
@@ -45,6 +45,8 @@ internal sealed class MainWindowViewModelQuickOpenFixture : IDisposable
             prefs: prefs.Object,
             languageRegistry: new LanguageHostRegistry());
     }
+
+    public QuickOpenEntry ScriptEntry => new(QuickOpenKind.Script, ScriptPath, "Report", "", -1);
 
     public void Dispose() => _folder.Delete(recursive: true);
 }

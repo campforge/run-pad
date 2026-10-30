@@ -7,9 +7,10 @@ Notable changes in each Invoklet release. Downloads are on the
 
 ### Added
 
-- Quick Open (File → Quick Open…, Ctrl+,) opens a script by name: type part of the name or the first
-  letters of its words, choose with the arrow keys and press Enter. The scripts folder and the recent files are searched,
-  and the recent ones come first.
+- Quick Open (File → Quick Open…, Ctrl+,) opens a script by name. Type part of the name or the first letters of its words;
+  the list shows each script with its folder and when it was last changed, the recent ones first. It searches your scripts and
+  the bundled samples (each can be switched off), and with "Search inside" it also finds scripts by their text; "Include
+  other file types" adds the other files of the scripts folder, which open in the text editor.
 - Logging can be turned down or off in Preferences → Logging: Off, Fatal errors only (crashes of Invoklet itself), Errors,
   Warnings, Information (as before) or Debug. The change takes effect at once, and with logging off no log file is made.
 

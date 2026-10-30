@@ -1,4 +1,5 @@
 using Invoklet.Services;
+using Invoklet.Services.Examples;
 using Invoklet.Services.QuickOpen;
 using Xunit;
 
@@ -21,7 +22,7 @@ public sealed class QuickOpenCatalogTests
         var tree = new[] { File(P("a.inv")), Dir(P("sales"), File(P("sales", "q1.inv"))) };
 
         // Act
-        var entries = QuickOpenCatalog.Build(tree, Root, [], _ => true, StringComparer.Ordinal);
+        var entries = QuickOpenCatalog.Scripts(tree, Root, [], _ => true, StringComparer.Ordinal, _ => null);
 
         // Assert
         Assert.Equal("", entries.Single(e => e.Name == "a").Folder);
@@ -35,7 +36,7 @@ public sealed class QuickOpenCatalogTests
         var tree = new[] { File(P("a.inv")), File(P("notes.txt")), File(P("b.linq")) };
 
         // Act
-        var entries = QuickOpenCatalog.Build(tree, Root, [], _ => true, StringComparer.Ordinal);
+        var entries = QuickOpenCatalog.Scripts(tree, Root, [], _ => true, StringComparer.Ordinal, _ => null);
 
         // Assert
         Assert.Equal(["a"], entries.Select(e => e.Name));
@@ -48,7 +49,7 @@ public sealed class QuickOpenCatalogTests
         var tree = new[] { File(P("a.inv")), File(P("b.inv")), File(P("c.inv")) };
 
         // Act
-        var entries = QuickOpenCatalog.Build(tree, Root, [P("c.inv"), P("a.inv")], _ => true, StringComparer.Ordinal);
+        var entries = QuickOpenCatalog.Scripts(tree, Root, [P("c.inv"), P("a.inv")], _ => true, StringComparer.Ordinal, _ => null);
 
         // Assert
         Assert.Equal(0, entries.Single(e => e.Name == "c").RecentRank);
@@ -63,7 +64,7 @@ public sealed class QuickOpenCatalogTests
         var outside = Path.GetFullPath("/elsewhere/tools/x.inv");
 
         // Act
-        var entries = QuickOpenCatalog.Build([], Root, [outside], _ => true, StringComparer.Ordinal);
+        var entries = QuickOpenCatalog.Scripts([], Root, [outside], _ => true, StringComparer.Ordinal, _ => null);
 
         // Assert
         Assert.Equal(Path.GetDirectoryName(outside), Assert.Single(entries).Folder);
@@ -76,7 +77,7 @@ public sealed class QuickOpenCatalogTests
         var gone = P("gone.inv");
 
         // Act
-        var entries = QuickOpenCatalog.Build([], Root, [gone], _ => false, StringComparer.Ordinal);
+        var entries = QuickOpenCatalog.Scripts([], Root, [gone], _ => false, StringComparer.Ordinal, _ => null);
 
         // Assert
         Assert.Empty(entries);
@@ -89,7 +90,7 @@ public sealed class QuickOpenCatalogTests
         var tree = new[] { File(P("a.inv")) };
 
         // Act
-        var entries = QuickOpenCatalog.Build(tree, Root, [P("a.inv")], _ => true, StringComparer.Ordinal);
+        var entries = QuickOpenCatalog.Scripts(tree, Root, [P("a.inv")], _ => true, StringComparer.Ordinal, _ => null);
 
         // Assert
         Assert.Single(entries);
@@ -102,9 +103,59 @@ public sealed class QuickOpenCatalogTests
         var tree = new[] { new FileSystemItem("empty", true, P("empty"), null) };
 
         // Act
-        var entries = QuickOpenCatalog.Build(tree, Root, [], _ => true, StringComparer.Ordinal);
+        var entries = QuickOpenCatalog.Scripts(tree, Root, [], _ => true, StringComparer.Ordinal, _ => null);
 
         // Assert
         Assert.Empty(entries);
+    }
+
+    [Fact]
+    public void Scripts_TheLastWriteTimeIsAsked_ForEachScript()
+    {
+        // Arrange
+        var written = new DateTime(2026, 10, 30, 12, 0, 0);
+        var tree = new[] { File(P("a.inv")) };
+
+        // Act
+        var entries = QuickOpenCatalog.Scripts(tree, Root, [], _ => true, StringComparer.Ordinal, _ => written);
+
+        // Assert
+        Assert.Equal(written, Assert.Single(entries).Modified);
+    }
+
+    [Fact]
+    public void Samples_AreListedByTheirTitleAndFolder_WithoutAPath()
+    {
+        // Arrange
+        var examples = new[]
+        {
+            new ExampleScript("quick-start.inv", "Quick start", "text", Invoklet.Format.MdRun.MdRunLanguage.CSharp, Invoklet.Format.MdRun.MdRunKind.Statements, "getting-started"),
+        };
+
+        // Act
+        var entries = QuickOpenCatalog.Samples(examples);
+
+        // Assert
+        var sample = Assert.Single(entries);
+        Assert.Equal(QuickOpenKind.Sample, sample.Kind);
+        Assert.Equal("quick-start.inv", sample.Target);
+        Assert.Equal("Quick start", sample.Name);
+        Assert.Equal("Getting started", sample.Folder);
+        Assert.Null(sample.Modified);
+    }
+
+    [Fact]
+    public void OtherFiles_AreListedWithTheirExtension_AndScriptsAreLeftOut()
+    {
+        // Arrange
+        var paths = new[] { P("notes.md"), P("a.inv"), P("sales", "q1.csv") };
+
+        // Act
+        var entries = QuickOpenCatalog.OtherFiles(paths, Root, _ => null);
+
+        // Assert
+        Assert.Equal(["notes.md", "q1.csv"], entries.Select(e => e.Name));
+        Assert.All(entries, e => Assert.Equal(QuickOpenKind.OtherFile, e.Kind));
+        Assert.Equal("sales", entries.Single(e => e.Name == "q1.csv").Folder);
     }
 }

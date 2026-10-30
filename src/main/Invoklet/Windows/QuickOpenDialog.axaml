@@ -4,8 +4,8 @@
         x:Class="Invoklet.Windows.QuickOpenDialog"
         Icon="/Assets/icon.ico"
         Title="Quick Open"
-        Width="560" Height="420"
-        MinWidth="360" MinHeight="260"
+        Width="900" Height="560"
+        MinWidth="640" MinHeight="360"
         CanResize="False"
         SizeToContent="Manual"
         WindowStartupLocation="CenterOwner"
@@ -21,50 +21,113 @@
         </ResourceDictionary>
     </Window.Resources>
 
+    <Window.Styles>
+        <!-- The rows draw their own columns, so the header above them can line up with them. -->
+        <Style Selector="ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="MinHeight" Value="26"/>
+        </Style>
+    </Window.Styles>
+
     <Border x:Name="DialogSurface" Background="{DynamicResource Invoklet.Panel.BackgroundBrush}"
             BorderBrush="{DynamicResource Invoklet.Border.BackgroundBrush}"
             BorderThickness="1"
             CornerRadius="{DynamicResource Invoklet.Radius.Overlay}"
             Padding="12">
-        <Grid RowDefinitions="Auto,*,Auto">
+        <Grid RowDefinitions="Auto,Auto,*,Auto">
 
-            <TextBox x:Name="QueryBox"
-                     Grid.Row="0"
-                     PlaceholderText="Type the name of a script"
-                     Margin="0,0,0,8"/>
-
-            <ListBox x:Name="ResultList"
-                     Grid.Row="1"
-                     Background="{DynamicResource Invoklet.Editor.BackgroundBrush}"
-                     BorderBrush="{DynamicResource Invoklet.Border.BackgroundBrush}"
-                     BorderThickness="1"
-                     CornerRadius="{DynamicResource Invoklet.Radius.Control}">
-                <ListBox.ItemTemplate>
-                    <DataTemplate x:DataType="quickOpen:QuickOpenEntry">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="{Binding Name}"/>
-                            <TextBlock Text="{Binding Folder}"
-                                       Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"
-                                       FontSize="{DynamicResource Invoklet.Type.Caption}"
-                                       VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-
-            <TextBlock x:Name="EmptyText"
-                       Grid.Row="1"
-                       Text="No script matches"
-                       IsVisible="False"
+            <TextBlock x:Name="TitleText"
+                       Grid.Row="0"
                        HorizontalAlignment="Center"
-                       VerticalAlignment="Center"
-                       Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,10"/>
 
-            <TextBlock Grid.Row="2"
-                       Margin="0,8,0,0"
-                       Text="Enter opens, Esc closes"
-                       FontSize="{DynamicResource Invoklet.Type.Caption}"
-                       Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
+                <TextBox x:Name="QueryBox"
+                         Grid.Column="0"
+                         PlaceholderText="Search scripts">
+                    <TextBox.InnerRightContent>
+                        <Button x:Name="ClearButton"
+                                IsVisible="False"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                MinHeight="0" MinWidth="0"
+                                Padding="6"
+                                Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"
+                                AutomationProperties.Name="Clear the search"
+                                Click="ClearButton_Click">
+                            <PathIcon Data="{StaticResource Icon.Close}" Width="10" Height="10"/>
+                        </Button>
+                    </TextBox.InnerRightContent>
+                </TextBox>
+                <CheckBox x:Name="ScriptsCheck" Grid.Column="1" Content="My scripts" IsChecked="True" Margin="16,0,0,0"/>
+                <CheckBox x:Name="SamplesCheck" Grid.Column="2" Content="Samples" IsChecked="True" Margin="12,0,0,0"/>
+            </Grid>
+
+            <Grid Grid.Row="2" RowDefinitions="Auto,*">
+                <Border Grid.Row="0"
+                        Background="{DynamicResource Invoklet.Toolbar.BackgroundBrush}"
+                        BorderBrush="{DynamicResource Invoklet.Border.BackgroundBrush}"
+                        BorderThickness="1,1,1,0"
+                        CornerRadius="{DynamicResource Invoklet.Radius.Control}">
+                    <Grid ColumnDefinitions="30,*,*,160" Height="26"
+                          TextElement.Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}">
+                        <TextBlock Grid.Column="1" Text="Name" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="Location" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="3" Text="Last Modified" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <ListBox x:Name="ResultList"
+                         Grid.Row="1"
+                         Background="{DynamicResource Invoklet.Editor.BackgroundBrush}"
+                         BorderBrush="{DynamicResource Invoklet.Border.BackgroundBrush}"
+                         BorderThickness="1"
+                         CornerRadius="{DynamicResource Invoklet.Radius.Control}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="quickOpen:QuickOpenEntry">
+                            <Grid ColumnDefinitions="30,*,*,160">
+                                <Path Grid.Column="0"
+                                      Width="12" Height="14"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"
+                                      Stretch="Fill"
+                                      Opacity="0.55"
+                                      Fill="{DynamicResource Invoklet.Text.PrimaryBrush}"
+                                      Data="M1,0 L7.5,0 L11,3.5 L11,14 L1,14 Z M7.5,0 L7.5,3.5 L11,3.5 Z"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Grid.Column="2" Text="{Binding Folder}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                           Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+                                <TextBlock Grid.Column="3" Text="{Binding ModifiedText}" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <TextBlock x:Name="EmptyText"
+                           Grid.Row="1"
+                           Text="No script matches"
+                           IsVisible="False"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+            </Grid>
+
+            <Grid Grid.Row="3" ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="0,10,0,0">
+                <CheckBox x:Name="SearchInsideCheck" Grid.Column="0" Content="Search inside"
+                          ToolTip.Tip="Also find the scripts whose text contains what you typed."/>
+                <CheckBox x:Name="OtherFilesCheck" Grid.Column="1" Content="Include other file types" Margin="16,0,0,0"
+                          ToolTip.Tip="Also list the other files of the scripts folder; they open in the text editor."/>
+                <Button Grid.Column="3" Classes="secondary" Content="Cancel"
+                        MinWidth="{DynamicResource Invoklet.Size.DialogButton}"
+                        Click="CancelButton_Click"
+                        IsCancel="True"/>
+                <Button x:Name="OpenButton" Grid.Column="4" Classes="primary" Content="Open"
+                        Margin="{DynamicResource Invoklet.Space.ControlLeft}"
+                        MinWidth="{DynamicResource Invoklet.Size.DialogButton}"
+                        Click="OpenButton_Click"
+                        IsDefault="True"/>
+            </Grid>
 
         </Grid>
     </Border>
