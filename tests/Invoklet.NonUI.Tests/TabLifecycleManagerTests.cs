@@ -248,6 +248,75 @@ public sealed class TabLifecycleManagerTests
     }
 
     [Fact]
+    public async Task WhenIdleAsync_ARestoreIsUnderway_CompletesWhenItDoes()
+    {
+        // Arrange
+        var fixture = new TabLifecycleManagerFixture();
+        var sut = fixture.CreateSut();
+        var tabs = Open(fixture, sut, "a", "b");
+        var view = fixture.Views[tabs[0]];
+        view.Released = true;
+        view.RestoreGate = new TaskCompletionSource<bool>();
+        fixture.Active = tabs[0];
+        sut.Activated(tabs[0]);
+
+        // Act
+        var idle = sut.WhenIdleAsync();
+        var completedEarly = idle.IsCompleted;
+        view.RestoreGate.SetResult(true);
+        await idle.WaitAsync(Limit, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.False(completedEarly);
+        Assert.True(sut.IsContentLoaded(tabs[0]));
+    }
+
+    [Fact]
+    public async Task WhenIdleAsync_AnotherRestoreStartsWhileWaiting_WaitsForThatOneToo()
+    {
+        // Arrange
+        var fixture = new TabLifecycleManagerFixture();
+        var sut = fixture.CreateSut();
+        var tabs = Open(fixture, sut, "a", "b", "c");
+        var first = fixture.Views[tabs[0]];
+        var second = fixture.Views[tabs[1]];
+        first.Released = second.Released = true;
+        first.RestoreGate = new TaskCompletionSource<bool>();
+        second.RestoreGate = new TaskCompletionSource<bool>();
+        fixture.Active = tabs[0];
+        sut.Activated(tabs[0]);
+        var idle = sut.WhenIdleAsync();
+
+        // Act
+        fixture.Active = tabs[1];
+        sut.Activated(tabs[1]); // begins after WhenIdleAsync was called
+        first.RestoreGate.SetResult(true);
+        await Task.Yield();
+        var completedAfterTheFirst = idle.IsCompleted;
+        second.RestoreGate.SetResult(true);
+        await idle.WaitAsync(Limit, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.False(completedAfterTheFirst);
+        Assert.True(sut.IsContentLoaded(tabs[1]));
+    }
+
+    [Fact]
+    public async Task WhenIdleAsync_NothingIsBeingRestored_IsAlreadyComplete()
+    {
+        // Arrange
+        var fixture = new TabLifecycleManagerFixture();
+        var sut = fixture.CreateSut();
+        Open(fixture, sut, "a", "b");
+
+        // Act
+        await sut.WhenIdleAsync().WaitAsync(Limit, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(sut.WhenIdleAsync().IsCompleted);
+    }
+
+    [Fact]
     public async Task EnsureContentAsync_ClosedTab_DoesNothing()
     {
         // Arrange

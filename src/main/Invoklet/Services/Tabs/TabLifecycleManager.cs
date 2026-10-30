@@ -91,6 +91,27 @@ public sealed class TabLifecycleManager
         return RestoreAsync(tab, entry);
     }
 
+    /// <summary>
+    /// Completes once no tab is being brought back, the release that follows each restore included. A restore that
+    /// starts while this waits is waited for too; one that starts after it has completed is not its concern.
+    /// </summary>
+    internal async Task WhenIdleAsync()
+    {
+        while (true)
+        {
+            var running = _entries.Values.Select(e => e.Restoring).Where(t => t is { IsCompleted: false }).Select(t => t!).ToList();
+            if (running.Count == 0) return;
+            try
+            {
+                await Task.WhenAll(running);
+            }
+            catch (Exception)
+            {
+                // A failed restore has reported itself; being idle only means it is over.
+            }
+        }
+    }
+
     /// <summary>Releases the content of the tabs the policy gives up and colours only the tab being looked at.</summary>
     internal void Rebalance()
     {

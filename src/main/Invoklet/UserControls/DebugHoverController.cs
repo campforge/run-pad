@@ -3,12 +3,15 @@ using Invoklet.Services;
 
 namespace Invoklet.UserControls;
 
-internal sealed class DebugHoverController : IDisposable, IDebugHoverSource
+internal sealed class DebugHoverController(TimeSpan? evaluateTimeout = null, TimeSpan? childTimeout = null)
+    : IDisposable, IDebugHoverSource
 {
     public const int MaxChildren = 100;
     // Hovering evaluates on its own, so it gives up fast; expanding a member is asked for, so it waits longer.
-    public static readonly TimeSpan EvaluateTimeout = TimeSpan.FromMilliseconds(500);
-    public static readonly TimeSpan ChildTimeout = TimeSpan.FromSeconds(3);
+    public static readonly TimeSpan DefaultEvaluateTimeout = TimeSpan.FromMilliseconds(500);
+    public static readonly TimeSpan DefaultChildTimeout = TimeSpan.FromSeconds(3);
+    private readonly TimeSpan _evaluateTimeout = evaluateTimeout ?? DefaultEvaluateTimeout;
+    private readonly TimeSpan _childTimeout = childTimeout ?? DefaultChildTimeout;
     private CancellationTokenSource? _pending;
     private long _generation;
     private bool _disposed;
@@ -50,7 +53,7 @@ internal sealed class DebugHoverController : IDisposable, IDebugHoverSource
     {
         if (variable.VariablesReference == 0) return [];
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(ChildTimeout);
+        timeout.CancelAfter(_childTimeout);
         var children = await context.GetChildrenAsync(variable.VariablesReference, timeout.Token).ConfigureAwait(false);
         return children.Take(MaxChildren).ToArray();
     }
@@ -60,7 +63,7 @@ internal sealed class DebugHoverController : IDisposable, IDebugHoverSource
     {
         if (!IsSafeHoverExpression(expression)) return null;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(EvaluateTimeout);
+        timeout.CancelAfter(_evaluateTimeout);
         return await context.EvaluateAsync(expression, timeout.Token).ConfigureAwait(false);
     }
 

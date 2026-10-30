@@ -3,6 +3,21 @@
 Notable changes in each Invoklet release. Downloads are on the
 [releases page](https://github.com/tervforge/invoklet/releases).
 
+## [0.10.3] — 2026-10-30
+
+### Changed
+
+- Go to Definition and Find References now use the same navigation behavior for source symbols,
+  generated connection code, implementations and library members.
+- Completion and hover processing cancel obsolete requests when the text or active tab changes,
+  keeping suggestions and diagnostics aligned with the current editor content.
+
+### Fixed
+
+- Hover diagnostics now use the positions captured with the hovered text, so editing the document
+  while a tooltip is being prepared cannot attach an old diagnostic to a new location.
+- Closing a tab or replacing a navigation request no longer leaves the previous request running.
+
 ## [0.10.2] — 2026-10-30
 
 ### Changed
@@ -887,4 +902,5 @@ better choice. RunPad began as DotPad two days after the last commit to the fork
 [0.10.0]: https://github.com/tervforge/invoklet/releases/tag/v0.10.0
 [0.10.1]: https://github.com/tervforge/invoklet/releases/tag/v0.10.1
 [0.10.2]: https://github.com/tervforge/invoklet/releases/tag/v0.10.2
+[0.10.3]: https://github.com/tervforge/invoklet/releases/tag/v0.10.3
 [0.9.5]: https://github.com/tervforge/invoklet/releases/tag/v0.9.5

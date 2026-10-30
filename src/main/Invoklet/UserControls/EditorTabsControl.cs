@@ -250,6 +250,8 @@ public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost,
             ctrl?.SetHighlightingActive(ReferenceEquals(tabVm, _vm?.ActiveTab));
     }
 
+    internal Task IdleForTests() => _lifecycle?.WhenIdleAsync() ?? Task.CompletedTask;
+
     internal bool IsLoadedForTests(EditorTabItemViewModel vm) => _lifecycle?.IsContentLoaded(vm) ?? HasControl(vm);
 
     // A tab's text could not be brought back from disk: it stays empty and read-only, and saving it fails,

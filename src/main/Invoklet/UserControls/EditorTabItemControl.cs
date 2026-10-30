@@ -521,53 +521,45 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (_contentReleased && !await TryRestoreContentAsync()) return;
         var stopGeneration = _run.StopGeneration;
 
-        // Never run an invalid .inv as raw code — the editor holds the whole file
-        // (front matter + Markdown) there, not a script.
-        if (s.DocumentParseError is { } parseError)
+        // The checks before the run; see RunPreflight.
+        var preflight = await new RunPreflight().CheckAsync(
+            new RunPreflightInput(s.DocumentParseError, _vm.FilePath, selection is not null),
+            async () =>
+            {
+                _run.BeginSaving();
+                try
+                {
+                    return await SaveWithResultAsync();
+                }
+                finally
+                {
+                    _run.EndSaving();
+                }
+            },
+            () => _disposed || _run.RestartRequested || _run.IsStoppedSince(stopGeneration),
+            () => MdRunArguments.Resolve(s.MdRunDocument?.FrontMatter).Error);
+        switch (preflight)
         {
-            s.Output.Clear();
-            s.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(InvalidDocumentMessage(parseError))}</div>");
-            SetStatus("Invalid document", "Invoklet.Status.ErrorBrush");
-            UpdateOutputUi();
-            return;
-        }
-
-        // A script is saved before it runs, like any save: a file changed by another program is only
-        // replaced on the user's choice, and a save that doesn't happen (cancelled, a Save As that
-        // didn't save, a failed write) means no run — nothing below has started yet. A Save As that
-        // did save runs the script from its new file. An untitled script runs without being saved.
-        if (selection is null && _vm.FilePath is { } path)
-        {
-            InPlaceSaveResult saved;
-            _run.BeginSaving();
-            try
-            {
-                saved = await SaveWithResultAsync();
-            }
-            finally
-            {
-                _run.EndSaving();
-            }
-            if (_disposed || _run.RestartRequested || _run.IsStoppedSince(stopGeneration)) return;
-            if (saved.Status == InPlaceSaveStatus.Failed)
-            {
+            case RunBlockedByInvalidDocument invalid:
                 s.Output.Clear();
-                AppendError(new IOException($"Cannot save '{Path.GetFileName(path)}': {saved.Error.Replace('\n', ' ')}"));
+                s.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(InvalidDocumentMessage(invalid.ParseError))}</div>");
+                SetStatus("Invalid document", "Invoklet.Status.ErrorBrush");
                 UpdateOutputUi();
                 return;
-            }
-            if (saved.Status != InPlaceSaveStatus.Saved) return;
-        }
-
-        // A selected argument set the script no longer has: say so rather than run with other arguments.
-        if (MdRunArguments.Resolve(s.MdRunDocument?.FrontMatter).Error is { } argumentsError)
-        {
-            s.Output.Clear();
-            s.HadRunError = true;
-            s.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(argumentsError)}</div>");
-            SetStatus("Error", "Invoklet.Status.ErrorBrush");
-            UpdateOutputUi();
-            return;
+            case RunBlockedBySaveFailure failure:
+                s.Output.Clear();
+                AppendError(new IOException($"Cannot save '{failure.FileName}': {failure.Error.Replace('\n', ' ')}"));
+                UpdateOutputUi();
+                return;
+            case RunBlockedByArguments arguments:
+                s.Output.Clear();
+                s.HadRunError = true;
+                s.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(arguments.Message)}</div>");
+                SetStatus("Error", "Invoklet.Status.ErrorBrush");
+                UpdateOutputUi();
+                return;
+            case not RunMayProceed:
+                return;
         }
 
         // Stop can be requested while the pre-run checks are completing. Do not create or expose
@@ -615,6 +607,36 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 if (!_disposed && _run.IsCurrent(generation)) action();
             });
+        }
+
+        // The events a host reports, on its own thread: the stage is kept synchronously, while this host still owns
+        // the generation (a late callback must not mutate the next run's diagnostic context), the rest is posted.
+        void HandleHostEvent(ILanguageHost host, HostExecutionEvent @event)
+        {
+            if (@event is HostExecutionEvent.Stage stage)
+            {
+                if (_run.IsCurrent(generation) && ReferenceEquals(s.RunningHost, host))
+                    Volatile.Write(ref _runStageValue, (int)stage.Value);
+                PostRun(() => ShowRunStage(stage.Value, stage.Detail), host);
+                return;
+            }
+
+            PostRun(() =>
+            {
+                switch (@event)
+                {
+                    case HostExecutionEvent.Compiled compiled:
+                        UpdateIlOutput(compiled.BinaryPath, generation);
+                        RefreshIntelliSensePackages();
+                        break;
+                    case HostExecutionEvent.Output output:
+                        AppendOutput(output.Data, output.Kind);
+                        break;
+                    case HostExecutionEvent.InputRequested input:
+                        ShowInputPrompt(input.Prompt, input.IsPassword);
+                        break;
+                }
+            }, host);
         }
 
         var cancelled = false;
@@ -667,75 +689,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                         PostRun(() => OnBreakpointHit(ctx), host);
                     host.BreakpointVerified += (bp, verified, message) =>
                         PostRun(() => OnBreakpointVerified(bp, verified, message), host);
-                    var hostResult = await HostExecutionAdapter.DebugAsync(host, script, @event =>
-                    {
-                        if (@event is HostExecutionEvent.Stage stage)
-                        {
-                            // Keep failure-stage selection synchronous, but only while this host
-                            // still owns the active generation; a late callback must not mutate the
-                            // next run's diagnostic context.
-                            if (_run.IsCurrent(generation) && ReferenceEquals(s.RunningHost, host))
-                                Volatile.Write(ref _runStageValue, (int)stage.Value);
-                            PostRun(() =>
-                            {
-                                ShowRunStage(stage.Value, stage.Detail);
-                            }, host);
-                            return;
-                        }
-
-                        PostRun(() =>
-                        {
-                            switch (@event)
-                            {
-                                case HostExecutionEvent.Compiled compiled:
-                                    UpdateIlOutput(compiled.BinaryPath, generation);
-                                    RefreshIntelliSensePackages();
-                                    break;
-                                case HostExecutionEvent.Output output:
-                                    AppendOutput(output.Data, output.Kind);
-                                    break;
-                                case HostExecutionEvent.InputRequested input:
-                                    ShowInputPrompt(input.Prompt, input.IsPassword);
-                                    break;
-                            }
-                        }, host);
-                    }, runCts.Token);
+                    var hostResult = await HostExecutionAdapter.DebugAsync(host, script, @event => HandleHostEvent(host, @event), runCts.Token);
                     if (hostResult.Error is not null) throw hostResult.Error;
                     cancelled = hostResult.Cancelled;
                     runResult = hostResult.RunResult;
                 }
                 else
                 {
-                    var hostResult = await HostExecutionAdapter.RunAsync(host, script, @event =>
-                    {
-                        if (@event is HostExecutionEvent.Stage stage)
-                        {
-                            if (_run.IsCurrent(generation) && ReferenceEquals(s.RunningHost, host))
-                                Volatile.Write(ref _runStageValue, (int)stage.Value);
-                            PostRun(() =>
-                            {
-                                ShowRunStage(stage.Value, stage.Detail);
-                            }, host);
-                            return;
-                        }
-
-                        PostRun(() =>
-                        {
-                            switch (@event)
-                            {
-                                case HostExecutionEvent.Compiled compiled:
-                                    UpdateIlOutput(compiled.BinaryPath, generation);
-                                    RefreshIntelliSensePackages();
-                                    break;
-                                case HostExecutionEvent.Output output:
-                                    AppendOutput(output.Data, output.Kind);
-                                    break;
-                                case HostExecutionEvent.InputRequested input:
-                                    ShowInputPrompt(input.Prompt, input.IsPassword);
-                                    break;
-                            }
-                        }, host);
-                    }, runCts.Token);
+                    var hostResult = await HostExecutionAdapter.RunAsync(host, script, @event => HandleHostEvent(host, @event), runCts.Token);
                     if (hostResult.Error is not null) throw hostResult.Error;
                     cancelled = hostResult.Cancelled;
                     runResult = hostResult.RunResult;
@@ -779,22 +740,22 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                         s.ElapsedText = FormatElapsed(s.RunStopwatch.Elapsed);
 
                         _vm.DebugPanel.ClearStop();
-                        if (cancelled)
+                        switch (RunEndDecision.Of(cancelled, s.UnhandledDebugException is not null,
+                                    runResult is { Succeeded: false }, s.HadRunError))
                         {
-                            SetStatus("Cancelled", "Invoklet.Status.CancelledBrush");
-                        }
-                        else if (s.UnhandledDebugException is { } unhandled)
-                        {
-                            s.HadRunError = true;
-                            SetStatus($"Unhandled {DebugPanelViewModel.ShortTypeName(unhandled)}", "Invoklet.Status.ErrorBrush");
-                        }
-                        else if (runResult is { Succeeded: false } failed)
-                        {
-                            ReportRunFailure(failed, selection is not null, generation);
-                        }
-                        else if (!s.HadRunError)
-                        {
-                            SetStatus("Success", "Invoklet.Status.SuccessBrush");
+                            case RunEnd.Cancelled:
+                                SetStatus("Cancelled", "Invoklet.Status.CancelledBrush");
+                                break;
+                            case RunEnd.UnhandledException:
+                                s.HadRunError = true;
+                                SetStatus($"Unhandled {DebugPanelViewModel.ShortTypeName(s.UnhandledDebugException!)}", "Invoklet.Status.ErrorBrush");
+                                break;
+                            case RunEnd.Failed:
+                                ReportRunFailure(runResult!, selection is not null, generation);
+                                break;
+                            case RunEnd.Succeeded:
+                                SetStatus("Success", "Invoklet.Status.SuccessBrush");
+                                break;
                         }
 
                         UpdateOutputUi();
@@ -2251,7 +2212,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     }
 
     // Like the Locals panel's rows (CreateDebugLocal), but members are fetched only while this tip's
-    // stop is current, at most MaxChildren of them and within ChildTimeout.
+    // stop is current, at most MaxChildren of them and within the child timeout.
     private DebugLocal CreateDebugHoverLocal(IVariableInfo variable, IBreakpointHitContext? context,
         CancellationToken token, string? name = null)
     {
