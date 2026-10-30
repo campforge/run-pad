@@ -9,6 +9,7 @@ internal sealed class FileTreeOperationsFixture
 
     private readonly Dictionary<FileOperationTab, string?> _current = [];
     private readonly List<(string From, string To)> _saveAs = [];
+    private readonly List<string> _closedWhileSaving = [];
 
     public Mock<IDiskOperations> Disk { get; } = new();
 
@@ -50,12 +51,12 @@ internal sealed class FileTreeOperationsFixture
                 Calls.Add("save");
                 foreach (var (from, to) in _saveAs)
                     foreach (var tab in _current.Keys.Where(k => k.Path == from).ToList()) _current[tab] = to;
+                foreach (var path in _closedWhileSaving)
+                    foreach (var tab in _current.Keys.Where(k => k.Path == path).ToList()) _current[tab] = null;
             }).ReturnsAsync(succeeds);
 
-    public void ClosedMeanwhile(string path)
-    {
-        foreach (var tab in _current.Keys.Where(k => k.Path == path).ToList()) _current[tab] = null;
-    }
+    /// <summary>While the tabs are saved (a dialog may be open), the user closes the tab open on <paramref name="path"/>.</summary>
+    public void ClosedWhileSaving(string path) => _closedWhileSaving.Add(path);
 
     public void FolderExists(string path) => Disk.Setup(d => d.IsDirectory(path)).Returns(true);
 

@@ -258,12 +258,12 @@ public sealed class FileTreeOperationsTests
     }
 
     [Fact]
-    public async Task MoveAsync_TabClosedWhileSaving_IsNotClosedAgainNorReopened()
+    public async Task MoveAsync_TabClosedWhileTheSaveIsDecided_IsNotClosedAgainNorReopened()
     {
         // Arrange
         var fixture = new FileTreeOperationsFixture();
         fixture.OpenTabs(P("a", "x.inv"));
-        fixture.ClosedMeanwhile(P("a", "x.inv"));
+        fixture.ClosedWhileSaving(P("a", "x.inv"));
         var sut = fixture.CreateSut();
 
         // Act
