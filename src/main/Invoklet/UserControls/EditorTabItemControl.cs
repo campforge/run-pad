@@ -609,6 +609,36 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             });
         }
 
+        // The events a host reports, on its own thread: the stage is kept synchronously, while this host still owns
+        // the generation (a late callback must not mutate the next run's diagnostic context), the rest is posted.
+        void HandleHostEvent(ILanguageHost host, HostExecutionEvent @event)
+        {
+            if (@event is HostExecutionEvent.Stage stage)
+            {
+                if (_run.IsCurrent(generation) && ReferenceEquals(s.RunningHost, host))
+                    Volatile.Write(ref _runStageValue, (int)stage.Value);
+                PostRun(() => ShowRunStage(stage.Value, stage.Detail), host);
+                return;
+            }
+
+            PostRun(() =>
+            {
+                switch (@event)
+                {
+                    case HostExecutionEvent.Compiled compiled:
+                        UpdateIlOutput(compiled.BinaryPath, generation);
+                        RefreshIntelliSensePackages();
+                        break;
+                    case HostExecutionEvent.Output output:
+                        AppendOutput(output.Data, output.Kind);
+                        break;
+                    case HostExecutionEvent.InputRequested input:
+                        ShowInputPrompt(input.Prompt, input.IsPassword);
+                        break;
+                }
+            }, host);
+        }
+
         var cancelled = false;
         RunResult? runResult = null; // stays null for a debug run — DAP doesn't report an exit code here yet
         ILanguageHost? runHost = null;
@@ -659,75 +689,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                         PostRun(() => OnBreakpointHit(ctx), host);
                     host.BreakpointVerified += (bp, verified, message) =>
                         PostRun(() => OnBreakpointVerified(bp, verified, message), host);
-                    var hostResult = await HostExecutionAdapter.DebugAsync(host, script, @event =>
-                    {
-                        if (@event is HostExecutionEvent.Stage stage)
-                        {
-                            // Keep failure-stage selection synchronous, but only while this host
-                            // still owns the active generation; a late callback must not mutate the
-                            // next run's diagnostic context.
-                            if (_run.IsCurrent(generation) && ReferenceEquals(s.RunningHost, host))
-                                Volatile.Write(ref _runStageValue, (int)stage.Value);
-                            PostRun(() =>
-                            {
-                                ShowRunStage(stage.Value, stage.Detail);
-                            }, host);
-                            return;
-                        }
-
-                        PostRun(() =>
-                        {
-                            switch (@event)
-                            {
-                                case HostExecutionEvent.Compiled compiled:
-                                    UpdateIlOutput(compiled.BinaryPath, generation);
-                                    RefreshIntelliSensePackages();
-                                    break;
-                                case HostExecutionEvent.Output output:
-                                    AppendOutput(output.Data, output.Kind);
-                                    break;
-                                case HostExecutionEvent.InputRequested input:
-                                    ShowInputPrompt(input.Prompt, input.IsPassword);
-                                    break;
-                            }
-                        }, host);
-                    }, runCts.Token);
+                    var hostResult = await HostExecutionAdapter.DebugAsync(host, script, @event => HandleHostEvent(host, @event), runCts.Token);
                     if (hostResult.Error is not null) throw hostResult.Error;
                     cancelled = hostResult.Cancelled;
                     runResult = hostResult.RunResult;
                 }
                 else
                 {
-                    var hostResult = await HostExecutionAdapter.RunAsync(host, script, @event =>
-                    {
-                        if (@event is HostExecutionEvent.Stage stage)
-                        {
-                            if (_run.IsCurrent(generation) && ReferenceEquals(s.RunningHost, host))
-                                Volatile.Write(ref _runStageValue, (int)stage.Value);
-                            PostRun(() =>
-                            {
-                                ShowRunStage(stage.Value, stage.Detail);
-                            }, host);
-                            return;
-                        }
-
-                        PostRun(() =>
-                        {
-                            switch (@event)
-                            {
-                                case HostExecutionEvent.Compiled compiled:
-                                    UpdateIlOutput(compiled.BinaryPath, generation);
-                                    RefreshIntelliSensePackages();
-                                    break;
-                                case HostExecutionEvent.Output output:
-                                    AppendOutput(output.Data, output.Kind);
-                                    break;
-                                case HostExecutionEvent.InputRequested input:
-                                    ShowInputPrompt(input.Prompt, input.IsPassword);
-                                    break;
-                            }
-                        }, host);
-                    }, runCts.Token);
+                    var hostResult = await HostExecutionAdapter.RunAsync(host, script, @event => HandleHostEvent(host, @event), runCts.Token);
                     if (hostResult.Error is not null) throw hostResult.Error;
                     cancelled = hostResult.Cancelled;
                     runResult = hostResult.RunResult;
@@ -771,22 +740,22 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                         s.ElapsedText = FormatElapsed(s.RunStopwatch.Elapsed);
 
                         _vm.DebugPanel.ClearStop();
-                        if (cancelled)
+                        switch (RunEndDecision.Of(cancelled, s.UnhandledDebugException is not null,
+                                    runResult is { Succeeded: false }, s.HadRunError))
                         {
-                            SetStatus("Cancelled", "Invoklet.Status.CancelledBrush");
-                        }
-                        else if (s.UnhandledDebugException is { } unhandled)
-                        {
-                            s.HadRunError = true;
-                            SetStatus($"Unhandled {DebugPanelViewModel.ShortTypeName(unhandled)}", "Invoklet.Status.ErrorBrush");
-                        }
-                        else if (runResult is { Succeeded: false } failed)
-                        {
-                            ReportRunFailure(failed, selection is not null, generation);
-                        }
-                        else if (!s.HadRunError)
-                        {
-                            SetStatus("Success", "Invoklet.Status.SuccessBrush");
+                            case RunEnd.Cancelled:
+                                SetStatus("Cancelled", "Invoklet.Status.CancelledBrush");
+                                break;
+                            case RunEnd.UnhandledException:
+                                s.HadRunError = true;
+                                SetStatus($"Unhandled {DebugPanelViewModel.ShortTypeName(s.UnhandledDebugException!)}", "Invoklet.Status.ErrorBrush");
+                                break;
+                            case RunEnd.Failed:
+                                ReportRunFailure(runResult!, selection is not null, generation);
+                                break;
+                            case RunEnd.Succeeded:
+                                SetStatus("Success", "Invoklet.Status.SuccessBrush");
+                                break;
                         }
 
                         UpdateOutputUi();
