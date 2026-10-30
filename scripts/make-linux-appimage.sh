@@ -4,6 +4,8 @@
 # repository to maintain. Run from the repo root; needs appimagetool on PATH or at $APPIMAGETOOL.
 #
 # Usage: make-linux-appimage.sh <publish-dir> <output-dir>
+# APPIMAGE_RUNTIME (optional): a runtime file to pack the AppImage with, instead of the latest one that
+# appimagetool downloads on its own.
 set -euo pipefail
 
 PUBLISH_DIR="$1"
@@ -35,7 +37,10 @@ APPRUN
 chmod 0755 "$APPDIR/AppRun" "$APPDIR" "$APPDIR/usr" "$APPDIR/usr/bin"
 chmod 0644 "$APPDIR/Invoklet.desktop" "$APPDIR/invoklet.png"
 
+RUNTIME_ARGS=()
+if [ -n "${APPIMAGE_RUNTIME:-}" ]; then RUNTIME_ARGS=(--runtime-file "$APPIMAGE_RUNTIME"); fi
+
 mkdir -p "$OUTPUT_DIR"
-ARCH=x86_64 "$APPIMAGETOOL" "$APPDIR" "$OUTPUT_DIR/Invoklet-x86_64.AppImage"
+ARCH=x86_64 "$APPIMAGETOOL" ${RUNTIME_ARGS[@]+"${RUNTIME_ARGS[@]}"} "$APPDIR" "$OUTPUT_DIR/Invoklet-x86_64.AppImage"
 
 echo "Built $OUTPUT_DIR/Invoklet-x86_64.AppImage"
