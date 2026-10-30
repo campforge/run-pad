@@ -35,6 +35,12 @@ public sealed class EditorTabsEditorServicesTests : IDisposable
         public readonly List<bool> OnUiThread = [];
         public ManualResetEventSlim? Gate { get; set; }
         public bool HonourCancellation { get; set; }
+        public bool Throws { get; set; }
+
+        // What the test waits for instead of polling: the first creation call has ended (with a service, or cancelled), and the first
+        // service it made has been disposed.
+        public TaskCompletionSource Finished { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource FirstDisposed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly Lock _lock = new();
 
         public string Language => id;
@@ -51,12 +57,21 @@ public sealed class EditorTabsEditorServicesTests : IDisposable
                 Tokens.Add(cancellationToken);
                 OnUiThread.Add(Dispatcher.UIThread.CheckAccess());
             }
-            Gate?.Wait(TimeSpan.FromSeconds(30));
-            if (HonourCancellation) cancellationToken.ThrowIfCancellationRequested();
-            if (!hasEditorServices) return null;
-            var service = new Mock<IIntelliSenseService>();
-            lock (_lock) Created.Add(service);
-            return service.Object;
+            try
+            {
+                Gate?.Wait(TimeSpan.FromSeconds(30));
+                if (HonourCancellation) cancellationToken.ThrowIfCancellationRequested();
+                if (Throws) throw new InvalidOperationException("the language failed to start");
+                if (!hasEditorServices) return null;
+                var service = new Mock<IIntelliSenseService>();
+                service.Setup(s => s.Dispose()).Callback(() => FirstDisposed.TrySetResult());
+                lock (_lock) Created.Add(service);
+                return service.Object;
+            }
+            finally
+            {
+                Finished.TrySetResult();
+            }
         }
     }
 
@@ -107,9 +122,12 @@ public sealed class EditorTabsEditorServicesTests : IDisposable
             var second = await ShownAsync(tabs, shell.Tabs[1]);
 
             Assert.Equal(2, csharp.Created.Count);
-            Assert.Same(csharp.Created[0].Object, first.IntelliSenseForTests);
-            Assert.Same(csharp.Created[1].Object, second.IntelliSenseForTests);
+            // The two creations run side by side on the pool, so which service reaches which tab is not fixed: each tab has one of
+            // them, and not the same one.
             Assert.NotSame(first.IntelliSenseForTests, second.IntelliSenseForTests);
+            var created = csharp.Created.Select(c => c.Object).ToList();
+            Assert.Contains(first.IntelliSenseForTests!, created);
+            Assert.Contains(second.IntelliSenseForTests!, created);
             Assert.All(csharp.OnUiThread, Assert.False);
         }
         finally { host.Close(); }
@@ -154,9 +172,12 @@ public sealed class EditorTabsEditorServicesTests : IDisposable
             shell.Tabs.Remove(vm);
             Assert.True(csharp.Tokens[0].IsCancellationRequested);
             gate.Set();
-            // The service is made first and disposed a moment later, by whoever finds the tab gone: wait for the dispose, not the creation.
-            await TestWait.WhileAsync(() => !honourCancellation && (csharp.Created.Count == 0 || csharp.Created[0].Invocations.Count == 0));
-            Dispatcher.UIThread.RunJobs();
+            // Signals, not polling: the creation call has ended, and a service it made has been disposed (by whoever finds the tab gone).
+            await csharp.Finished.Task.WaitAsync(TestWait.DefaultTimeout, TestContext.Current.CancellationToken);
+            if (!honourCancellation)
+                await csharp.FirstDisposed.Task.WaitAsync(TestWait.DefaultTimeout, TestContext.Current.CancellationToken);
+            // Whatever the tab still had posted to the UI thread runs before the checks.
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
             Assert.Null(tabs.ControlForTests(vm));
             Assert.Equal(honourCancellation ? 0 : 1, csharp.Created.Count);
@@ -179,9 +200,8 @@ public sealed class EditorTabsEditorServicesTests : IDisposable
             tabs.Dispose();
             Assert.True(csharp.Tokens[0].IsCancellationRequested);
             gate.Set();
-            await TestWait.WhileAsync(() => csharp.Created.Count == 0);
-            await TestWait.WhileAsync(() => csharp.Created.Count == 0 || csharp.Created[0].Invocations.Count == 0);
-            Dispatcher.UIThread.RunJobs();
+            await csharp.FirstDisposed.Task.WaitAsync(TestWait.DefaultTimeout, TestContext.Current.CancellationToken);
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
             Assert.Null(tabs.ControlForTests(shell.Tabs[0]));
             csharp.Created[0].Verify(s => s.Dispose(), Times.Once);
@@ -205,6 +225,48 @@ public sealed class EditorTabsEditorServicesTests : IDisposable
             ctrl.Dispose();
 
             csharp.Created[0].Verify(s => s.Dispose(), Times.Once);
+        }
+        finally { host.Close(); }
+    }
+
+    // A creation that never ends must not keep the tab (and the splash screen behind it) for ever: after the timeout the tab opens
+    // without services, and the service that arrives later is disposed once.
+    [AvaloniaFact]
+    public async Task ACreationThatDoesNotEnd_Should_NotKeepTheTabForEver_AndTheLateServiceIsDisposed()
+    {
+        using var gate = new ManualResetEventSlim();
+        var csharp = new FakeLanguage("csharp") { Gate = gate };
+        var (tabs, shell, host) = Open(csharp);
+        try
+        {
+            tabs.ServiceCreationTimeout = TimeSpan.FromMilliseconds(150);
+            tabs.Attach(shell);
+
+            var ctrl = await ShownAsync(tabs, shell.Tabs[0]);
+            Assert.Null(ctrl.IntelliSenseForTests);
+
+            gate.Set();
+            await csharp.FirstDisposed.Task.WaitAsync(TestWait.DefaultTimeout, TestContext.Current.CancellationToken);
+            csharp.Created[0].Verify(s => s.Dispose(), Times.Once);
+        }
+        finally { host.Close(); }
+    }
+
+    // A language whose services cannot start: the tab opens as plain text, and the application stays up (the creation runs in an async
+    // void handler, where an exception would end the process).
+    [AvaloniaFact]
+    public async Task ACreationThatFails_Should_OpenTheTabWithoutServices()
+    {
+        var csharp = new FakeLanguage("csharp") { Throws = true };
+        var (tabs, shell, host) = Open(csharp);
+        try
+        {
+            tabs.Attach(shell);
+
+            var ctrl = await ShownAsync(tabs, shell.Tabs[0]);
+
+            Assert.Null(ctrl.IntelliSenseForTests);
+            Assert.Empty(csharp.Created);
         }
         finally { host.Close(); }
     }

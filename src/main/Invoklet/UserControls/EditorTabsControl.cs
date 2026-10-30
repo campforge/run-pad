@@ -395,7 +395,7 @@ public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost,
         _activeTabSub?.Dispose();
         _closed.Cancel();
         _lifecycle?.Detach();
-        foreach (var creation in _creating.Values) creation.Cancel();
+        foreach (var creation in _creating.Values.ToArray()) creation.Cancel();
 
         // No save here: unsaved content was already resolved by MainWindow's Closing
         // confirmation — saving again would overwrite a "Don't Save" choice and report a failure
@@ -430,15 +430,44 @@ public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost,
             : vm.FilePath is null ? vm.NewFileLanguage : MdRunFilePeek.PeekDocumentLanguage(vm.FilePath);
         if (_registry is not { } registry || language is not { } known || known == MdRunLanguage.Unknown) return null;
         var id = known.ToLanguageId();
+
+        var work = Task.Run(() => registry.CreateIntelliSense(id, cancellationToken), cancellationToken);
+        // The tab must not wait for a creation that never ends or ignores the cancellation (a language's start-up that hangs would
+        // keep the tab, and the splash screen behind it, for ever): after the timeout, or once the tab is closed, it goes on without
+        // services, and whatever the creation returns later is disposed by whoever it reaches.
+        using var timer = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var finished = await Task.WhenAny(work, Task.Delay(ServiceCreationTimeout, timer.Token));
+        await timer.CancelAsync(); // the timer of a creation that finished in time must not run on
+        if (!ReferenceEquals(finished, work))
+        {
+            _ = work.ContinueWith(late =>
+            {
+                if (late.IsCompletedSuccessfully) late.Result?.Dispose();
+            }, TaskScheduler.Default);
+            if (!cancellationToken.IsCancellationRequested)
+                _runLogger?.LogWarning("The editor services of {Language} were not ready after {Timeout}; the tab opens without them.", id, ServiceCreationTimeout);
+            return null;
+        }
+
         try
         {
-            return await Task.Run(() => registry.CreateIntelliSense(id, cancellationToken), cancellationToken);
+            return await work;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             return null;
         }
+        catch (Exception ex)
+        {
+            // A language whose services cannot start must not take the application down from an async void handler: the tab opens
+            // as plain text.
+            _runLogger?.LogWarning(ex, "The editor services of {Language} could not be created; the tab opens without them.", id);
+            return null;
+        }
     }
+
+    /// <summary>How long a tab waits for the editor services of its language before it opens without them.</summary>
+    internal TimeSpan ServiceCreationTimeout { get; set; } = TimeSpan.FromSeconds(60);
 
     // Avalonia controls (CodeTextEditor, InitializeComponent, ...) must be constructed on the
     // UI thread, so the control itself is created here, synchronously.
