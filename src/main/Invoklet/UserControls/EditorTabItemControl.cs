@@ -423,6 +423,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // can tell its own last write apart from another program's change.
     internal void WriteFile(string path)
     {
+        // The editor is empty while its text is on disk: writing it would replace the script with nothing.
+        if (_contentReleased) throw new IOException("The text of this tab is not loaded.");
         byte[] bytes;
         if (State.MdRunDocument is { } rpad)
         {
@@ -927,6 +929,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // Once: the editor services it owns must not be disposed twice.
         if (_disposed) return;
         _disposed = true;
+        SpillStore?.Delete(_vm.RecoveryId);
         _prefs.Changed -= OnPreferencesChanged;
         _viewScale.Changed -= OnViewScaleChanged;
         if (_connectionSchemas is not null) _connectionSchemas.Cache.Changed -= OnConnectionSchemaChanged;
@@ -2282,6 +2285,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // off the UI thread, and only for the keystroke that's still the latest once analysis starts.
         _intelliSenseTextChangedHandler = (_, _) =>
         {
+            if (_contentReleased) return; // the editor is empty only because its text is on disk
             var snapshot = editor.Document.CreateSnapshot();
             intelliSense.NotifyTextChanged(() => snapshot.Text);
         };
@@ -2573,25 +2577,29 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // must stay alive until it ends.
     internal bool HasRunningProcess => _runInProgress || State.RunningHost is not null || State.CurrentDebugCtx is not null;
 
-    internal RecoveryTab CaptureRecovery() => new()
+    internal RecoveryTab CaptureRecovery()
     {
-        Id = _vm.RecoveryId,
-        FilePath = _vm.FilePath,
-        Title = _vm.FileName,
-        EditorText = State.Editor.Text,
-        Document = State.MdRunDocument?.CaptureSnapshot(),
-        ParseError = State.DocumentParseError,
-        IsDirty = _vm.IsDirty || FrontMatterSnapshot() != _metadataBaseline,
-        BaselineKnown = !_vm.RequiresBaselineConfirmation && _vm.DiskState is not null,
-        DiskHash = _vm.DiskState?.Hash?.ToArray(),
-        MetadataBaseline = _metadataBaseline,
-        CaretOffset = State.Editor.CaretOffset,
-        SelectionStart = State.Editor.SelectionStart,
-        SelectionLength = State.Editor.SelectionLength,
-        // Provenance of an imported draft stays with it until it is saved to a file of its own.
-        OriginalPath = _vm.FilePath is null ? _vm.RestoredRecovery?.OriginalPath : null,
-        ImportedFrom = _vm.RestoredRecovery?.ImportedFrom,
-    };
+        var (text, caret, selectionStart, selectionLength) = TextForRecovery();
+        return new()
+        {
+            Id = _vm.RecoveryId,
+            FilePath = _vm.FilePath,
+            Title = _vm.FileName,
+            EditorText = text,
+            Document = State.MdRunDocument?.CaptureSnapshot(),
+            ParseError = State.DocumentParseError,
+            IsDirty = _vm.IsDirty || FrontMatterSnapshot() != _metadataBaseline,
+            BaselineKnown = !_vm.RequiresBaselineConfirmation && _vm.DiskState is not null,
+            DiskHash = _vm.DiskState?.Hash?.ToArray(),
+            MetadataBaseline = _metadataBaseline,
+            CaretOffset = caret,
+            SelectionStart = selectionStart,
+            SelectionLength = selectionLength,
+            // Provenance of an imported draft stays with it until it is saved to a file of its own.
+            OriginalPath = _vm.FilePath is null ? _vm.RestoredRecovery?.OriginalPath : null,
+            ImportedFrom = _vm.RestoredRecovery?.ImportedFrom,
+        };
+    }
 
     private void SetDocumentContent(CodeTextEditor editor, string? filePath)
     {

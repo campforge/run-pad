@@ -6,174 +6,121 @@ using ReactiveUI;
 namespace Invoklet.Services.Tabs;
 
 /// <summary>
-/// Owns when the view of an open tab exists. A tab is registered with its first view; the policy picks
-/// the tabs that give up their view, which are replaced by a placeholder and built again when selected,
-/// with the caret, scroll position and breakpoints they had. A tab is never unloaded while it is the
-/// active one, while a script of it runs, after a run that ended while another tab was shown (until
-/// the user visits it), while it is saving or loading, or while it has unsaved changes.
-/// Everything happens on the UI thread.
+/// Owns which open tabs keep their text and output in memory. The control of a tab is light and stays; its
+/// text, its output and the highlighting of its text are the heavy part. The policy picks the tabs that give
+/// them up: they go to disk (<see cref="ITabSpillStore"/>) and come back when the tab is selected, or when
+/// something needs the text (saving). A tab is never released while it is the active one, while a script of it
+/// runs, after a run that ended while another tab was shown (until the user visits it), or while it is
+/// saving. Everything happens on the UI thread.
 /// </summary>
 public sealed class TabLifecycleManager
 {
-    private sealed class Entry
+    private sealed class Entry(ITabView view)
     {
-        public ITabView? View;
-        public EditorViewState? SavedView;
-        public bool UnseenResult;
-        public bool Loading;
-        public IDisposable? RunSubscription;
-        public CancellationTokenSource? Load;
+        public ITabView View { get; } = view;
+        public bool UnseenResult { get; set; }
+        public IDisposable? RunSubscription { get; set; }
     }
 
     private readonly IResidencyPolicy _policy;
+    private readonly ITabSpillStore _spill;
     private readonly ILogger<TabLifecycleManager>? _logger;
     private readonly Dictionary<EditorTabItemViewModel, Entry> _entries = new();
-    private ITabSurface? _surface;
-    private ITabViewFactory? _factory;
     private Func<EditorTabItemViewModel?>? _activeTab;
+    private Action<EditorTabItemViewModel>? _contentNotRestored;
 
-    public TabLifecycleManager(IResidencyPolicy policy, ILogger<TabLifecycleManager>? logger = null)
+    public TabLifecycleManager(IResidencyPolicy policy, ITabSpillStore spill, ILogger<TabLifecycleManager>? logger = null)
     {
         _policy = policy;
+        _spill = spill;
         _logger = logger;
     }
 
-    internal void Attach(ITabSurface surface, ITabViewFactory factory, Func<EditorTabItemViewModel?> activeTab)
+    internal ITabSpillStore Spill => _spill;
+
+    /// <param name="activeTab">The tab being looked at.</param>
+    /// <param name="contentNotRestored">A tab's text could not be brought back from disk.</param>
+    internal void Attach(Func<EditorTabItemViewModel?> activeTab, Action<EditorTabItemViewModel> contentNotRestored)
     {
-        if (_surface is not null) throw new InvalidOperationException("The tab lifecycle manager is attached already.");
-        (_surface, _factory, _activeTab) = (surface, factory, activeTab);
+        if (_activeTab is not null) throw new InvalidOperationException("The tab lifecycle manager is attached already.");
+        (_activeTab, _contentNotRestored) = (activeTab, contentNotRestored);
     }
 
-    /// <summary>The strip went away: stops everything started for its tabs.</summary>
+    /// <summary>The strip went away: stops watching its tabs and removes what was kept for them.</summary>
     internal void Detach()
     {
         foreach (var tab in _entries.Keys.ToList()) Forget(tab);
-        (_surface, _factory, _activeTab) = (null, null, null);
+        (_activeTab, _contentNotRestored) = (null, null);
+        _spill.DeleteAll();
     }
 
-    internal bool IsLoaded(EditorTabItemViewModel tab) => _entries.TryGetValue(tab, out var entry) && entry.View is not null;
+    internal bool IsContentLoaded(EditorTabItemViewModel tab) => _entries.TryGetValue(tab, out var entry) && !entry.View.IsContentReleased;
 
-    /// <summary>A tab got its first view.</summary>
     internal void Register(EditorTabItemViewModel tab, ITabView view)
     {
-        var entry = new Entry { View = view };
+        var entry = new Entry(view);
         entry.RunSubscription = tab.WhenAnyValue(x => x.RunState).Skip(1).Subscribe(state =>
         {
             if (state == RunState.Idle && !IsActive(tab)) entry.UnseenResult = true;
         });
         _entries[tab] = entry;
         _policy.Touch(tab);
+        tab.EnsureContent = () => EnsureContentAsync(tab);
     }
 
-    /// <summary>The tab was closed: its view, if it has one, is disposed.</summary>
-    internal void Unregister(EditorTabItemViewModel tab)
-    {
-        if (!_entries.TryGetValue(tab, out var entry)) return;
-        Forget(tab);
-        entry.View?.Dispose();
-    }
+    /// <summary>The tab was closed. Its view is the strip's to dispose.</summary>
+    internal void Unregister(EditorTabItemViewModel tab) => Forget(tab);
 
-    /// <summary>The user selected <paramref name="tab"/>: it is the one being used, so it is loaded if it was not.</summary>
+    /// <summary>The user selected <paramref name="tab"/>: it is the one being used, so its text is brought back.</summary>
     internal void Activated(EditorTabItemViewModel tab)
     {
         if (!_entries.TryGetValue(tab, out var entry)) return;
         _policy.Touch(tab);
         entry.UnseenResult = false;
-        if (entry.View is null) _ = LoadAsync(tab, entry);
-        else Rebalance();
+        Restore(tab, entry);
+        Rebalance();
     }
 
-    /// <summary>Unloads the tabs the policy gives up and colours only the tab being looked at.</summary>
+    /// <summary>Completes once <paramref name="tab"/> has its text again (or once that failed).</summary>
+    internal Task EnsureContentAsync(EditorTabItemViewModel tab)
+    {
+        if (_entries.TryGetValue(tab, out var entry)) Restore(tab, entry);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Releases the content of the tabs the policy gives up and colours only the tab being looked at.</summary>
     internal void Rebalance()
     {
-        if (_surface is null) return;
         var active = _activeTab?.Invoke();
-        var loaded = _entries.Where(e => e.Value.View is not null).Select(e => e.Key).ToList();
-        foreach (var tab in _policy.ColdTabs(loaded, tab => CanUnload(tab, _entries[tab], active)))
-            Unload(tab, _entries[tab]);
+        var loaded = _entries.Where(e => !e.Value.View.IsContentReleased).Select(e => e.Key).ToList();
+        foreach (var tab in _policy.ColdTabs(loaded, tab => CanRelease(tab, _entries[tab], active)))
+        {
+            if (!_entries[tab].View.TryReleaseContent())
+                _logger?.LogWarning("The content of a tab could not be released");
+        }
+
         foreach (var (tab, entry) in _entries)
-            entry.View?.SetHighlightingActive(ReferenceEquals(tab, active));
+            entry.View.SetHighlightingActive(ReferenceEquals(tab, active));
+    }
+
+    private void Restore(EditorTabItemViewModel tab, Entry entry)
+    {
+        if (!entry.View.IsContentReleased || entry.View.TryRestoreContent()) return;
+        _logger?.LogWarning("The content of a tab could not be restored");
+        _contentNotRestored?.Invoke(tab);
     }
 
     private bool IsActive(EditorTabItemViewModel tab) => ReferenceEquals(tab, _activeTab?.Invoke());
 
-    private static bool CanUnload(EditorTabItemViewModel tab, Entry entry, EditorTabItemViewModel? active)
-        => !ReferenceEquals(tab, active) && tab.RunState == RunState.Idle && !entry.UnseenResult && !entry.Loading
+    private static bool CanRelease(EditorTabItemViewModel tab, Entry entry, EditorTabItemViewModel? active)
+        => !ReferenceEquals(tab, active) && tab.RunState == RunState.Idle && !entry.UnseenResult
             && tab.PendingSave is not { IsCompleted: false };
-
-    private void Unload(EditorTabItemViewModel tab, Entry entry)
-    {
-        if (entry.View is not { } view || view.HasRunningProcess) return;
-        var snapshot = view.CaptureRecovery();
-        // Unsaved work, in the text or in the metadata, stays in its editor.
-        if (snapshot.IsDirty) return;
-        // The session checkpoint still gets this tab's state, without a live editor to ask.
-        tab.CaptureRecovery = () => snapshot;
-        entry.SavedView = view.CaptureViewState();
-        entry.View = null;
-        _surface!.ShowPlaceholder(tab);
-        view.Dispose();
-    }
-
-    private async Task LoadAsync(EditorTabItemViewModel tab, Entry entry)
-    {
-        if (_factory is null || entry.Loading) return;
-        entry.Loading = true;
-        using var load = new CancellationTokenSource();
-        entry.Load = load;
-        try
-        {
-            ITabView view;
-            try
-            {
-                view = await _factory.CreateAsync(tab, load.Token);
-            }
-            catch (OperationCanceledException) when (load.IsCancellationRequested)
-            {
-                return;
-            }
-            catch (Exception ex)
-            {
-                // The tab stays unloaded, so selecting it again tries again.
-                _logger?.LogWarning("Could not build the view of a tab being loaded ({ErrorType})", ex.GetType().Name);
-                if (_surface is not null) await _surface.ReportLoadFailureAsync(tab, ex);
-                return;
-            }
-
-            // Closed, or the strip went away, while the view was being built.
-            if (_surface is null || !_entries.TryGetValue(tab, out var current) || !ReferenceEquals(current, entry))
-            {
-                view.Dispose();
-                return;
-            }
-
-            try
-            {
-                if (entry.SavedView is { } saved) view.RestoreViewState(saved);
-            }
-            catch (Exception ex)
-            {
-                // Only the caret, scroll position and breakpoints are lost; the tab itself is fine.
-                _logger?.LogWarning("Could not restore the view of a tab being loaded ({ErrorType})", ex.GetType().Name);
-            }
-
-            entry.SavedView = null;
-            entry.View = view;
-            _surface.ShowView(tab, view);
-        }
-        finally
-        {
-            entry.Loading = false;
-            entry.Load = null;
-            Rebalance();
-        }
-    }
 
     private void Forget(EditorTabItemViewModel tab)
     {
         if (!_entries.Remove(tab, out var entry)) return;
         entry.RunSubscription?.Dispose();
-        entry.Load?.Cancel();
+        tab.EnsureContent = static () => Task.CompletedTask;
         _policy.Forget(tab);
     }
 }

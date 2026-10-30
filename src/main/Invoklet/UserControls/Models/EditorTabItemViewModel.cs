@@ -28,6 +28,9 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
     internal Guid RecoveryId { get; init; } = Guid.NewGuid();
     internal RecoveryTab? RestoredRecovery { get; init; }
 
+    // Brings back the tab's text if its view released it. What needs the text (save, save as, duplicate) waits for it.
+    internal Func<Task> EnsureContent { get; set; } = static () => Task.CompletedTask;
+
     /// <summary>The file this tab's references are relative to: its own, or, for an untitled copy of
     /// a file (a recovered draft whose file was already open), that file. Null when there is none.</summary>
     internal string? ReferenceAnchorPath => FilePath ?? RestoredRecovery?.OriginalPath;

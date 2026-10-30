@@ -1,19 +1,17 @@
-using Invoklet.Services.Recovery;
 using Invoklet.Services.Tabs;
-using Invoklet.UserControls.Models;
 
 namespace Invoklet.UserControls;
 
-// What the tab lifecycle manager asks of a loaded tab; the members it forwards to are internal.
+// What the tab lifecycle manager asks of a tab; the members it forwards to are internal.
 public partial class EditorsTabItemControl : ITabView
 {
     bool ITabView.HasRunningProcess => HasRunningProcess;
 
-    RecoveryTab ITabView.CaptureRecovery() => CaptureRecovery();
+    bool ITabView.IsContentReleased => IsContentReleased;
 
-    EditorViewState ITabView.CaptureViewState() => CaptureViewState();
+    bool ITabView.TryReleaseContent() => TryReleaseContent();
 
-    void ITabView.RestoreViewState(EditorViewState state) => RestoreViewState(state);
+    bool ITabView.TryRestoreContent() => TryRestoreContent();
 
     void ITabView.SetHighlightingActive(bool active) => SetHighlightingActive(active);
 }
