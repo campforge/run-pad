@@ -39,7 +39,7 @@
                     Orientation="Horizontal"
                     HorizontalAlignment="Right">
             <Button Content="OK"
-                    Width="80"
+                    MinWidth="{DynamicResource Invoklet.Size.DialogButton}"
                     Click="OkButton_Click"
                     IsDefault="True"
                     IsCancel="True"/>

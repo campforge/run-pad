@@ -34,16 +34,16 @@
                     Spacing="{DynamicResource Invoklet.Space.Control}">
             <Button Classes="primary" x:Name="SaveAsButton"
                     Content="Save As…"
-                    MinWidth="88"
+                    MinWidth="{DynamicResource Invoklet.Size.DialogButton}"
                     Click="SaveAsButton_Click"
                     IsDefault="True"/>
             <Button Classes="secondary" x:Name="OverwriteButton"
                     Content="Overwrite"
-                    MinWidth="88"
+                    MinWidth="{DynamicResource Invoklet.Size.DialogButton}"
                     Click="OverwriteButton_Click"/>
             <Button Classes="secondary" x:Name="CancelButton"
                     Content="Cancel"
-                    MinWidth="80"
+                    MinWidth="{DynamicResource Invoklet.Size.DialogButton}"
                     Click="CancelButton_Click"
                     IsCancel="True"/>
         </StackPanel>

@@ -173,41 +173,20 @@ public sealed partial class MainWindow : Window, IDisposable, IStartupWindow
     private Dictionary<KeyCommand, Action> CreateKeyActions()
     {
         var vm = GetViewModel();
-        var tabs = _editorTabs;
-        return new()
+        var actions = new Dictionary<KeyCommand, Action>
         {
             [KeyCommands.NewFile] = vm.NewMdRunFileWithDefaults,
             [KeyCommands.OpenFile] = () => vm.OpenFileCommand.Execute().Subscribe(),
-            [KeyCommands.Save] = tabs.SaveActive,
-            [KeyCommands.SaveAs] = tabs.SaveAsActive,
-            [KeyCommands.RevertFile] = tabs.RevertActive,
-            [KeyCommands.CloseTab] = tabs.CloseActiveTab,
             // Close(), as the window's close button: unsaved tabs are asked about first.
             [KeyCommands.Exit] = Close,
             [KeyCommands.OpenDependencies] = vm.OpenDependenciesWindow,
             [KeyCommands.OpenAssemblyExplorer] = () => vm.OpenAssemblyExplorerCommand.Execute().Subscribe(),
             [KeyCommands.OpenPreferences] = () => vm.OpenPreferencesCommand.Execute().Subscribe(),
             [KeyCommands.ToggleFileTree] = () => vm.Sidebar.ToggleCommand.Execute().Subscribe(),
-            [KeyCommands.ToggleOutputPanel] = tabs.ToggleOutputPanelActive,
-            [KeyCommands.TogglePreview] = tabs.TogglePreviewActive,
-            [KeyCommands.TogglePreviewToSide] = tabs.TogglePreviewToSideActive,
-            [KeyCommands.ZoomIn] = tabs.ZoomInActive,
-            [KeyCommands.ZoomOut] = tabs.ZoomOutActive,
-            [KeyCommands.ResetZoom] = tabs.ResetZoomActive,
-            [KeyCommands.RunOrContinue] = tabs.RunOrContinueActive,
-            [KeyCommands.Stop] = tabs.CancelActive,
-            [KeyCommands.ExecuteSelection] = tabs.ExecuteSelectionActive,
-            [KeyCommands.Restart] = tabs.RestartActive,
-            [KeyCommands.ToggleDebugMode] = tabs.ToggleDebugModeActive,
-            [KeyCommands.StepOver] = tabs.StepOverActive,
-            [KeyCommands.StepInto] = tabs.StepInActive,
-            [KeyCommands.StepOut] = tabs.StepOutActive,
-            [KeyCommands.Pause] = tabs.PauseActive,
-            [KeyCommands.RunToCursor] = tabs.RunToCursorActive,
-            [KeyCommands.Format] = tabs.FormatActive,
-            [KeyCommands.GoToLine] = tabs.GoToLineActive,
-            [KeyCommands.ResolveAllUsings] = tabs.ResolveAllUsingsActive,
         };
+        // The commands on the tab being looked at are the strip's.
+        foreach (var (command, action) in _editorTabs.Commands.Bindings) actions.Add(command, action);
+        return actions;
     }
 
     // ── Per-platform window chrome ──────────────────

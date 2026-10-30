@@ -86,7 +86,7 @@ public class MainWindowHotkeysTests
     // asynchronously (CreateControlAsync's own Task.Run hop for the IntelliSense factory, even a
     // trivial mocked one, still needs a real thread-pool round trip back to the UI thread) — a test
     // that presses a key immediately after CreateMainWindow returns races that completion. Harmless
-    // for gestures that only touch the ViewModel (F4/OpenDependencies), but CloseActiveTab needs
+    // for gestures that only touch the ViewModel (F4/OpenDependencies), but ActiveTabCommands.CloseTab needs
     // GetActiveControl() to find the actual control, so on a slow/loaded CI runner (observed on
     // Windows CI) the control can still not exist yet — the close silently no-ops instead of
     // asserting anything, which is why this surfaced as "tab didn't close" rather than a crash.
@@ -189,7 +189,7 @@ public class MainWindowHotkeysTests
     }
 
     // Ctrl+W used to call MainWindowViewModel.
-    // CloseActiveTab directly, bypassing whatever EditorTabsControl.RequestCloseTabAsync does —
+    // ActiveTabCommands.CloseTab directly, bypassing whatever EditorTabsControl.RequestCloseTabAsync does —
     // confirms the hotkey path now goes through the same unsaved-changes confirmation as the tab's
     // own [x] button (see EditorTabsControlCloseConfirmationTests for the confirmation flow itself).
     [AvaloniaFact]

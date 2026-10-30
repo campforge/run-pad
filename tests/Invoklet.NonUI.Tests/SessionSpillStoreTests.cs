@@ -1,133 +1,184 @@
-using Invoklet.Services.Recovery;
+using System.Text.Json;
 using Invoklet.UserControls.Models;
+using Moq;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;
 
-// Released tab content waits in the spill folder of the recovery session, which is what makes it private to
-// this instance and lets a later start tell that what an earlier one left behind is stale.
-public sealed class SessionSpillStoreTests : IDisposable
+public sealed class SessionSpillStoreTests
 {
-    private readonly string _root = Directory.CreateTempSubdirectory("Invoklet-spill-tests").FullName;
-
-    public void Dispose() => Directory.Delete(_root, recursive: true);
-
-    private static ReleasedContent Content(string text, TabOutputState? output = null) => new(text, new EditorViewState(4, 1, 2, 7.5), output);
-
-    private static async Task<(DiskRecoveryStore Store, SessionSpillStore Spill)> OpenAsync(string root)
+    [Fact]
+    public void TryWrite_SessionNotOpen_ReturnsFalseAndWritesNothing()
     {
-        var store = new DiskRecoveryStore(root);
-        await store.LoadAsync();
-        return (store, new SessionSpillStore(() => store.SessionFolder));
+        // Arrange
+        var fixture = new SessionSpillStoreFixture();
+        var sut = fixture.CreateSut();
+
+        // Act
+        var written = sut.TryWrite(Guid.NewGuid(), fixture.CreateContent());
+
+        // Assert
+        Assert.False(written);
+        fixture.Files.VerifyNoOtherCalls();
     }
 
     [Fact]
-    public async Task WhatIsWritten_Should_BeReadBack()
+    public void TryWrite_SessionOpen_WritesTheContentAsJsonIntoTheSpillFolderOfTheSession()
     {
-        var (store, spill) = await OpenAsync(_root);
-        using var _ = store;
+        // Arrange
+        var fixture = new SessionSpillStoreFixture();
+        fixture.OpenSession();
         var tab = Guid.NewGuid();
+        byte[]? bytes = null;
+        fixture.Files.Setup(f => f.Write(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()))
+            .Callback((string _, string _, byte[] b) => bytes = b);
+        var sut = fixture.CreateSut();
 
-        Assert.True(spill.TryWrite(tab, Content("var a = 1;\nЖ")));
+        // Act
+        var written = sut.TryWrite(tab, fixture.CreateContent("var a = 1;\nЖ"));
 
-        var read = spill.TryRead(tab)!;
-        Assert.Equal("var a = 1;\nЖ", read.Text);
-        Assert.Equal(new EditorViewState(4, 1, 2, 7.5), read.Editor);
-        Assert.Null(read.Output);
-        Assert.StartsWith(store.SessionFolder!, Directory.GetFiles(store.SessionFolder!, "*.json", SearchOption.AllDirectories).Single());
+        // Assert
+        Assert.True(written);
+        fixture.Files.Verify(f => f.Write(SessionSpillStoreFixture.SpillFolder, SessionSpillStoreFixture.FileNameOf(tab), It.IsAny<byte[]>()), Times.Once);
+        var stored = JsonSerializer.Deserialize<ReleasedContent>(bytes!)!;
+        Assert.Equal("var a = 1;\nЖ", stored.Text);
+        Assert.Equal(new EditorViewState(4, 1, 2, 7.5), stored.Editor);
+    }
+
+    [Theory]
+    [InlineData(typeof(IOException))]
+    [InlineData(typeof(UnauthorizedAccessException))]
+    public void TryWrite_FilesCannotBeWritten_ReturnsFalse(Type failure)
+    {
+        // Arrange
+        var fixture = new SessionSpillStoreFixture();
+        fixture.OpenSession();
+        fixture.Files.Setup(f => f.Write(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()))
+            .Throws((Exception)Activator.CreateInstance(failure)!);
+        var sut = fixture.CreateSut();
+
+        // Act
+        var written = sut.TryWrite(Guid.NewGuid(), fixture.CreateContent());
+
+        // Assert
+        Assert.False(written);
     }
 
     [Fact]
-    public void BeforeTheSessionIsOpen_Should_NothingBeWrittenOrRead()
+    public void TryRead_FileHoldsContent_ReturnsIt()
     {
-        var spill = new SessionSpillStore(() => null);
-
-        Assert.False(spill.TryWrite(Guid.NewGuid(), Content("text")));
-        Assert.Null(spill.TryRead(Guid.NewGuid()));
-    }
-
-    [Fact]
-    public async Task ADeletedTab_Should_NotBeReadBack_AndDeleteAllShould_RemoveTheRest()
-    {
-        var (store, spill) = await OpenAsync(_root);
-        using var _ = store;
-        var (first, second) = (Guid.NewGuid(), Guid.NewGuid());
-        spill.TryWrite(first, Content("one"));
-        spill.TryWrite(second, Content("two"));
-
-        spill.Delete(first);
-        Assert.Null(spill.TryRead(first));
-        Assert.NotNull(spill.TryRead(second));
-
-        spill.DeleteAll();
-        Assert.Null(spill.TryRead(second));
-        Assert.False(Directory.Exists(Path.Combine(store.SessionFolder!, "spill")));
-    }
-
-    [Fact]
-    public async Task AnUnreadableFile_Should_ReadAsNothing_NotThrow()
-    {
-        var (store, spill) = await OpenAsync(_root);
-        using var _ = store;
+        // Arrange
+        var fixture = new SessionSpillStoreFixture();
+        fixture.OpenSession();
         var tab = Guid.NewGuid();
-        spill.TryWrite(tab, Content("text"));
-        File.WriteAllText(Directory.GetFiles(store.SessionFolder!, "*.json", SearchOption.AllDirectories).Single(), "{ not json");
+        var output = new TabOutputState("<div>out</div>", true, new Dictionary<string, string> { ["id"] = "block" });
+        fixture.Files.Setup(f => f.Read(SessionSpillStoreFixture.SpillFolder, SessionSpillStoreFixture.FileNameOf(tab)))
+            .Returns(fixture.Serialize(fixture.CreateContent("text", output)));
+        var sut = fixture.CreateSut();
 
-        Assert.Null(spill.TryRead(tab));
+        // Act
+        var read = sut.TryRead(tab);
+
+        // Assert
+        Assert.Equal("text", read!.Text);
+        Assert.Equal("<div>out</div>", read.Output!.Content);
+        Assert.True(read.Output.HadRunError);
+        Assert.Equal("block", read.Output.DumpContainerBlocks["id"]);
     }
 
     [Fact]
-    public async Task TheSpillOfAnInstanceThatDiedWithoutCleaningUp_Should_BeRemovedWhenTheNextOneStarts()
+    public void TryRead_SessionNotOpen_ReturnsNull()
     {
-        string stale;
-        var tab = Guid.NewGuid();
-        {
-            var (store, spill) = await OpenAsync(_root);
-            spill.TryWrite(tab, Content("old text of someone else's tab"));
-            stale = Path.Combine(store.SessionFolder!, "spill");
-            store.Dispose(); // as a crash leaves it: the folder and the file stay, the lock goes
-        }
-        Assert.True(Directory.Exists(stale));
+        // Arrange
+        var fixture = new SessionSpillStoreFixture();
+        var sut = fixture.CreateSut();
 
-        var (next, nextSpill) = await OpenAsync(_root);
-        using var _ = next;
+        // Act
+        var read = sut.TryRead(Guid.NewGuid());
 
-        Assert.False(Directory.Exists(stale));
-        Assert.Null(nextSpill.TryRead(tab)); // not even if the tab got the same id
+        // Assert
+        Assert.Null(read);
+        fixture.Files.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData(typeof(IOException))]
+    [InlineData(typeof(UnauthorizedAccessException))]
+    public void TryRead_FileCannotBeRead_ReturnsNull(Type failure)
+    {
+        // Arrange
+        var fixture = new SessionSpillStoreFixture();
+        fixture.OpenSession();
+        fixture.Files.Setup(f => f.Read(It.IsAny<string>(), It.IsAny<string>())).Throws((Exception)Activator.CreateInstance(failure)!);
+        var sut = fixture.CreateSut();
+
+        // Act
+        var read = sut.TryRead(Guid.NewGuid());
+
+        // Assert
+        Assert.Null(read);
     }
 
     [Fact]
-    public async Task TheOutputOfAScriptWithoutAFolderOfItsRuns_Should_LiveOnlyAsLongAsTheInstance()
+    public void TryRead_FileIsNotJson_ReturnsNull()
     {
-        // An unsaved script has no build folder to keep its output in, so the output goes to the spill, which
-        // is not part of a recovery checkpoint: the text of the draft comes back after a restart, its output does not.
-        var tab = Guid.NewGuid();
-        {
-            var (store, spill) = await OpenAsync(_root);
-            spill.TryWrite(tab, Content("draft", new TabOutputState("<div>output</div>", false, new Dictionary<string, string>())));
-            Assert.Equal("<div>output</div>", spill.TryRead(tab)!.Output!.Content);
-            store.Dispose();
-        }
+        // Arrange
+        var fixture = new SessionSpillStoreFixture();
+        fixture.OpenSession();
+        fixture.Files.Setup(f => f.Read(It.IsAny<string>(), It.IsAny<string>())).Returns("{ not json"u8.ToArray());
+        var sut = fixture.CreateSut();
 
-        var (next, nextSpill) = await OpenAsync(_root);
-        using var _ = next;
+        // Act
+        var read = sut.TryRead(Guid.NewGuid());
 
-        Assert.Null(nextSpill.TryRead(tab));
+        // Assert
+        Assert.Null(read);
     }
 
     [Fact]
-    public async Task TheSpillOfAnInstanceThatIsStillRunning_Should_BeLeftAlone()
+    public void Delete_SessionOpen_DeletesTheFileOfThatTab()
     {
-        var (running, runningSpill) = await OpenAsync(_root);
-        using var _ = running;
+        // Arrange
+        var fixture = new SessionSpillStoreFixture();
+        fixture.OpenSession();
         var tab = Guid.NewGuid();
-        runningSpill.TryWrite(tab, Content("mine"));
+        var sut = fixture.CreateSut();
 
-        var (other, otherSpill) = await OpenAsync(_root);
-        using var __ = other;
+        // Act
+        sut.Delete(tab);
 
-        Assert.Equal("mine", runningSpill.TryRead(tab)!.Text);
-        Assert.NotEqual(running.SessionFolder, other.SessionFolder);
-        Assert.Null(otherSpill.TryRead(tab));
+        // Assert
+        fixture.Files.Verify(f => f.DeleteFile(SessionSpillStoreFixture.SpillFolder, SessionSpillStoreFixture.FileNameOf(tab)), Times.Once);
+        fixture.Files.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public void DeleteAll_SessionOpen_DeletesTheSpillFolder()
+    {
+        // Arrange
+        var fixture = new SessionSpillStoreFixture();
+        fixture.OpenSession();
+        var sut = fixture.CreateSut();
+
+        // Act
+        sut.DeleteAll();
+
+        // Assert
+        fixture.Files.Verify(f => f.DeleteFolder(SessionSpillStoreFixture.SpillFolder), Times.Once);
+    }
+
+    [Fact]
+    public void DeleteAll_SessionNotOpen_DoesNothing()
+    {
+        // Arrange
+        var fixture = new SessionSpillStoreFixture();
+        var sut = fixture.CreateSut();
+
+        // Act
+        sut.DeleteAll();
+        sut.Delete(Guid.NewGuid());
+
+        // Assert
+        fixture.Files.VerifyNoOtherCalls();
     }
 }

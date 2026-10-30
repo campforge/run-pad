@@ -40,7 +40,7 @@
                    Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Content="OK" Width="80" Click="OkButton_Click" IsDefault="True" IsCancel="True"/>
+            <Button Content="OK" MinWidth="{DynamicResource Invoklet.Size.DialogButton}" Click="OkButton_Click" IsDefault="True" IsCancel="True"/>
         </StackPanel>
 
     </StackPanel>

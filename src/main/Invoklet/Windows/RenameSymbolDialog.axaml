@@ -42,11 +42,11 @@
                     Spacing="{DynamicResource Invoklet.Space.Control}">
             <Button Classes="primary" x:Name="OkButton"
                     Content="Rename"
-                    Width="80"
+                    MinWidth="{DynamicResource Invoklet.Size.DialogButton}"
                     Click="OkButton_Click"
                     IsDefault="True"/>
             <Button Classes="secondary" Content="Cancel"
-                    Width="80"
+                    MinWidth="{DynamicResource Invoklet.Size.DialogButton}"
                     Click="CancelButton_Click"
                     IsCancel="True"/>
         </StackPanel>

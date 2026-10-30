@@ -3,85 +3,142 @@ using Xunit;
 
 namespace Invoklet.NonUI.Tests;
 
-public class RecentTabsResidencyPolicyTests
+public sealed class RecentTabsResidencyPolicyTests
 {
-    private sealed class Tab(string name)
+    private static void UseInOrder(RecentTabsResidencyPolicy sut, IEnumerable<RecentTabsResidencyPolicyFixture.Tab> tabs)
     {
-        public override string ToString() => name;
-    }
-
-    private static List<Tab> Open(RecentTabsResidencyPolicy manager, int count)
-    {
-        var tabs = Enumerable.Range(1, count).Select(i => new Tab($"tab{i}")).ToList();
-        foreach (var tab in tabs) manager.Touch(tab);
-        return tabs;
+        foreach (var tab in tabs) sut.Touch(tab);
     }
 
     [Fact]
-    public void ColdTabs_Should_BeEveryTabButTheThreeUsedLast()
+    public void ColdTabs_MoreTabsThanTheLimit_ReturnsAllButTheThreeUsedLast()
     {
-        var manager = new RecentTabsResidencyPolicy();
-        var tabs = Open(manager, 6);
+        // Arrange
+        var fixture = new RecentTabsResidencyPolicyFixture();
+        var sut = fixture.CreateSut();
+        var tabs = fixture.CreateTabs(6);
+        UseInOrder(sut, tabs);
 
-        var cold = manager.ColdTabs(tabs, _ => true);
+        // Act
+        var cold = sut.ColdTabs(tabs, _ => true);
 
+        // Assert
         Assert.Equal(3, cold.Count);
         Assert.All(tabs.Take(3), tab => Assert.Contains(tab, cold));
     }
 
     [Fact]
-    public void SelectingATab_Should_MakeItWarm_AndPushOutTheOldestWarmOne()
+    public void ColdTabs_NotMoreTabsThanTheLimit_ReturnsNone()
     {
-        var manager = new RecentTabsResidencyPolicy();
-        var tabs = Open(manager, 5); // tab1, tab2 cold
+        // Arrange
+        var fixture = new RecentTabsResidencyPolicyFixture();
+        var sut = fixture.CreateSut();
+        var tabs = fixture.CreateTabs(3);
+        UseInOrder(sut, tabs);
 
-        manager.Touch(tabs[0]);
+        // Act
+        var cold = sut.ColdTabs(tabs, _ => true);
 
-        var cold = manager.ColdTabs(tabs, _ => true);
-        Assert.DoesNotContain(tabs[0], cold);
-        Assert.Contains(tabs[2], cold); // tab3 became the oldest of the warm ones
-        Assert.Contains(tabs[1], cold);
+        // Assert
+        Assert.Empty(cold);
     }
 
     [Fact]
-    public void ATabThatCannotBeUnloaded_Should_StayOut_WithoutKeepingAnotherOneWarm()
+    public void ColdTabs_CustomLimit_KeepsThatManyWarm()
     {
-        var manager = new RecentTabsResidencyPolicy();
-        var tabs = Open(manager, 5);
+        // Arrange
+        var fixture = new RecentTabsResidencyPolicyFixture();
+        var sut = fixture.CreateSut(warmTabs: 1);
+        var tabs = fixture.CreateTabs(3);
+        UseInOrder(sut, tabs);
 
-        var cold = manager.ColdTabs(tabs, tab => tab != tabs[0]);
+        // Act
+        var cold = sut.ColdTabs(tabs, _ => true);
 
+        // Assert
+        Assert.Equal(2, cold.Count);
+        Assert.DoesNotContain(tabs[2], cold);
+    }
+
+    [Fact]
+    public void ColdTabs_ATabWasSelectedAgain_PushesOutTheOldestWarmOne()
+    {
+        // Arrange
+        var fixture = new RecentTabsResidencyPolicyFixture();
+        var sut = fixture.CreateSut();
+        var tabs = fixture.CreateTabs(5);
+        UseInOrder(sut, tabs); // tab1 and tab2 are cold
+        sut.Touch(tabs[0]);
+
+        // Act
+        var cold = sut.ColdTabs(tabs, _ => true);
+
+        // Assert
+        Assert.DoesNotContain(tabs[0], cold);
+        Assert.Contains(tabs[1], cold);
+        Assert.Contains(tabs[2], cold); // tab3 became the oldest of the warm ones
+    }
+
+    [Fact]
+    public void ColdTabs_ATabCannotBeUnloaded_StaysOutWithoutKeepingAnotherOneWarm()
+    {
+        // Arrange
+        var fixture = new RecentTabsResidencyPolicyFixture();
+        var sut = fixture.CreateSut();
+        var tabs = fixture.CreateTabs(5);
+        UseInOrder(sut, tabs);
+
+        // Act
+        var cold = sut.ColdTabs(tabs, tab => tab != tabs[0]);
+
+        // Assert
         Assert.Equal([tabs[1]], cold);
     }
 
     [Fact]
-    public void ATabNeverUsed_Should_CountAsTheOldest()
+    public void ColdTabs_ATabNeverUsed_CountsAsTheOldest()
     {
-        var manager = new RecentTabsResidencyPolicy();
-        var tabs = Open(manager, 3);
-        var unknown = new Tab("never touched");
+        // Arrange
+        var fixture = new RecentTabsResidencyPolicyFixture();
+        var sut = fixture.CreateSut();
+        var tabs = fixture.CreateTabs(3);
+        var unknown = new RecentTabsResidencyPolicyFixture.Tab("never touched");
+        UseInOrder(sut, tabs);
 
-        var cold = manager.ColdTabs(tabs.Append(unknown), _ => true);
+        // Act
+        var cold = sut.ColdTabs(tabs.Append(unknown), _ => true);
 
+        // Assert
         Assert.Equal([unknown], cold);
     }
 
     [Fact]
-    public void AForgottenTab_Should_NoLongerBeRemembered()
+    public void ColdTabs_AForgottenTab_IsUnknownAgainAndSoTheOldest()
     {
-        var manager = new RecentTabsResidencyPolicy();
-        var tabs = Open(manager, 4);
+        // Arrange
+        var fixture = new RecentTabsResidencyPolicyFixture();
+        var sut = fixture.CreateSut();
+        var tabs = fixture.CreateTabs(4);
+        UseInOrder(sut, tabs);
+        sut.Forget(tabs[3]);
 
-        manager.Forget(tabs[0]);
+        // Act
+        var cold = sut.ColdTabs(tabs, _ => true);
 
-        Assert.Equal([tabs[0]], manager.ColdTabs(tabs, _ => true)); // unknown again: the oldest
+        // Assert
+        Assert.Equal([tabs[3]], cold);
     }
 
     [Fact]
-    public void FewTabs_Should_NeverBeCold()
+    public void Constructor_NoTabMayStayWarm_Throws()
     {
-        var manager = new RecentTabsResidencyPolicy();
+        // Arrange
+        var fixture = new RecentTabsResidencyPolicyFixture();
 
-        Assert.Empty(manager.ColdTabs(Open(manager, 3), _ => true));
+        // Act
+        var create = () => fixture.CreateSut(warmTabs: 0);
+
+        // Assert
+        Assert.Throws<ArgumentOutOfRangeException>(create);
     }
 }

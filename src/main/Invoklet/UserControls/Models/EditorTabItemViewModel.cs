@@ -220,7 +220,7 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
     public bool IsPaused => _runState == RunState.Paused;
     public bool IsRunningProgress => _runState is RunState.Run or RunState.RunDebug;
 
-    // Run and Continue are the same button in the toolbar (EditorTabsControl.RunOrContinueActive
+    // Run and Continue are the same button in the toolbar (ActiveTabCommands.RunOrContinue
     // already implements this logic for the hotkey) — enabled when either action is currently valid.
     public bool EnableRunOrContinueButton => EnableRunButton || IsPaused;
     public string TooltipRunOrContinue => IsPaused ? TooltipContinue : TooltipRun;

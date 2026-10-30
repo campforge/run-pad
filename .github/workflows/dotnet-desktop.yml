@@ -251,22 +251,28 @@ jobs:
         if: github.event_name == 'push'
         run: tar -czf Invoklet-linux-x64.tar.gz -C publish/linux-x64 .
 
-      # A fixed release with its checksum, so a release can be rebuilt with the tool it was built with: the
-      # "continuous" build moves, and a change in it (stricter checks, 2026-10-29) failed a release build.
+      # Fixed releases with their checksums, so a release can be rebuilt with the tool it was built with: the
+      # "continuous" build moves, and a change in it (stricter checks, 2026-10-29) failed a release build. The
+      # tool downloads the latest AppImage runtime on its own, so the runtime is pinned too and handed to it.
       - name: ⬇️ Download appimagetool
         if: github.event_name == 'push'
         env:
           APPIMAGETOOL_VERSION: 1.9.1
           APPIMAGETOOL_SHA256: ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
+          APPIMAGE_RUNTIME_VERSION: 20251108
+          APPIMAGE_RUNTIME_SHA256: 2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d
         run: |
           curl -fsSL "https://github.com/AppImage/appimagetool/releases/download/${APPIMAGETOOL_VERSION}/appimagetool-x86_64.AppImage" -o /tmp/appimagetool
           echo "${APPIMAGETOOL_SHA256}  /tmp/appimagetool" | sha256sum -c -
           chmod +x /tmp/appimagetool
+          curl -fsSL "https://github.com/AppImage/type2-runtime/releases/download/${APPIMAGE_RUNTIME_VERSION}/runtime-x86_64" -o /tmp/appimage-runtime
+          echo "${APPIMAGE_RUNTIME_SHA256}  /tmp/appimage-runtime" | sha256sum -c -
 
       - name: 🧳 Bundle AppImage (linux-x64)
         if: github.event_name == 'push'
         env:
           APPIMAGETOOL: /tmp/appimagetool
+          APPIMAGE_RUNTIME: /tmp/appimage-runtime
         run: bash scripts/make-linux-appimage.sh publish/linux-x64 dist
 
       # Version comes from build-windows (the one the draft is tagged with), not re-read here.

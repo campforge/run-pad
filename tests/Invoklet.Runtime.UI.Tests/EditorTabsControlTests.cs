@@ -86,7 +86,7 @@ public class EditorTabsControlTests
     // was no actual Save action anywhere (no Ctrl+S, no menu item; only implicit saves on tab
     // close/Run/etc., or the always-dialog "Save As"), so pressing Ctrl+S out of habit matched no
     // gesture and silently did nothing — IsDirty correctly never cleared because nothing was ever
-    // written. EditorTabsControl.SaveActive (wired to the new Ctrl+S gesture) is the fix; this
+    // written. ActiveTabCommands.Save (wired to the new Ctrl+S gesture) is the fix; this
     // exercises it end-to-end against a real EditorsTabItemControl/CodeTextEditor, not just the
     // ViewModel-level IsDirty flag.
     [AvaloniaFact]
@@ -145,7 +145,7 @@ public class EditorTabsControlTests
             ctrl.State.Editor.Text = "Console.WriteLine(2);";
             Assert.True(tab.IsDirty);
 
-            editorTabs.SaveActive();
+            editorTabs.Commands.Save();
 
             Assert.False(tab.IsDirty);
             var written = MdRunParser.TryParse(File.ReadAllText(filePath));
@@ -213,7 +213,7 @@ public class EditorTabsControlTests
             ctrl.State.Editor.Text = "Console.WriteLine(1);";
             Assert.True(tab.IsDirty);
 
-            editorTabs.SaveActive();
+            editorTabs.Commands.Save();
             await TestWait.WhileAsync(() => !File.Exists(chosenPath));
 
             Assert.True(File.Exists(chosenPath));

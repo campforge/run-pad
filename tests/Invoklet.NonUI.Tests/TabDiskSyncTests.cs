@@ -1,7 +1,4 @@
-using Invoklet.Format.MdRun;
 using Invoklet.Services;
-using Invoklet.Services.Preferences;
-using Invoklet.Services.Tabs;
 using Invoklet.UserControls;
 using Invoklet.UserControls.Models;
 using Moq;
@@ -9,279 +6,365 @@ using Xunit;
 
 namespace Invoklet.NonUI.Tests;
 
-// Reacting to a file another program changed, on fakes: no window, no editor, no files.
-public class TabDiskSyncTests
+public sealed class TabDiskSyncTests
 {
-    private sealed class FakeReader : IScriptFileReader
+    private static readonly TimeSpan Limit = TimeSpan.FromSeconds(5);
+
+    private static CancellationToken Token => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task CheckAsync_FileDidNotChange_LeavesTheTabAlone()
     {
-        public Dictionary<string, ScriptFileState> Files { get; } = new();
-        public HashSet<string> Unreadable { get; } = [];
-        public List<string> Reads { get; } = [];
-        public Action? OnRead { get; set; }
-        public ScriptFileState Read(string path)
-        {
-            Reads.Add(path);
-            OnRead?.Invoke();
-            return Unreadable.Contains(path) ? throw new IOException("locked") : Files[path];
-        }
-    }
+        // Arrange
+        var fixture = new TabDiskSyncFixture();
+        fixture.CreateTab("a", onDisk: 1);
+        var sut = fixture.CreateSut();
 
-    private sealed class FakeHost : ITabDiskHost
-    {
-        public bool IsClosed { get; set; }
-        public List<EditorTabItemViewModel> Tabs { get; } = [];
-        IReadOnlyList<EditorTabItemViewModel> ITabDiskHost.Tabs => Tabs;
-        public HashSet<EditorTabItemViewModel> WithoutContent { get; } = [];
-        public List<EditorTabItemViewModel> Reloaded { get; } = [];
-        public List<EditorTabItemViewModel> Reopened { get; } = [];
-        public DiskReload Result { get; set; } = DiskReload.Reloaded;
-        public bool HasContent(EditorTabItemViewModel tab) => !WithoutContent.Contains(tab);
-        public DiskReload Reload(EditorTabItemViewModel tab)
-        {
-            Reloaded.Add(tab);
-            return Result;
-        }
-        public void Reopen(EditorTabItemViewModel tab) => Reopened.Add(tab);
-    }
+        // Act
+        await sut.CheckAsync(fixture.Host.Object, Token);
 
-    private static ScriptFileState State(byte b) => new([b]);
-
-    private sealed class Harness
-    {
-        public Mock<IWindowService> Windows { get; } = new();
-        public FakeReader Reader { get; } = new();
-        public FakeHost Host { get; } = new();
-        public TabDiskSync Sync { get; }
-
-        public Harness()
-        {
-            Windows.Setup(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>())).ReturnsAsync(true);
-            Windows.Setup(w => w.ShowErrorAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.CompletedTask);
-            Sync = new TabDiskSync(Windows.Object, Reader);
-        }
-
-        // A tab on a file that held state 1 when it was read and holds `onDisk` now.
-        public EditorTabItemViewModel Open(string name, byte onDisk = 2, bool dirty = false)
-        {
-            var prefs = new Mock<IPreferencesService>();
-            prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
-            prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
-            prefs.Setup(p => p.Editor).Returns(new EditorSettings());
-            prefs.Setup(p => p.CSharp).Returns(new CSharpLanguageSettings());
-            prefs.Setup(p => p.Session).Returns(new SessionSettings());
-            var path = "/scripts/" + name + ".inv";
-            var tab = new EditorTabItemViewModel(path, [], prefs.Object, new Mock<IEditorTabActions>().Object,
-                MdRunLanguage.CSharp, MdRunKind.Statements)
-            {
-                DiskState = State(1),
-                IsDirty = dirty,
-            };
-            Reader.Files[path] = State(onDisk);
-            Host.Tabs.Add(tab);
-            return tab;
-        }
+        // Assert
+        fixture.Host.Verify(h => h.Reload(It.IsAny<EditorTabItemViewModel>()), Times.Never);
     }
 
     [Fact]
-    public async Task AFileThatDidNotChange_Should_LeaveTheTabAlone()
+    public async Task CheckAsync_FileChangedAndTabIsClean_ReloadsItWithoutAsking()
     {
-        var h = new Harness();
-        h.Open("a", onDisk: 1);
+        // Arrange
+        var fixture = new TabDiskSyncFixture();
+        var tab = fixture.CreateTab("a");
+        var sut = fixture.CreateSut();
 
-        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
+        // Act
+        await sut.CheckAsync(fixture.Host.Object, Token);
 
-        Assert.Empty(h.Host.Reloaded);
+        // Assert
+        fixture.Host.Verify(h => h.Reload(tab), Times.Once);
+        fixture.Windows.Verify(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
-    public async Task AChangedFile_Should_ReloadAnUnchangedTabQuietly()
+    public async Task CheckAsync_FileChangedAndTabHasUnsavedChanges_AsksBeforeReloading()
     {
-        var h = new Harness();
-        var tab = h.Open("a");
+        // Arrange
+        var fixture = new TabDiskSyncFixture();
+        var tab = fixture.CreateTab("a", dirty: true);
+        var sut = fixture.CreateSut();
 
-        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
+        // Act
+        await sut.CheckAsync(fixture.Host.Object, Token);
 
-        Assert.Equal([tab], h.Host.Reloaded);
-        h.Windows.Verify(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>()), Times.Never);
+        // Assert
+        fixture.Windows.Verify(w => w.ShowReloadChangedFileDialogAsync("a.inv"), Times.Once);
+        fixture.Host.Verify(h => h.Reload(tab), Times.Once);
     }
 
     [Fact]
-    public async Task AChangedFile_Should_AskBeforeReloadingATabWithUnsavedChanges()
+    public async Task CheckAsync_ReloadDeclined_AsksAgainOnlyAboutANewerVersionOfTheFile()
     {
-        var h = new Harness();
-        var tab = h.Open("a", dirty: true);
+        // Arrange
+        var fixture = new TabDiskSyncFixture();
+        var tab = fixture.CreateTab("a", dirty: true);
+        fixture.Windows.Setup(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>())).ReturnsAsync(false);
+        var sut = fixture.CreateSut();
 
-        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
+        // Act
+        await sut.CheckAsync(fixture.Host.Object, Token);
+        await sut.CheckAsync(fixture.Host.Object, Token);
+        var askedForTheSameVersion = fixture.Windows.Invocations.Count(i => i.Method.Name == nameof(IWindowService.ShowReloadChangedFileDialogAsync));
+        fixture.SetDiskState(tab, 3);
+        await sut.CheckAsync(fixture.Host.Object, Token);
 
-        h.Windows.Verify(w => w.ShowReloadChangedFileDialogAsync("a.inv"), Times.Once);
-        Assert.Equal([tab], h.Host.Reloaded);
+        // Assert
+        Assert.Equal(1, askedForTheSameVersion);
+        fixture.Windows.Verify(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>()), Times.Exactly(2));
+        fixture.Host.Verify(h => h.Reload(It.IsAny<EditorTabItemViewModel>()), Times.Never);
     }
 
     [Fact]
-    public async Task ADeclinedReload_Should_BeRemembered_ForThatVersionOfTheFileOnly()
+    public async Task CheckAsync_TabIsRunning_LeavesItAlone()
     {
-        var h = new Harness();
-        var tab = h.Open("a", dirty: true);
-        h.Windows.Setup(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>())).ReturnsAsync(false);
+        // Arrange
+        var fixture = new TabDiskSyncFixture();
+        fixture.CreateTab("a").RunState = RunState.Run;
+        var sut = fixture.CreateSut();
 
-        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
-        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
+        // Act
+        await sut.CheckAsync(fixture.Host.Object, Token);
 
-        Assert.Empty(h.Host.Reloaded);
-        h.Windows.Verify(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>()), Times.Once); // not asked again
-
-        h.Reader.Files[tab.FilePath!] = State(3); // another change: asked again
-        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
-        h.Windows.Verify(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>()), Times.Exactly(2));
+        // Assert
+        fixture.Host.Verify(h => h.Reload(It.IsAny<EditorTabItemViewModel>()), Times.Never);
     }
 
     [Fact]
-    public async Task ATabThatIsRunning_Should_BeLeftAlone()
+    public async Task CheckAsync_TabsTextIsOnDisk_DoesNotReloadIt()
     {
-        var h = new Harness();
-        h.Open("a").RunState = RunState.Run;
+        // Arrange
+        var fixture = new TabDiskSyncFixture();
+        fixture.RemoveContent(fixture.CreateTab("a"));
+        var sut = fixture.CreateSut();
 
-        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
+        // Act
+        await sut.CheckAsync(fixture.Host.Object, Token);
 
-        Assert.Empty(h.Host.Reloaded);
+        // Assert
+        fixture.Host.Verify(h => h.Reload(It.IsAny<EditorTabItemViewModel>()), Times.Never);
+        fixture.Reader.Verify(r => r.Read(It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
-    public async Task ATabWhoseTextIsOnDisk_Should_NotBeReloaded()
+    public async Task CheckAsync_FileCannotBeRead_SkipsItAndChecksTheOthers()
     {
-        var h = new Harness();
-        var tab = h.Open("a");
-        h.Host.WithoutContent.Add(tab);
+        // Arrange
+        var fixture = new TabDiskSyncFixture();
+        var locked = fixture.CreateTab("a");
+        var other = fixture.CreateTab("b");
+        fixture.Reader.Setup(r => r.Read(locked.FilePath!)).Throws(new IOException("locked"));
+        var sut = fixture.CreateSut();
 
-        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
+        // Act
+        await sut.CheckAsync(fixture.Host.Object, Token);
 
-        Assert.Empty(h.Host.Reloaded);
+        // Assert
+        fixture.Host.Verify(h => h.Reload(other), Times.Once);
+        fixture.Host.Verify(h => h.Reload(locked), Times.Never);
     }
 
     [Fact]
-    public async Task AFileThatCannotBeRead_Should_BeSkipped()
+    public async Task CheckAsync_TabLeftWhileTheQuestionWasOpen_DoesNotReloadIt()
     {
-        var h = new Harness();
-        var locked = h.Open("a");
-        var other = h.Open("b");
-        h.Reader.Unreadable.Add(locked.FilePath!);
-
-        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
-
-        Assert.Equal([other], h.Host.Reloaded);
-    }
-
-    [Fact]
-    public async Task ATabClosedWhileTheQuestionWasOpen_Should_NotBeReloaded()
-    {
-        var h = new Harness();
-        var tab = h.Open("a", dirty: true);
-        h.Windows.Setup(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>()))
+        // Arrange
+        var fixture = new TabDiskSyncFixture();
+        var tab = fixture.CreateTab("a", dirty: true);
+        fixture.Windows.Setup(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>()))
             .Returns(() =>
             {
-                h.Host.WithoutContent.Add(tab); // the tab went away behind the dialog
+                fixture.RemoveContent(tab); // the tab goes away behind the dialog
                 return Task.FromResult(true);
             });
+        var sut = fixture.CreateSut();
 
-        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
+        // Act
+        await sut.CheckAsync(fixture.Host.Object, Token);
 
-        Assert.Empty(h.Host.Reloaded);
+        // Assert
+        fixture.Host.Verify(h => h.Reload(It.IsAny<EditorTabItemViewModel>()), Times.Never);
     }
 
     [Fact]
-    public async Task AScriptInAnotherLanguage_Should_OpenInANewTab()
+    public async Task CheckAsync_ScriptIsNowInAnotherLanguage_OpensItInANewTab()
     {
-        var h = new Harness();
-        var tab = h.Open("a");
-        h.Host.Result = DiskReload.OtherLanguage;
+        // Arrange
+        var fixture = new TabDiskSyncFixture();
+        var tab = fixture.CreateTab("a");
+        fixture.Host.Setup(h => h.Reload(tab)).Returns(DiskReload.OtherLanguage);
+        var sut = fixture.CreateSut();
 
-        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
+        // Act
+        await sut.CheckAsync(fixture.Host.Object, Token);
 
-        Assert.Equal([tab], h.Host.Reopened);
+        // Assert
+        fixture.Host.Verify(h => h.Reopen(tab), Times.Once);
     }
 
     [Fact]
-    public async Task AFileThatVanishedWhileReloading_Should_ShowAnError()
+    public async Task CheckAsync_FileVanishedWhileReloading_ShowsAnError()
     {
-        var h = new Harness();
-        h.Open("a");
-        h.Host.Result = DiskReload.Unavailable;
+        // Arrange
+        var fixture = new TabDiskSyncFixture();
+        var tab = fixture.CreateTab("a");
+        fixture.Host.Setup(h => h.Reload(tab)).Returns(DiskReload.Unavailable);
+        var sut = fixture.CreateSut();
 
-        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
+        // Act
+        await sut.CheckAsync(fixture.Host.Object, Token);
 
-        h.Windows.Verify(w => w.ShowErrorAsync("Reload Failed", "Could not read 'a.inv'."), Times.Once);
+        // Assert
+        fixture.Windows.Verify(w => w.ShowErrorAsync("Reload Failed", "Could not read 'a.inv'."), Times.Once);
     }
 
     [Fact]
-    public async Task ACheckRequestedWhileAnotherIsOpen_Should_RunOnceMoreAfterIt()
+    public async Task CheckAsync_AskedAgainWhileAQuestionIsOpen_ChecksOnceMoreAfterIt()
     {
-        var h = new Harness();
-        var tab = h.Open("a", dirty: true);
+        // Arrange
+        var fixture = new TabDiskSyncFixture();
+        var tab = fixture.CreateTab("a", dirty: true);
         var gate = new TaskCompletionSource<bool>();
         var asked = 0;
-        h.Windows.Setup(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>()))
+        fixture.Windows.Setup(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>()))
             .Returns(() => ++asked == 1 ? gate.Task : Task.FromResult(false));
+        var sut = fixture.CreateSut();
 
-        var first = h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
-        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken); // returns at once: noted for later
-        h.Reader.Files[tab.FilePath!] = State(3);
+        // Act
+        var first = sut.CheckAsync(fixture.Host.Object, Token);
+        await sut.CheckAsync(fixture.Host.Object, Token); // returns at once: noted for later
+        fixture.SetDiskState(tab, 3);
         gate.SetResult(true);
-        await first;
+        await first.WaitAsync(Limit, Token);
 
+        // Assert
         Assert.Equal(2, asked); // the second pass looked at the newer version
     }
 
     [Fact]
-    public async Task ACheckCancelledWhileFilesAreBeingRead_Should_NotReadTheRest()
+    public async Task CheckAsync_StripIsClosed_StopsTheCheck()
     {
-        var h = new Harness();
-        for (var i = 0; i < 20; i++) h.Open("tab" + i);
-        using var cts = new CancellationTokenSource();
-        h.Reader.OnRead = cts.Cancel; // the window is closed while the first file is read
+        // Arrange
+        var fixture = new TabDiskSyncFixture();
+        fixture.CreateTab("a");
+        fixture.IsClosed = true;
+        var sut = fixture.CreateSut();
 
-        await h.Sync.CheckAsync(h.Host, cts.Token);
+        // Act
+        await sut.CheckAsync(fixture.Host.Object, Token);
 
-        Assert.Single(h.Reader.Reads);
-        Assert.Empty(h.Host.Reloaded);
+        // Assert
+        fixture.Host.Verify(h => h.Reload(It.IsAny<EditorTabItemViewModel>()), Times.Never);
     }
 
     [Fact]
-    public async Task ACheckCancelledDuringAReadThatHangs_Should_NotWaitForIt()
+    public async Task CheckAsync_CancelledWhileFilesAreBeingRead_DoesNotReadTheRest()
     {
-        var h = new Harness();
-        h.Open("a");
+        // Arrange
+        var fixture = new TabDiskSyncFixture();
+        for (var i = 0; i < 20; i++) fixture.CreateTab("tab" + i);
+        using var cts = new CancellationTokenSource();
+        var reads = 0;
+        fixture.Reader.Setup(r => r.Read(It.IsAny<string>())).Returns(() =>
+        {
+            Interlocked.Increment(ref reads);
+            cts.Cancel(); // the window is closed while the first file is read
+            return TabDiskSyncFixture.State(2);
+        });
+        var sut = fixture.CreateSut();
+
+        // Act
+        await sut.CheckAsync(fixture.Host.Object, cts.Token);
+
+        // Assert
+        Assert.Equal(1, Volatile.Read(ref reads));
+        fixture.Host.Verify(h => h.Reload(It.IsAny<EditorTabItemViewModel>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CheckAsync_CancelledDuringAReadThatHangs_DoesNotWaitForIt()
+    {
+        // Arrange
+        var fixture = new TabDiskSyncFixture();
+        fixture.CreateTab("a");
         using var cts = new CancellationTokenSource();
         using var hang = new ManualResetEventSlim();
-        h.Reader.OnRead = () => hang.Wait(TimeSpan.FromSeconds(30)); // a file on a drive that does not answer
-
-        var check = h.Sync.CheckAsync(h.Host, cts.Token);
-        await TestWait(() => h.Reader.Reads.Count == 0);
-        cts.Cancel();
+        var readStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Reader.Setup(r => r.Read(It.IsAny<string>())).Returns(() =>
+        {
+            readStarted.SetResult();
+            hang.Wait(TimeSpan.FromSeconds(30)); // a file on a drive that does not answer
+            return TabDiskSyncFixture.State(2);
+        });
+        var sut = fixture.CreateSut();
 
         try
         {
-            await check.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken); // not 30 s
+            // Act
+            var check = sut.CheckAsync(fixture.Host.Object, cts.Token);
+            await readStarted.Task.WaitAsync(Limit, Token); // the read really has begun
+            cts.Cancel();
+            await check.WaitAsync(Limit, Token); // returns long before the read would
+
+            // Assert
             Assert.True(check.IsCompletedSuccessfully);
-            Assert.Empty(h.Host.Reloaded);
+            fixture.Host.Verify(h => h.Reload(It.IsAny<EditorTabItemViewModel>()), Times.Never);
         }
         finally { hang.Set(); }
     }
 
-    private static async Task TestWait(Func<bool> stillWaiting)
+    [Fact]
+    public async Task RevertAsync_TabIsClean_ReloadsItWithoutAsking()
     {
-        var deadline = DateTime.UtcNow.AddSeconds(5);
-        while (stillWaiting() && DateTime.UtcNow < deadline) await Task.Delay(10, TestContext.Current.CancellationToken);
+        // Arrange
+        var fixture = new TabDiskSyncFixture();
+        var tab = fixture.CreateTab("a");
+        fixture.ActiveTab = tab;
+        var sut = fixture.CreateSut();
+
+        // Act
+        await sut.RevertAsync(fixture.Host.Object, tab);
+
+        // Assert
+        fixture.Host.Verify(h => h.Reload(tab), Times.Once);
+        fixture.Windows.Verify(w => w.ShowRevertFileDialogAsync(It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
-    public async Task AClosedStrip_Should_StopTheCheck()
+    public async Task RevertAsync_TabHasUnsavedChangesAndUserDeclines_DoesNotReload()
     {
-        var h = new Harness();
-        h.Open("a");
-        h.Host.IsClosed = true;
+        // Arrange
+        var fixture = new TabDiskSyncFixture();
+        var tab = fixture.CreateTab("a", dirty: true);
+        fixture.ActiveTab = tab;
+        fixture.Windows.Setup(w => w.ShowRevertFileDialogAsync(It.IsAny<string>())).ReturnsAsync(false);
+        var sut = fixture.CreateSut();
 
-        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
+        // Act
+        await sut.RevertAsync(fixture.Host.Object, tab);
 
-        Assert.Empty(h.Host.Reloaded);
+        // Assert
+        fixture.Host.Verify(h => h.Reload(It.IsAny<EditorTabItemViewModel>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RevertAsync_TabHasUnsavedChangesAndUserAgrees_ReloadsIt()
+    {
+        // Arrange
+        var fixture = new TabDiskSyncFixture();
+        var tab = fixture.CreateTab("a", dirty: true);
+        fixture.ActiveTab = tab;
+        var sut = fixture.CreateSut();
+
+        // Act
+        await sut.RevertAsync(fixture.Host.Object, tab);
+
+        // Assert
+        fixture.Host.Verify(h => h.Reload(tab), Times.Once);
+    }
+
+    [Fact]
+    public async Task RevertAsync_FileIsGone_SaysSoAndDoesNotReload()
+    {
+        // Arrange
+        var fixture = new TabDiskSyncFixture();
+        var tab = fixture.CreateTab("a", exists: false);
+        fixture.ActiveTab = tab;
+        var sut = fixture.CreateSut();
+
+        // Act
+        await sut.RevertAsync(fixture.Host.Object, tab);
+
+        // Assert
+        fixture.Windows.Verify(w => w.ShowErrorAsync("Revert Failed", "'a.inv' no longer exists on disk."), Times.Once);
+        fixture.Host.Verify(h => h.Reload(It.IsAny<EditorTabItemViewModel>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RevertAsync_AnotherTabWasSelectedWhileAsking_DoesNotReload()
+    {
+        // Arrange
+        var fixture = new TabDiskSyncFixture();
+        var tab = fixture.CreateTab("a", dirty: true);
+        var other = fixture.CreateTab("b");
+        fixture.ActiveTab = tab;
+        fixture.Windows.Setup(w => w.ShowRevertFileDialogAsync(It.IsAny<string>()))
+            .Returns(() =>
+            {
+                fixture.ActiveTab = other;
+                return Task.FromResult(true);
+            });
+        var sut = fixture.CreateSut();
+
+        // Act
+        await sut.RevertAsync(fixture.Host.Object, tab);
+
+        // Assert
+        fixture.Host.Verify(h => h.Reload(It.IsAny<EditorTabItemViewModel>()), Times.Never);
     }
 }

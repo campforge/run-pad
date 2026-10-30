@@ -32,10 +32,10 @@
                     HorizontalAlignment="Right"
                     Spacing="{DynamicResource Invoklet.Space.Control}">
             <Button Classes="secondary" x:Name="ReloadButton"
-                    MinWidth="88"
+                    MinWidth="{DynamicResource Invoklet.Size.DialogButton}"
                     Click="ReloadButton_Click"/>
             <Button Classes="primary" x:Name="KeepButton"
-                    MinWidth="88"
+                    MinWidth="{DynamicResource Invoklet.Size.DialogButton}"
                     Click="KeepButton_Click"
                     IsDefault="True"
                     IsCancel="True"/>
