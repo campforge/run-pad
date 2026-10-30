@@ -27,22 +27,6 @@ namespace Invoklet.Languages.CSharp.IntelliSense;
 
 public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
 {
-    // Default usings the synthetic script document is built with, so completion/diagnostics work
-    // without the user typing them — must match the compiler's own implicit usings exactly (see
-    // ImplicitUsings.Default), otherwise IntelliSense shows no error for something
-    // that won't actually compile. Extended at runtime with the .inv front matter's own
-    // `namespaces:` list (see UpdateGlobalUsings) so IntelliSense agrees with what the compiler
-    // will actually add as `global using` too — see docs/ImplementationPlanRPad.md and RoslynCodeFixEngine.
-    //
-    // "Invoklet.Runtime" appended separately from ImplicitUsings.Default itself (not folded into that
-    // list) — ImplicitUsings.Default's own job is specifically mirroring the .NET SDK's fixed
-    // <ImplicitUsings>enable</ImplicitUsings> set; Invoklet.Runtime (DumpContainer/ICustomMemberProvider/
-    // DumpOptions — for LINQPad Runtime API compatibility) is Invoklet's own
-    // addition, emitted into the real compiled project via CSharpProjectProfile.DefaultImportNamespaces
-    // instead, which this needs to mirror for the same "IntelliSense must agree with what actually
-    // compiles" reason as everything else on this list.
-    private static readonly string[] _basePreambleUsings = [.. ImplicitUsings.Default, "Invoklet.Runtime"];
-
     // Also used for signature-help method/parameter signatures and quick info, not just completion —
     // IncludeParamsRefOut/IncludeDefaultValue make those read like a real signature (`params object[]
     // args`, `string? label = null`) instead of just bare "type name" pairs.
@@ -171,6 +155,8 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     private readonly AnalysisScheduler _scheduler;
 
     private readonly ILogger<CSharpIntelliSenseService> _logger;
+    // The text of the analysis document and the offsets into it; holds no workspace.
+    private readonly ScriptDocumentLayout _layout = new();
     private readonly AdhocWorkspace _workspace;
     private readonly DocumentId _documentId;
 
@@ -195,7 +181,6 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     private IReadOnlyList<string> _generatorPaths = [];
     // The script's own .dll references with the same-folder dependencies the build adds.
     private IReadOnlyList<string> _userReferencePaths = [];
-    private CSharpParseOptions _parseOptions = CSharpScriptCompiler.ParseOptions(Environment.Version.Major, Environment.Version.Minor);
     private readonly List<MetadataReference> _nugetRefs = [];
     private IReadOnlyList<string> _nugetPaths = [];
     private readonly RoslynCodeFixEngine _codeFixEngine;
@@ -205,10 +190,6 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     private volatile bool _InvokletAnalyzersEnabled;
 
     public void UpdateInvokletAnalyzers(bool enabled) => _InvokletAnalyzersEnabled = enabled;
-    private string[] _extraPreambleUsings = [];
-    private string _preamble = "";
-    private int _preambleLength;
-    private MdRunKind _kind = MdRunKind.Statements;
     private IReadOnlyList<MdRunArgumentContractMember> _argumentContract = [];
     private string _lastCode = "";
 
@@ -223,7 +204,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // parsing-dominated — see RoslynCodeFixEngine's own class doc comment for the bigger win that
     // targeted). _lastSourceText is also reset to null (forcing one full SourceText.From rebuild) in
     // UpdateGlobalUsings/UpdateKind alongside their own _lastCode = "" reset: both change _preamble or
-    // _kind, which feed directly into newFullText, so the cached _lastFullText baseline would no
+    // _layout.Kind, which feed directly into newFullText, so the cached _lastFullText baseline would no
     // longer describe what the workspace's document is about to hold, and diffing against it would
     // compute a TextChange against the wrong text. UpdatePackageReferences's own _lastCode = "" reset
     // deliberately does NOT clear these two — it only swaps MetadataReferences (symbol resolution),
@@ -284,7 +265,6 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             work => RoslynMessageCulture.RunAsync(work, CancellationToken.None),
             ex => _logger.LogWarning(ex, "Background analysis failed"),
             _backgroundAnalysisDisposeTimeout);
-        RebuildPreamble();
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var additional = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -338,7 +318,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             compilationOptions: new CSharpCompilationOptions(
                 OutputKind.DynamicallyLinkedLibrary,
                 nullableContextOptions: NullableContextOptions.Enable),
-            parseOptions: _parseOptions,
+            parseOptions: _layout.ParseOptions,
             metadataReferences: refs);
 
         _workspace.AddProject(projectInfo);
@@ -346,7 +326,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             _documentId,
             "Script.cs",
             loader: TextLoader.From(TextAndVersion.Create(
-                SourceText.From(_preamble, Encoding.UTF8),
+                SourceText.From(_layout.Preamble, Encoding.UTF8),
                 VersionStamp.Create())),
             filePath: Path.Combine(ScriptFolder, "Script.cs")));
         // Code actions format what they write with the options an .editorconfig beside the document
@@ -358,26 +338,9 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             filePath: Path.Combine(ScriptFolder, ".editorconfig")));
     }
 
-    private void RebuildPreamble()
-    {
-        var sb = new StringBuilder();
-        foreach (var u in _basePreambleUsings) sb.Append("global using ").Append(u).Append(";\n");
-        foreach (var u in _extraPreambleUsings) sb.Append("global using ").Append(u).Append(";\n");
-        sb.Append('\n');
-        _preamble = sb.ToString();
-        _preambleLength = _preamble.Length;
-    }
-
     public void UpdateGlobalUsings(IReadOnlyList<string> usings)
     {
-        var extra = usings
-            .Where(u => !_basePreambleUsings.Contains(u, StringComparer.Ordinal))
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
-        if (extra.SequenceEqual(_extraPreambleUsings, StringComparer.Ordinal)) return;
-
-        _extraPreambleUsings = extra;
-        RebuildPreamble();
+        if (!_layout.SetExtraUsings(usings)) return;
         // force re-sync with the new preamble on the next analysis pass — also drop the cached
         // _lastSourceText/_lastFullText baseline (see their own doc comment): the preamble just
         // changed underneath it, so diffing against it would compute a TextChange against text the
@@ -419,95 +382,11 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
 
     public void UpdateKind(MdRunKind kind)
     {
-        if (_kind == kind) return;
-
-        _kind = kind;
+        if (!_layout.SetKind(kind)) return;
         // force re-sync with the new kind-transform prefix on the next analysis pass — same
         // baseline-invalidation reasoning as UpdateGlobalUsings above.
         lock (_syncLock) { _lastCode = ""; _lastFullText = ""; _lastSourceText = null; }
     }
-
-    // The prefix ApplyKindTransform (CSharpLanguageHost) inserts before the user's code for
-    // MdRunKind.Program — mirrored here so the live-analysis document contains the same wrapper-class
-    // call the compiler will actually emit, otherwise Roslyn correctly (from its own point of view)
-    // flags the user's Main as an unused local function (CS8321). Deliberately NOT mirroring
-    // Expression's transform here — it also trims/wraps the *end* of the code, which would desync the
-    // expression-source mapping. Program uses a shared insertion-only projection so moved types still map
-    // to their original editor offsets.
-    // Code-dependent since ProgramPrefixFor picks the call-statement shape based on whether the user's
-    // own Main is static and/or Task-returning — every call site already has
-    // `code` in scope (it's what's being analyzed), so this just threads it through.
-    // Parsed with this document's own options (the build's symbols for its target), as the build does.
-    private string KindPrefix(string code) => KindShapeFor(code).Prefix;
-
-    // Closes the wrapper class KindPrefix opens for MdRunKind.Program — mirrored for the
-    // same reason as the prefix: without it, the live-analysis document would contain a permanently
-    // unclosed class declaration, breaking parsing/binding for the rest of the synced text.
-    // Code-dependent for the same reason as KindPrefix — ProgramSuffixFor's synthetic trampoline shape
-    // depends on whether the user's own Main is static/Task-returning.
-    private string KindSuffix(string code) => KindShapeFor(code).Suffix;
-
-    // Total offset from the start of the live-analysis document text to the start of the user's own
-    // code — usings preamble plus (for MdRunKind.Program) the mirrored wrapper-class prefix above.
-    private int HeaderLength(string code) => _preambleLength + KindPrefix(code).Length;
-
-    private ProgramBodyProjection ProjectionFor(string code) => KindShapeFor(code).Projection;
-
-    // The prefix, projection and suffix each parse the whole script, and the offset mapping below
-    // runs once per classified span, diagnostic or highlighted token: computed once per text, kind
-    // and parse options, not on every mapped offset.
-    private sealed record KindShape(string Code, CSharpParseOptions Options, MdRunKind Kind,
-        string Prefix, ProgramBodyProjection Projection, string Suffix);
-
-    private KindShape? _kindShape;
-
-    private KindShape KindShapeFor(string code)
-    {
-        lock (_syncLock)
-        {
-            if (_kindShape is { } shape && shape.Code == code && shape.Options == _parseOptions && shape.Kind == _kind)
-                return shape;
-            return _kindShape = _kind == MdRunKind.Program
-                ? new KindShape(code, _parseOptions, _kind,
-                    MdRunKindTransform.ProgramPrefixFor(code, _parseOptions),
-                    ProgramBodyProjection.Create(code, _parseOptions),
-                    MdRunKindTransform.ProgramSuffixFor(code, _parseOptions))
-                : new KindShape(code, _parseOptions, _kind, "", ProgramBodyProjection.Identity(code), "");
-        }
-    }
-
-    private int ToDocumentOffset(string code, int offset) => HeaderLength(code) + ProjectionFor(code).ToProjected(offset);
-
-    private int ToUserOffset(string code, int offset)
-    {
-        var result = ProjectionFor(code).ToOriginal(offset - HeaderLength(code));
-        return result < 0 || result > code.Length ? -1 : result;
-    }
-
-    private TextSpan? ToUserSpan(string code, TextSpan span)
-    {
-        var relativeStart = span.Start - HeaderLength(code);
-        return relativeStart < 0 ? null : ProjectionFor(code).ToOriginal(new TextSpan(relativeStart, span.Length));
-    }
-
-
-    // With nothing after the user's own code, a query position sitting at the very end
-    // of it (e.g. right after typing a fresh single-letter identifier at the end of the last line —
-    // the exact reported repro: `var a = ...;` then `a` on its own line, nothing typed after it yet)
-    // coincides with the true end of the whole synced document. Roslyn's SemanticModel.LookupSymbols
-    // silently stops finding block-scoped locals/parameters right at that exact boundary — confirmed
-    // directly against Roslyn (position == EndOfFileToken, whose parent is the bare CompilationUnit
-    // rather than any enclosing statement) — so the just-declared local `a` dropped out of the
-    // completion list entirely, leaving the implicit top-level-statement `args` parameter (which
-    // isn't affected by this boundary — it resolves from a different binder chain) as the only
-    // remaining "a"-prefixed candidate. A single trailing space, appended once here, moves every
-    // legitimate query position (which can only ever be <= HeaderLength + code.Length) strictly
-    // before the document's new true end, sidestepping the boundary entirely — confirmed empirically
-    // to restore the local for that same repro. Purely whitespace, so it can't itself introduce new
-    // diagnostics/tokens; RoslynCodeFixEngine is the one consumer that reconstructs "the user's code"
-    // by measuring from the document's end rather than from the known userCode.Length, so it takes an
-    // explicit adjustment (see ApplyRelocatingPreambleEdits) to not leak this pad into a fix's output.
-    private const string TrailingPad = " ";
 
     // ── Document sync ──────────────────────────────────────────────────────────
 
@@ -523,8 +402,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             }
             if (_lastCode != code)
             {
-                var newFullText = ScriptDocumentProjection.Create(
-                    _preamble, KindPrefix(code), ProjectionFor(code).Text, KindSuffix(code), TrailingPad).FullText;
+                var newFullText = _layout.FullText(code);
 
                 // Hand Roslyn a
                 // minimal TextChange against the previous SourceText instead of always building a fresh
@@ -609,7 +487,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = ToDocumentOffset(code, position);
+            var pos = _layout.ToDocumentOffset(code, position);
             return ProvideCompletions(new CompletionRequest(code, position, trigger, model, root, pos));
         }
         // A superseded request (see CodeTextEditor.ShowCompletion) cancels its token —
@@ -1109,7 +987,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = ToDocumentOffset(code, position);
+            var pos = _layout.ToDocumentOffset(code, position);
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var node = root.FindNode(new TextSpan(Math.Max(0, pos - 1), 1), getInnermostNodeForTie: true);
@@ -1334,7 +1212,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = ToDocumentOffset(code, position);
+            var pos = _layout.ToDocumentOffset(code, position);
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var token = root.FindToken(pos);
@@ -1418,7 +1296,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = ToDocumentOffset(code, position);
+            var pos = _layout.ToDocumentOffset(code, position);
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var token = root.FindToken(pos);
@@ -1429,7 +1307,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
 
             if (symbol.Locations.FirstOrDefault(IsInScript) is { } sourceLocation)
             {
-                var offset = ToUserOffset(code, sourceLocation.SourceSpan.Start);
+                var offset = _layout.ToUserOffset(code, sourceLocation.SourceSpan.Start);
                 if (offset < 0) return null; // declared inside the prepended preamble, not user code
                 return new SimpleDefinitionResult(
                     IsInSource: true, Offset: offset,
@@ -1506,7 +1384,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = ToDocumentOffset(code, position);
+            var pos = _layout.ToDocumentOffset(code, position);
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var token = root.FindToken(pos);
@@ -1535,7 +1413,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             foreach (var impl in implementations)
             {
                 if (impl.Locations.FirstOrDefault(IsInScript) is not { } location) continue;
-                var offset = ToUserOffset(code, location.SourceSpan.Start);
+                var offset = _layout.ToUserOffset(code, location.SourceSpan.Start);
                 if (offset < 0) continue; // inside the prepended usings preamble, not user code
                 results.Add(new SimpleImplementationLocation(offset, impl.ToDisplayString()));
             }
@@ -1568,7 +1446,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         var root = await document.GetSyntaxRootAsync(ct);
         if (root == null) return null;
 
-        var pos = ToDocumentOffset(code, position);
+        var pos = _layout.ToDocumentOffset(code, position);
         if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
         var token = root.FindToken(pos);
@@ -1590,7 +1468,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             if (candidateSymbol == null || !SymbolEqualityComparer.Default.Equals(candidateSymbol, symbol))
                 continue;
 
-            var userStart = ToUserOffset(code, candidate.SpanStart);
+            var userStart = _layout.ToUserOffset(code, candidate.SpanStart);
             if (userStart < 0) continue; // inside the prepended usings preamble, not user code
             spans.Add(new SimpleDocumentHighlightSpan(userStart, candidate.Span.Length));
         }
@@ -1618,7 +1496,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         var document = SyncDocument(code);
         var model = await document.GetSemanticModelAsync(cancellationToken);
         if (model is null) return null;
-        var pos = ToDocumentOffset(code, Math.Clamp(position, 0, code.Length));
+        var pos = _layout.ToDocumentOffset(code, Math.Clamp(position, 0, code.Length));
         var parsed = SyntaxFactory.ParseExpression(expression);
         string? error = null;
         if (!string.IsNullOrWhiteSpace(expression))
@@ -1707,7 +1585,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             OptionSet formattingOptions;
             lock (_syncLock)
             {
-                parseOptions = _parseOptions;
+                parseOptions = _layout.ParseOptions;
                 formattingOptions = FormattingOptionsSnapshot();
             }
             using var formatWorkspace = new AdhocWorkspace(InvokletRoslynHost.HostServices);
@@ -1741,14 +1619,14 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             if (position < 0 || position > code.Length) return null;
 
             var document = SyncDocument(code);
-            var headerLength = HeaderLength(code);
-            var span = new TextSpan(ToDocumentOffset(code, position), 0);
+            var headerLength = _layout.HeaderLength(code);
+            var span = new TextSpan(_layout.ToDocumentOffset(code, position), 0);
 
             // 1-based, same convention as CodeFixEntry.Line/RoslynCodeFixEngine's own diagnostic-fix
             // line lookup — LinePosition.Line itself is 0-based.
             var userLine = SourceText.From(code).Lines.GetLinePosition(position).Line + 1;
 
-            return await _codeFixEngine.ComputeRefactoringsAsync(document, span, ProjectionFor(code).Text, headerLength, userLine, ct);
+            return await _codeFixEngine.ComputeRefactoringsAsync(document, span, _layout.Projection(code).Text, headerLength, userLine, ct);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex) { _logger.LogWarning(ex, "GetRefactoringsAsync failed"); return null; }
@@ -1767,17 +1645,17 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     {
         try
         {
-            var headerLength = HeaderLength(code);
-            var materialized = await _codeFixEngine.MaterializeAsync(key, ProjectionFor(code).Text, headerLength, ct);
+            var headerLength = _layout.HeaderLength(code);
+            var materialized = await _codeFixEngine.MaterializeAsync(key, _layout.Projection(code).Text, headerLength, ct);
             if (materialized is null) return null;
-            var projection = ProjectionFor(code);
+            var projection = _layout.Projection(code);
             if (projection.RestoreEdit(materialized.Value.NewCode, materialized.Value.ChangedSpans,
-                    KindPrefix(code), KindSuffix(code), _parseOptions) is not var (restored, changedSpans)) return null;
+                    _layout.Prefix(code), _layout.Suffix(code), _layout.ParseOptions) is not var (restored, changedSpans)) return null;
             var newCode = restored;
-            if (_kind == MdRunKind.Program && restored != code)
+            if (_layout.Kind == MdRunKind.Program && restored != code)
             {
                 // A class compiled outside the hidden one was formatted at its own columns already.
-                var moved = projection.HasChanges ? ProgramBodyProjection.Create(restored, _parseOptions).Moved : [];
+                var moved = projection.HasChanges ? ProgramBodyProjection.Create(restored, _layout.ParseOptions).Moved : [];
                 newCode = await ReindentOutsideTheWrapperAsync(restored,
                     [.. changedSpans.Where(span => !moved.Any(m => m.Contains(span)))], ct);
             }
@@ -1807,7 +1685,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         var useTabs = options.GetOption(FormattingOptions.UseTabs, LanguageNames.CSharp);
         var unit = useTabs ? "\t" : new string(' ', options.GetOption(FormattingOptions.IndentationSize, LanguageNames.CSharp));
         CSharpParseOptions parseOptions;
-        lock (_syncLock) parseOptions = _parseOptions;
+        lock (_syncLock) parseOptions = _layout.ParseOptions;
 
         var lines = newCode.Split('\n');
         var lineStarts = new int[lines.Length];
@@ -1890,12 +1768,12 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             var model = await document.GetSemanticModelAsync(ct);
             if (model is null) return new SimpleMaterializedFix(code, []);
 
-            var headerLength = HeaderLength(code);
+            var headerLength = _layout.HeaderLength(code);
             var diagnostics = model.GetDiagnostics(cancellationToken: ct)
                 .Where(d => d.Id is "CS0246" or "CS0103")
                 .ToList();
 
-            var usings = await _codeFixEngine.ResolveAllMissingUsingsAsync(document, diagnostics, ProjectionFor(code).Text, headerLength, ct);
+            var usings = await _codeFixEngine.ResolveAllMissingUsingsAsync(document, diagnostics, _layout.Projection(code).Text, headerLength, ct);
             return new SimpleMaterializedFix(code, usings);
         }
         catch (OperationCanceledException) { throw; }
@@ -1956,8 +1834,8 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
 
     private async Task ComputeSemanticTokensAsync(string code, Document document, int version, CancellationToken ct)
     {
-        var headerLength = HeaderLength(code);
-        var textLen = headerLength + ProjectionFor(code).Text.Length;
+        var headerLength = _layout.HeaderLength(code);
+        var textLen = headerLength + _layout.Projection(code).Text.Length;
         var spans = await Classifier.GetClassifiedSpansAsync(
             document, new TextSpan(0, textLen), ct);
 
@@ -1967,7 +1845,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             var kind = ClassifySpan(span.ClassificationType);
             if (kind == SemanticTokenKind.None) continue;
 
-            var mapped = ToUserSpan(code, span.TextSpan);
+            var mapped = _layout.ToUserSpan(code, span.TextSpan);
             if (mapped is null || mapped.Value.IsEmpty) continue;
             var start = mapped.Value.Start;
             var end = mapped.Value.End;
@@ -1995,7 +1873,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             return;
         }
 
-        var headerLength = HeaderLength(code);
+        var headerLength = _layout.HeaderLength(code);
         var result = new List<IInlayHint>();
 
         foreach (var declaration in root.DescendantNodes().OfType<VariableDeclarationSyntax>())
@@ -2028,7 +1906,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         {
             if (type is null || type.Name == "var") return;
 
-            var offset = ToUserOffset(code, identifierPos);
+            var offset = _layout.ToUserOffset(code, identifierPos);
             if (offset < 0 || offset > code.Length) return;
 
             var display = type.ToMinimalDisplayString(model, typeSyntaxPos, _inlayHintTypeFormat);
@@ -2063,7 +1941,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             ? []
             : await _analyzerEngine.ComputeAsync(compilation, _InvokletAnalyzersEnabled, ct);
 
-        var headerLength = HeaderLength(code);
+        var headerLength = _layout.HeaderLength(code);
         var visible = new List<IDiagnosticInfo>();
         var forCodeFixes = new List<Diagnostic>();
         foreach (var d in model.GetDiagnostics(cancellationToken: ct).Concat(analyzerDiagnostics))
@@ -2085,7 +1963,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             if (d.Severity == RoslynSeverity.Hidden) continue;
 
             var span = d.Location.SourceSpan;
-            var mappedStart = ToUserSpan(code, span);
+            var mappedStart = _layout.ToUserSpan(code, span);
             if (mappedStart is null) continue;
             var start = mappedStart.Value.Start;
 
@@ -2115,7 +1993,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             foreach (var (d, span) in await GeneratorDiagnosticsAsync(document, compilation, model.SyntaxTree, ct))
             {
                 if (d.Severity is RoslynSeverity.Hidden or RoslynSeverity.Info) continue;
-                var mapped = ToUserSpan(code, span);
+                var mapped = _layout.ToUserSpan(code, span);
                 if (mapped is null) continue;
                 var start = mapped.Value.Start;
                 var end = Math.Min(Math.Max(mapped.Value.End, start + 1), code.Length);
@@ -2128,7 +2006,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         if (!CanPublish(version, ct)) return;
         DiagnosticsChanged?.Invoke(code, visible);
 
-        var fixes = await _codeFixEngine.ComputeFixesAsync(document, forCodeFixes, ProjectionFor(code).Text, headerLength, ct);
+        var fixes = await _codeFixEngine.ComputeFixesAsync(document, forCodeFixes, _layout.Projection(code).Text, headerLength, ct);
         if (CanPublish(version, ct)) CodeFixesChanged?.Invoke(code, fixes);
     }
 
@@ -2369,7 +2247,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             cancellationToken.ThrowIfCancellationRequested();
             if (newPaths.SequenceEqual(_nugetPaths, StringComparer.OrdinalIgnoreCase)
                 && frameworkPaths.SequenceEqual(_frameworkPaths, StringComparer.OrdinalIgnoreCase)
-                && parseOptions.Equals(_parseOptions)
+                && parseOptions.Equals(_layout.ParseOptions)
                 && generatorPaths.SequenceEqual(_generatorPaths, StringComparer.OrdinalIgnoreCase)
                 && userReferencePaths.SequenceEqual(_userReferencePaths, StringComparer.OrdinalIgnoreCase)) return;
 
@@ -2396,7 +2274,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             _nugetRefs.AddRange(newRefs);
             _nugetPaths = newPaths;
             _frameworkPaths = frameworkPaths;
-            _parseOptions = parseOptions;
+            _layout.ParseOptions = parseOptions;
             _generatorPaths = generatorPaths;
             _userReferencePaths = userReferencePaths;
             // force re-sync on next analysis pass
