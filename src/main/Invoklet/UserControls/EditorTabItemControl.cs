@@ -79,7 +79,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private List<CodeFixEntry> _refactoringFixEntries = [];
     private long _inputPromptRevision;
     private int _inputPromptGeneration;
-    private readonly Dictionary<WatchExpression, CancellationTokenSource> _watchEvaluationCts = [];
+    private readonly WatchEvaluator _watchEvaluator;
     // Schema warm-up is owned by this tab; closing or superseding it must stop the read.
     private CancellationTokenSource? _connectionSchemaWarmupCts;
     private int _connectionSchemaRefreshPosted;
@@ -163,6 +163,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _outputTabsControl = this.FindControl<TabControl>("OutputTabsControl");
         var editor = new CodeTextEditor { Background = _themeService.GetBrush("Invoklet.Editor.BackgroundBrush") };
         State = new EditorTabState(editor);
+        _watchEvaluator = new WatchEvaluator(() => State.CurrentDebugCtx, w => _vm.DebugPanel.WatchExpressions.Contains(w));
         ResultsOutput.DataContext = State.Output;
         _resultsWordWrap = prefs.Editor.ResultsWordWrap;
         State.Output.Css = HtmlThemeStylesheet.Generate(themeService.CurrentTheme.Interface.Variant,
@@ -281,65 +282,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (sender is WatchExpression w) _ = EvaluateWatchAsync(w);
     }
 
-    private async Task EvaluateWatchAsync(WatchExpression w)
-    {
-        CancelWatchEvaluation(w);
-        if (string.IsNullOrWhiteSpace(w.Expression))
-        {
-            w.Value = "?";
-            w.TypeName = "";
-            return;
-        }
+    private Task EvaluateWatchAsync(WatchExpression w) => _watchEvaluator.EvaluateAsync(w);
 
-        if (State.CurrentDebugCtx is not { } ctx)
-        {
-            w.Value = "<not paused>";
-            w.TypeName = "";
-            return;
-        }
+    private void CancelWatchEvaluation(WatchExpression w) => _watchEvaluator.Cancel(w);
 
-        var evaluationCts = new CancellationTokenSource();
-        _watchEvaluationCts[w] = evaluationCts;
-        var token = evaluationCts.Token;
-        var expression = w.Expression;
-        try
-        {
-            var result = await ctx.EvaluateAsync(expression, token);
-            if (_disposed || token.IsCancellationRequested ||
-                !ReferenceEquals(ctx, State.CurrentDebugCtx) ||
-                !_vm.DebugPanel.WatchExpressions.Contains(w)) return;
-            w.Value = result?.Value ?? "<error>";
-            w.TypeName = result?.TypeName ?? "";
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
-        {
-        }
-        catch (Exception ex)
-        {
-            if (_disposed || token.IsCancellationRequested || !ReferenceEquals(ctx, State.CurrentDebugCtx) ||
-                !_vm.DebugPanel.WatchExpressions.Contains(w)) return;
-            w.Value = $"<error: {ex.Message}>";
-            w.TypeName = "";
-        }
-        finally
-        {
-            if (_watchEvaluationCts.Remove(w, out var current) && ReferenceEquals(current, evaluationCts))
-                evaluationCts.Dispose();
-            else
-                evaluationCts.Dispose();
-        }
-    }
-
-    private void CancelWatchEvaluation(WatchExpression w)
-    {
-        if (_watchEvaluationCts.Remove(w, out var cts)) cts.Cancel();
-    }
-
-    private void CancelAllWatchEvaluations()
-    {
-        foreach (var cts in _watchEvaluationCts.Values) cts.Cancel();
-        _watchEvaluationCts.Clear();
-    }
+    private void CancelAllWatchEvaluations() => _watchEvaluator.CancelAll();
 
     // A tab that isn't shown (another tab is selected, so it is out of the visual tree) only keeps
     // the latest theme, and applies it when it is shown again, before it is drawn: hidden editors
