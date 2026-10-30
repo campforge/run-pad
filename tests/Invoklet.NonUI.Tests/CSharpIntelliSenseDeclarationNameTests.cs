@@ -1,5 +1,6 @@
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -14,13 +15,6 @@ namespace Invoklet.Runtime.UI.Tests;
 // sits inside the name of a method/class/property/variable/parameter/type-parameter declaration.
 public class CSharpIntelliSenseDeclarationNameTests
 {
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     // The user's own reported reproduction: "void Main" — caret right after "Main" while still typing
     // the method's own name (Program-kind scripts declare exactly this method).
     [Theory]
@@ -29,7 +23,7 @@ public class CSharpIntelliSenseDeclarationNameTests
     [InlineData("static void Main")]
     public async Task GetCompletionsAsync_Should_ReturnNothing_WhileTypingAMethodName(string code)
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
 
         var result = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);
 
@@ -41,7 +35,7 @@ public class CSharpIntelliSenseDeclarationNameTests
     [InlineData("private string Nam")]
     public async Task GetCompletionsAsync_Should_ReturnNothing_WhileTypingAPropertyName(string code)
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
 
         var result = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);
 
@@ -51,7 +45,7 @@ public class CSharpIntelliSenseDeclarationNameTests
     [Fact]
     public async Task GetCompletionsAsync_Should_ReturnNothing_WhileTypingAClassName()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "private class App";
 
         var result = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);
@@ -62,7 +56,7 @@ public class CSharpIntelliSenseDeclarationNameTests
     [Fact]
     public async Task GetCompletionsAsync_Should_ReturnNothing_WhileTypingALocalVariableName()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var myVariabl";
 
         var result = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);
@@ -73,7 +67,7 @@ public class CSharpIntelliSenseDeclarationNameTests
     [Fact]
     public async Task GetCompletionsAsync_Should_ReturnNothing_WhileTypingAParameterName()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "void Main(string arg";
 
         var result = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);
@@ -87,7 +81,7 @@ public class CSharpIntelliSenseDeclarationNameTests
     [Fact]
     public async Task GetCompletionsAsync_Should_StillWork_InsideAMethodBodyAfterItsNameIsTyped()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "void Main()\n{\n    Console.Wr\n}\n";
         var position = code.IndexOf("Console.Wr", StringComparison.Ordinal) + "Console.Wr".Length;
 
@@ -103,7 +97,7 @@ public class CSharpIntelliSenseDeclarationNameTests
     [Fact]
     public async Task GetCompletionsAsync_Should_StillWork_ForAnOrdinaryExpression()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "Consol";
 
         var result = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);

@@ -31,13 +31,6 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
     // — both are still useful defenses if a *different* cause ever produces a similar symptom.
     private static readonly TimeSpan BackgroundAnalysisTimeout = TimeSpan.FromSeconds(30);
 
-    private static CSharpIntelliSenseService CreateService(ILogger<CSharpIntelliSenseService>? logger = null)
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, logger ?? NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     // Captures every log message regardless of level/IsEnabled — CSharpIntelliSenseService/
     // RoslynCodeFixEngine both log swallowed exceptions at Debug level (routine-looking, e.g. "this
     // fix provider doesn't apply here"), which NullLogger (used everywhere else in this file)
@@ -63,7 +56,7 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseDiagnosticsChanged_ForBrokenCode()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         IReadOnlyList<IDiagnosticInfo>? diagnostics = null;
         service.DiagnosticsChanged += (_, d) => diagnostics = d;
 
@@ -79,7 +72,7 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseCodeFixesChanged_ForAMissingUsing()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var m = Regex.Match(\"a\", \"a\");";
 
         var tcs = new TaskCompletionSource<IReadOnlyList<ICodeFixInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -112,7 +105,7 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
     [Fact]
     public async Task NotifyTextChanged_Should_MarkMissingUsingFix_AsErrorSeverity()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var m = Regex.Match(\"a\", \"a\");";
 
         var tcs = new TaskCompletionSource<IReadOnlyList<ICodeFixInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -153,7 +146,7 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
     public async Task NotifyTextChanged_Should_MarkUnusedVariableFix_AsWarningSeverity()
     {
         var logger = new CapturingLogger<CSharpIntelliSenseService>();
-        using var service = CreateService(logger);
+        using var service = new CSharpIntelliSenseFixture().CreateSut(logger);
 
         var diagnosticsBatches = new List<IReadOnlyList<IDiagnosticInfo>>();
         var codeFixBatches = new List<IReadOnlyList<ICodeFixInfo>>();
@@ -216,7 +209,7 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
     [Fact]
     public void Constructor_Should_ForceFormattingNewLineOption_ToLineFeed()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
 
         Assert.Equal("\n", service.FormattingNewLineOptionForTests);
     }
@@ -247,7 +240,7 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
     [Fact]
     public async Task Dispose_Should_PreventAnyLaterCodeFixesChangedEvent_EvenIfBackgroundAnalysisWasStillRunning()
     {
-        var service = CreateService();
+        var service = new CSharpIntelliSenseFixture().CreateSut();
         var diagnosticsSeen = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var disposed = false;
         var codeFixesFiredAfterDispose = false;
@@ -279,7 +272,7 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
     [Fact]
     public async Task GetCompletionsAsync_Should_NotThrow_WhenCalledConcurrently_WithDifferentCodeSnapshots()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
 
         var tasks = Enumerable.Range(0, 20).Select(i =>
         {

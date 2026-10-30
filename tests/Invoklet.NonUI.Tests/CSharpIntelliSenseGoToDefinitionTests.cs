@@ -1,5 +1,6 @@
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -12,17 +13,10 @@ namespace Invoklet.Runtime.UI.Tests;
 // DotnetCommon) to decompile it on demand — see CSharpDecompilerServiceTests.cs for that half.
 public class CSharpIntelliSenseGoToDefinitionTests
 {
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     [Fact]
     public async Task GetDefinitionAsync_Should_ReturnInSourceOffset_ForAUserDeclaredMethod()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "void Greet() { Console.WriteLine(\"hi\"); }\nGreet();";
         var position = code.IndexOf("Greet();", StringComparison.Ordinal);
 
@@ -36,7 +30,7 @@ public class CSharpIntelliSenseGoToDefinitionTests
     [Fact]
     public async Task GetDefinitionAsync_Should_ReturnInSourceOffset_ForALocalVariableDeclaration()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var value = 1;\nConsole.WriteLine(value);";
         var position = code.IndexOf("(value)", StringComparison.Ordinal) + 1;
 
@@ -50,7 +44,7 @@ public class CSharpIntelliSenseGoToDefinitionTests
     [Fact]
     public async Task GetDefinitionAsync_Should_ReturnExternalInfo_ForAFrameworkMethod()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "Console.WriteLine(\"hi\");";
         var position = code.IndexOf("WriteLine", StringComparison.Ordinal);
 
@@ -68,7 +62,7 @@ public class CSharpIntelliSenseGoToDefinitionTests
     [Fact]
     public async Task GetDefinitionAsync_Should_ReturnExternalInfoWithNullMemberName_ForATypeNameItself()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "System.Collections.Generic.List<int> list = new();";
         var position = code.IndexOf("List<int>", StringComparison.Ordinal) + 1;
 
@@ -87,7 +81,7 @@ public class CSharpIntelliSenseGoToDefinitionTests
     [Fact]
     public async Task GetDefinitionAsync_Should_UnreduceExtensionMethods_SoParameterCountIncludesTheReceiver()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "1.Dump(\"label\", 2);";
         var position = code.IndexOf("Dump", StringComparison.Ordinal);
 
@@ -103,7 +97,7 @@ public class CSharpIntelliSenseGoToDefinitionTests
     [Fact]
     public async Task GetDefinitionAsync_Should_ReturnNull_WhenCaretIsNotOnAnIdentifier()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var value = 1;";
         var position = code.IndexOf('=', StringComparison.Ordinal);
 

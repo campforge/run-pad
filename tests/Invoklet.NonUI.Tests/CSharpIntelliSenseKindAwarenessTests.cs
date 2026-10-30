@@ -19,15 +19,8 @@ public class CSharpIntelliSenseKindAwarenessTests
 {
     private const string ProgramKindScript = "void Main()\n{\n    Console.WriteLine(\"hi\");\n}\n";
 
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     private static async Task<IReadOnlyList<IDiagnosticInfo>> WaitForDiagnosticsAsync(
-        CSharpIntelliSenseService service, string code)
+    CSharpIntelliSenseService service, string code)
     {
         IReadOnlyList<IDiagnosticInfo>? diagnostics = null;
         service.DiagnosticsChanged += (_, d) => diagnostics = d;
@@ -42,7 +35,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     [Fact]
     public async Task ImportedNamespaces_Should_NotConflictWithGlobalUsings()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         service.UpdateKind(MdRunKind.Statements);
         service.UpdateGlobalUsings(["System.Text"]);
         const string code = "global using Text = System.Text;\nusing System.Globalization;\nConsole.WriteLine(new Text.StringBuilder());";
@@ -53,7 +46,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     [Fact]
     public async Task NotifyTextChanged_Should_NotFlagMainAsUnused_WhenKindIsProgram()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         service.UpdateKind(MdRunKind.Program);
 
         var diagnostics = await WaitForDiagnosticsAsync(service, ProgramKindScript);
@@ -69,7 +62,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     [Fact]
     public async Task NotifyTextChanged_Should_FlagMainAsUnused_WhenKindWasNeverUpdated()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
 
         var diagnostics = await WaitForDiagnosticsAsync(service, ProgramKindScript);
 
@@ -86,7 +79,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     [Fact]
     public async Task NotifyTextChanged_Should_NotFlagCS7022_ForAStaticMain_WhenKindIsProgram()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         service.UpdateKind(MdRunKind.Program);
         const string code = "static void Main()\n{\n    Console.WriteLine(\"hi\");\n}\n";
 
@@ -102,7 +95,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     [Fact]
     public async Task GetCompletionsAsync_Should_ResolveCorrectPosition_WhenKindIsProgram()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         service.UpdateKind(MdRunKind.Program);
 
         const string code = "void Main()\n{\n    Console.Wr\n}\n";
@@ -124,7 +117,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     [Fact]
     public async Task NotifyTextChanged_Should_NotFlagMainAsUnused_WhenMainIsAsyncTask()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         service.UpdateKind(MdRunKind.Program);
 
         var diagnostics = await WaitForDiagnosticsAsync(service, AsyncProgramKindScript);
@@ -138,7 +131,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     [Fact]
     public async Task GetCompletionsAsync_Should_ResolveCorrectPosition_WhenMainIsAsyncTask()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         service.UpdateKind(MdRunKind.Program);
 
         const string code = "async Task Main()\n{\n    Console.Wr\n}\n";
@@ -163,7 +156,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     [Fact]
     public async Task NotifyTextChanged_Should_NotFlagAsyncMainAsUnused_OnItsVeryFirstPass_WhenKindIsAppliedFirst()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
 
         // Mirrors EditorTabItemControl.SetDocumentContent's fixed ordering: RefreshIntelliSenseKind()
         // (UpdateKind) now runs before editor.Document is ever assigned.
@@ -180,7 +173,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     [Fact]
     public async Task NotifyTextChanged_Should_LeaveAStaleAsyncMainWarning_WhenKindIsAppliedAfterTheFirstPass()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
 
         var diagnostics = await WaitForDiagnosticsAsync(service, AsyncProgramKindScript); // kind still Statements
         service.UpdateKind(MdRunKind.Program); // too late for the pass that already ran
@@ -203,7 +196,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     [Fact]
     public async Task NotifyTextChanged_Should_ReportNoErrors_ForALinqPadStyleScript_WithAFieldBelowMain_AndAModifiedHelperMethod()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         service.UpdateKind(MdRunKind.Program);
         service.UpdateGlobalUsings(["System.Text.RegularExpressions"]);
 
@@ -226,7 +219,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     [Fact]
     public async Task AClassicProgram_Should_BeAnalyzedAsWritten()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         service.UpdateKind(MdRunKind.Program);
         const string code = "using System;\nusing Out = System.Console;\n\nnamespace N\n{\n    class Program\n    {\n        static void Main()\n        {\n            int x = \"text\";\n            Out.WriteLine(x);\n        }\n    }\n}\n";
 
@@ -243,13 +236,13 @@ public class CSharpIntelliSenseKindAwarenessTests
     public async Task UnsafeCode_Should_BeFlagged_OnlyWithoutTheScriptsSetting()
     {
         const string code = "unsafe static void Main() { int x = 1; int* p = &x; Console.WriteLine(*p); }\n";
-        using (var off = CreateService())
+        using (var off = new CSharpIntelliSenseFixture().CreateSut())
         {
             off.UpdateKind(MdRunKind.Program);
             Assert.Contains(await WaitForDiagnosticsAsync(off, code), d => d.Message.Contains("unsafe", StringComparison.OrdinalIgnoreCase)
                 && d.Severity == DiagnosticSeverity.Error);
         }
-        using var on = CreateService();
+        using var on = new CSharpIntelliSenseFixture().CreateSut();
         on.UpdateKind(MdRunKind.Program);
         on.UpdateExecutionContext(new Invoklet.Contracts.Models.ExecutionRequest { AllowUnsafe = true });
         Assert.DoesNotContain(await WaitForDiagnosticsAsync(on, code), d => d.Severity == DiagnosticSeverity.Error);
@@ -259,7 +252,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     [Fact]
     public async Task AnEmptyStatementsScript_Should_HaveNoErrorsInTheEditor()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         service.UpdateKind(MdRunKind.Statements);
 
         var diagnostics = await WaitForDiagnosticsAsync(service, "// only comments\nusing System.Text;\n");
@@ -272,7 +265,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     [Fact]
     public async Task AMemberMainUnderDebug_Should_NotBeFlaggedAsUnused()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         service.UpdateKind(MdRunKind.Program);
 
         var diagnostics = await WaitForDiagnosticsAsync(service, "#if DEBUG\nvoid Main()\n{\n    Console.WriteLine(\"hi\");\n}\n#endif\n");
@@ -282,7 +275,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     [Fact]
     public async Task ExtensionClass_Should_ResolveCallsAndMapDefinitionToOriginalSource()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         service.UpdateKind(MdRunKind.Program);
         const string code = "void Main() { Console.WriteLine(2.Twice()); }\nstatic class Extensions { public static int Twice(this int n) => n * 2; }\nvoid Helper() { Console.WriteLine(3.Twice()); }\n";
         var diagnostics = await WaitForDiagnosticsAsync(service, code);
@@ -299,7 +292,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     [Fact]
     public async Task ExtensionProjection_Should_MapDiagnosticsAndRenameAcrossClassBoundaries()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         service.UpdateKind(MdRunKind.Program);
         const string code = "void Main() { Console.WriteLine(2.Twice()); }\nstatic class Extensions { public static int Twice(this int n) => n * 2; }\nvoid Helper() { MissingType x; Console.WriteLine(3.Twice()); }\n";
         var diagnostics = await WaitForDiagnosticsAsync(service, code);
@@ -314,7 +307,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     [Fact]
     public async Task ExtensionProjection_Should_MaterializeRefactoringWithoutSyntheticBraces()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         service.UpdateKind(MdRunKind.Program);
         const string code = "void Main() { Console.WriteLine(2.Twice()); }\nstatic class Extensions\n{\n    public static int Twice(this int n)\n    {\n        return n * 2;\n    }\n}\n";
         var fixes = await service.GetRefactoringsAsync(code, code.IndexOf("return n", StringComparison.Ordinal), TestContext.Current.CancellationToken);
@@ -331,7 +324,7 @@ public class CSharpIntelliSenseKindAwarenessTests
     [Fact]
     public async Task ExtensionProjection_Should_CompleteAndClassifySourceAfterLiftedTypes()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         service.UpdateKind(MdRunKind.Program);
         const string code = "void Main() { Console.WriteLine(2.Twice()); }\nstatic class Extensions { public static int Twice(this int n) => n * 2; }\nvoid Helper() { Console.WriteLine(3.Twice()); }\n";
         var position = code.IndexOf("3.Twice", StringComparison.Ordinal) + 2;

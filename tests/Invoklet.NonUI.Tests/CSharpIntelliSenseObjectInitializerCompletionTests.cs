@@ -1,5 +1,6 @@
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -11,22 +12,15 @@ namespace Invoklet.Runtime.UI.Tests;
 // object-initializer position.
 public class CSharpIntelliSenseObjectInitializerCompletionTests
 {
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     private const string ClassDeclaration =
-        "public class Tests { public string P1 = \"\"; public string P2 = \"\"; public string P3 { get; set; } = \"\"; " +
-        "public const string ConstField = \"c\"; public static string StaticField = \"s\"; public readonly string ReadonlyField = \"r\"; " +
-        "public string ReadonlyProp { get; } = \"p\"; }\n";
+    "public class Tests { public string P1 = \"\"; public string P2 = \"\"; public string P3 { get; set; } = \"\"; " +
+    "public const string ConstField = \"c\"; public static string StaticField = \"s\"; public readonly string ReadonlyField = \"r\"; " +
+    "public string ReadonlyProp { get; } = \"p\"; }\n";
 
     [Fact]
     public async Task GetCompletionsAsync_Should_OfferRemainingSettableMembers_InsideAnObjectInitializer()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         var code = ClassDeclaration + "var c = new Tests() { P1 = \"1\", };";
         var position = code.IndexOf("};", StringComparison.Ordinal);
 
@@ -41,7 +35,7 @@ public class CSharpIntelliSenseObjectInitializerCompletionTests
     [Fact]
     public async Task GetCompletionsAsync_Should_NotOfferAMember_AlreadyAssigned_InsideAnObjectInitializer()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         var code = ClassDeclaration + "var c = new Tests() { P1 = \"1\", };";
         var position = code.IndexOf("};", StringComparison.Ordinal);
 
@@ -54,7 +48,7 @@ public class CSharpIntelliSenseObjectInitializerCompletionTests
     [Fact]
     public async Task GetCompletionsAsync_Should_NotOfferConstOrStaticOrReadonlyMembers_InsideAnObjectInitializer()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         var code = ClassDeclaration + "var c = new Tests() { P1 = \"1\", };";
         var position = code.IndexOf("};", StringComparison.Ordinal);
 
@@ -72,7 +66,7 @@ public class CSharpIntelliSenseObjectInitializerCompletionTests
     [Fact]
     public async Task GetCompletionsAsync_Should_OfferEverySettableMember_RightAfterTheOpeningBrace()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         var code = ClassDeclaration + "var c = new Tests() {  };";
         var position = code.IndexOf("{  };", StringComparison.Ordinal) + 1;
 
@@ -90,7 +84,7 @@ public class CSharpIntelliSenseObjectInitializerCompletionTests
     [Fact]
     public async Task GetCompletionsAsync_Should_NotOfferEnclosingScopeSymbolsOrKeywords_InsideAnObjectInitializer()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         var code = "var someLocal = 1;\n" + ClassDeclaration + "var c = new Tests() { P1 = \"1\", };";
         var position = code.IndexOf("};", StringComparison.Ordinal);
 
@@ -107,7 +101,7 @@ public class CSharpIntelliSenseObjectInitializerCompletionTests
     [Fact]
     public async Task GetCompletionsAsync_Should_ReturnNothing_WhenTheTypeHasNoSettableMembersLeft()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string emptyClass = "public class Empty { public Empty() {} }\n";
         var code = emptyClass + "var c = new Empty() {  };";
         var position = code.IndexOf("{  };", StringComparison.Ordinal) + 1;

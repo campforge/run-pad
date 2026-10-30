@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -38,13 +39,6 @@ public sealed class CSharpIntelliSenseMessageCultureTests : IDisposable
         CultureInfo.DefaultThreadCurrentUICulture = _defaultUiCulture;
     }
 
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     [Fact]
     public void TheTestRuns_UnderARussianUiCulture()
     {
@@ -55,7 +49,7 @@ public sealed class CSharpIntelliSenseMessageCultureTests : IDisposable
     [Fact]
     public async Task Diagnostics_Should_BeInEnglish()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
         service.DiagnosticsChanged += (_, d) => { if (d.Count > 0) tcs.TrySetResult(d); };
 
@@ -71,7 +65,7 @@ public sealed class CSharpIntelliSenseMessageCultureTests : IDisposable
     [Fact]
     public async Task CodeFixTitles_Should_BeInEnglish()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         var tcs = new TaskCompletionSource<IReadOnlyList<ICodeFixInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
         service.CodeFixesChanged += (_, f) => { if (f.Count > 1) tcs.TrySetResult(f); };
 
@@ -86,7 +80,7 @@ public sealed class CSharpIntelliSenseMessageCultureTests : IDisposable
     [Fact]
     public async Task RefactoringTitles_Should_BeInEnglish()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
 
         var refactorings = await service.GetRefactoringsAsync("var count = 42;\nConsole.WriteLine(count);\n", 1, TestContext.Current.CancellationToken);
 
@@ -100,7 +94,7 @@ public sealed class CSharpIntelliSenseMessageCultureTests : IDisposable
     [Fact]
     public async Task TheCurrentCulture_Should_StayRussian_AroundTheService()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         await service.GetRefactoringsAsync("var count = 42;\n", 1, TestContext.Current.CancellationToken);
 
         Assert.Equal("ru-RU", CultureInfo.CurrentCulture.Name);

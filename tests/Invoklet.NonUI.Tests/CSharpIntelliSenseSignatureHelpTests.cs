@@ -1,5 +1,6 @@
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -12,17 +13,10 @@ namespace Invoklet.Runtime.UI.Tests;
 // balloon back into a many-parameter wall.
 public class CSharpIntelliSenseSignatureHelpTests
 {
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     [Fact]
     public async Task SignatureHelp_ForDump_Should_NeverShowAManyParameterOverload()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var x = 42;\nx.Dump(";
         var position = code.Length;
 
@@ -36,7 +30,7 @@ public class CSharpIntelliSenseSignatureHelpTests
     [Fact]
     public async Task Completions_Should_OfferDump()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var x = 42;\nx.Du";
         var position = code.Length;
 
@@ -52,7 +46,7 @@ public class CSharpIntelliSenseSignatureHelpTests
     [Fact]
     public async Task SignatureHelp_Should_ReportArgumentSlotEmpty_RightAfterOpenParen()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var x = 42;\nx.Dump(";
         var position = code.Length;
 
@@ -65,7 +59,7 @@ public class CSharpIntelliSenseSignatureHelpTests
     [Fact]
     public async Task SignatureHelp_Should_ReportArgumentSlotNotEmpty_WhenPartiallyTyped()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         // "x" here is a partially-typed identifier argument (not a string literal — signature help
         // deliberately returns null while inside a string/char literal, a separate, pre-existing
         // check unrelated to this test), same shape as e.g. typing a variable name into the call.
@@ -83,7 +77,7 @@ public class CSharpIntelliSenseSignatureHelpTests
     [Fact]
     public async Task SignatureHelp_Should_ReportArgumentSlotEmpty_RightAfterComma()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var x = 42;\nx.Dump(\"label\", ";
         var position = code.Length;
 
@@ -99,7 +93,7 @@ public class CSharpIntelliSenseSignatureHelpTests
     [Fact]
     public async Task SignatureHelp_Should_SelectTheOverload_WhoseParameterTypesMatchTheTypedArguments()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         // The string argument is typed FIRST and the cursor sits after the second (numeric) one —
         // SelectBestOverloadIndex checks every already-parsed argument regardless of where the caret
         // currently is, and ending on a numeric literal avoids IsInsideStringOrCharLiteral's own
@@ -119,7 +113,7 @@ public class CSharpIntelliSenseSignatureHelpTests
     [Fact]
     public async Task SignatureHelp_Should_SelectTheIntIntOverload_WhenBothArgumentsAreInts()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class C\n{\n    void Foo(int a, int b) { }\n    void Foo(int a, string b) { }\n}\n" +
             "var c = new C();\nc.Foo(1, 2";
         var position = code.Length;
@@ -138,7 +132,7 @@ public class CSharpIntelliSenseSignatureHelpTests
     [Fact]
     public async Task SignatureHelp_Should_ShowEveryOverload_ForAnAlreadyValidAndUnambiguousCall()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         // Closed argument list, single ambiguity-free argument — this resolves to exactly one
         // Symbol (unlike the other tests above, which all use an unclosed "(" specifically to keep
         // resolution ambiguous), so this is the case that used to show only 1 of the 2 overloads.
@@ -159,7 +153,7 @@ public class CSharpIntelliSenseSignatureHelpTests
     [Fact]
     public async Task SignatureHelp_Should_ShowEveryConstructorOverload_ForAnAlreadyValidAndUnambiguousCall()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class C\n{\n    public C(int a) { }\n    public C(int a, int b) { }\n}\n" +
             "var c = new C(1)";
         var position = code.Length - 1;
@@ -176,7 +170,7 @@ public class CSharpIntelliSenseSignatureHelpTests
     [Fact]
     public async Task SignatureHelp_Should_FallBackToArityOnly_WhenNoOverloadTypeChecksPerfectly()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class C\n{\n    void Foo(int a, int b) { }\n    void Foo(int a, string b) { }\n}\n" +
             "var c = new C();\nc.Foo(1, true";
         var position = code.Length;
@@ -196,7 +190,7 @@ public class CSharpIntelliSenseSignatureHelpTests
 
     private static async Task<(string Selected, string? Active)> SignatureAtAsync(string code)
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         var position = code.IndexOf('|');
         code = code.Remove(position, 1) + NestedCallDeclarations;
         var result = await service.GetSignatureHelpAsync(code, position, ct: TestContext.Current.CancellationToken);
@@ -254,7 +248,7 @@ public class CSharpIntelliSenseSignatureHelpTests
     [Fact]
     public async Task SignatureHelp_AfterTheCallCloses_Should_ShowNothing()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var x = 42;\nx.Dump()";
 
         Assert.Null(await service.GetSignatureHelpAsync(code, code.Length, ct: TestContext.Current.CancellationToken));

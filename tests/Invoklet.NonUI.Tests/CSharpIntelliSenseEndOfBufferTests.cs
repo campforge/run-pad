@@ -1,5 +1,6 @@
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -19,17 +20,10 @@ namespace Invoklet.Runtime.UI.Tests;
 // new true end again.
 public class CSharpIntelliSenseEndOfBufferTests
 {
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     [Fact]
     public async Task GetCompletionsAsync_Should_FindTheLocalVariable_AtTheVeryEndOfTheBuffer()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         // No trailing newline after the second "a" — the caret sits at the literal end of the text,
         // exactly like right after typing a fresh single-letter identifier with nothing typed after.
         const string code = "var a = new System.Collections.Generic.List<string>();\na";
@@ -48,7 +42,7 @@ public class CSharpIntelliSenseEndOfBufferTests
     [Fact]
     public async Task GetCompletionsAsync_Should_FindTheLocalVariable_OneCharacterBeforeTheEnd()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var a = new System.Collections.Generic.List<string>();\na\n";
 
         var result = await service.GetCompletionsAsync(code, code.Length - 1,

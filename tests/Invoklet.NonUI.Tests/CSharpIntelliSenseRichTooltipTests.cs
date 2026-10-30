@@ -2,6 +2,7 @@ using System.Text;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -29,17 +30,10 @@ public class CSharpIntelliSenseRichTooltipTests
 
         """;
 
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     [Fact]
     public async Task Completions_Should_ExposeParsedSummary_AndHighlightedSignature()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         var code = DocumentedGreeter + "g.Greet";
         var position = code.Length;
 
@@ -54,7 +48,7 @@ public class CSharpIntelliSenseRichTooltipTests
     [Fact]
     public async Task Completions_ForAKeyword_Should_CarryAKeywordSegment_AndNoSummary()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
 
         var result = await service.GetCompletionsAsync(string.Empty, 0, ct: TestContext.Current.CancellationToken);
 
@@ -67,7 +61,7 @@ public class CSharpIntelliSenseRichTooltipTests
     [Fact]
     public async Task QuickInfo_Should_ExposeParsedSummary_AndHighlightedSignature()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         var code = DocumentedGreeter + "g.Greet(\"a\", 1);";
         var position = code.IndexOf("Greet(\"a\"", StringComparison.Ordinal) + 1;
 
@@ -81,7 +75,7 @@ public class CSharpIntelliSenseRichTooltipTests
     [Fact]
     public async Task SignatureHelp_Should_EmphasizeActiveParameter_AndExposePerParameterSummary()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         var code = DocumentedGreeter + "g.Greet(\"a\", ";
         var position = code.Length;
 
@@ -106,7 +100,7 @@ public class CSharpIntelliSenseRichTooltipTests
     [Fact]
     public async Task Completions_ForABclMember_Should_AlsoExposeSummary()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         var code = $"var sb = new {typeof(StringBuilder).FullName}();\nsb.Append";
         var position = code.Length;
 
@@ -124,7 +118,7 @@ public class CSharpIntelliSenseRichTooltipTests
     [Fact]
     public async Task Completions_ForDump_Should_ExposeItsRealXmlDocSummary()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var x = 42;\nx.Dump";
         var position = code.Length;
 

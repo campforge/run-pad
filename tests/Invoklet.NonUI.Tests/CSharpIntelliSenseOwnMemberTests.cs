@@ -1,5 +1,6 @@
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -11,17 +12,10 @@ namespace Invoklet.Runtime.UI.Tests;
 // to DisplaySegmentRenderer.BuildListRow.
 public class CSharpIntelliSenseOwnMemberTests
 {
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     [Fact]
     public async Task GetCompletionsAsync_Should_MarkAsOwnMember_ForAMethodDeclaredOnTheReceiverType()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class Base { }\nclass Derived : Base\n{\n    public void Bar() { }\n}\n" +
             "var d = new Derived();\nd.";
 
@@ -36,7 +30,7 @@ public class CSharpIntelliSenseOwnMemberTests
     [Fact]
     public async Task GetCompletionsAsync_Should_NotMarkAsOwnMember_ForAnInheritedMethod()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class Base\n{\n    public void Foo() { }\n}\nclass Derived : Base { }\n" +
             "var d = new Derived();\nd.";
 
@@ -53,7 +47,7 @@ public class CSharpIntelliSenseOwnMemberTests
     [Fact]
     public async Task GetCompletionsAsync_Should_MarkAsOwnMember_ForAFieldReferencedUnqualifiedInsideItsOwnType()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class C\n{\n    private int _value;\n    void Bar()\n    {\n        _val\n    }\n}\n";
         var position = code.LastIndexOf("_val", StringComparison.Ordinal) + "_val".Length;
 
@@ -67,7 +61,7 @@ public class CSharpIntelliSenseOwnMemberTests
     [Fact]
     public async Task GetCompletionsAsync_Should_NotMarkAsOwnMember_ForAnInheritedMethodReferencedUnqualified()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class Base\n{\n    protected void Helper() { }\n}\nclass Derived : Base\n{\n" +
             "    void Bar()\n    {\n        Help\n    }\n}\n";
         var position = code.LastIndexOf("Help", StringComparison.Ordinal) + "Help".Length;
@@ -84,7 +78,7 @@ public class CSharpIntelliSenseOwnMemberTests
     [Fact]
     public async Task GetCompletionsAsync_Should_LeaveIsOwnMemberFalse_ForATypeCandidate()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "Str";
 
         var result = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);
@@ -100,7 +94,7 @@ public class CSharpIntelliSenseOwnMemberTests
     [Fact]
     public async Task GetCompletionsAsync_Should_MarkAsOwnMember_WhenOnlyOneOfSeveralOverloadsIsOwn()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class Base\n{\n    public void Foo(string s) { }\n}\nclass Derived : Base\n{\n" +
             "    public void Foo(int x) { }\n}\nvar d = new Derived();\nd.";
 

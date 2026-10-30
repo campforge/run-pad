@@ -1,6 +1,7 @@
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -12,13 +13,6 @@ namespace Invoklet.Runtime.UI.Tests;
 public class CSharpIntelliSenseInlayHintsTests
 {
     private static readonly TimeSpan BackgroundAnalysisTimeout = TimeSpan.FromSeconds(30);
-
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
 
     private static async Task<IReadOnlyList<IInlayHint>> WaitForHintsAsync(CSharpIntelliSenseService service, string code)
     {
@@ -34,7 +28,7 @@ public class CSharpIntelliSenseInlayHintsTests
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseAHint_ForAnImplicitlyTypedLocal()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var x = 5;";
 
         var hints = await WaitForHintsAsync(service, code);
@@ -47,7 +41,7 @@ public class CSharpIntelliSenseInlayHintsTests
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseAHint_WithAMinimallyQualifiedGenericTypeName()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var list = new System.Collections.Generic.List<string>();";
 
         var hints = await WaitForHintsAsync(service, code);
@@ -65,7 +59,7 @@ public class CSharpIntelliSenseInlayHintsTests
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseNoHints_ForAnExplicitlyTypedLocal()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
 
         var hints = await WaitForHintsAsync(service, "int x = 5;");
 
@@ -75,7 +69,7 @@ public class CSharpIntelliSenseInlayHintsTests
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseNoHints_ForAMultiDeclaratorVarStatement()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
 
         // Roslyn's own CSharpInlineTypeHintsService skips this shape entirely too (only one
         // inferred type for the whole statement — hinting just the first declarator would
@@ -88,7 +82,7 @@ public class CSharpIntelliSenseInlayHintsTests
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseAHint_ForAnImplicitlyTypedForEachVariable()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "foreach (var c in \"abc\") { }";
 
         var hints = await WaitForHintsAsync(service, code);

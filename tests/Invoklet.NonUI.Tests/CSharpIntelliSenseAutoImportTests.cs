@@ -1,6 +1,7 @@
 using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -105,17 +106,10 @@ public class CSharpIntelliSenseAutoImportTests
         Assert.DoesNotContain(result!.Items, i => i.DisplayText == "JsonConvert");
     }
 
-    private static CSharpIntelliSenseService CreateServiceWithoutPackages()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     [Fact]
     public async Task GetCompletionsAsync_Should_OfferAnUnimportedFrameworkType()
     {
-        using var service = CreateServiceWithoutPackages();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "StringBuil";
 
         var result = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);
@@ -128,7 +122,7 @@ public class CSharpIntelliSenseAutoImportTests
     [Fact]
     public async Task GetCompletionsAsync_Should_NotOfferUnimportedFrameworkTypes_ForOneOrTwoLetters()
     {
-        using var service = CreateServiceWithoutPackages();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "St";
 
         var result = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);

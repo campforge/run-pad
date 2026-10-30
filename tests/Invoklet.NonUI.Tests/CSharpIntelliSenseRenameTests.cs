@@ -1,5 +1,6 @@
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -11,17 +12,10 @@ namespace Invoklet.Runtime.UI.Tests;
 // filter for symbols the user's own script doesn't declare.
 public class CSharpIntelliSenseRenameTests
 {
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     [Fact]
     public async Task GetRenameInfoAsync_Should_ReturnCurrentNameAndEveryOccurrence_ForALocalVariable()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var value = 1;\nvalue = value + 1;\nConsole.WriteLine(value);";
         var position = code.IndexOf("value + 1", StringComparison.Ordinal);
 
@@ -39,7 +33,7 @@ public class CSharpIntelliSenseRenameTests
     [Fact]
     public async Task GetRenameInfoAsync_Should_ReturnInfo_ForAUserDeclaredMethod()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "void Greet() { Console.WriteLine(\"hi\"); }\nGreet();";
         var position = code.IndexOf("Greet();", StringComparison.Ordinal);
 
@@ -56,7 +50,7 @@ public class CSharpIntelliSenseRenameTests
     [Fact]
     public async Task GetRenameInfoAsync_Should_ReturnNull_ForAFrameworkSymbol()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "Console.WriteLine(\"hi\");";
         var position = code.IndexOf("WriteLine", StringComparison.Ordinal);
 
@@ -68,7 +62,7 @@ public class CSharpIntelliSenseRenameTests
     [Fact]
     public async Task GetRenameInfoAsync_Should_ReturnNull_WhenCaretIsNotOnAnIdentifier()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var value = 1;";
         var position = code.IndexOf('=', StringComparison.Ordinal);
 

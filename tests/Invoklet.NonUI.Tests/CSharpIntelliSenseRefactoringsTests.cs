@@ -1,5 +1,6 @@
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -15,13 +16,6 @@ namespace Invoklet.Runtime.UI.Tests;
 // pipeline (CodeRefactoringContext -> materialize -> preamble-relocation) intact.
 public class CSharpIntelliSenseRefactoringsTests
 {
-    private static CSharpIntelliSenseService CreateService(ILogger<CSharpIntelliSenseService>? logger = null)
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, logger ?? NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     // Keeps RoslynCodeFixEngine's debug log (raw TextChanges, which discard branch fired, swallowed
     // exceptions) so a failure that only reproduces on another OS reports why, not just that it failed.
     private sealed class RecordingLogger : ILogger<CSharpIntelliSenseService>
@@ -52,7 +46,7 @@ public class CSharpIntelliSenseRefactoringsTests
     [Fact]
     public async Task GetRefactoringsAsync_Should_OfferUseExpressionBody_ForASimpleReturnOnlyMethod()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class C\n{\n    int M()\n    {\n        return 5;\n    }\n}\n";
 
         // Caret inside the method body, on the `return 5;` line.
@@ -76,7 +70,7 @@ public class CSharpIntelliSenseRefactoringsTests
     [Fact]
     public async Task GetRefactoringsAsync_Should_ReturnEmpty_InsideAComment()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "// just a comment, nothing refactorable here\n";
 
         var position = code.IndexOf("comment", StringComparison.Ordinal);
@@ -90,7 +84,7 @@ public class CSharpIntelliSenseRefactoringsTests
     [Fact]
     public async Task GetRefactoringsAsync_Should_ReturnNull_WhenPositionIsOutOfRange()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class C { }\n";
 
         var refactorings = await service.GetRefactoringsAsync(code, code.Length + 100, TestContext.Current.CancellationToken);
@@ -110,7 +104,7 @@ public class CSharpIntelliSenseRefactoringsTests
     [Fact]
     public async Task GetRefactoringsAsync_Should_ListAndMaterialize_IntroduceLocalForAllNestedOccurrences()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code =
             "class Person { public string Name = \"\"; }\n" +
             "var p = new Person();\n" +
@@ -138,7 +132,7 @@ public class CSharpIntelliSenseRefactoringsTests
     [Fact]
     public async Task MaterializeFixAsync_Should_ReturnNull_ForAKeyFromAnOlderListingPass()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class C\n{\n    int M()\n    {\n        return 5;\n    }\n}\n";
         var position = code.IndexOf("return 5;", StringComparison.Ordinal);
 
@@ -160,7 +154,7 @@ public class CSharpIntelliSenseRefactoringsTests
     [InlineData("Console.WriteLine(1);\nclass C { }\n")]
     public async Task GetRefactoringsAsync_Should_NotOfferFileBasedMoveTypeRefactorings(string code)
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         var position = code.IndexOf("class C", StringComparison.Ordinal) + "class ".Length;
 
         var refactorings = await service.GetRefactoringsAsync(code, position, TestContext.Current.CancellationToken);
@@ -179,7 +173,7 @@ public class CSharpIntelliSenseRefactoringsTests
     public async Task GetRefactoringsAsync_Should_OnlyListRefactoringsThatMaterialize()
     {
         var log = new RecordingLogger();
-        using var service = CreateService(log);
+        using var service = new CSharpIntelliSenseFixture().CreateSut(log);
         const string code = "class Base { public virtual void M() { } }\nclass C : Base { }\n";
         var position = code.IndexOf("class C", StringComparison.Ordinal) + "class ".Length;
 

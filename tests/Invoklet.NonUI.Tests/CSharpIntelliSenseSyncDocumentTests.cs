@@ -1,5 +1,6 @@
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
@@ -124,13 +125,6 @@ public class CSharpIntelliSenseSyncDocumentTests
         Assert.Equal(newText, Apply(oldText, change));
     }
 
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     // Confirms SyncDocument's own branching (not just ComputeMinimalChange in isolation) actually
     // takes the incremental WithChanges path on the second and later calls: when two SourceText
     // instances share a lineage, GetChangeRanges reports only the actually-edited span; for two
@@ -142,7 +136,7 @@ public class CSharpIntelliSenseSyncDocumentTests
     [Fact]
     public async Task SyncDocument_Should_PreserveSourceTextLineage_AcrossConsecutiveSyncs()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
 
         await service.GetCompletionsAsync("var x = 1", 9, ct: TestContext.Current.CancellationToken);
         var afterFirst = service.LastSyncedSourceTextForTests;

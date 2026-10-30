@@ -1,5 +1,6 @@
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -9,17 +10,10 @@ namespace Invoklet.Runtime.UI.Tests;
 // overridable members and, on accept, inserts a ready-to-edit stub — not just the bare method name.
 public class CSharpIntelliSenseOverrideStubTests
 {
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     [Fact]
     public async Task GetCompletionsAsync_Should_OfferAnAbstractMethod_WithANotImplementedExceptionStub()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "abstract class Base\n{\n    public abstract void Foo();\n}\n" +
             "class Derived : Base\n{\n    override \n}\n";
         var position = code.IndexOf("override ", StringComparison.Ordinal) + "override ".Length;
@@ -37,7 +31,7 @@ public class CSharpIntelliSenseOverrideStubTests
     [Fact]
     public async Task GetCompletionsAsync_Should_OfferAVirtualVoidMethod_WithABaseCallStub()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class Base\n{\n    protected virtual void Bar() { }\n}\n" +
             "class Derived : Base\n{\n    override \n}\n";
         var position = code.IndexOf("override ", StringComparison.Ordinal) + "override ".Length;
@@ -54,7 +48,7 @@ public class CSharpIntelliSenseOverrideStubTests
     [Fact]
     public async Task GetCompletionsAsync_Should_OfferAVirtualNonVoidMethod_WithAReturnBaseCallStub()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class Base\n{\n    public virtual int Compute() => 0;\n}\n" +
             "class Derived : Base\n{\n    override \n}\n";
         var position = code.IndexOf("override ", StringComparison.Ordinal) + "override ".Length;
@@ -70,7 +64,7 @@ public class CSharpIntelliSenseOverrideStubTests
     [Fact]
     public async Task GetCompletionsAsync_Should_NotOfferAMethod_AlreadyOverriddenInTheCurrentType()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class Base\n{\n    public virtual void Bar() { }\n" +
             "    public virtual void Baz() { }\n}\n" +
             "class Derived : Base\n{\n    public override void Bar() { }\n    override \n}\n";
@@ -86,7 +80,7 @@ public class CSharpIntelliSenseOverrideStubTests
     [Fact]
     public async Task GetCompletionsAsync_Should_NotOfferASealedOverride()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class Base\n{\n    public virtual void Bar() { }\n}\n" +
             "class Middle : Base\n{\n    public sealed override void Bar() { }\n}\n" +
             "class Derived : Middle\n{\n    override \n}\n";
@@ -101,7 +95,7 @@ public class CSharpIntelliSenseOverrideStubTests
     [Fact]
     public async Task GetCompletionsAsync_Should_OfferObjectsOwnVirtualMethods_WhenNoExplicitBaseClass()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class Plain\n{\n    override \n}\n";
         var position = code.IndexOf("override ", StringComparison.Ordinal) + "override ".Length;
 
@@ -115,7 +109,7 @@ public class CSharpIntelliSenseOverrideStubTests
     [Fact]
     public async Task GetCompletionsAsync_Should_ForwardRefAndOutParameters_InTheBaseCall()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class Base\n{\n    public virtual void TryIt(ref int x, out int y) { y = 0; }\n}\n" +
             "class Derived : Base\n{\n    override \n}\n";
         var position = code.IndexOf("override ", StringComparison.Ordinal) + "override ".Length;
@@ -133,7 +127,7 @@ public class CSharpIntelliSenseOverrideStubTests
     [Fact]
     public async Task GetCompletionsAsync_Should_StillWork_ForOrdinaryCompletion_ElsewhereInTheFile()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class Derived\n{\n    void Bar()\n    {\n        Consol\n    }\n}\n";
         var position = code.IndexOf("Consol", StringComparison.Ordinal) + "Consol".Length;
 

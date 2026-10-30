@@ -1,5 +1,6 @@
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -12,17 +13,10 @@ namespace Invoklet.Runtime.UI.Tests;
 // through with '.' to reach a nested type) and the predefined-type keywords are legal there.
 public class CSharpIntelliSenseGenericArgumentTests
 {
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     [Fact]
     public async Task GetCompletionsAsync_Should_NotOffer_LocalVariable_InsideGenericTypeArgument()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class C { void M() { int myLocal = 1; var a = new List<\n} }";
         var position = code.IndexOf("List<", StringComparison.Ordinal) + "List<".Length;
 
@@ -35,7 +29,7 @@ public class CSharpIntelliSenseGenericArgumentTests
     [Fact]
     public async Task GetCompletionsAsync_Should_NotOffer_ControlFlowKeywords_InsideGenericTypeArgument()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class C { void M() { var a = new List<\n} }";
         var position = code.IndexOf("List<", StringComparison.Ordinal) + "List<".Length;
 
@@ -48,7 +42,7 @@ public class CSharpIntelliSenseGenericArgumentTests
     [Fact]
     public async Task GetCompletionsAsync_Should_Offer_PredefinedTypeKeywords_InsideGenericTypeArgument()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class C { void M() { var a = new List<\n} }";
         var position = code.IndexOf("List<", StringComparison.Ordinal) + "List<".Length;
 
@@ -62,7 +56,7 @@ public class CSharpIntelliSenseGenericArgumentTests
     [Fact]
     public async Task GetCompletionsAsync_Should_Offer_UserDefinedType_InsideGenericTypeArgument()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class Foo { } class C { void M() { var a = new List<\n} }";
         var position = code.IndexOf("List<", StringComparison.Ordinal) + "List<".Length;
 
@@ -79,7 +73,7 @@ public class CSharpIntelliSenseGenericArgumentTests
     [Fact]
     public async Task GetCompletionsAsync_Should_StillOffer_LocalVariable_OutsideGenericTypeArgument()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class C { void M() { int myLocal = 1;\n myLocal\n} }";
         var position = code.LastIndexOf("myLocal", StringComparison.Ordinal) + "myLocal".Length;
 

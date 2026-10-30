@@ -61,17 +61,10 @@ public class CSharpIntelliSenseExpectedTypeCompletionTests
 
         """;
 
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     // The caret is the '|' in the statement under test; declarations come after the statements.
     private static async Task<List<string>> NamesAsync(string statement, string locals = Locals)
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         var code = locals + statement + "\n" + Declarations;
         var position = code.IndexOf('|');
         code = code.Remove(position, 1);

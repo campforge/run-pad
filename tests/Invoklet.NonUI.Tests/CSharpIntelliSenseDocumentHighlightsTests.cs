@@ -1,5 +1,6 @@
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -13,17 +14,10 @@ namespace Invoklet.Runtime.UI.Tests;
 // pins its symbol-matching behavior down, not just "some Roslyn service handles it".
 public class CSharpIntelliSenseDocumentHighlightsTests
 {
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     [Fact]
     public async Task GetDocumentHighlightsAsync_Should_FindEveryOccurrence_OfALocalVariable()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var value = 1;\nvalue = value + 1;\nConsole.WriteLine(value);";
         var position = code.IndexOf("value + 1", StringComparison.Ordinal); // the second "value" on line 2
 
@@ -38,7 +32,7 @@ public class CSharpIntelliSenseDocumentHighlightsTests
     [Fact]
     public async Task GetDocumentHighlightsAsync_Should_ReturnNull_WhenCaretIsNotOnAnIdentifier()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var value = 1;";
         var position = code.IndexOf('=', StringComparison.Ordinal);
 
@@ -53,7 +47,7 @@ public class CSharpIntelliSenseDocumentHighlightsTests
     [Fact]
     public async Task GetDocumentHighlightsAsync_Should_NotMatchADifferentSymbolWithTheSameName()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class A { public int Value; }\nclass B { public int Value; }\n" +
             "var a = new A();\na.Value = 1;";
         var position = code.IndexOf("a.Value", StringComparison.Ordinal) + 2; // the "Value" in "a.Value"

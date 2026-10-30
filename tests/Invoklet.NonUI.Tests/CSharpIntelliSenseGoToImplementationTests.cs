@@ -1,5 +1,6 @@
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -11,17 +12,10 @@ namespace Invoklet.Runtime.UI.Tests;
 // no decompiling branch needed here, unlike GetDefinitionAsync.
 public class CSharpIntelliSenseGoToImplementationTests
 {
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     [Fact]
     public async Task GetImplementationsAsync_Should_FindTheSingleImplementation_OfAnInterfaceMember()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = """
             interface ILogger { void Write(string message); }
             class FileLogger : ILogger { public void Write(string message) { } }
@@ -40,7 +34,7 @@ public class CSharpIntelliSenseGoToImplementationTests
     [Fact]
     public async Task GetImplementationsAsync_Should_FindEveryImplementation_OfAnInterfaceType()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = """
             interface IShape { }
             class Circle : IShape { }
@@ -59,7 +53,7 @@ public class CSharpIntelliSenseGoToImplementationTests
     [Fact]
     public async Task GetImplementationsAsync_Should_FindOverrides_OfAnAbstractMember()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = """
             abstract class Shape { public abstract double Area(); }
             class Circle : Shape { public override double Area() => 1; }
@@ -76,7 +70,7 @@ public class CSharpIntelliSenseGoToImplementationTests
     [Fact]
     public async Task GetImplementationsAsync_Should_ReturnNull_WhenThereAreNoImplementationsInTheScript()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "interface ILogger { void Write(string message); }";
         var position = code.IndexOf("Write", StringComparison.Ordinal);
 
@@ -88,7 +82,7 @@ public class CSharpIntelliSenseGoToImplementationTests
     [Fact]
     public async Task GetImplementationsAsync_Should_ReturnNull_ForAnOrdinaryNonOverridableMethod()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class Foo { public void Bar() { } }\nnew Foo().Bar();";
         var position = code.IndexOf("public void Bar", StringComparison.Ordinal) + "public void ".Length;
 
@@ -100,7 +94,7 @@ public class CSharpIntelliSenseGoToImplementationTests
     [Fact]
     public async Task GetImplementationsAsync_Should_ReturnNull_WhenCaretIsNotOnAnIdentifier()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var value = 1;";
         var position = code.IndexOf('=', StringComparison.Ordinal);
 

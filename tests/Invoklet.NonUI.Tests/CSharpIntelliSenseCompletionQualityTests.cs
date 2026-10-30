@@ -1,6 +1,7 @@
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -12,17 +13,10 @@ namespace Invoklet.Runtime.UI.Tests;
 //    merely-imported type or a keyword.
 public class CSharpIntelliSenseCompletionQualityTests
 {
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     [Fact]
     public async Task GetCompletionsAsync_Should_ReturnNothing_WhenTypingInsideALineComment()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var x = 1;\n// just some pro";
         var position = code.Length;
 
@@ -34,7 +28,7 @@ public class CSharpIntelliSenseCompletionQualityTests
     [Fact]
     public async Task GetCompletionsAsync_Should_ReturnNothing_WhenTypingInsideABlockComment()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var x = 1;\n/* still writing thi";
         var position = code.Length;
 
@@ -46,7 +40,7 @@ public class CSharpIntelliSenseCompletionQualityTests
     [Fact]
     public async Task GetSignatureHelpAsync_Should_ReturnNothing_WhenTheOpenParenIsInsideAComment()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var x = 1;\n// looks like a call Foo(";
         var position = code.Length;
 
@@ -58,7 +52,7 @@ public class CSharpIntelliSenseCompletionQualityTests
     [Fact]
     public async Task GetCompletionsAsync_Should_RankLocalsAndParameters_BeforeTypesAndKeywords()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         // "Random" is a real BCL type and "record"/"readonly" are keywords — both would otherwise
         // sort ahead of "r" alphabetically-close candidates; "r" itself is a local the user just
         // declared, and should rank first regardless of alphabetical position.
@@ -83,7 +77,7 @@ public class CSharpIntelliSenseCompletionQualityTests
     [Fact]
     public async Task GetCompletionsAsync_Should_GiveLocalsAndParameters_HigherPriority_ThanMembersAndKeywords()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var r = 1;\nr;";
         var position = code.Length - 1;
 
@@ -102,7 +96,7 @@ public class CSharpIntelliSenseCompletionQualityTests
     [Fact]
     public async Task GetCompletionsAsync_Should_ReturnNothing_WhenTypingInsideAStringLiteral()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var s = \"hello wor\";";
         var position = code.IndexOf("wor", StringComparison.Ordinal) + 3;
 
@@ -116,7 +110,7 @@ public class CSharpIntelliSenseCompletionQualityTests
     [Fact]
     public async Task GetCompletionsAsync_Should_OfferMembers_AfterConditionalAccess()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "string? s = \"x\";\ns?.";
 
         var result = await service.GetCompletionsAsync(code, code.Length,
@@ -131,7 +125,7 @@ public class CSharpIntelliSenseCompletionQualityTests
     [Fact]
     public async Task GetCompletionsAsync_Should_OfferNestedNamespacesAndTypes_AfterANamespaceDot()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "System.";
 
         var result = await service.GetCompletionsAsync(code, code.Length,
@@ -147,7 +141,7 @@ public class CSharpIntelliSenseCompletionQualityTests
     [Fact]
     public async Task GetCompletionsAsync_Should_IncludeNamespaces_InTheGeneralList()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "Sys";
 
         var result = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);
@@ -162,7 +156,7 @@ public class CSharpIntelliSenseCompletionQualityTests
     [Fact]
     public async Task GetCompletionsAsync_Should_OfferLocalFunctions()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "void Foo() { }\nFo;";
         var position = code.Length - 1;
 
@@ -177,7 +171,7 @@ public class CSharpIntelliSenseCompletionQualityTests
     [Fact]
     public async Task GetCompletionsAsync_Should_OfferOnlyInstanceMembers_ForAValueQualifier()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var d = DateTime.Now;\nd.";
 
         var result = await service.GetCompletionsAsync(code, code.Length,
@@ -193,7 +187,7 @@ public class CSharpIntelliSenseCompletionQualityTests
     [Fact]
     public async Task GetCompletionsAsync_Should_OfferOnlyStaticMembers_ForATypeQualifier()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "DateTime.";
 
         var result = await service.GetCompletionsAsync(code, code.Length,
@@ -209,7 +203,7 @@ public class CSharpIntelliSenseCompletionQualityTests
     [Fact]
     public async Task GetSignatureHelpAsync_Should_ShowConstructorOverloads_ForAnObjectCreationExpression()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "var sb = new System.Text.StringBuilder(";
 
         var result = await service.GetSignatureHelpAsync(code, code.Length, '(', TestContext.Current.CancellationToken);
@@ -223,7 +217,7 @@ public class CSharpIntelliSenseCompletionQualityTests
     [Fact]
     public async Task GetCompletionsAsync_Should_ClassifyDelegateTypes_Distinctly_NotAsClass()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "int x = 1;";
 
         var result = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);
@@ -239,7 +233,7 @@ public class CSharpIntelliSenseCompletionQualityTests
     [Fact]
     public async Task GetCompletionsAsync_Should_OfferTypeParameters_InsideAGenericLocalFunctionBody()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "T Identity<T>(T v)\n{\n    return v;\n}";
         var position = code.IndexOf("return", StringComparison.Ordinal);
 

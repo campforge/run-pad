@@ -1,6 +1,7 @@
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -13,17 +14,10 @@ namespace Invoklet.Runtime.UI.Tests;
 // "(+N overloads)" instead of silently hiding the rest.
 public class CSharpIntelliSenseOverloadCountTests
 {
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     [Fact]
     public async Task GetCompletionsAsync_Should_SetOverloadCountAboveOne_ForAMethodWithSeveralOverloads()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "Console.";
 
         var result = await service.GetCompletionsAsync(code, code.Length,
@@ -38,7 +32,7 @@ public class CSharpIntelliSenseOverloadCountTests
     [Fact]
     public async Task GetCompletionsAsync_Should_LeaveOverloadCountAtOne_ForAMethodWithASingleOverload()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class D\n{\n    public void Baz() { }\n}\nvar d = new D();\nd.";
 
         var result = await service.GetCompletionsAsync(code, code.Length,
@@ -54,7 +48,7 @@ public class CSharpIntelliSenseOverloadCountTests
     [Fact]
     public async Task GetCompletionsAsync_Should_SetOverloadCount_ForOwnOverloadedMethods_ReferencedUnqualified()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class C\n{\n    void Foo() { }\n    void Foo(int x) { }\n" +
             "    void Bar()\n    {\n        Fo\n    }\n}\n";
         var position = code.LastIndexOf("Fo", StringComparison.Ordinal) + 2;
@@ -72,7 +66,7 @@ public class CSharpIntelliSenseOverloadCountTests
     [Fact]
     public async Task GetCompletionsAsync_Should_LeaveOverloadCountAtOne_ForATypeWithNoOverloads()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "Str";
 
         var result = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);

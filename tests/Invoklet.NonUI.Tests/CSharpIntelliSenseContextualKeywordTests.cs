@@ -1,5 +1,6 @@
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -12,13 +13,6 @@ namespace Invoklet.Runtime.UI.Tests;
 // IsInsideComment/IsDeclarationNamePosition.
 public class CSharpIntelliSenseContextualKeywordTests
 {
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     [Theory]
     [InlineData("orderby")]
     [InlineData("equals")]
@@ -27,7 +21,7 @@ public class CSharpIntelliSenseContextualKeywordTests
     [InlineData("join")]
     public async Task GetCompletionsAsync_Should_NotOffer_QueryContinuationKeywords_OutsideAQueryExpression(string keyword)
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "int x = 1;\nx";
 
         var result = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);
@@ -39,7 +33,7 @@ public class CSharpIntelliSenseContextualKeywordTests
     [Fact]
     public async Task GetCompletionsAsync_Should_Offer_OrderbyInto_InsideARealQueryExpression()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         // Cursor positioned right at the "select" keyword itself (a real, already-parsed token) rather
         // than at trailing whitespace at end-of-document — an unclosed/incomplete query at EOF resolves
         // through Roslyn's missing-token recovery in ways too implementation-specific to rely on here.
@@ -62,7 +56,7 @@ public class CSharpIntelliSenseContextualKeywordTests
     [InlineData("value")]
     public async Task GetCompletionsAsync_Should_NotOffer_AccessorKeywords_OutsideAnAccessorList(string keyword)
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "void Main()\n{\n    ";
         var position = code.Length;
 
@@ -75,7 +69,7 @@ public class CSharpIntelliSenseContextualKeywordTests
     [Fact]
     public async Task GetCompletionsAsync_Should_Offer_GetSet_InsideAnEmptyAccessorList()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class Foo\n{\n    public int Bar { ";
         var position = code.Length;
 
@@ -89,7 +83,7 @@ public class CSharpIntelliSenseContextualKeywordTests
     [Fact]
     public async Task GetCompletionsAsync_Should_Offer_Value_InsideASetterBody()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "class Foo\n{\n    private int _bar;\n    public int Bar { set { _bar = ";
         var position = code.Length;
 
@@ -104,7 +98,7 @@ public class CSharpIntelliSenseContextualKeywordTests
     [Fact]
     public async Task GetCompletionsAsync_Should_StillOffer_Where_OutsideAQueryExpression()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "int x = 1;\nx";
 
         var result = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);

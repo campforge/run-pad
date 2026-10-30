@@ -2,6 +2,7 @@ using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -10,15 +11,8 @@ namespace Invoklet.Runtime.UI.Tests;
 // Which kind of place each completion list was built for, and where its items came from.
 public class CSharpIntelliSenseCompletionContextTests
 {
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     private static async Task<SimpleCompletionList?> CompleteAsync(
-        CSharpIntelliSenseService service, string code, CompletionTrigger trigger, string caretMarker = "|")
+    CSharpIntelliSenseService service, string code, CompletionTrigger trigger, string caretMarker = "|")
     {
         var position = code.IndexOf(caretMarker, StringComparison.Ordinal);
         code = code.Remove(position, caretMarker.Length);
@@ -42,7 +36,7 @@ public class CSharpIntelliSenseCompletionContextTests
     [MemberData(nameof(Contexts))]
     public async Task Completion_Should_ReportTheContextItWasBuiltFor(string code, char? typed, string expected)
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         service.UpdateKind(MdRunKind.Statements);
 
         var trigger = typed is { } ch ? CompletionTrigger.Insertion(ch) : CompletionTrigger.Invoked;
@@ -58,7 +52,7 @@ public class CSharpIntelliSenseCompletionContextTests
     [InlineData("void Mai|() { }")]
     public async Task Completion_Should_OfferNothing_WhereNothingCompletes(string code)
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         service.UpdateKind(MdRunKind.Statements);
 
         Assert.Null(await CompleteAsync(service, code, CompletionTrigger.Invoked));
@@ -67,7 +61,7 @@ public class CSharpIntelliSenseCompletionContextTests
     [Fact]
     public async Task Keywords_Should_BeMarkedAsKeywords()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         service.UpdateKind(MdRunKind.Statements);
 
         var list = await CompleteAsync(service, "var x = 1;\n|", CompletionTrigger.Invoked);
@@ -79,7 +73,7 @@ public class CSharpIntelliSenseCompletionContextTests
     [Fact]
     public async Task InvokletExtensions_Should_WinATie_OverOtherMembers()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         service.UpdateKind(MdRunKind.Statements);
 
         var list = await CompleteAsync(service, "var n = 1;\nn.|", CompletionTrigger.Insertion('.'));

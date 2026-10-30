@@ -2,6 +2,7 @@ using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -15,13 +16,6 @@ public class CSharpIntelliSenseCodeFixQualityTests
 {
     private static readonly TimeSpan BackgroundAnalysisTimeout = TimeSpan.FromSeconds(30);
 
-    private static CSharpIntelliSenseService CreateService()
-    {
-        var referenceService = new CSharpReferenceService();
-        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
-    }
-
     // "offers to generate a constructor for '__InvokletProgram'" — MdRunKind.Program wraps the user's code in
     // a synthetic class (MdRunKindTransform.ProgramWrapperClassName) that's a REAL class in the live
     // analysis document, never shown to the user. Confirmed via a live probe (before the fix, with
@@ -32,7 +26,7 @@ public class CSharpIntelliSenseCodeFixQualityTests
     [Fact]
     public async Task GetRefactoringsAsync_Should_NotOfferToGenerateAConstructor_OnTheSyntheticProgramWrapperClass()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         service.UpdateKind(MdRunKind.Program);
         const string code = "int x;\n\nvoid Main()\n{\n    Console.WriteLine(x);\n}\n";
 
@@ -49,7 +43,7 @@ public class CSharpIntelliSenseCodeFixQualityTests
     [Fact]
     public async Task NotifyTextChanged_Should_OfferTheSameUsingFix_OnlyOnce_WhenTwoUndefinedTypesOnOneLineNeedTheSameNamespace()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         var tcs = new TaskCompletionSource<IReadOnlyList<ICodeFixInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
         service.CodeFixesChanged += (_, f) =>
         {
@@ -78,7 +72,7 @@ public class CSharpIntelliSenseCodeFixQualityTests
     [Fact]
     public async Task ResolveAllMissingUsingsAsync_Should_ResolveEveryUnambiguousMissingType_InOnePass()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code =
             "var list = new List<int>();\n" +
             "var output = JsonSerializer.Serialize(list, new JsonSerializerOptions());\n" +
@@ -97,7 +91,7 @@ public class CSharpIntelliSenseCodeFixQualityTests
     [Fact]
     public async Task ResolveAllMissingUsingsAsync_Should_ReturnNoUsings_WhenNothingIsUnresolved()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "Console.WriteLine(\"hi\");\n";
 
         var resolved = await service.ResolveAllMissingUsingsAsync(code, TestContext.Current.CancellationToken);
@@ -112,7 +106,7 @@ public class CSharpIntelliSenseCodeFixQualityTests
     [Fact]
     public async Task ResolveAllMissingUsingsAsync_Should_SkipAnAmbiguousType_RatherThanGuessing()
     {
-        using var service = CreateService();
+        using var service = new CSharpIntelliSenseFixture().CreateSut();
         const string code = "Timer t = null;\n";
 
         var resolved = await service.ResolveAllMissingUsingsAsync(code, TestContext.Current.CancellationToken);
