@@ -118,6 +118,32 @@ public partial class EditorsTabItemControl
         }
     }
 
+    // The tab moved to another file (Save As, a rename): its runs are built, and their output kept, in the
+    // folder of that file from now on. The folder of the old file keeps the output of the runs it saw, so
+    // opening that file again does not show the output of runs of another one.
+    private void RebindRunFolder(string newPath)
+    {
+        if (_buildCache.EnsureOutputDirectory(newPath, EnsureWorkDirectory()) is not { } folder) return;
+        var old = State.OutputDirectory;
+        State.OutputDirectory = folder;
+        if (!_contentReleased)
+            SaveRunOutput(); // what the tab shows now belongs to the new file
+        else if (old is not null && RunOutputFile.TryLoad(old) is { } waiting)
+            SaveRunOutputOf(folder, waiting); // the output is still waiting in the old folder: it moves along
+    }
+
+    private void SaveRunOutputOf(string folder, TabOutputState output)
+    {
+        try
+        {
+            RunOutputFile.Save(folder, output);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _runLogger.LogWarning("Could not keep the output of a run ({ErrorType})", ex.GetType().Name);
+        }
+    }
+
     // Shows the output of the last run the script's folder holds, for a tab opened again.
     private void LoadRunOutput()
     {

@@ -43,7 +43,7 @@ internal sealed class TabDiskSync(IWindowService windows, IScriptFileReader? rea
     private bool _checkAgain;
 
     /// <summary>Runs when Invoklet's window is activated and when the scripts folder reports a change.</summary>
-    internal async Task CheckAsync(ITabDiskHost host)
+    internal async Task CheckAsync(ITabDiskHost host, CancellationToken cancellationToken = default)
     {
         if (_checking)
         {
@@ -58,8 +58,12 @@ internal sealed class TabDiskSync(IWindowService windows, IScriptFileReader? rea
             do
             {
                 _checkAgain = false;
-                await CheckOnceAsync(host);
-            } while (_checkAgain && !host.IsClosed);
+                await CheckOnceAsync(host, cancellationToken);
+            } while (_checkAgain && !host.IsClosed && !cancellationToken.IsCancellationRequested);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The strip went away: the files that were not read yet need not be.
         }
         finally
         {
@@ -86,7 +90,7 @@ internal sealed class TabDiskSync(IWindowService windows, IScriptFileReader? rea
         }
     }
 
-    private async Task CheckOnceAsync(ITabDiskHost host)
+    private async Task CheckOnceAsync(ITabDiskHost host, CancellationToken cancellationToken)
     {
         var candidates = host.Tabs
             .Where(tab => host.HasContent(tab) && tab.FilePath is not null && tab.DiskState is not null)
@@ -97,9 +101,10 @@ internal sealed class TabDiskSync(IWindowService windows, IScriptFileReader? rea
         // Reading and hashing the files stays off the UI thread: a script folder can be on a slow drive.
         var states = await Task.Run(() => candidates.Select(c =>
         {
+            cancellationToken.ThrowIfCancellationRequested();
             try { return _reader.Read(c.Path); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
-        }).ToList());
+        }).ToList(), cancellationToken);
 
         for (var i = 0; i < candidates.Count; i++)
         {

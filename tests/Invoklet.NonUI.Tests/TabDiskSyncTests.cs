@@ -16,8 +16,14 @@ public class TabDiskSyncTests
     {
         public Dictionary<string, ScriptFileState> Files { get; } = new();
         public HashSet<string> Unreadable { get; } = [];
-        public ScriptFileState Read(string path) =>
-            Unreadable.Contains(path) ? throw new IOException("locked") : Files[path];
+        public List<string> Reads { get; } = [];
+        public Action? OnRead { get; set; }
+        public ScriptFileState Read(string path)
+        {
+            Reads.Add(path);
+            OnRead?.Invoke();
+            return Unreadable.Contains(path) ? throw new IOException("locked") : Files[path];
+        }
     }
 
     private sealed class FakeHost : ITabDiskHost
@@ -82,7 +88,7 @@ public class TabDiskSyncTests
         var h = new Harness();
         h.Open("a", onDisk: 1);
 
-        await h.Sync.CheckAsync(h.Host);
+        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
 
         Assert.Empty(h.Host.Reloaded);
     }
@@ -93,7 +99,7 @@ public class TabDiskSyncTests
         var h = new Harness();
         var tab = h.Open("a");
 
-        await h.Sync.CheckAsync(h.Host);
+        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
 
         Assert.Equal([tab], h.Host.Reloaded);
         h.Windows.Verify(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>()), Times.Never);
@@ -105,7 +111,7 @@ public class TabDiskSyncTests
         var h = new Harness();
         var tab = h.Open("a", dirty: true);
 
-        await h.Sync.CheckAsync(h.Host);
+        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
 
         h.Windows.Verify(w => w.ShowReloadChangedFileDialogAsync("a.inv"), Times.Once);
         Assert.Equal([tab], h.Host.Reloaded);
@@ -118,14 +124,14 @@ public class TabDiskSyncTests
         var tab = h.Open("a", dirty: true);
         h.Windows.Setup(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>())).ReturnsAsync(false);
 
-        await h.Sync.CheckAsync(h.Host);
-        await h.Sync.CheckAsync(h.Host);
+        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
+        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
 
         Assert.Empty(h.Host.Reloaded);
         h.Windows.Verify(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>()), Times.Once); // not asked again
 
         h.Reader.Files[tab.FilePath!] = State(3); // another change: asked again
-        await h.Sync.CheckAsync(h.Host);
+        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
         h.Windows.Verify(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>()), Times.Exactly(2));
     }
 
@@ -135,7 +141,7 @@ public class TabDiskSyncTests
         var h = new Harness();
         h.Open("a").RunState = RunState.Run;
 
-        await h.Sync.CheckAsync(h.Host);
+        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
 
         Assert.Empty(h.Host.Reloaded);
     }
@@ -147,7 +153,7 @@ public class TabDiskSyncTests
         var tab = h.Open("a");
         h.Host.WithoutContent.Add(tab);
 
-        await h.Sync.CheckAsync(h.Host);
+        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
 
         Assert.Empty(h.Host.Reloaded);
     }
@@ -160,7 +166,7 @@ public class TabDiskSyncTests
         var other = h.Open("b");
         h.Reader.Unreadable.Add(locked.FilePath!);
 
-        await h.Sync.CheckAsync(h.Host);
+        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
 
         Assert.Equal([other], h.Host.Reloaded);
     }
@@ -177,7 +183,7 @@ public class TabDiskSyncTests
                 return Task.FromResult(true);
             });
 
-        await h.Sync.CheckAsync(h.Host);
+        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
 
         Assert.Empty(h.Host.Reloaded);
     }
@@ -189,7 +195,7 @@ public class TabDiskSyncTests
         var tab = h.Open("a");
         h.Host.Result = DiskReload.OtherLanguage;
 
-        await h.Sync.CheckAsync(h.Host);
+        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
 
         Assert.Equal([tab], h.Host.Reopened);
     }
@@ -201,7 +207,7 @@ public class TabDiskSyncTests
         h.Open("a");
         h.Host.Result = DiskReload.Unavailable;
 
-        await h.Sync.CheckAsync(h.Host);
+        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
 
         h.Windows.Verify(w => w.ShowErrorAsync("Reload Failed", "Could not read 'a.inv'."), Times.Once);
     }
@@ -216,13 +222,27 @@ public class TabDiskSyncTests
         h.Windows.Setup(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>()))
             .Returns(() => ++asked == 1 ? gate.Task : Task.FromResult(false));
 
-        var first = h.Sync.CheckAsync(h.Host);
-        await h.Sync.CheckAsync(h.Host); // returns at once: noted for later
+        var first = h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
+        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken); // returns at once: noted for later
         h.Reader.Files[tab.FilePath!] = State(3);
         gate.SetResult(true);
         await first;
 
         Assert.Equal(2, asked); // the second pass looked at the newer version
+    }
+
+    [Fact]
+    public async Task ACheckCancelledWhileFilesAreBeingRead_Should_NotReadTheRest()
+    {
+        var h = new Harness();
+        for (var i = 0; i < 20; i++) h.Open("tab" + i);
+        using var cts = new CancellationTokenSource();
+        h.Reader.OnRead = cts.Cancel; // the window is closed while the first file is read
+
+        await h.Sync.CheckAsync(h.Host, cts.Token);
+
+        Assert.Single(h.Reader.Reads);
+        Assert.Empty(h.Host.Reloaded);
     }
 
     [Fact]
@@ -232,7 +252,7 @@ public class TabDiskSyncTests
         h.Open("a");
         h.Host.IsClosed = true;
 
-        await h.Sync.CheckAsync(h.Host);
+        await h.Sync.CheckAsync(h.Host, TestContext.Current.CancellationToken);
 
         Assert.Empty(h.Host.Reloaded);
     }

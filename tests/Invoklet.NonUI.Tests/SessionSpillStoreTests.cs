@@ -12,7 +12,7 @@ public sealed class SessionSpillStoreTests : IDisposable
 
     public void Dispose() => Directory.Delete(_root, recursive: true);
 
-    private static ReleasedContent Content(string text) => new(text, new EditorViewState(4, 1, 2, 7.5), null);
+    private static ReleasedContent Content(string text, TabOutputState? output = null) => new(text, new EditorViewState(4, 1, 2, 7.5), output);
 
     private static async Task<(DiskRecoveryStore Store, SessionSpillStore Spill)> OpenAsync(string root)
     {
@@ -94,6 +94,25 @@ public sealed class SessionSpillStoreTests : IDisposable
 
         Assert.False(Directory.Exists(stale));
         Assert.Null(nextSpill.TryRead(tab)); // not even if the tab got the same id
+    }
+
+    [Fact]
+    public async Task TheOutputOfAScriptWithoutAFolderOfItsRuns_Should_LiveOnlyAsLongAsTheInstance()
+    {
+        // An unsaved script has no build folder to keep its output in, so the output goes to the spill, which
+        // is not part of a recovery checkpoint: the text of the draft comes back after a restart, its output does not.
+        var tab = Guid.NewGuid();
+        {
+            var (store, spill) = await OpenAsync(_root);
+            spill.TryWrite(tab, Content("draft", new TabOutputState("<div>output</div>", false, new Dictionary<string, string>())));
+            Assert.Equal("<div>output</div>", spill.TryRead(tab)!.Output!.Content);
+            store.Dispose();
+        }
+
+        var (next, nextSpill) = await OpenAsync(_root);
+        using var _ = next;
+
+        Assert.Null(nextSpill.TryRead(tab));
     }
 
     [Fact]
