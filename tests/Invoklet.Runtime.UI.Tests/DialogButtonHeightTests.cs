@@ -86,4 +86,41 @@ public class DialogButtonHeightTests
             global::Avalonia.Application.Current!.Styles.Remove(theme);
         }
     }
+
+    private static double Luminance(global::Avalonia.Media.Color c)
+    {
+        static double Channel(byte v)
+        {
+            var s = v / 255.0;
+            return s <= 0.03928 ? s / 12.92 : Math.Pow((s + 0.055) / 1.055, 2.4);
+        }
+
+        return 0.2126 * Channel(c.R) + 0.7152 * Channel(c.G) + 0.0722 * Channel(c.B);
+    }
+
+    private static double Contrast(global::Avalonia.Media.Color a, global::Avalonia.Media.Color b)
+    {
+        var (high, low) = (Math.Max(Luminance(a), Luminance(b)), Math.Min(Luminance(a), Luminance(b)));
+        return (high + 0.05) / (low + 0.05);
+    }
+
+    // A secondary button is a filled box with an edge; when the edge is nearly the colour of the panel, the eye takes the
+    // fill for the whole button and the button looks smaller than a filled primary one of the same height beside it.
+    [AvaloniaTheory]
+    [MemberData(nameof(Variants))]
+    public void TheEdgeOfASecondaryButton_Should_StandOutFromThePanel_InEveryTheme(string variantName)
+    {
+        var theme = new InvokletTheme();
+        var variant = (global::Avalonia.Styling.ThemeVariant)typeof(InvokletThemeVariants).GetField(variantName)!.GetValue(null)!;
+
+        theme.TryGetResource("Invoklet.Button.Secondary.BorderBrush", variant, out var border);
+        theme.TryGetResource("Invoklet.Panel.BackgroundBrush", variant, out var panel);
+
+        var contrast = Contrast(Assert.IsAssignableFrom<global::Avalonia.Media.ISolidColorBrush>(border).Color,
+            Assert.IsAssignableFrom<global::Avalonia.Media.ISolidColorBrush>(panel).Color);
+        Assert.True(contrast >= 1.9, $"{variantName}: {contrast:0.00}");
+    }
+
+    public static TheoryData<string> Variants => new("InvokletMidnight", "InvokletWarmLight", "RiderDark", "RiderLight",
+        "Vs2022Dark", "Vs2022Light", "VsCodeDark", "VsCodeLight");
 }

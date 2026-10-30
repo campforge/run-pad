@@ -11,6 +11,9 @@ Notable changes in each Invoklet release. Downloads are on the
   show the hammer and the grid closer, and the icon in the title bar of the window is 20 pixels instead of 16.
 - The labels of the buttons of dialogs and forms sit in the middle of the button, both ways, instead of at its top left
   corner, which made a button look taller than the text in it, the blue one above all.
+- The edge of a secondary button, and of the text boxes, drop-downs and number fields beside it, is now clearly visible in
+  every theme, so a secondary button looks as tall as the filled blue button next to it instead of smaller, as in Invoklet
+  Midnight.
 
 ## [0.10.4] — 2026-10-30
 
