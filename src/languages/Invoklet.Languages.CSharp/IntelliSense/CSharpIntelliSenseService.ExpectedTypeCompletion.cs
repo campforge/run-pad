@@ -252,7 +252,7 @@ public sealed partial class CSharpIntelliSenseService
         }
 
         static ICompletionItem Suggestion(string text, CompletionItemKind kind, ISymbol symbol, string? template) =>
-            new SimpleCompletionItem(text, kind, symbol.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetSummary(symbol),
+            new SimpleCompletionItem(text, kind, symbol.ToDisplayParts(SymbolFormats.Brief).ToSegments(), XmlDocSummary.GetSummary(symbol),
                 SortText: "0" + text, Priority: ScopeRankPriority(0), UsingsToAdd: [], InsertTemplate: template,
                 Source: CompletionSourceKind.ExpectedType);
     }
@@ -289,7 +289,7 @@ public sealed partial class CSharpIntelliSenseService
                 if (named.Contains(parameter.Name) || items.ContainsKey(parameter.Name)) continue;
                 var text = parameter.Name + ":";
                 items[parameter.Name] = new SimpleCompletionItem(text, CompletionItemKind.Variable,
-                    parameter.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetParameterSummary(method, parameter.Name),
+                    parameter.ToDisplayParts(SymbolFormats.Brief).ToSegments(), XmlDocSummary.GetParameterSummary(method, parameter.Name),
                     SortText: "0" + text, Priority: ScopeRankPriority(0), UsingsToAdd: [],
                     Source: CompletionSourceKind.NamedArgument);
             }
