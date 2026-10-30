@@ -8,6 +8,7 @@ using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.Examples;
 using Invoklet.Services.Preferences;
+using Invoklet.Services.QuickOpen;
 using Invoklet.Services.Recovery;
 using Invoklet.Shared;
 using Invoklet.UserControls.Models;
@@ -322,9 +323,21 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     public bool HasRecentFiles => RecentFiles.Count > 0;
     public ReactiveCommand<Unit, Unit> OpenFileCommand { get; }
     public ReactiveCommand<string, Unit> OpenRecentFileCommand { get; }
+    public ReactiveCommand<Unit, Unit> QuickOpenCommand { get; }
     public ReactiveCommand<Unit, Unit> ClearRecentFilesCommand { get; }
 
     private Task OpenFileAsync() => TrackWorkspaceOperation(OpenFileCoreAsync);
+
+    private Task QuickOpenAsync() => TrackWorkspaceOperation(QuickOpenCoreAsync);
+
+    // The scripts folder as the tree shows it, and the recent files wherever they are.
+    private async Task QuickOpenCoreAsync()
+    {
+        if (_disposed) return;
+        var tree = await _fileSystemService.GetFilesTreeAsync();
+        var entries = QuickOpenCatalog.Build(tree, _fileSystemService.Folder, _recentFiles.Paths, File.Exists, FilePathComparer);
+        if (await _windowService.ShowQuickOpenAsync(entries) is { } path) await OpenScriptAsync(path);
+    }
 
     private async Task OpenFileCoreAsync()
     {
@@ -1081,6 +1094,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         FileTree = new FileTreeViewModel(_prefs, languageRegistry);
         OpenFileCommand = ReactiveCommand.CreateFromTask(OpenFileAsync);
         OpenRecentFileCommand = ReactiveCommand.CreateFromTask<string>(OpenScriptAsync);
+        QuickOpenCommand = ReactiveCommand.CreateFromTask(QuickOpenAsync);
+        QuickOpenCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Quick Open failed"));
         ClearRecentFilesCommand = ReactiveCommand.Create(() =>
         {
             _recentFiles.Clear();

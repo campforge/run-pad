@@ -177,6 +177,7 @@ public sealed partial class MainWindow : Window, IDisposable, IStartupWindow
         {
             [KeyCommands.NewFile] = vm.NewMdRunFileWithDefaults,
             [KeyCommands.OpenFile] = () => vm.OpenFileCommand.Execute().Subscribe(),
+            [KeyCommands.QuickOpen] = () => vm.QuickOpenCommand.Execute().Subscribe(),
             // Close(), as the window's close button: unsaved tabs are asked about first.
             [KeyCommands.Exit] = Close,
             [KeyCommands.OpenDependencies] = vm.OpenDependenciesWindow,
@@ -365,6 +366,7 @@ public sealed partial class MainWindow : Window, IDisposable, IStartupWindow
                         l.DisplayName, ReactiveCommand.CreateFromTask(() => NewMdRunFileWithKindAsync(l.Language)))),
                 ]),
                 new MainMenuCommand("_Open...", vm.OpenFileCommand, _prefs.Keyboard.GestureFor(KeyCommands.OpenFile), KeyCommands.OpenFile),
+                new MainMenuCommand("_Quick Open...", vm.QuickOpenCommand, _prefs.Keyboard.GestureFor(KeyCommands.QuickOpen), KeyCommands.QuickOpen),
                 CreateRecentFilesMenu(),
                 new MainMenuCommand("Open _Text File...", vm.OpenTextFileCommand),
                 new MainMenuCommand("_Import .linq Query...", vm.ImportLinqFileCommand),

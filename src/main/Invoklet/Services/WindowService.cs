@@ -101,6 +101,12 @@ public sealed class WindowService : IWindowService
         return file is null ? null : file.TryGetLocalPath();
     }
 
+    public async Task<string?> ShowQuickOpenAsync(IReadOnlyList<Invoklet.Services.QuickOpen.QuickOpenEntry> entries)
+    {
+        if (MainWindow is not { } owner) return null;
+        return await new QuickOpenDialog(entries).ShowDialog<string?>(owner);
+    }
+
     public async Task<string?> ShowOpenScriptFileDialogAsync(string startFolder)
     {
         var owner = MainWindow;

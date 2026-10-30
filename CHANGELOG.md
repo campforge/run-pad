@@ -3,6 +3,14 @@
 Notable changes in each Invoklet release. Downloads are on the
 [releases page](https://github.com/tervforge/invoklet/releases).
 
+## [Unreleased]
+
+### Added
+
+- Quick Open (File → Quick Open…, Ctrl+, or Cmd+P on macOS) opens a script by name: type part of the name or the first
+  letters of its words, choose with the arrow keys and press Enter. The scripts folder and the recent files are searched,
+  and the recent ones come first.
+
 ## [0.10.5] — 2026-10-30
 
 ### Fixed

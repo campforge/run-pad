@@ -1,0 +1,68 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:quickOpen="using:Invoklet.Services.QuickOpen"
+        x:Class="Invoklet.Windows.QuickOpenDialog"
+        Icon="/Assets/icon.ico"
+        Title="Quick Open"
+        Width="560" Height="420"
+        MinWidth="360" MinHeight="260"
+        CanResize="False"
+        SizeToContent="Manual"
+        WindowStartupLocation="CenterOwner"
+        WindowDecorations="None"
+        TransparencyLevelHint="Transparent"
+        Background="Transparent"
+        Foreground="{DynamicResource Invoklet.Text.PrimaryBrush}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://Invoklet.Avalonia.Themes/Metrics.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Border x:Name="DialogSurface" Background="{DynamicResource Invoklet.Panel.BackgroundBrush}"
+            BorderBrush="{DynamicResource Invoklet.Border.BackgroundBrush}"
+            BorderThickness="1"
+            CornerRadius="{DynamicResource Invoklet.Radius.Overlay}"
+            Padding="12">
+        <Grid RowDefinitions="Auto,*,Auto">
+
+            <TextBox x:Name="QueryBox"
+                     Grid.Row="0"
+                     PlaceholderText="Type the name of a script"
+                     Margin="0,0,0,8"/>
+
+            <ListBox x:Name="ResultList"
+                     Grid.Row="1">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="quickOpen:QuickOpenEntry">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{Binding Name}"/>
+                            <TextBlock Text="{Binding Folder}"
+                                       Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"
+                                       FontSize="{DynamicResource Invoklet.Type.Caption}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <TextBlock x:Name="EmptyText"
+                       Grid.Row="1"
+                       Text="No script matches"
+                       IsVisible="False"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+
+            <TextBlock Grid.Row="2"
+                       Margin="0,8,0,0"
+                       Text="Enter opens, Esc closes"
+                       FontSize="{DynamicResource Invoklet.Type.Caption}"
+                       Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+
+        </Grid>
+    </Border>
+
+</Window>

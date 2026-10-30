@@ -27,6 +27,8 @@ public static class KeyCommands
 
     public static readonly KeyCommand NewFile = new("file.new", General, "New File", "Ctrl+N", "Cmd+N");
     public static readonly KeyCommand OpenFile = new("file.open", General, "Open Script", "Ctrl+O", "Cmd+O");
+    // Cmd+, belongs to Preferences on macOS; VS Code's Cmd+P is the Quick Open key there.
+    public static readonly KeyCommand QuickOpen = new("file.quickOpen", General, "Quick Open", "Ctrl+,", "Cmd+P");
     public static readonly KeyCommand Save = new("file.save", General, "Save", "Ctrl+S", "Cmd+S");
     public static readonly KeyCommand SaveAs = new("file.saveAs", General, "Save As", "Ctrl+Shift+S", "Cmd+Shift+S");
     public static readonly KeyCommand RevertFile = new("file.revert", General, "Revert to Saved", "");
@@ -90,7 +92,7 @@ public static class KeyCommands
 
     public static IReadOnlyList<KeyCommand> All { get; } =
     [
-        NewFile, OpenFile, Save, SaveAs, RevertFile, CloseTab, Exit, OpenDependencies, OpenAssemblyExplorer, OpenPreferences,
+        NewFile, OpenFile, QuickOpen, Save, SaveAs, RevertFile, CloseTab, Exit, OpenDependencies, OpenAssemblyExplorer, OpenPreferences,
         ToggleFileTree, ToggleOutputPanel, TogglePreview, TogglePreviewToSide, ZoomIn, ZoomOut, ResetZoom,
         RunOrContinue, ExecuteSelection, Restart, Stop, ToggleDebugMode, StepOver, StepInto, StepOut, Pause, RunToCursor,
         FindText, ReplaceText, FindNext, FindPrevious, ReplaceNext, ReplaceAll,

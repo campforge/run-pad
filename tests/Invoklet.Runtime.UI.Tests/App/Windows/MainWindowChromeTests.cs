@@ -133,6 +133,7 @@ public class MainWindowChromeTests
         "File/New Invoklet File/C#",
         "File/New Invoklet File/Visual Basic",
         "File/Open...",
+        "File/Quick Open...",
         "File/Recent Files",
         "File/Recent Files/Clear Recent Files",
         "File/Open Text File...",
