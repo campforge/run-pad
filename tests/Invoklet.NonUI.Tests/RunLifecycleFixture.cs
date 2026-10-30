@@ -12,5 +12,8 @@ public sealed class RunLifecycleFixture
     /// <summary>Starts a thread of its own, as a host reports its events on one.</summary>
     public static Task RunOnAnotherThread(Action work) => Task.Factory.StartNew(work, TaskCreationOptions.LongRunning);
 
+    /// <summary>When a thread that spins on purpose gives up, whatever the test does: well after any limit a test waits for.</summary>
+    public static long SpinDeadline() => Environment.TickCount64 + 15_000;
+
     internal RunLifecycle CreateSut() => new();
 }
