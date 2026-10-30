@@ -17,6 +17,7 @@ internal sealed class AnalysisScheduler(
     private CancellationTokenSource? _current;
     private Task? _pass;
     private bool _stopped;
+    private long _generation;
 
     private bool Stopped
     {
@@ -43,6 +44,7 @@ internal sealed class AnalysisScheduler(
     public void Notify(Func<string> getCode, Func<string, CancellationToken, Task<bool>> analyze)
     {
         CancellationToken token;
+        long generation;
         lock (_gate)
         {
             // After Stop nothing starts again, not even the repeat of a pass that was still running: its owner is gone.
@@ -53,23 +55,32 @@ internal sealed class AnalysisScheduler(
             _current?.Cancel();
             _current = new CancellationTokenSource();
             token = _current.Token;
-            _pass = run(async () =>
+            generation = ++_generation;
+        }
+
+        // Started outside the lock: a runner that executes the pass on this very thread would otherwise hold it for the whole pass, and
+        // Stop could not even begin its bounded wait.
+        var pass = run(async () =>
+        {
+            try
             {
-                try
-                {
-                    await Task.Delay(debounce(), token);
-                    var code = getCode();
-                    if (!await analyze(code, token) && !token.IsCancellationRequested) Notify(() => code, analyze);
-                }
-                catch (OperationCanceledException)
-                {
-                }
-                catch (Exception ex)
-                {
-                    // Not told once stopped: the owner is gone.
-                    if (!Stopped) onFailure(ex);
-                }
-            });
+                await Task.Delay(debounce(), token);
+                var code = getCode();
+                if (!await analyze(code, token) && !token.IsCancellationRequested) Notify(() => code, analyze);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                // Not told once stopped: the owner is gone.
+                if (!Stopped) onFailure(ex);
+            }
+        });
+        lock (_gate)
+        {
+            // A notification made meanwhile (even from inside the pass) is the newer one.
+            if (generation == _generation) _pass = pass;
         }
     }
 

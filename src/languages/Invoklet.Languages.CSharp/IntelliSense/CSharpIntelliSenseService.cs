@@ -312,6 +312,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // checks its token shouldn't be able to hang Dispose (or, in production, a tab close) forever.
     public void Dispose()
     {
+        _analysis.Stop();
         _scheduler.Stop();
         _session.Workspace.Dispose();
     }

@@ -59,6 +59,11 @@ internal sealed class BackgroundAnalysis(
             | SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier
             | SymbolDisplayMiscellaneousOptions.AllowDefaultLiteral);
 
+    private volatile bool _stopped;
+
+    /// <summary>After this nothing is published, whatever a pass that outlives its owner still finds.</summary>
+    internal void Stop() => _stopped = true;
+
     // Test-only: called once a pass holds its document snapshot, before it analyses it, so a test can change the context at exactly that point.
     internal Action? SnapshotTakenForTests { get; set; }
 
@@ -95,6 +100,7 @@ internal sealed class BackgroundAnalysis(
     private bool CanPublish(int version, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        if (_stopped) return false;
         return IsCurrent(version);
     }
 

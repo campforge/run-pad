@@ -69,4 +69,21 @@ public sealed class BackgroundAnalysisTests
         Assert.IsAssignableFrom<OperationCanceledException>(thrown);
         Assert.Empty(fixture.Diagnostics);
     }
+
+    [Fact]
+    public async Task AnalyzeAsync_StoppedWhileThePassRuns_PublishesNothing()
+    {
+        // Arrange
+        using var fixture = new BackgroundAnalysisFixture();
+        var sut = fixture.CreateSut();
+        sut.SnapshotTakenForTests = sut.Stop;
+
+        // Act
+        var current = await sut.AnalyzeAsync("int a = \"x\";", TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(current);
+        Assert.Empty(fixture.Diagnostics);
+        Assert.Empty(fixture.Tokens);
+    }
 }

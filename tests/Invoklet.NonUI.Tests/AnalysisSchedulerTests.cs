@@ -284,4 +284,46 @@ public sealed class AnalysisSchedulerTests
         // Assert
         Assert.Empty(fixture.Failures);
     }
+
+    [Fact]
+    public async Task Stop_RunnerThatExecutesThePassOnTheCallingThread_IsNotBlockedByTheNotifyThatStartedIt()
+    {
+        // Arrange
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sut = new AnalysisScheduler(() => TimeSpan.Zero, work => work(), _ => { }, TimeSpan.FromMilliseconds(50));
+        var notify = Task.Run(() => sut.Notify(() => "text", (_, _) =>
+        {
+            started.TrySetResult();
+            return release.Task;
+        }), TestContext.Current.CancellationToken);
+        await started.Task.WaitAsync(Limit, TestContext.Current.CancellationToken);
+
+        // Act: the pass is still running inside Notify, which must not hold the scheduler's lock meanwhile
+        var stop = Task.Run(sut.Stop, TestContext.Current.CancellationToken);
+
+        // Assert
+        await stop.WaitAsync(Limit, TestContext.Current.CancellationToken);
+        release.SetResult(true);
+        await notify.WaitAsync(Limit, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task Notify_FromInsideAPassOnASynchronousRunner_LeavesTheNewerPassAsTheOneLastStarted()
+    {
+        // Arrange
+        var sut = new AnalysisScheduler(() => TimeSpan.Zero, work => work(), _ => { }, TimeSpan.FromSeconds(5));
+        var texts = new List<string>();
+
+        // Act: the first analysis says its result is obsolete, which notifies again from inside the pass
+        sut.Notify(() => "text", (code, _) =>
+        {
+            texts.Add(code);
+            return Task.FromResult(texts.Count > 1);
+        });
+        await sut.Pass!.WaitAsync(Limit, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(["text", "text"], texts);
+    }
 }
