@@ -3,6 +3,13 @@
 Notable changes in each Invoklet release. Downloads are on the
 [releases page](https://github.com/tervforge/invoklet/releases).
 
+## [Unreleased]
+
+### Fixed
+
+- The application icon on Windows fills its frame again instead of sitting in a margin, so it is no longer
+  small in the taskbar, the title bar and the Start menu.
+
 ## [0.10.3] — 2026-10-30
 
 ### Changed
