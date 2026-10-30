@@ -521,53 +521,45 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (_contentReleased && !await TryRestoreContentAsync()) return;
         var stopGeneration = _run.StopGeneration;
 
-        // Never run an invalid .inv as raw code — the editor holds the whole file
-        // (front matter + Markdown) there, not a script.
-        if (s.DocumentParseError is { } parseError)
+        // The checks before the run; see RunPreflight.
+        var preflight = await new RunPreflight().CheckAsync(
+            new RunPreflightInput(s.DocumentParseError, _vm.FilePath, selection is not null),
+            async () =>
+            {
+                _run.BeginSaving();
+                try
+                {
+                    return await SaveWithResultAsync();
+                }
+                finally
+                {
+                    _run.EndSaving();
+                }
+            },
+            () => _disposed || _run.RestartRequested || _run.IsStoppedSince(stopGeneration),
+            () => MdRunArguments.Resolve(s.MdRunDocument?.FrontMatter).Error);
+        switch (preflight)
         {
-            s.Output.Clear();
-            s.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(InvalidDocumentMessage(parseError))}</div>");
-            SetStatus("Invalid document", "Invoklet.Status.ErrorBrush");
-            UpdateOutputUi();
-            return;
-        }
-
-        // A script is saved before it runs, like any save: a file changed by another program is only
-        // replaced on the user's choice, and a save that doesn't happen (cancelled, a Save As that
-        // didn't save, a failed write) means no run — nothing below has started yet. A Save As that
-        // did save runs the script from its new file. An untitled script runs without being saved.
-        if (selection is null && _vm.FilePath is { } path)
-        {
-            InPlaceSaveResult saved;
-            _run.BeginSaving();
-            try
-            {
-                saved = await SaveWithResultAsync();
-            }
-            finally
-            {
-                _run.EndSaving();
-            }
-            if (_disposed || _run.RestartRequested || _run.IsStoppedSince(stopGeneration)) return;
-            if (saved.Status == InPlaceSaveStatus.Failed)
-            {
+            case RunBlockedByInvalidDocument invalid:
                 s.Output.Clear();
-                AppendError(new IOException($"Cannot save '{Path.GetFileName(path)}': {saved.Error.Replace('\n', ' ')}"));
+                s.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(InvalidDocumentMessage(invalid.ParseError))}</div>");
+                SetStatus("Invalid document", "Invoklet.Status.ErrorBrush");
                 UpdateOutputUi();
                 return;
-            }
-            if (saved.Status != InPlaceSaveStatus.Saved) return;
-        }
-
-        // A selected argument set the script no longer has: say so rather than run with other arguments.
-        if (MdRunArguments.Resolve(s.MdRunDocument?.FrontMatter).Error is { } argumentsError)
-        {
-            s.Output.Clear();
-            s.HadRunError = true;
-            s.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(argumentsError)}</div>");
-            SetStatus("Error", "Invoklet.Status.ErrorBrush");
-            UpdateOutputUi();
-            return;
+            case RunBlockedBySaveFailure failure:
+                s.Output.Clear();
+                AppendError(new IOException($"Cannot save '{failure.FileName}': {failure.Error.Replace('\n', ' ')}"));
+                UpdateOutputUi();
+                return;
+            case RunBlockedByArguments arguments:
+                s.Output.Clear();
+                s.HadRunError = true;
+                s.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(arguments.Message)}</div>");
+                SetStatus("Error", "Invoklet.Status.ErrorBrush");
+                UpdateOutputUi();
+                return;
+            case not RunMayProceed:
+                return;
         }
 
         // Stop can be requested while the pre-run checks are completing. Do not create or expose
