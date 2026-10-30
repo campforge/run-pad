@@ -80,9 +80,9 @@
                     <SolidColorBrush x:Key="Invoklet.ToolTab.SelectedForegroundBrush" Color="#DFE1E5" />
                     <SolidColorBrush x:Key="Invoklet.ToolTab.SelectedBorderBrush" Color="#567894" />
                     <!-- Default (primary) dialog button: white text at least 4.5:1 in every state. -->
-                    <SolidColorBrush x:Key="Invoklet.Button.Primary.BackgroundBrush"     Color="#2179BF" />
-                    <SolidColorBrush x:Key="Invoklet.Button.Primary.HoverBrush"          Color="#1E6EAE" />
-                    <SolidColorBrush x:Key="Invoklet.Button.Primary.PressedBrush"        Color="#1B639C" />
+                    <SolidColorBrush x:Key="Invoklet.Button.Primary.BackgroundBrush"     Color="#3F76A1" />
+                    <SolidColorBrush x:Key="Invoklet.Button.Primary.HoverBrush"          Color="#3C719A" />
+                    <SolidColorBrush x:Key="Invoklet.Button.Primary.PressedBrush"        Color="#396B92" />
                     <SolidColorBrush x:Key="Invoklet.Button.Primary.ForegroundBrush"     Color="#FFFFFF" />
                     <SolidColorBrush x:Key="Invoklet.Button.Secondary.BorderBrush"     Color="#5A5B60" />
                     <!-- Shared keyboard-focus ring; independent of selection and primary actions. -->

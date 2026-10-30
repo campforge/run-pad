@@ -14,6 +14,8 @@ Notable changes in each Invoklet release. Downloads are on the
 - The edge of a secondary button, and of the text boxes, drop-downs and number fields beside it, is now clearly visible in
   every theme, so a secondary button looks as tall as the filled blue button next to it instead of smaller, as in Invoklet
   Midnight.
+- The accent colour of the primary buttons is calmer in Invoklet Midnight, Rider Dark and VS Code Dark: less saturated, with
+  the white label still at least 4.5 times as light as the button.
 
 ## [0.10.4] — 2026-10-30
 
