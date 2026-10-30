@@ -153,6 +153,8 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // What the project is compiled against besides the script's text.
     private readonly ScriptContext _context;
     private readonly SymbolNavigation _navigation;
+    private readonly BreakpointConditionAnalyzer _breakpointConditions;
+    private readonly DocumentFormatter _formatter;
 
     // Test-only visibility (InternalsVisibleTo) — confirms the FormattingOptions.NewLine override
     // below actually takes effect on the workspace's live option set. Environment.NewLine can't be
@@ -195,6 +197,8 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         _session = new ScriptDocumentSession(_layout, references.All.Select(p => (MetadataReference)ScriptContext.CreateReference(p)).ToList());
         _context = new ScriptContext(_session, _layout, references, logger);
         _navigation = new SymbolNavigation(SyncDocument, _layout, _context, logger);
+        _breakpointConditions = new BreakpointConditionAnalyzer(SyncDocument, _layout);
+        _formatter = new DocumentFormatter(_session, _layout, logger);
 
         _codeFixEngine = new RoslynCodeFixEngine(InvokletRoslynHost.CompositionHost, logger);
         _analyzerEngine = new RoslynAnalyzerEngine(logger);
@@ -962,98 +966,18 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         string code, int position, CancellationToken ct = default)
         => _navigation.GetImplementationsAsync(code, position, ct);
 
-    // ── Format ─────────────────────────────────────────────────────────────────
+    // ── Breakpoint conditions and format ─────────────────────────────────────────────────────────────────
 
-    public async Task<BreakpointConditionAnalysis?> AnalyzeBreakpointConditionAsync(string code, int position,
+    public Task<BreakpointConditionAnalysis?> AnalyzeBreakpointConditionAsync(string code, int position,
         string expression, CancellationToken cancellationToken = default)
-    {
-        var document = SyncDocument(code);
-        var model = await document.GetSemanticModelAsync(cancellationToken);
-        if (model is null) return null;
-        var pos = _layout.ToDocumentOffset(code, Math.Clamp(position, 0, code.Length));
-        var parsed = SyntaxFactory.ParseExpression(expression);
-        string? error = null;
-        if (!string.IsNullOrWhiteSpace(expression))
-        {
-            var syntaxError = parsed.GetDiagnostics().FirstOrDefault(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
-            if (syntaxError is not null) error = syntaxError.GetMessage(System.Globalization.CultureInfo.InvariantCulture);
-            else
-            {
-                var root = await document.GetSyntaxRootAsync(cancellationToken);
-                var statement = root?.FindToken(pos).Parent?.AncestorsAndSelf().OfType<StatementSyntax>().FirstOrDefault();
-                if (statement is null) error = "Choose a line inside executable code.";
-                else
-                {
-                    // Bind in a forked document, never execute the expression or modify the editor workspace.
-                    var mark = new SyntaxAnnotation();
-                    var condition = parsed.WithAdditionalAnnotations(mark);
-                    var probe = SyntaxFactory.IfStatement(condition, SyntaxFactory.Block());
-                    var fork = document.WithSyntaxRoot(root!.ReplaceNode(statement, SyntaxFactory.Block(probe, statement)));
-                    var forkRoot = await fork.GetSyntaxRootAsync(cancellationToken);
-                    var forkModel = await fork.GetSemanticModelAsync(cancellationToken);
-                    var bound = forkRoot!.GetAnnotatedNodes(mark).Single();
-                    error = forkModel!.GetDiagnostics(cancellationToken: cancellationToken)
-                        .FirstOrDefault(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error
-                            && d.Location.SourceSpan.IntersectsWith(bound.Span))
-                        ?.GetMessage(System.Globalization.CultureInfo.InvariantCulture);
-                    if (error is null && forkModel.GetTypeInfo(bound, cancellationToken).ConvertedType?.SpecialType != SpecialType.System_Boolean)
-                        error = "The condition must be a Boolean expression.";
-                }
-            }
-        }
-        var end = expression.Length;
-        var start = end;
-        while (start > 0 && (char.IsLetterOrDigit(expression[start - 1]) || expression[start - 1] == '_')) start--;
-        var prefix = expression[start..];
-        IEnumerable<ISymbol> symbols = model.LookupSymbols(pos);
-        if (start > 0 && expression[start - 1] == '.')
-        {
-            var receiver = SyntaxFactory.ParseExpression(expression[..(start - 1)]);
-            var type = model.GetSpeculativeTypeInfo(pos, receiver, SpeculativeBindingOption.BindAsExpression).Type;
-            symbols = type is null ? [] : model.LookupSymbols(pos, container: type);
-        }
-        var suggestions = symbols.Where(s => s.CanBeReferencedByName && !s.IsImplicitlyDeclared)
-            .Select(s => s.Name).Where(n => n.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            .Distinct(StringComparer.Ordinal).Order(StringComparer.OrdinalIgnoreCase).Take(40).ToArray();
-        return new(error, suggestions);
-    }
+        => _breakpointConditions.AnalyzeBreakpointConditionAsync(code, position, expression, cancellationToken);
+
+    public Task<string?> FormatDocumentAsync(string code, CancellationToken ct = default) => _formatter.FormatDocumentAsync(code, ct);
 
     public Task<bool> IsEmptyTypeBodyPositionAsync(string code, int position, CancellationToken cancellationToken = default)
         => Task.Run(() => CSharpMemberPosition.IsInEmptyTypeBody(code, position, cancellationToken), cancellationToken);
 
     public void UpdateIndentation(bool useTabs, int indentationSize) => _session.UpdateIndentation(useTabs, indentationSize);
-
-    // Formats in a throwaway workspace/project containing only the user's code (no preamble) so
-    // Roslyn's Formatter output maps back to the editor text directly, with no preamble/code
-    // boundary whitespace to reconcile.
-    public async Task<string?> FormatDocumentAsync(string code, CancellationToken ct = default)
-    {
-        try
-        {
-            CSharpParseOptions parseOptions;
-            OptionSet formattingOptions;
-            lock (_session.SyncLock)
-            {
-                parseOptions = _layout.ParseOptions;
-                formattingOptions = _session.FormattingOptionsSnapshot();
-            }
-            using var formatWorkspace = new AdhocWorkspace(InvokletRoslynHost.HostServices);
-            var projectId = ProjectId.CreateNewId("Format");
-            formatWorkspace.AddProject(ProjectInfo.Create(
-                projectId,
-                VersionStamp.Create(),
-                name: "Format",
-                assemblyName: "Format",
-                language: LanguageNames.CSharp,
-                parseOptions: parseOptions));
-
-            var document = formatWorkspace.AddDocument(projectId, "Script.cs", SourceText.From(code, Encoding.UTF8));
-            var formatted = await Formatter.FormatAsync(document, formattingOptions, cancellationToken: ct);
-            var text = await formatted.GetTextAsync(ct);
-            return text.ToString();
-        }
-        catch (Exception ex) { _logger.LogWarning(ex, "Format failed"); return null; }
-    }
 
     // ── Refactorings (CodeRefactoringProvider hosting in the lightbulb) ─────────────
 
