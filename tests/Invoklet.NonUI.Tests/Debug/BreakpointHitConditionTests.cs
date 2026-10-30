@@ -2,7 +2,7 @@ using Invoklet.Debug.Protocol;
 using Xunit;
 using Breakpoint = Invoklet.Avalonia.CodeTextEditor.Breakpoints.Breakpoint;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Debug;
 
 // Condition (DAP SourceBreakpoint.condition) worked end-to-end, but HitCondition
 // (SourceBreakpoint.hitCondition — a hit-count expression like "= 5"/">= 3"/"% 2") wasn't threaded

@@ -6,11 +6,13 @@ using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.Compiler;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Languages.DotnetCommon;
+using Invoklet.NonUI.Tests.Infrastructure;
+using Invoklet.NonUI.Tests.Languages.DotnetCommon.Compiler;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using DiagnosticSeverity = Invoklet.Contracts.IntelliSense.DiagnosticSeverity;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Format.MdRun;
 
 // references: entries resolve against the script's own folder — never the process's current
 // directory — with macros expanded at that point, and the build, the CLI's options and IntelliSense

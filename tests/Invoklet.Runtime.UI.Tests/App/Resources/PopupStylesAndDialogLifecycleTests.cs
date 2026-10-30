@@ -13,7 +13,7 @@ using Invoklet.Windows;
 using Invoklet.Windows.Healpers;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Resources;
 
 // The popup menu style reaches menu items only; the shared dialog badge maps each kind to its glyph
 // and theme brush; the breakpoint condition dialog cleans up after itself on every way out; and

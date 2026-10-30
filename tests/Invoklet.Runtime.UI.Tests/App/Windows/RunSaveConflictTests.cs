@@ -15,7 +15,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // Run and Debug save the script first. That save used to write the file unconditionally — replacing
 // what another program had written meanwhile — and didn't record what it wrote, so the next normal

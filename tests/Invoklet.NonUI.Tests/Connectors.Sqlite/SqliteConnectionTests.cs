@@ -12,7 +12,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Connectors.Sqlite;
 
 // A SQLite connection reads the database's tables and views, and the script gets an EF Core context
 // with a set per table. The file here is a real one next to a script, named by a relative path.

@@ -5,7 +5,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Windows.Models;
 
 // The file tree operations against a fake disk: what the view model does when the disk refuses, without a disk.
 public class MainWindowViewModelDiskFailureTests

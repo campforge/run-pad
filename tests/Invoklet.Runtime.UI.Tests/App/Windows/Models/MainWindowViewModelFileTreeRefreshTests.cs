@@ -8,7 +8,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows.Models;
 
 // IFileSystemService.GetFilesTree() used to be synchronous, and
 // MainWindowViewModel called it directly from its own constructor (before the window is ever shown)

@@ -6,7 +6,7 @@ using Avalonia.Input;
 using Invoklet.Avalonia.HtmlRenderer;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.Avalonia.HtmlRenderer;
 
 public class HtmlOutputClipboardTests
 {

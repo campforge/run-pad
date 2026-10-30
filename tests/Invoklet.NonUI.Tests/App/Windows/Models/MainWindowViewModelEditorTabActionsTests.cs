@@ -6,7 +6,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Windows.Models;
 
 // MainWindowViewModel implements IEditorTabActions — the real behavior behind
 // EditorTabItemViewModel's Close/SaveAs/Duplicate/OpenContainingFolder commands. SaveAsAsync/

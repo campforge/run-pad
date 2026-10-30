@@ -1,8 +1,9 @@
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
+using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Fixtures;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // Live user report (2026-07-27) — three quick fixes to the lightbulb/code-fix pipeline (real Roslyn
 // CodeFixProviders/CodeRefactoringProviders, not mocked — same rationale as every other

@@ -17,7 +17,7 @@ using Moq;
 using TextMateSharp.Grammars;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // The selected node's text color used to leak into its children: the style matched every TextBlock
 // below a selected item, so with ".NET" selected, "C#" and "Visual Basic" turned white on the

@@ -10,6 +10,7 @@ using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
 using Invoklet.Format.MdRun;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -18,7 +19,7 @@ using Invoklet.UserControls.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls;
 
 // A tab with gRPC-like connections rebuilds the editor's context (the connections' classes, the
 // references) when it opens, after a build and when a schema is read elsewhere. That work can be slow

@@ -9,6 +9,7 @@ using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
 using Invoklet.Format.MdRun;
 using Invoklet.Languages.DotnetCommon;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -18,7 +19,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls;
 
 // A real tab on a temporary script with relative references: its run options and IntelliSense get
 // the files next to the script (not next to the process), Save As into another folder rewrites the

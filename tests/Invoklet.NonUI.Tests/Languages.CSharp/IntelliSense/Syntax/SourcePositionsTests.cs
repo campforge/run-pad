@@ -2,7 +2,7 @@ using Invoklet.Languages.CSharp.IntelliSense.Syntax;
 using Microsoft.CodeAnalysis.CSharp;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Syntax;
 
 public sealed class SourcePositionsTests
 {

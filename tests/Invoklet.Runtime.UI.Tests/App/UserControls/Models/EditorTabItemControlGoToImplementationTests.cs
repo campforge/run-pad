@@ -7,7 +7,7 @@ using Invoklet.Contracts.IntelliSense;
 using Invoklet.UserControls;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls.Models;
 
 // EditorsTabItemControl.BuildGoToImplementationMenu,
 // the picker shown when a symbol has more than one implementation/override in the script (see

@@ -1,10 +1,11 @@
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Languages.CSharp.IntelliSense.Analysis;
+using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Fixtures;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // GetRefactoringsAsync, the
 // position-based counterpart to CodeFixesChanged's diagnostic-driven fixes. Real dotnet-build-free

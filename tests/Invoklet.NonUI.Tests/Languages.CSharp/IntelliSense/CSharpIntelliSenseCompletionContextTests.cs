@@ -2,9 +2,10 @@ using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Languages.CSharp.IntelliSense.Completion;
+using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Fixtures;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // Which kind of place each completion list was built for, and where its items came from.
 public class CSharpIntelliSenseCompletionContextTests

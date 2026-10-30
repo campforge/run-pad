@@ -1,6 +1,7 @@
+using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Fixtures;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // Live user report: `var c = new Tests() { P1 = "1", ... };` never offered Tests' own
 // remaining settable members inside the `{ }` — every completion branch checked for a dot/member

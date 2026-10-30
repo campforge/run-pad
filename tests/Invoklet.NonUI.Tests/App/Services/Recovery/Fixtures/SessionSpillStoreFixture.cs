@@ -3,7 +3,7 @@ using Invoklet.Services.Recovery;
 using Invoklet.UserControls.Models;
 using Moq;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Recovery.Fixtures;
 
 internal sealed class SessionSpillStoreFixture
 {

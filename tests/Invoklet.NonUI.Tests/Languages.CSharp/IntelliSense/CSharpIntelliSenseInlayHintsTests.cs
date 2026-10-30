@@ -1,8 +1,9 @@
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Fixtures;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // CSharpIntelliSenseService.ComputeInlayHintsAsync, wired to
 // NotifyTextChanged the same way SemanticTokensChanged/DiagnosticsChanged are (see

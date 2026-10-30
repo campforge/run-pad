@@ -10,6 +10,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -20,7 +21,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // Open tabs follow files another program changed: a tab without unsaved changes reloads quietly,
 // one with unsaved changes asks first and isn't asked again about the same version, and File →

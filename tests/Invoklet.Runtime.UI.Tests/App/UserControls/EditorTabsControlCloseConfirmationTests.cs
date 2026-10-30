@@ -6,6 +6,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -15,7 +16,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls;
 
 // Closing an untitled tab with real typed content used
 // to discard it silently — SaveIfNeeded is a no-op without a FilePath, so nothing about closing an

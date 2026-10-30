@@ -6,7 +6,7 @@ using Invoklet.UserControls;
 using Invoklet.UserControls.Models;
 using Moq;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Tabs.Fixtures;
 
 internal sealed class TabDiskSyncFixture
 {

@@ -7,7 +7,7 @@ using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Languages.CSharp.IntelliSense.Completion;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeTextEditor;
 
 // C# no longer inserts '}' after '{'; in a new type body Enter offers the property template instead,
 // which changes the text only when Tab accepts it. The position check is the real C# one.
@@ -15,9 +15,9 @@ public class CodeTextEditorMemberTemplateTests
 {
     private const string Prop = "public ${1:int} ${2:Property} { get; set; }${0}";
 
-    private static (Window Window, CodeTextEditor Editor) Show(string text)
+    private static (Window Window, Invoklet.Avalonia.CodeTextEditor.CodeTextEditor Editor) Show(string text)
     {
-        var editor = new CodeTextEditor
+        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor
         {
             Text = text,
             MemberTemplateSnippet = "prop",
@@ -37,7 +37,7 @@ public class CodeTextEditorMemberTemplateTests
         return (window, editor);
     }
 
-    private static async Task EnterAsync(Window window, CodeTextEditor editor)
+    private static async Task EnterAsync(Window window, Invoklet.Avalonia.CodeTextEditor.CodeTextEditor editor)
     {
         window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
         Dispatcher.UIThread.RunJobs();
@@ -45,7 +45,7 @@ public class CodeTextEditorMemberTemplateTests
         Dispatcher.UIThread.RunJobs();
     }
 
-    private static string Selected(CodeTextEditor editor) => editor.TextArea.Selection.GetText();
+    private static string Selected(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor editor) => editor.TextArea.Selection.GetText();
 
     [AvaloniaFact]
     public void OpeningBrace_Should_NotInsertAClosingOne_WhileSquareBracketsStillPair()

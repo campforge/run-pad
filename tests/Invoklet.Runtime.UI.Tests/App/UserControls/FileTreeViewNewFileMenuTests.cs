@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls;
 
 // The file tree's New File submenu lists the registered languages, by their own names and icons, in
 // registration order, and creates a file in the one picked.

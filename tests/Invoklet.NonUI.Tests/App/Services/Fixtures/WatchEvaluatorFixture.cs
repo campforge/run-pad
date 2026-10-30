@@ -3,7 +3,7 @@ using Invoklet.Services;
 using Invoklet.UserControls.Models;
 using Moq;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Fixtures;
 
 internal sealed class WatchEvaluatorFixture
 {

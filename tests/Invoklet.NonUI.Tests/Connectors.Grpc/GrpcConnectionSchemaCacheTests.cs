@@ -2,7 +2,7 @@ using Google.Protobuf.Reflection;
 using Invoklet.Connectors.Grpc;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Connectors.Grpc;
 
 public sealed class GrpcConnectionSchemaCacheTests
 {

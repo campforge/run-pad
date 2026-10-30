@@ -12,7 +12,7 @@ using Invoklet.UserControls.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // EditorTabItemControl.SaveIfNeeded() used to swallow every write failure (disk full,
 // permissions, file deleted/locked externally) with a bare `catch { }` — the user had no way to

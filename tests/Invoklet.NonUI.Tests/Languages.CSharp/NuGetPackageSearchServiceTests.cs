@@ -6,7 +6,7 @@ using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp;
 
 // GetVersionsAsync/SearchAsync against temporary local folder feeds and a source with no resource
 // providers (fails deterministically) — never the user's nuget.config or the network.

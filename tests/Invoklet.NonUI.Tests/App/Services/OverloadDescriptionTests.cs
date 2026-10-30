@@ -3,7 +3,7 @@ using Invoklet.Services;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services;
 
 // OverloadDescription is a static function of two strings; the parameter is the only thing to fake.
 public sealed class OverloadDescriptionTests

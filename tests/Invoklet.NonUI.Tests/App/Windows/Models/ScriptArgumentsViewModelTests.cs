@@ -2,7 +2,7 @@ using Invoklet.Format.MdRun;
 using Invoklet.Windows.Models;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Windows.Models;
 
 // The Dependencies window's Arguments tab: declared arguments as rows, sets of their values and the
 // set runs use, as a draft applied on Save.

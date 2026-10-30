@@ -8,7 +8,7 @@ using Invoklet.Windows;
 using Invoklet.Windows.Models;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Architecture;
 
 // The editor tabs and the language menus get what they need from the language modules through
 // contracts, so none of these consumers' constructors, fields or method signatures may name a type

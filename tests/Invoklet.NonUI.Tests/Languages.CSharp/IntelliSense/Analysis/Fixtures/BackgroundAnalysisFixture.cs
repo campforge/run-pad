@@ -5,7 +5,7 @@ using Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Analysis.Fixtures;
 
 // The analysis runs on Roslyn's own workspace and engines; none of them is faked. The session has the core library only.
 internal sealed class BackgroundAnalysisFixture : IDisposable

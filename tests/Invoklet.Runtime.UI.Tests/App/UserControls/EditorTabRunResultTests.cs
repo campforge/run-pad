@@ -12,6 +12,7 @@ using Invoklet.Contracts.Models;
 using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -21,7 +22,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls;
 
 // The tab's run status used to read "Success" whenever no exception reached the UI — a
 // script ending in `Environment.Exit(7)`, or one that didn't even compile, looked successful. The
@@ -664,7 +665,7 @@ public class EditorTabRunResultTests
         var tabs = ctrl.GetVisualDescendants().OfType<TabControl>().Single(t => t.Items.OfType<TabItem>().Any(i => Equals(i.Header, "IL")));
         tabs.SelectedItem = tabs.Items.OfType<TabItem>().Single(i => Equals(i.Header, "IL"));
         Dispatcher.UIThread.RunJobs();
-        var il = ctrl.GetVisualDescendants().OfType<AvaloniaEdit.TextEditor>().Single(e => e.Name == "IlOutput");
+        var il = ctrl.GetVisualDescendants().OfType<global::AvaloniaEdit.TextEditor>().Single(e => e.Name == "IlOutput");
         try
         {
             await RunAsync(ctrl);

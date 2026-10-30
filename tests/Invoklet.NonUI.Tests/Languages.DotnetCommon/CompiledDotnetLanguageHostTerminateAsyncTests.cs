@@ -8,7 +8,7 @@ using Invoklet.Languages.DotnetCommon.Compiler;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.DotnetCommon;
 
 // RunAsync/RunDebugAsync used to `using var cts = ...` their linked CTS — disposed
 // at method exit, right after their own `finally { _runCts = null; }`. TerminateAsync's

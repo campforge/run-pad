@@ -1,7 +1,7 @@
 using Invoklet.Services;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services;
 
 // TabFilePaths is a static function of paths; there is nothing to construct or to mock.
 public sealed class TabFilePathsTests

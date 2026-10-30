@@ -7,7 +7,7 @@ using Invoklet.Debug;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Debug;
 
 // Live regression: every breakpoint stayed pending on macOS
 // because setBreakpoints named /var/folders/.../InvokletQuery.cs while the PDB (built with the

@@ -13,6 +13,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Connectors.Http;
 using Invoklet.Contracts.Connections;
 using Invoklet.Format.MdRun;
+using Invoklet.Runtime.UI.Tests.App.Windows;
 using Invoklet.Services.Connections;
 using Invoklet.Services.Secrets;
 using Invoklet.TemplatedControls;
@@ -21,7 +22,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Services;
 
 public class WindowDesignRegressionTests
 {

@@ -5,7 +5,7 @@ using Invoklet.Format.MdRun;
 using Invoklet.Languages.DotnetCommon;
 using Moq;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.Infrastructure;
 
 // Editor services for the tabs a test opens, supplied the way the app supplies them: by the
 // registered language, per tab.

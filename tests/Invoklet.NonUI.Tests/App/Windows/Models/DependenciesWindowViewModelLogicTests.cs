@@ -5,7 +5,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Windows.Models;
 
 // DependenciesWindowViewModel without a window: the draft/OK/Cancel transaction, package
 // add/update/remove, versions, stale async answers and validation. Debounce is zero so tests await

@@ -4,7 +4,7 @@ using Invoklet.Services.Preferences;
 using Invoklet.UserControls.Models;
 using Moq;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Fixtures;
 
 internal sealed class UnsavedChangesFlowFixture
 {

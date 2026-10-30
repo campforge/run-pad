@@ -7,7 +7,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Media.Imaging;
 
 using MarkView.Avalonia.Extensions;
-using MarkView.Avalonia.SyntaxHighlighting.Tests;
+using MarkView.Avalonia.Tests.Shared;
 using Xunit;
 
 namespace MarkView.Avalonia.Tests.Extensions;

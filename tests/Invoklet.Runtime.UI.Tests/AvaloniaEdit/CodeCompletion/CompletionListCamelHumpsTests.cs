@@ -1,7 +1,7 @@
 using AvaloniaEdit.CodeCompletion;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.AvaloniaEdit.CodeCompletion;
 
 // The completion list's CamelHumps match: each part of the query starts the next word of the name.
 public class CompletionListCamelHumpsTests

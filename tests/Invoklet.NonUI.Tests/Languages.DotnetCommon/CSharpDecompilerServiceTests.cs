@@ -1,8 +1,9 @@
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Languages.DotnetCommon;
+using Invoklet.NonUI.Tests.Infrastructure;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.DotnetCommon;
 
 // External half. Real-Roslyn
 // integration test (no mocking of the compiler): the thing under test is whether

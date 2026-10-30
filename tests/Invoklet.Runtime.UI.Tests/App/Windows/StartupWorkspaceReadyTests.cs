@@ -6,6 +6,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -15,7 +16,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // The main window is ready to be revealed (IStartupWindow.Ready) only once every restored tab has its
 // header and the active one is selected: tabs are added one by one, each after its language

@@ -7,7 +7,7 @@ using Invoklet.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // The editor's execution context (references, generated connection classes) is replaced from a
 // worker thread while the user keeps typing: a request that is overtaken must not be applied over

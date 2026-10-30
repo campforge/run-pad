@@ -2,7 +2,7 @@ using ICSharpCode.Decompiler.CSharp;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Languages.DotnetCommon;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.Infrastructure;
 
 // An in-memory assembly for the windows that read assemblies: the same shape as the one
 // AssemblyExplorerWindowTests in Invoklet.IntegrationTests compiles (Foo.Bar.Alpha with Run(),

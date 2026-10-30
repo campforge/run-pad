@@ -12,6 +12,7 @@ using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon.Sdk;
 using Invoklet.Languages.VB;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -23,7 +24,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App;
 
 // Execute Selection in a Program script runs only the selected statements, as Statements: through
 // the configured key in the real window, and with the real language hosts and a real process.

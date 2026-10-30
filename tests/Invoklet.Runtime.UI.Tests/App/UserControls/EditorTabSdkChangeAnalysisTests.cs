@@ -10,6 +10,7 @@ using Invoklet.Contracts.Models;
 using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -20,7 +21,7 @@ using Moq;
 using Xunit;
 using DiagnosticSeverity = Invoklet.Contracts.IntelliSense.DiagnosticSeverity;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls;
 
 // Selecting another SDK changes what the editor checks the script against (references, C# version,
 // conditional symbols). The squiggles and lightbulb must follow straight away, not only after the

@@ -11,12 +11,13 @@ using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Compiler;
 using Invoklet.Languages.DotnetCommon.Sdk;
 using Invoklet.Languages.VB;
+using Invoklet.NonUI.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.DotnetCommon.Compiler;
 
 // Scripts compile in-process with Roslyn (CSharpScriptCompiler,
 // VbScriptCompiler); Invoklet no longer uses MSBuild. Real compilations and real script processes. The

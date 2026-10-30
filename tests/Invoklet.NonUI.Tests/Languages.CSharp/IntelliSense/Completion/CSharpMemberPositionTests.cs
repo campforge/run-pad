@@ -1,7 +1,7 @@
 using Invoklet.Languages.CSharp.IntelliSense.Completion;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Completion;
 
 // Where the editor offers the property template: inside an empty class/struct/record/interface
 // body, and nowhere else. '|' marks the position.

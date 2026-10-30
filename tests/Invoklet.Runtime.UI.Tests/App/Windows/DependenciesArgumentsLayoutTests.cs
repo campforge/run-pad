@@ -14,7 +14,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // The Arguments tab's declarations: every row's value starts at the Value column, an enum picks its
 // default from its values, and a plain button is drawn in the theme's colours.

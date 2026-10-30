@@ -6,6 +6,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -15,7 +16,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls;
 
 // Each tab asks its registered language for its own editor services, off the UI thread, and owns
 // what it gets; a tab closed before they arrive cancels them and disposes whatever still comes back.

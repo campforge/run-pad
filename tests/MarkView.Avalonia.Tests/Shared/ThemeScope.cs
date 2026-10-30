@@ -4,7 +4,7 @@
 using Avalonia;
 using Avalonia.Styling;
 
-namespace MarkView.Avalonia.SyntaxHighlighting.Tests;
+namespace MarkView.Avalonia.Tests.Shared;
 
 /// <summary>
 /// Sets <see cref="Application.RequestedThemeVariant"/> for the duration of a test and restores

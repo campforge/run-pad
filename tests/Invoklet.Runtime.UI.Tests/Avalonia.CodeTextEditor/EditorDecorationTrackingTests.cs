@@ -10,6 +10,7 @@ using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -19,7 +20,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeTextEditor;
 
 // Editor smoothness (user report: typing felt laggy and the editor flickered). Background
 // decorations — semantic colors, inlay hints, squiggles, occurrence highlights — used to sit on the

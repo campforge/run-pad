@@ -1,4 +1,4 @@
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.Infrastructure;
 
 // Polling with a wall-clock deadline instead of a fixed iteration count. `for (i < 100) Delay(20)`
 // budgets only ~2s, which a cold Roslyn workspace or a loaded machine (parallel builds, a debugger)

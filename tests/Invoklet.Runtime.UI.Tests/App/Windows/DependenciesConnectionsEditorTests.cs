@@ -14,7 +14,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // Dependencies → Connections offers New Connection and Manage Connections: both open the same
 // Connections window as Tools → Connections over the Dependencies window, whose draft is left alone.

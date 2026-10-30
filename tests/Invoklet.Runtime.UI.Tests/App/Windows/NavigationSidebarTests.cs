@@ -17,6 +17,7 @@ using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Desktop.MacOS;
 using Invoklet.Format.MdRun;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Connections;
@@ -30,7 +31,7 @@ using Moq;
 using Xunit;
 using ShapePath = Avalonia.Controls.Shapes.Path;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // The sidebar in a real main window: three accordion bundles (Connections, Scripts, Samples) and no
 // tabs; folding one leaves the others as they were; the Connections tree reaches the Connections

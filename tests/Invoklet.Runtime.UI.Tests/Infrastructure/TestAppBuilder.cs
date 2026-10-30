@@ -4,12 +4,12 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.ReactiveUI;
 using Avalonia.Themes.Fluent;
-using Invoklet.Runtime.UI.Tests;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 
 [assembly: AvaloniaTestApplication(typeof(TestAppBuilder))]
 [assembly: AvaloniaTestFramework]
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.Infrastructure;
 
 // Minimal headless Avalonia app for [AvaloniaFact]/[AvaloniaTheory] tests.
 // Deliberately configures a plain Application rather than the real Invoklet.App — the latter's

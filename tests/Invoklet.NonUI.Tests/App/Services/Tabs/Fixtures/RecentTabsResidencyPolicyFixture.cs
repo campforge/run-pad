@@ -1,6 +1,6 @@
 using Invoklet.Services.Tabs;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Tabs.Fixtures;
 
 // The SUT has no injected dependencies: the fixture owns the test data (tabs, which the policy only compares by
 // identity) and creates a new instance for each test.

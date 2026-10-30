@@ -1,10 +1,11 @@
 using Invoklet.Contracts.Models;
+using Invoklet.NonUI.Tests.App.Services.Tabs.Fixtures;
 using Invoklet.Services.Preferences;
 using Invoklet.UserControls.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Tabs;
 
 public sealed class ActiveTabCommandsTests
 {

@@ -13,7 +13,7 @@ using Invoklet.UserControls.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // A document's id: stays with its own file across saves; a file from before IDs gets one on its
 // first save; a copy written elsewhere (Duplicate, Save As) is a separate document with its own,

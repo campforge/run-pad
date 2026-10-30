@@ -2,7 +2,7 @@ using System.Diagnostics;
 using Invoklet.Services.Setup;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Setup;
 
 public class SetupProcessRunnerTests
 {

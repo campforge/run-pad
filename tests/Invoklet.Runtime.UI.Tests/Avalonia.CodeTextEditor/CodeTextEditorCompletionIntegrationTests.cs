@@ -4,25 +4,25 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Threading;
 using AvaloniaEdit.Document;
-using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Avalonia.CodeTextEditor.Completions;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeTextEditor;
 
 // End-to-end regressions for real completion-window mechanics that the pure
 // static-function tests in CodeTextEditorAutoInvokeTests.cs can't reach (they need a live
 // CompletionWindow/TextArea, which needs a real headless Avalonia window).
 public class CodeTextEditorCompletionIntegrationTests
 {
-    private static (Window Window, CodeTextEditor Editor) CreateEditor(
+    private static (Window Window, Invoklet.Avalonia.CodeTextEditor.CodeTextEditor Editor) CreateEditor(
         string initialText, params (string Text, double Priority)[] items)
     {
-        var editor = new CodeTextEditor();
+        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor();
         editor.IdentifierChars.Add('_');
         editor.CompletionTriggers.Add('.');
         editor.Document = new TextDocument(initialText);
@@ -43,10 +43,10 @@ public class CodeTextEditorCompletionIntegrationTests
         return (window, editor);
     }
 
-    private static (Window Window, CodeTextEditor Editor) CreateEditorWithProvider(
+    private static (Window Window, Invoklet.Avalonia.CodeTextEditor.CodeTextEditor Editor) CreateEditorWithProvider(
         string initialText, Func<CompletionRequestedEventArgs, Task> provider)
     {
-        var editor = new CodeTextEditor();
+        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor();
         editor.IdentifierChars.Add('_');
         editor.CompletionTriggers.Add('.');
         editor.Document = new TextDocument(initialText);
@@ -297,7 +297,7 @@ public class CodeTextEditorCompletionIntegrationTests
     public async Task ShowCompletion_Should_NotOfferSnippets_WhenProviderSuppressesThem()
     {
         // Arrange
-        var editor = new CodeTextEditor();
+        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor();
         editor.Snippets["for"] = "for (...) { }";
         editor.AsyncCompletionProvider = e =>
         {
@@ -379,7 +379,7 @@ public class CodeTextEditorCompletionIntegrationTests
     {
         // Arrange
         IReadOnlyList<string>? committedTags = null;
-        var editor = new CodeTextEditor();
+        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor();
         editor.Document = new TextDocument("");
         editor.AsyncCompletionProvider = e =>
         {
@@ -414,7 +414,7 @@ public class CodeTextEditorCompletionIntegrationTests
     {
         // Arrange
         var overloadProviderCallCount = 0;
-        var editor = new CodeTextEditor();
+        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor();
         editor.Document = new TextDocument("Foo(");
         editor.AsyncCompletionProvider = e =>
         {
@@ -450,7 +450,7 @@ public class CodeTextEditorCompletionIntegrationTests
     {
         // Arrange
         var onCommitCallCount = 0;
-        var editor = new CodeTextEditor();
+        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor();
         editor.Document = new TextDocument("");
         editor.AsyncCompletionProvider = e =>
         {
@@ -484,7 +484,7 @@ public class CodeTextEditorCompletionIntegrationTests
     {
         // Arrange — caret sits right after 4 spaces of indent on the current (only) line.
         const string template = "public override void Foo()\n{\n\tbase.Foo();${0}\n}";
-        var editor = new CodeTextEditor();
+        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor();
         editor.Document = new TextDocument("    ");
         editor.AsyncCompletionProvider = e =>
         {
@@ -527,7 +527,7 @@ public class CodeTextEditorCompletionIntegrationTests
     {
         // Arrange
         var callCount = 0;
-        var editor = new CodeTextEditor();
+        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor();
         editor.OverloadTriggers.Add('(');
         editor.Document = new TextDocument("Foo");
         editor.AsyncOverloadProvider = e =>
@@ -580,7 +580,7 @@ public class CodeTextEditorCompletionIntegrationTests
     {
         // Arrange
         var returnOverload = true;
-        var editor = new CodeTextEditor();
+        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor();
         editor.OverloadTriggers.Add('(');
         editor.OverloadTriggers.Add(',');
         editor.Document = new TextDocument("Foo1");
@@ -616,7 +616,7 @@ public class CodeTextEditorCompletionIntegrationTests
     public async Task Escape_Should_CloseTheInsightWindow()
     {
         // Arrange
-        var editor = new CodeTextEditor();
+        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor();
         editor.OverloadTriggers.Add('(');
         editor.Document = new TextDocument("Foo");
         editor.AsyncOverloadProvider = e =>
@@ -649,7 +649,7 @@ public class CodeTextEditorCompletionIntegrationTests
     public async Task InsightWindow_Should_StayOpen_WhenClosingABracketNestedInsideAnArgument()
     {
         // Arrange
-        var editor = new CodeTextEditor();
+        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor();
         editor.OverloadTriggers.Add('(');
         editor.BracePairs['('] = ')';
         editor.BracePairs['{'] = '}';
@@ -685,7 +685,7 @@ public class CodeTextEditorCompletionIntegrationTests
     public async Task InsightWindow_Should_Close_WhenClosingTheCallsOwnBracket()
     {
         // Arrange
-        var editor = new CodeTextEditor();
+        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor();
         editor.OverloadTriggers.Add('(');
         editor.BracePairs['('] = ')';
         editor.Document = new TextDocument("Foo");
@@ -728,7 +728,7 @@ public class CodeTextEditorCompletionIntegrationTests
         var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
         using var intelliSense = new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
 
-        var editor = new CodeTextEditor();
+        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor();
         editor.CompletionTriggers.Add('.');
         editor.IdentifierChars.Add('_');
         editor.Document = new TextDocument("var a = new System.Collections.Generic.List<string>();\n");

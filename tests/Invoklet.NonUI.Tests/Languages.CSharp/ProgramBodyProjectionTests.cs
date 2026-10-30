@@ -3,7 +3,7 @@ using Invoklet.Languages.CSharp.Compiler;
 using Microsoft.CodeAnalysis.CSharp;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp;
 
 public class ProgramBodyProjectionTests
 {

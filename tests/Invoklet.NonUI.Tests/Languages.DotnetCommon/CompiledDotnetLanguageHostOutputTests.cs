@@ -9,7 +9,7 @@ using Invoklet.Languages.DotnetCommon.Compiler;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.DotnetCommon;
 
 // How the host turns a child's raw stdout/stderr into OutputReceivedHandler calls: complete lines,
 // text without a line terminator (Console.Write), Dump records that follow such text, and compiler

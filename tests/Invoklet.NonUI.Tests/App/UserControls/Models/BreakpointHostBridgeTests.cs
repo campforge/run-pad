@@ -5,7 +5,7 @@ using Moq;
 using Xunit;
 using EditorBreakpoint = Invoklet.Avalonia.CodeTextEditor.Breakpoints.Breakpoint;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.UserControls.Models;
 
 public sealed class BreakpointHostBridgeTests
 {

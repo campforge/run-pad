@@ -13,7 +13,7 @@ using Invoklet.UserControls.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // An open tab doesn't reload its file, and saving used to write the tab's text over the file
 // whatever was there: Ctrl+S on a clean tab, or a front-matter edit saving by itself, silently

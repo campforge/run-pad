@@ -7,7 +7,7 @@ using Invoklet.Languages.DotnetCommon.Compiler;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.DotnetCommon;
 
 // CompileInternalAsync used to always `new MsBuildProcessCompiler(...)` directly, so
 // exercising CompileAsync's own logic (kind-transform wiring, ProcessCompilerResult → ICompilationResult

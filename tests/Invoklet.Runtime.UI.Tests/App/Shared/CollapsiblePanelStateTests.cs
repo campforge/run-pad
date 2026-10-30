@@ -4,7 +4,7 @@ using Avalonia.Threading;
 using Invoklet.Shared;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Shared;
 
 // Extracted from MainWindowViewModel.SidebarColumnWidth/ToggleSidebar and
 // EditorTabItemViewModel.OutputPanelHeight/ToggleOutputPanel, which duplicated this exact

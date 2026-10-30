@@ -15,7 +15,7 @@ using Invoklet.UserControls.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // Results wrapping is set from the gear menu beside the output tabs ("Output settings"), next to
 // the exception break options, instead of from Preferences; it is still a saved preference.

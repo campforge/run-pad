@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // In the Program kind the editor checks the script inside a class the user never sees, so Roslyn's
 // formatter took the script's members for members of that class and indented what a lightbulb action

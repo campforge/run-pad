@@ -6,7 +6,7 @@ using Invoklet.Contracts.IntelliSense;
 using Invoklet.UserControls;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls;
 
 // InlayHintRenderer, the VisualLineElementGenerator that renders
 // IInlayHint.Text as a dim, non-editable decoration (see CSharpIntelliSenseInlayHintsTests.cs for the

@@ -10,7 +10,7 @@ using Invoklet.UserControls.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls;
 
 // F2 (rename) and Delete used to be literal Key.F2/Key.Delete checks in
 // FileTreeView.FileTree_KeyDown — this control has no DI (instantiated by a plain XAML DataTemplate,

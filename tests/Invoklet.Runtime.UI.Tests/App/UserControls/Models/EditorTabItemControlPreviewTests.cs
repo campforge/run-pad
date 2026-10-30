@@ -9,6 +9,7 @@ using Avalonia.Threading;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Format.MdRun;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -17,7 +18,7 @@ using Invoklet.UserControls.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls.Models;
 
 // The Markdown preview beside the editor or in its place (EditorTabItemControl.Preview.cs).
 public class EditorTabItemControlPreviewTests

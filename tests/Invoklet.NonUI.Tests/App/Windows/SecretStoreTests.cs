@@ -9,12 +9,13 @@ using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
+using Invoklet.NonUI.Tests.Infrastructure;
 using Invoklet.Services.Secrets;
 using Invoklet.Windows.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Windows;
 
 // The store Invoklet writes and the script's Util.GetSecret reads: one file, two implementations of
 // its format, so each test that matters goes through both. The tests that point INVOKLET_SECRETS_FILE

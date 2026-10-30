@@ -9,7 +9,7 @@ using Invoklet.UserControls.Healpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls.Healpers;
 
 // BuildListRow now shows a dimmed "(+N overloads)" annotation next to
 // a method name that collapses several overloads (ICompletionItem.OverloadCount), alongside the

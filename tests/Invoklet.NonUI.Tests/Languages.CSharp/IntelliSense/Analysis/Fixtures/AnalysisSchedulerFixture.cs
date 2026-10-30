@@ -1,6 +1,6 @@
 using Invoklet.Languages.CSharp.IntelliSense.Analysis;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Analysis.Fixtures;
 
 // AnalysisScheduler has no injected objects, only delegates, which the fixture owns: the debounce, how a pass is started
 // (on the pool, as the service does through its culture wrapper) and what is told of a failure.

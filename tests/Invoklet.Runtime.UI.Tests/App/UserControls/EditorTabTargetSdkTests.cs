@@ -8,6 +8,7 @@ using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
 using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -17,7 +18,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls;
 
 // The front matter's targetSdk is the source of truth: the toolbar shows it ("latest (…)" for
 // latest), and picking an SDK there writes it back.

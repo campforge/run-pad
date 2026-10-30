@@ -8,7 +8,7 @@ using Invoklet.UserControls;
 using Invoklet.UserControls.Models;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls;
 
 // The debugger's value tip: members open under their own parent, at any depth, and fold back.
 public class DebugValueTipTests

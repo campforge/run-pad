@@ -7,11 +7,13 @@ using Invoklet.Languages.CSharp.Compiler;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
+using Invoklet.NonUI.Tests.Infrastructure;
+using Invoklet.NonUI.Tests.Languages.DotnetCommon.Compiler;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using DiagnosticSeverity = Invoklet.Contracts.IntelliSense.DiagnosticSeverity;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // A package can ship an assembly the framework has too (System.Text.Json, System.Memory, ...). The build
 // keeps whichever has the higher assembly version; the editor used to reference both, so every type

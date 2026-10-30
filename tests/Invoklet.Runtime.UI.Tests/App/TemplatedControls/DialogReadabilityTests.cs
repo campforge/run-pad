@@ -9,7 +9,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Windows;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.TemplatedControls;
 
 // Readability of small dialogs and of secondary text: long text must be wrapped or visibly cut (not
 // silently clipped at the window edge), the dialog's buttons must stay inside it, error details are

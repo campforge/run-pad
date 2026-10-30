@@ -14,6 +14,7 @@ using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
+using Invoklet.NonUI.Tests.Infrastructure;
 using Invoklet.Services.Secrets;
 using Invoklet.Windows.Models;
 using Microsoft.AspNetCore.Builder;
@@ -26,7 +27,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Connectors.Grpc;
 
 // A gRPC connection reads the server's services through server reflection, has protoc write their
 // classes, and gives the script a client per service that sends the connection's metadata. The

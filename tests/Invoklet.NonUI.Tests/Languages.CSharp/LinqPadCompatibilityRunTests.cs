@@ -5,10 +5,11 @@ using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
+using Invoklet.NonUI.Tests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp;
 
 // Real compiles and runs (the installed SDK, a real dotnet process) of C# scripts written the way
 // LINQPad accepts them: a Program with a classic entry point (a class with a static Main, usings

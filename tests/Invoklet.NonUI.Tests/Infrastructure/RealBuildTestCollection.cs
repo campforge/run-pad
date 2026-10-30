@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Infrastructure;
 
 // Pass 135 — tests here do REAL builds and run real script processes (the in-process Roslyn script
 // compilers and package restore, directly or through a CSharpLanguageHost/VbLanguageHost, not a

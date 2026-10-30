@@ -6,7 +6,7 @@ using Invoklet.Languages.CSharp.IntelliSense.Completion;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // Where an argument starts, completion offers `name:` for the parameters still open.
 public class CSharpIntelliSenseNamedArgumentTests

@@ -5,7 +5,7 @@ using MarkView.Avalonia;
 using MarkView.Avalonia.Rendering;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.MarkView.Avalonia;
 
 // The MarkView fork's mapping between rendered blocks and source lines, which lets the preview
 // scroll with the editor.

@@ -5,10 +5,11 @@ using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
+using Invoklet.NonUI.Tests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.DotnetCommon.Compiler;
 
 // The hard requirement of the switch to in-process Roslyn:
 // netcoredbg must debug Roslyn-built scripts. Expectations match what the same scenarios gave with the

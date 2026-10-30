@@ -5,7 +5,7 @@ using AvaloniaEdit.Folding;
 using Invoklet.Avalonia.CodeTextEditor.Folding;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeTextEditor.Folding;
 
 // Brace pairs fold only when they span lines: a pair opened and closed on one line has nothing to
 // hide and gets no fold marker.

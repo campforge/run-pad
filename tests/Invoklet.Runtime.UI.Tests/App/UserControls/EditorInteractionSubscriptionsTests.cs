@@ -7,7 +7,7 @@ using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.UserControls;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls;
 
 public sealed class EditorInteractionSubscriptionsTests
 {

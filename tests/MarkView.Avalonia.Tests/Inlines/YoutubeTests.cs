@@ -10,7 +10,7 @@ using Avalonia.Media;
 using Markdig;
 using MarkView.Avalonia.Extensions;
 using MarkView.Avalonia.Rendering;
-using MarkView.Avalonia.SyntaxHighlighting.Tests;
+using MarkView.Avalonia.Tests.Shared;
 using Xunit;
 
 namespace MarkView.Avalonia.Tests.Inlines;

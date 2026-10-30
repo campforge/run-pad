@@ -1,7 +1,7 @@
 using Invoklet.Languages.CSharp;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp;
 
 // CSharpReferenceService.GetDefault()'s "System.*.dll" glob used to match native
 // companion libraries too (e.g. Windows' System.IO.Compression.Native.dll), which aren't valid

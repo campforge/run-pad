@@ -1,6 +1,7 @@
+using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Fixtures;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // User-reported bug: `var a = new List<string>();` then `a` on its own line, then `.`
 // replaced `a` with `args`. Traced to a genuine Roslyn quirk, confirmed directly against

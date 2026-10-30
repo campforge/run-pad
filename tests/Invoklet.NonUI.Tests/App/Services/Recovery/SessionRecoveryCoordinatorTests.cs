@@ -2,7 +2,7 @@ using Invoklet.Services.Recovery;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Recovery;
 
 public sealed class SessionRecoveryCoordinatorTests
 {

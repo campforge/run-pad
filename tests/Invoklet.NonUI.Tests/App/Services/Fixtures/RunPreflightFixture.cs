@@ -1,6 +1,6 @@
 using Invoklet.Services;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Fixtures;
 
 // RunPreflight has no injected dependencies; what it asks of the tab comes in as delegates, which the fixture
 // records so a test can say what was asked and in which order.

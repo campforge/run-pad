@@ -19,7 +19,7 @@ using Invoklet.UserControls.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // Compact tool selectors, simultaneous stack/variables and theme-aware status presentation.
 public class PanelTabsTests
@@ -85,7 +85,7 @@ public class PanelTabsTests
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
             await Task.Run(() => update.Invoke(tab, [typeof(MdRunDocument).Assembly.Location, 0]), TestContext.Current.CancellationToken);
             Dispatcher.UIThread.RunJobs();
-            var editor = host.GetVisualDescendants().OfType<AvaloniaEdit.TextEditor>().Single(e => e.Name == "IlOutput");
+            var editor = host.GetVisualDescendants().OfType<global::AvaloniaEdit.TextEditor>().Single(e => e.Name == "IlOutput");
             Assert.Contains(".class", editor.Text, StringComparison.Ordinal);
             Assert.Contains("MdRunDocument", editor.Text, StringComparison.Ordinal);
             Assert.True(editor.Document.LineCount > 1);
@@ -105,7 +105,7 @@ public class PanelTabsTests
         {
             tabs.SelectedIndex = 2;
             Dispatcher.UIThread.RunJobs();
-            var editor = host.GetVisualDescendants().OfType<AvaloniaEdit.TextEditor>().Single(e => e.Name == "IlOutput");
+            var editor = host.GetVisualDescendants().OfType<global::AvaloniaEdit.TextEditor>().Single(e => e.Name == "IlOutput");
             editor.Text = string.Concat(Enumerable.Repeat("IL_0000: nop\n", 100_000));
             host.UpdateLayout();
             Dispatcher.UIThread.RunJobs();

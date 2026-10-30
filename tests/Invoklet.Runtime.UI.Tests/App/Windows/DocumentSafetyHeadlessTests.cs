@@ -7,6 +7,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -17,7 +18,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // End-to-end against a real MainWindow + EditorTabsControl +
 // EditorsTabItemControl. The tab's writer is replaced with one that throws IOException, so a write

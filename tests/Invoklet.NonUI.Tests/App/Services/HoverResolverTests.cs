@@ -1,9 +1,10 @@
 using Invoklet.Contracts.Debugging;
+using Invoklet.NonUI.Tests.App.Services.Fixtures;
 using Invoklet.Services;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services;
 
 public sealed class HoverResolverTests
 {

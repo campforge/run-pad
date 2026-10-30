@@ -6,6 +6,7 @@ using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -17,7 +18,7 @@ using Moq;
 using ReactiveUI;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // Reproduces "packages added via Dependencies aren't there for an already-open, already-saved
 // .inv file" end-to-end: real EditorTabsControl/MainWindowViewModel tab loading (the same async

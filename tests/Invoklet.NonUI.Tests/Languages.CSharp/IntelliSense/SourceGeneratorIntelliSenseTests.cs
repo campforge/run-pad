@@ -6,11 +6,12 @@ using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.Compiler;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Languages.DotnetCommon;
+using Invoklet.NonUI.Tests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using DiagnosticSeverity = Invoklet.Contracts.IntelliSense.DiagnosticSeverity;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // The build runs the source generators of the target's targeting pack ([GeneratedRegex],
 // System.Text.Json contexts, [LibraryImport]); the editor has to see what they generate too, or it

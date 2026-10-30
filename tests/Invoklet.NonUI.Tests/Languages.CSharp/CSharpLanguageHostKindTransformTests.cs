@@ -6,7 +6,7 @@ using Invoklet.Languages.DotnetCommon;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp;
 
 // CalcKindOffset() returned 2 for MdRunKind.Program, but ApplyKindTransform's
 // Program branch ("Main();{code}", no newline) glued onto the same physical line as the user's first

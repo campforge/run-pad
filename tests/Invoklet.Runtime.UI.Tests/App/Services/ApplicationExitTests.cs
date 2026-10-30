@@ -7,7 +7,7 @@ using Invoklet.Services.Preferences;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Services;
 
 // The Exit key quits from every window, not only the main one: pressed elsewhere it closes the main
 // window, whose own close asks about everything unsaved.

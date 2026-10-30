@@ -15,7 +15,7 @@ using Moq;
 using ReactiveUI;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows.Models;
 
 // Real DependenciesWindow + bindings, headless. Pure VM logic lives in
 // Invoklet.NonUI.Tests/DependenciesWindowViewModelLogicTests.

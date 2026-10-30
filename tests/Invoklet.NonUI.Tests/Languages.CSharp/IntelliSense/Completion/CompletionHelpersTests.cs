@@ -3,7 +3,7 @@ using Invoklet.Languages.CSharp.IntelliSense.Completion;
 using Microsoft.CodeAnalysis.CSharp;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Completion;
 
 public sealed class CompletionHelpersTests
 {

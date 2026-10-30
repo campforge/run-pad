@@ -5,7 +5,7 @@ using Invoklet.Services.Setup;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Setup;
 
 public class PrerequisiteServiceTests
 {

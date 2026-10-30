@@ -1,6 +1,7 @@
+using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Fixtures;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // CSharpIntelliSenseService.GetDocumentHighlightsAsync finds
 // every occurrence of the symbol under the caret elsewhere in the same document. Roslyn ships a

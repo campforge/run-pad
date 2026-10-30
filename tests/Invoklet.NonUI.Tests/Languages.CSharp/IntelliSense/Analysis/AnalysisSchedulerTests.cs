@@ -1,7 +1,8 @@
 using Invoklet.Languages.CSharp.IntelliSense.Analysis;
+using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Analysis.Fixtures;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Analysis;
 
 public sealed class AnalysisSchedulerTests
 {

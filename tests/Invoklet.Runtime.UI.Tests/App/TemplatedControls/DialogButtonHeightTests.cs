@@ -7,7 +7,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Windows;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.TemplatedControls;
 
 // The buttons of the dialogs are as tall as the fields beside them (the theme's control height), whatever the dialog sets or
 // leaves out, so a row of buttons and the buttons of two dialogs line up.

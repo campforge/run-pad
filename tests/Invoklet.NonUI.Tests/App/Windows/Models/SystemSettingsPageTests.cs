@@ -10,7 +10,7 @@ using Moq;
 using TextMateSharp.Grammars;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Windows.Models;
 
 // Preferences → Interface → System is built from whatever the OS's desktop integration offers.
 public sealed class SystemSettingsPageTests

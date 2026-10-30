@@ -6,7 +6,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Windows.Models;
 
 // Closing/renaming/moving/deleting used to remove the tab first and only then try to save it
 // (EditorTabsControl's CollectionChanged handler), so a failed write lost the edits along with the

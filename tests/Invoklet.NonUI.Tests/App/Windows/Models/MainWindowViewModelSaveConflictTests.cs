@@ -7,7 +7,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Windows.Models;
 
 // Closing, quitting, Save As and saving before a rename/move/delete go through the same check as
 // Ctrl+S: a file changed by another program since the tab last read or wrote it is replaced only on

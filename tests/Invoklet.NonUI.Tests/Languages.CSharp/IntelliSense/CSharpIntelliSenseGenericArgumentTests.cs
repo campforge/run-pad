@@ -1,6 +1,7 @@
+using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Fixtures;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // Completion right after `List<` (or anywhere inside a generic type argument list) used
 // to call LookupSymbols unconditionally and mix in every visible symbol — locals, parameters, methods,

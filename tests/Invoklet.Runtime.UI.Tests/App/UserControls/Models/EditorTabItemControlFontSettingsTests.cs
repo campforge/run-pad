@@ -4,7 +4,7 @@ using Invoklet.Services.Preferences;
 using Invoklet.UserControls;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls.Models;
 
 // Live user report: the editor's font family is whatever the OS/theme default
 // resolves to, ligature-capable fonts included (e.g. "=>" rendering as a single arrow glyph) — no
@@ -21,9 +21,9 @@ public class EditorTabItemControlFontSettingsTests
         Assert.Equal(!tabs, editor.Options.ConvertTabsToSpaces);
         Assert.Equal(size, editor.Options.IndentationSize);
         Assert.Equal(expected, editor.Options.IndentationString);
-        editor.TextArea.IndentationStrategy = new AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(editor.Options);
+        editor.TextArea.IndentationStrategy = new global::AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(editor.Options);
         EditorsTabItemControl.ApplyEditorSettings(editor, new EditorSettings { UseTabs = !tabs, IndentationSize = 3 });
-        var strategy = Assert.IsType<AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy>(editor.TextArea.IndentationStrategy);
+        var strategy = Assert.IsType<global::AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy>(editor.TextArea.IndentationStrategy);
         Assert.Equal(tabs ? "   " : "\t", strategy.IndentationString);
     }
 

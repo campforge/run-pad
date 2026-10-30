@@ -1,26 +1,25 @@
-using System.Runtime.InteropServices;
 using Invoklet.Services.Setup;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Setup;
 
 // Pure mapping logic (OS/arch -> asset name/URL, OS -> dotnet-install default install dir) taken as
 // parameters specifically so every branch is testable regardless of which OS actually runs this suite.
 public class SetupInstallerServiceAssetResolutionTests
 {
     [Theory]
-    [InlineData(SetupOSPlatform.Windows, Architecture.X64, "netcoredbg-win64.zip",
+    [InlineData(SetupOSPlatform.Windows, System.Runtime.InteropServices.Architecture.X64, "netcoredbg-win64.zip",
         "https://github.com/Samsung/netcoredbg/releases/latest/download/netcoredbg-win64.zip")]
-    [InlineData(SetupOSPlatform.Windows, Architecture.Arm64, "netcoredbg-win64.zip",
+    [InlineData(SetupOSPlatform.Windows, System.Runtime.InteropServices.Architecture.Arm64, "netcoredbg-win64.zip",
         "https://github.com/Samsung/netcoredbg/releases/latest/download/netcoredbg-win64.zip")]
-    [InlineData(SetupOSPlatform.Linux, Architecture.X64, "netcoredbg-linux-amd64.tar.gz",
+    [InlineData(SetupOSPlatform.Linux, System.Runtime.InteropServices.Architecture.X64, "netcoredbg-linux-amd64.tar.gz",
         "https://github.com/Samsung/netcoredbg/releases/latest/download/netcoredbg-linux-amd64.tar.gz")]
-    [InlineData(SetupOSPlatform.Linux, Architecture.Arm64, "netcoredbg-linux-arm64.tar.gz",
+    [InlineData(SetupOSPlatform.Linux, System.Runtime.InteropServices.Architecture.Arm64, "netcoredbg-linux-arm64.tar.gz",
         "https://github.com/Samsung/netcoredbg/releases/latest/download/netcoredbg-linux-arm64.tar.gz")]
-    [InlineData(SetupOSPlatform.MacOS, Architecture.Arm64, "netcoredbg-osx-arm64.zip",
+    [InlineData(SetupOSPlatform.MacOS, System.Runtime.InteropServices.Architecture.Arm64, "netcoredbg-osx-arm64.zip",
         "https://github.com/Samsung/netcoredbg/releases/latest/download/netcoredbg-osx-arm64.zip")]
     public void ResolveNetcoredbgAsset_Should_PickTheLatestRelease_ForEveryPlatformExceptIntelMac(
-        SetupOSPlatform platform, Architecture arch, string expectedAssetName, string expectedUrl)
+        SetupOSPlatform platform, System.Runtime.InteropServices.Architecture arch, string expectedAssetName, string expectedUrl)
     {
         var (assetName, url) = SetupInstallerService.ResolveNetcoredbgAsset(platform, arch);
 
@@ -33,7 +32,7 @@ public class SetupInstallerServiceAssetResolutionTests
     [Fact]
     public void ResolveNetcoredbgAsset_Should_PinAnOlderRelease_ForIntelMac()
     {
-        var (assetName, url) = SetupInstallerService.ResolveNetcoredbgAsset(SetupOSPlatform.MacOS, Architecture.X64);
+        var (assetName, url) = SetupInstallerService.ResolveNetcoredbgAsset(SetupOSPlatform.MacOS, System.Runtime.InteropServices.Architecture.X64);
 
         Assert.Equal("netcoredbg-osx-amd64.tar.gz", assetName);
         Assert.Equal(

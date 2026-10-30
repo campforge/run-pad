@@ -4,7 +4,7 @@ using Invoklet.Windows;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Services;
 
 // WindowService used to take the whole IServiceProvider and resolve
 // DependenciesWindow/PreferencesWindow/IThemeService inside its methods (Service Locator), which

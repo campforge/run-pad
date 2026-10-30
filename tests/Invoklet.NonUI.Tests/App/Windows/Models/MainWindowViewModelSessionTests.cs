@@ -5,7 +5,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Windows.Models;
 
 // The app always started with a single blank tab —
 // nothing about which files were open (or their order) survived a restart. RestoreSession replaces

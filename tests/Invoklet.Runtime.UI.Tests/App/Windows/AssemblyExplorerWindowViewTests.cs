@@ -11,6 +11,7 @@ using Avalonia.VisualTree;
 using Invoklet.Avalonia.CodeTextEditor.Highlighting;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Languages.DotnetCommon;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.Windows;
@@ -19,7 +20,7 @@ using Moq;
 using TextMateSharp.Grammars;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // What the assembly explorer window does with what it is told about assemblies. The assembly is an
 // in-memory ExplorerFixtureBrowser, so nothing here compiles or decompiles; reading real assemblies is

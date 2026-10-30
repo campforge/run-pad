@@ -11,7 +11,7 @@ using Invoklet.UserControls.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls;
 
 // File tree had no drag-and-drop at all. These test FileTreeView's own DragOver/Drop
 // routing directly — constructing a real DragEventArgs (it has a public constructor) and raising it on

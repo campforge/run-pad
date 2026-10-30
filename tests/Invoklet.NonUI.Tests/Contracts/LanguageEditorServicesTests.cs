@@ -9,7 +9,7 @@ using Invoklet.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Contracts;
 
 // Languages describe themselves through the registry, and each creates its own editor services:
 // the app neither lists languages nor builds a language's services itself.

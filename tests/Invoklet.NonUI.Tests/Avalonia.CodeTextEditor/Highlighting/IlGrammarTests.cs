@@ -4,7 +4,7 @@ using TextMateSharp.Grammars;
 using TextMateSharp.Registry;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Avalonia.CodeTextEditor.Highlighting;
 
 // The ILAsm grammar behind the Assembly Explorer's IL view and the editor's IL tab: tokens are checked
 // by the TextMate scopes the grammar assigns, colours by what the real themes make of those scopes.

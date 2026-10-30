@@ -5,6 +5,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Styling;
 using Invoklet.Avalonia.Themes;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.Windows;
@@ -12,7 +13,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // The text editor window:
 // one whole file per window; Save / Save As keep its encoding and line breaks; unsaved changes are

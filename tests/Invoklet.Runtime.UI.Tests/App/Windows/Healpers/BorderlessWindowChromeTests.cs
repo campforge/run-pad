@@ -8,7 +8,7 @@ using Invoklet.UserControls;
 using Invoklet.Windows;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows.Healpers;
 
 public class BorderlessWindowChromeTests
 {

@@ -1,9 +1,10 @@
 using Invoklet.Languages.CSharp.IntelliSense.Syntax;
+using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Features.Fixtures;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Features;
 
 public sealed class SignatureHelpTests
 {

@@ -7,7 +7,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Examples;
 
 // The Examples panel: sample scripts bundled in the application, opened as untitled, unsaved copies —
 // never run, never written to disk, one tab per example.

@@ -8,7 +8,7 @@ using Invoklet.Languages.DotnetCommon.Compiler;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.DotnetCommon;
 
 // The stages a compile or run goes through reach the host's StageChanged in order: what the
 // compiler reports, then Running once the script's process has started. A failed or cancelled stage

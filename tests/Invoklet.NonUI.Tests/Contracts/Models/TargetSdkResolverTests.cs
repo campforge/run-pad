@@ -2,7 +2,7 @@ using Invoklet.Contracts.Models;
 using Invoklet.Format.MdRun;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Contracts.Models;
 
 // Which installed SDK runs a script: the one its targetSdk names (the same rule in the window and
 // the command-line runner). The providers list the newest stable SDK first.

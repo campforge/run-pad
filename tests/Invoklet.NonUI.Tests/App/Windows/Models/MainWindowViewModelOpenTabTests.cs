@@ -5,7 +5,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Windows.Models;
 
 // _openTabs used StringComparer.OrdinalIgnoreCase unconditionally, which is correct
 // for Windows'/macOS' default case-insensitive filesystems but wrong on Linux's case-sensitive one —

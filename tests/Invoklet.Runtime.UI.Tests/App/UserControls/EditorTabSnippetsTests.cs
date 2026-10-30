@@ -9,6 +9,7 @@ using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.VB;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -18,7 +19,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls;
 
 // Snippets moved from EditorTabItemControl (UI layer) to ILanguageHostFactory.Snippets
 // (Invoklet.Languages.CSharp/Invoklet.Languages.VB). These tests use the real
@@ -119,7 +120,7 @@ public class EditorTabSnippetsTests
         // FoldingManager with VB code that only VbFoldingRegions.Compute (not the brace-based
         // default, which would find zero foldings here) can fold correctly.
         editor.Document.Text = "Public Sub Foo()\n    Console.WriteLine(1)\nEnd Sub\n";
-        var foldingManager = AvaloniaEdit.Folding.FoldingManager.Install(editor.TextArea);
+        var foldingManager = global::AvaloniaEdit.Folding.FoldingManager.Install(editor.TextArea);
         editor.FoldingStrategy.UpdateFoldings(foldingManager, editor.Document);
 
         var folding = Assert.Single(foldingManager.AllFoldings);

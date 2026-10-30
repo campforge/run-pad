@@ -7,7 +7,7 @@ using Invoklet.Debug;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Debug;
 
 // Live report: Run works on macOS, Debug doesn't. The session
 // log showed netcoredbg rejecting setExceptionBreakpoints(["unhandled"]) with 0x80070057 (it only

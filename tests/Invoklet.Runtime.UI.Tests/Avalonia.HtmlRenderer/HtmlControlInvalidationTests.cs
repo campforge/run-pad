@@ -5,7 +5,7 @@ using Invoklet.Avalonia.HtmlRenderer;
 using Invoklet.Avalonia.HtmlRenderer.Adapters;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.Avalonia.HtmlRenderer;
 
 // Live user report — text selection dragged with the mouse over .Dump() output
 // appeared to lag/not visually update ("looks selected but isn't highlighted as

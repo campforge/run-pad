@@ -3,7 +3,7 @@ using Invoklet.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Fixtures;
 
 // The language service of C# is Roslyn through and through: it is not faked but made once per test, over the default references of
 // the SDK and Invoklet's own (the same ones the editor gives it), and disposed by the test. The fixture owns how it is made, so the

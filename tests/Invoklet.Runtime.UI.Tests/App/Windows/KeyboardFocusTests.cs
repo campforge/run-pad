@@ -13,6 +13,7 @@ using Avalonia.VisualTree;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -23,7 +24,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 /// <summary>
 /// The theme's keyboard-focus frame (its focus adorner) around a control — or around one of its own
@@ -158,7 +159,7 @@ public class KeyboardFocusTests
         {
             Tab(window);
             var focused = (Control)window.FocusManager!.GetFocusedElement()!;
-            if (focused is AvaloniaEdit.Editing.TextArea) break; // the editor keeps Tab for indenting
+            if (focused is global::AvaloniaEdit.Editing.TextArea) break; // the editor keeps Tab for indenting
             seen.Add(focused);
             Assert.True(FocusFrames.IsShown(focused), $"{focused.GetType().Name} has no keyboard-focus frame");
             Assert.Single(FocusFrames.Of(focused));

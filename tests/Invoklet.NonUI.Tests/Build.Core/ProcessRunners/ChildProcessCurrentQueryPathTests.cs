@@ -2,7 +2,7 @@ using Invoklet.Build.Core.Models;
 using Invoklet.Build.Core.ProcessRunners;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Build.Core.ProcessRunners;
 
 // An environment variable rather than another
 // positional CLI argument (see ChildProcess.CurrentQueryPathEnvVar's own comment: MdRunKind.Statements/

@@ -7,6 +7,7 @@ using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
 using Invoklet.Format.MdRun;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -17,7 +18,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // A .inv with malformed YAML used to open as a default C# document (no
 // packages/references, empty code from a C# fence that wasn't there), and the next save persisted

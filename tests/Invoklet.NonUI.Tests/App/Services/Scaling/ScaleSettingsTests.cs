@@ -3,7 +3,7 @@ using Invoklet.Services.Preferences;
 using Invoklet.Services.Scaling;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Scaling;
 
 // The interface scale and the code zoom are kept in settings.json. A file from an older version
 // has neither, and a hand-edited one may hold anything.

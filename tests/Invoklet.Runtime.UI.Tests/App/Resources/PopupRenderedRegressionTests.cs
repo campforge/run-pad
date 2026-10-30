@@ -10,7 +10,7 @@ using AvaloniaEdit;
 using Invoklet.Avalonia.Themes;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Resources;
 
 // Open actual flyouts and verify their rendered text and responsive search controls.
 public class PopupRenderedRegressionTests

@@ -1,7 +1,7 @@
 using System.Xml.Linq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services;
 
 // Audit finding: the 8 theme files (src/controls/Invoklet.Avalonia.Themes/Themes/*.axaml)
 // duplicate the same set of x:Key="Invoklet.*" SolidColorBrush entries, differing only in Color values.

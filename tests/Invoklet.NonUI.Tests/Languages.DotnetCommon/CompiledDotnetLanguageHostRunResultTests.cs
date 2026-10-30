@@ -9,7 +9,7 @@ using Invoklet.Languages.DotnetCommon.Compiler;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.DotnetCommon;
 
 // RunAsync used to wait only for stdout/stderr EOF,
 // then dispose (kill) the process and never read its exit code — `Environment.Exit(7)` looked like a

@@ -1,7 +1,7 @@
 using Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.ScriptDocument;
 
 public sealed class ScriptDocumentProjectionTests
 {

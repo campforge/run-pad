@@ -1,7 +1,7 @@
 using Invoklet.Desktop.MacOS;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Desktop.MacOS;
 
 // AppKit appends AutoFill, Start Dictation… and Emoji & Symbols to the Edit menu unless these
 // switches are set when it starts. This checks that the registration reaches the user defaults

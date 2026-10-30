@@ -1,7 +1,8 @@
 using Invoklet.Languages.DotnetCommon;
+using Invoklet.NonUI.Tests.Infrastructure;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.DotnetCommon;
 
 // The "IL" output tab (mirrors LINQPad's IL view). Real-Roslyn integration test (no
 // mocking of the compiler): the thing under test is whether ICSharpCode.Decompiler can actually read

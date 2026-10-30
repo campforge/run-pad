@@ -6,6 +6,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -18,7 +19,7 @@ using Moq;
 using Xunit;
 using static AvaloniaEdit.TextMate.TextMate;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls;
 
 // Only the tabs the user touched last keep their text and output in memory; the controls of the others stay,
 // empty, and get both back from disk when the tab is selected or something needs the text. A tab with a run

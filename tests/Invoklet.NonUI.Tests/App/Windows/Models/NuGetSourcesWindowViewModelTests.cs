@@ -4,7 +4,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Windows.Models;
 
 // The package source configurator without a window: ordering, add/remove, validation, and that
 // nothing is written until Save (the window's OK).

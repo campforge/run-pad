@@ -7,6 +7,7 @@ using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
 using Invoklet.Format.MdRun;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -15,7 +16,7 @@ using Invoklet.UserControls.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls;
 
 // A connection's description read elsewhere (Dependencies' Refresh, the Connections window, another
 // tab's run) reaches an open tab that lists that connection, so its completion and diagnostics use

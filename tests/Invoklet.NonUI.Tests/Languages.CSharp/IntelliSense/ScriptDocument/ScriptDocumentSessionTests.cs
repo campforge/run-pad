@@ -1,8 +1,9 @@
+using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.ScriptDocument.Fixtures;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Formatting;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.ScriptDocument;
 
 public sealed class ScriptDocumentSessionTests
 {

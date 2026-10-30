@@ -6,10 +6,11 @@ using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Compiler;
 using Invoklet.Languages.DotnetCommon.Sdk;
 using Invoklet.Languages.VB;
+using Invoklet.NonUI.Tests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.DotnetCommon.Adapters;
 
 // Roslyn reports positions in the generated script file (front-matter imports plus the kind
 // transform's wrapper come first). The host translates the ones in that file back to the user's

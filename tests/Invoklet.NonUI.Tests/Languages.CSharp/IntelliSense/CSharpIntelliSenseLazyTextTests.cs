@@ -3,7 +3,7 @@ using Invoklet.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // Editor smoothness (2026-10-12): the editor used to hand NotifyTextChanged a full copy of the document
 // (editor.Text) on every keystroke, on the UI thread. It now hands a lazy getter over an immutable

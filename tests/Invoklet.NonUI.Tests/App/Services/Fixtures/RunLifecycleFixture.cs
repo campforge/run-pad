@@ -1,6 +1,6 @@
 using Invoklet.Services;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Fixtures;
 
 // The SUT has no injected dependencies: the fixture owns the test data (runs that finish when the test says so)
 // and creates a new instance for each test.

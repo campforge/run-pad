@@ -1,9 +1,10 @@
 using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
+using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.ScriptDocument.Fixtures;
 using Microsoft.CodeAnalysis;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.ScriptDocument;
 
 public sealed class ScriptContextTests
 {

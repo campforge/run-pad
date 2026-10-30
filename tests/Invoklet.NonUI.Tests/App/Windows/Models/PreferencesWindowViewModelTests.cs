@@ -12,7 +12,7 @@ using Moq;
 using TextMateSharp.Grammars;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Windows.Models;
 
 // The Languages settings tree used to be two hardcoded SettingsNodes
 // ("languages.csharp"/"languages.vb") instead of derived from ILanguageHostRegistry.SupportedLanguages

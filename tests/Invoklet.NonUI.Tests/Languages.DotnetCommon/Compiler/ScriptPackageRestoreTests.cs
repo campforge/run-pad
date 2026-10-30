@@ -7,10 +7,11 @@ using Invoklet.Languages.CSharp.Compiler;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Compiler;
 using Invoklet.Languages.DotnetCommon.Sdk;
+using Invoklet.NonUI.Tests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.DotnetCommon.Compiler;
 
 // In-process NuGet restore for scripts (NuGetRestorer, no MSBuild) against a local folder feed built by
 // the test, with its own NuGet.Config whose globalPackagesFolder is a temp folder — never the network,
@@ -182,10 +183,10 @@ public sealed class ScriptPackageRestoreTests : IAsyncDisposable
     {
         if (!OperatingSystem.IsLinux()) return;
         Assert.Equal(["ubuntu.24.04-x64", "linux-x64", "ubuntu.24.04", "linux", "unix", "any"],
-            NuGetRestorer.RuntimeIdentifierFallbacks("ubuntu.24.04-x64", Architecture.X64));
+            NuGetRestorer.RuntimeIdentifierFallbacks("ubuntu.24.04-x64", System.Runtime.InteropServices.Architecture.X64));
         Assert.Equal(["alpine.3.20-arm64", "linux-musl-arm64", "alpine.3.20", "linux-musl", "linux", "unix", "any"],
-            NuGetRestorer.RuntimeIdentifierFallbacks("alpine.3.20-arm64", Architecture.Arm64));
-        Assert.Equal(["linux-x64", "linux", "unix", "any"], NuGetRestorer.RuntimeIdentifierFallbacks("linux-x64", Architecture.X64));
+            NuGetRestorer.RuntimeIdentifierFallbacks("alpine.3.20-arm64", System.Runtime.InteropServices.Architecture.Arm64));
+        Assert.Equal(["linux-x64", "linux", "unix", "any"], NuGetRestorer.RuntimeIdentifierFallbacks("linux-x64", System.Runtime.InteropServices.Architecture.X64));
     }
 
     [Theory]

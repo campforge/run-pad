@@ -1,6 +1,6 @@
 using Invoklet.Services;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Fixtures;
 
 // FileTreePaths has no injected dependencies besides the root folder and the comparison the platform uses for paths.
 public sealed class FileTreePathsFixture

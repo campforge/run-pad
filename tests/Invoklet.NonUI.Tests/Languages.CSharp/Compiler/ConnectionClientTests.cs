@@ -8,11 +8,12 @@ using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
+using Invoklet.NonUI.Tests.Infrastructure;
 using Invoklet.Services.Secrets;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.Compiler;
 
 // A script's connections become a Connections class with a client per connection: compiled with the
 // script, and known to the editor before any run. INVOKLET_SECRETS_FILE is set here, so these share

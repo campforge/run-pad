@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.Infrastructure;
 
 // EditorTabItemControlCodeFixApplyTests/EditorTabItemControlCodeFixSettingsTests drive a real
 // CSharpIntelliSenseService and assert on Roslyn CodeAction titles by matching English substrings

@@ -4,7 +4,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Windows.Models;
 
 // The Secret Store window without a window: add/remove, validation, nothing written until Save (the
 // window's OK), and a store that can't be read is never overwritten.

@@ -1,9 +1,10 @@
 using System.Text.Json;
+using Invoklet.NonUI.Tests.App.Services.Recovery.Fixtures;
 using Invoklet.UserControls.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Recovery;
 
 public sealed class SessionSpillStoreTests
 {

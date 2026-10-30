@@ -6,7 +6,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Windows.Models;
 
 // File tree had no "create new file" command — only the deferred, disk-untouching
 // File → New Invoklet File menu (see MainWindowViewModelNewFileTests.cs). CreateFileAsync resolves the

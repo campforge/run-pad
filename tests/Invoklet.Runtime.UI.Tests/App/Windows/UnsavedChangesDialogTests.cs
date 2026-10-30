@@ -10,7 +10,7 @@ using Invoklet.Services;
 using Invoklet.Windows;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 public class UnsavedChangesDialogTests
 {

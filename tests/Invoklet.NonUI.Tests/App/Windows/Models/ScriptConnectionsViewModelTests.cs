@@ -10,7 +10,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Windows.Models;
 
 // Dependencies → Connections: adding the user's connections to a script, removing them, importing a
 // script's connection into the user's list, and what each one's status says.

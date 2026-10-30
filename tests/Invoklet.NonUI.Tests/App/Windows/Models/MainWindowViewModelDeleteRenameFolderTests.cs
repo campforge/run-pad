@@ -5,7 +5,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Windows.Models;
 
 // User reported live that Delete and Rename both silently failed for
 // a folder in the file tree. Root cause — DeleteFile/RenameFile always called File.Delete/File.Move,

@@ -5,7 +5,7 @@ using Invoklet.Services.Preferences;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 public class IndentationFormattingTests
 {

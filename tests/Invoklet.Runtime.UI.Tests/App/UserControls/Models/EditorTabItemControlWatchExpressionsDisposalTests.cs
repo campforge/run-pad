@@ -13,7 +13,7 @@ using Invoklet.UserControls.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls.Models;
 
 // Audit finding: the constructor subscribed to _vm.DebugPanel.WatchExpressions.
 // CollectionChanged with an anonymous lambda, so Dispose() (which carefully unsubscribes

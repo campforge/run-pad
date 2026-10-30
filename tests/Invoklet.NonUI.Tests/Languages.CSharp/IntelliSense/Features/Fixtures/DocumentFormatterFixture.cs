@@ -6,7 +6,7 @@ using Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Features.Fixtures;
 
 internal sealed class DocumentFormatterFixture : IDisposable
 {

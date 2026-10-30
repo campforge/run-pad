@@ -2,7 +2,7 @@ using System.Text.Json;
 using Invoklet.Services.Recovery;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Recovery;
 
 public sealed class RecoveryStoreTests : IDisposable
 {

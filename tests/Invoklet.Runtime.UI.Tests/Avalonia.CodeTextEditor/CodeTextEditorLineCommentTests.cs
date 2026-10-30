@@ -2,19 +2,18 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
-using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Services.Preferences;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeTextEditor;
 
 // Toggle Line Comment end to end: the configured key through Avalonia's input pipeline into a real
 // editor, one undo step, and the cases where the key must not change anything.
 public class CodeTextEditorLineCommentTests
 {
-    private static (Window Window, CodeTextEditor Editor, TextBox Other) Show(string text, string? prefix = "//")
+    private static (Window Window, Invoklet.Avalonia.CodeTextEditor.CodeTextEditor Editor, TextBox Other) Show(string text, string? prefix = "//")
     {
-        var editor = new CodeTextEditor { Text = text, LineCommentPrefix = prefix, Height = 300 };
+        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor { Text = text, LineCommentPrefix = prefix, Height = 300 };
         new KeyboardSettings().ApplyTo(editor);
         var other = new TextBox();
         var panel = new StackPanel { Children = { other, editor } };

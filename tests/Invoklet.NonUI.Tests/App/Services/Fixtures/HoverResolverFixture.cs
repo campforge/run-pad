@@ -3,7 +3,7 @@ using Invoklet.Contracts.IntelliSense;
 using Invoklet.Services;
 using Moq;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Fixtures;
 
 internal sealed class HoverResolverFixture
 {

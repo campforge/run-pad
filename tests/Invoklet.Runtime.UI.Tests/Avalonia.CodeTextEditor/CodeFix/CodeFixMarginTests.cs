@@ -12,15 +12,15 @@ using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Avalonia.CodeTextEditor.CodeFix;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeTextEditor.CodeFix;
 
 // The quick-fix lightbulb margin: severity colors, the compact column as wide as the bulb's square,
 // the square click target (through the helpers and through real pointer events) and the menu.
 public class CodeFixMarginTests
 {
-    private static (Window Window, CodeTextEditor Editor, CodeFixMargin Margin) CreateEditor(string text)
+    private static (Window Window, Invoklet.Avalonia.CodeTextEditor.CodeTextEditor Editor, CodeFixMargin Margin) CreateEditor(string text)
     {
-        var editor = new CodeTextEditor { Document = new TextDocument(text) };
+        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor { Document = new TextDocument(text) };
         var window = new Window { Content = editor };
         window.Show();
         var margin = editor.TextArea.LeftMargins.OfType<CodeFixMargin>().Single();
@@ -144,7 +144,7 @@ public class CodeFixMarginTests
 
         var textView = margin.TextView;
         var vl = textView.VisualLines.First(v => v.FirstDocumentLine.LineNumber == 2);
-        var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], AvaloniaEdit.Rendering.VisualYPosition.LineTop)
+        var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], global::AvaloniaEdit.Rendering.VisualYPosition.LineTop)
             - textView.VerticalOffset;
         var yMid = yTop + vl.Height / 2;
 
@@ -421,7 +421,7 @@ public class CodeFixMarginTests
 
     // ── The bulb's square click target ───────────────────────────────────────
 
-    private static CodeFixMargin MarginWithFixOnCaretLine(CodeTextEditor editor, CodeFixMargin margin, int line)
+    private static CodeFixMargin MarginWithFixOnCaretLine(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor editor, CodeFixMargin margin, int line)
     {
         editor.TextArea.Caret.Line = line;
         margin.Update([new CodeFixEntry(line, "fix", CodeFixSeverity.Error, "fix-key")]);
@@ -430,14 +430,14 @@ public class CodeFixMarginTests
     }
 
     // Layout, then the margin's deferred re-measure, then layout again.
-    private static void Settle(CodeTextEditor editor)
+    private static void Settle(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor editor)
     {
         editor.UpdateLayout();
         Dispatcher.UIThread.RunJobs();
         editor.UpdateLayout();
     }
 
-    private static void ScrollTo(CodeTextEditor editor, double offset)
+    private static void ScrollTo(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor editor, double offset)
     {
         editor.ScrollToVerticalOffset(offset);
         Settle(editor);
@@ -588,8 +588,8 @@ public class CodeFixMarginTests
             Assert.True(vl.TextLines.Count > 2, $"{vl.TextLines.Count} rows");
 
             var offset = margin.TextView.VerticalOffset;
-            var rowTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], AvaloniaEdit.Rendering.VisualYPosition.LineTop) - offset;
-            var rowBottom = vl.GetTextLineVisualYPosition(vl.TextLines[0], AvaloniaEdit.Rendering.VisualYPosition.LineBottom) - offset;
+            var rowTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], global::AvaloniaEdit.Rendering.VisualYPosition.LineTop) - offset;
+            var rowBottom = vl.GetTextLineVisualYPosition(vl.TextLines[0], global::AvaloniaEdit.Rendering.VisualYPosition.LineBottom) - offset;
             var rowCenter = (rowTop + rowBottom) / 2;
             var blockCenter = rowTop + vl.Height / 2;
 
@@ -639,8 +639,8 @@ public class CodeFixMarginTests
                 var vl = margin.TextView.VisualLines.First(v => v.FirstDocumentLine.LineNumber == 2);
                 Assert.True(vl.TextLines.Count > 1, $"font {editor.FontSize}: {vl.TextLines.Count} rows");
                 var offset = margin.TextView.VerticalOffset;
-                var rowTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], AvaloniaEdit.Rendering.VisualYPosition.LineTop) - offset;
-                var rowBottom = vl.GetTextLineVisualYPosition(vl.TextLines[0], AvaloniaEdit.Rendering.VisualYPosition.LineBottom) - offset;
+                var rowTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], global::AvaloniaEdit.Rendering.VisualYPosition.LineTop) - offset;
+                var rowBottom = vl.GetTextLineVisualYPosition(vl.TextLines[0], global::AvaloniaEdit.Rendering.VisualYPosition.LineBottom) - offset;
                 var glyph = Assert.NotNull(margin.GlyphBounds());
                 Assert.InRange(glyph.Center.Y, (rowTop + rowBottom) / 2 - 0.5, (rowTop + rowBottom) / 2 + 0.5);
                 Assert.Equal((rowTop + rowBottom) / 2, margin.HitTarget()!.Value.Center.Y, 3);
@@ -675,9 +675,9 @@ public class CodeFixMarginTests
     // click on the square's transparent padding used to miss the margin — it draws only the glyph —
     // and moved the caret in the text area instead.
 
-    private static (Window Window, CodeTextEditor Editor, CodeFixMargin Margin, Rect Target) BulbOnLine2()
+    private static (Window Window, Invoklet.Avalonia.CodeTextEditor.CodeTextEditor Editor, CodeFixMargin Margin, Rect Target) BulbOnLine2()
     {
-        var editor = new CodeTextEditor { Document = new TextDocument("line1\nvar value = \"sample\";\nline3\n") };
+        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor { Document = new TextDocument("line1\nvar value = \"sample\";\nline3\n") };
         var window = new Window { Content = editor, Width = 600, Height = 300 };
         window.Show();
         var margin = editor.TextArea.LeftMargins.OfType<CodeFixMargin>().Single();
@@ -792,7 +792,7 @@ public class CodeFixMarginTests
     {
         var textView = margin.TextView;
         var vl = textView.VisualLines.First(v => v.FirstDocumentLine.LineNumber == line);
-        var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], AvaloniaEdit.Rendering.VisualYPosition.LineTop)
+        var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], global::AvaloniaEdit.Rendering.VisualYPosition.LineTop)
             - textView.VerticalOffset;
         return new Point(margin.Bounds.Width / 2, yTop + vl.Height / 2);
     }

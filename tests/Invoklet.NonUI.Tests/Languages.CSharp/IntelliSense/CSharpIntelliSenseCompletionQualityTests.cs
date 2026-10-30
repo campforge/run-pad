@@ -1,7 +1,8 @@
 using Invoklet.Contracts.IntelliSense;
+using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Fixtures;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // User feedback after trying 24/7 auto-invoke live:
 // 1. Completion/signature-help/quick-info showed up while typing prose inside a comment.

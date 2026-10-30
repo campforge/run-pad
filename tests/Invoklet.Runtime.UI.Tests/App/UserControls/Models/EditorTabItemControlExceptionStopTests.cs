@@ -16,7 +16,7 @@ using Invoklet.UserControls.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls.Models;
 
 // A debug stop on an exception used to look exactly like a breakpoint hit ("Paused", nothing about
 // the exception). The tab must name the exception in the status and the debugger panel, explain a

@@ -4,7 +4,7 @@ using Invoklet.Languages.VB;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp;
 
 // What a script's code becomes when it switches to the Program kind (ILanguageHostFactory.CodeForKind).
 public class ProgramTemplateTests

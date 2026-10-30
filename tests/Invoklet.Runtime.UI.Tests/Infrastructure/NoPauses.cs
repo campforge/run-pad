@@ -1,6 +1,6 @@
 using Invoklet.Services;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.Infrastructure;
 
 // The editor of a tab waits for the user to stop before it works (hover, refactorings, preview). A test that is not about
 // the wait itself gives these timings, so it does not sit through them.

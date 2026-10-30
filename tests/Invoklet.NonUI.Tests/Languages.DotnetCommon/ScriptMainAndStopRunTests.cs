@@ -6,10 +6,11 @@ using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
+using Invoklet.NonUI.Tests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.DotnetCommon;
 
 // Real runs (a real SDK and dotnet process): Program scripts' Main overloads, the exit code of an
 // int Main, and Stop asking a script that listens for it (Util.CancellationToken) to finish first.

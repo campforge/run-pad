@@ -8,7 +8,7 @@ using Invoklet.Debug;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Debug;
 
 // Exception stops as netcoredbg 3.2 reports them for a script whose first statement is
 // int.Parse("not-a-number"): "stopped" with reason "exception" and a "text" line, the details

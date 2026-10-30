@@ -1,6 +1,7 @@
+using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Fixtures;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // An argument of a call or constructor, and the value of a property in an object initializer, have a
 // type the code already names: completion offers what fits it and leaves out the variables that don't.

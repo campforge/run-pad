@@ -3,7 +3,7 @@ using Invoklet.UserControls.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.UserControls.Models;
 
 // CloseCommand/SaveAsCommand/DuplicateCommand/OpenContainingFolderCommand used to
 // be constructed with empty bodies (ReactiveCommand.Create(() => { })) and had their real behavior

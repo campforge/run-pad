@@ -1,8 +1,9 @@
 using System.Text;
 using Invoklet.Format.MdRun;
+using Invoklet.NonUI.Tests.App.Services.Fixtures;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services;
 
 public sealed class ScriptDocumentWriterTests
 {

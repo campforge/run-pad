@@ -9,7 +9,7 @@ using Invoklet.Services;
 using Invoklet.Windows;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // The question asked before replacing a file changed on disk: Enter keeps both versions (Save As…),
 // replacing the file is never the default, and Escape or closing the window cancels.

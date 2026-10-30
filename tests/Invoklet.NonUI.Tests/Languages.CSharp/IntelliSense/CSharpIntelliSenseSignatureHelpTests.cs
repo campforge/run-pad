@@ -1,6 +1,7 @@
+using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Fixtures;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // ObjectExtensions.Dump is deliberately many small overloads (Dump(), Dump(label), Dump(depth),
 // Dump(label, depth), Dump(DumpOptions)) instead of one method with a pile of nullable parameters —

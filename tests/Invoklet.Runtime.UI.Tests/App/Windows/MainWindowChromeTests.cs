@@ -12,6 +12,7 @@ using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.VB;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -23,7 +24,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // WindowDecorations.Full (the Linux fallback, since a CSD request comes back with no
 // border/shadow/corner-radius on a real KDE/KWin/Wayland session) puts the OS's own native titlebar
@@ -318,7 +319,7 @@ public class MainWindowChromeTests
     [AvaloniaFact]
     public void AppInitialize_Should_SetAnEmptyApplicationMenu()
     {
-        var app = new App();
+        var app = new Invoklet.App();
         app.Initialize();
 
         var menu = NativeMenu.GetMenu(app);

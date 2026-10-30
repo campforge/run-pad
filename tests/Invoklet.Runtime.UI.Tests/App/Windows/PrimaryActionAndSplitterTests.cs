@@ -12,7 +12,7 @@ using Avalonia.VisualTree;
 using Invoklet.Avalonia.Themes;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 // The default button of a dialog (the one Enter presses) is its primary action and is drawn in the
 // theme's accent with readable text in every state; splitters draw a 1-DIP line inside a wider drag

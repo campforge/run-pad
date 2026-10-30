@@ -9,7 +9,7 @@ using AvaloniaEdit;
 using Invoklet.Avalonia.Themes;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Resources;
 
 public class PopupThemeAndSearchTests
 {

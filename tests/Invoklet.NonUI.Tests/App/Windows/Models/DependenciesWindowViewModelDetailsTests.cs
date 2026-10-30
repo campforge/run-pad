@@ -5,7 +5,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Windows.Models;
 
 // The package card's dependencies, license and project page: loaded for the selected version off the
 // UI thread, shown only when a source supplies them, and never in the way of adding the package.

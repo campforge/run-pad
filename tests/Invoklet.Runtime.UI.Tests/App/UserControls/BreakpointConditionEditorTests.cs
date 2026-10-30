@@ -3,10 +3,11 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Invoklet.Contracts.IntelliSense;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.UserControls;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls;
 
 public class BreakpointConditionEditorTests
 {

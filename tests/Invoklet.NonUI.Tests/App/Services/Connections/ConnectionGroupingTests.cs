@@ -1,7 +1,7 @@
 using Invoklet.Services.Connections;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Connections;
 
 public sealed class ConnectionGroupingTests
 {

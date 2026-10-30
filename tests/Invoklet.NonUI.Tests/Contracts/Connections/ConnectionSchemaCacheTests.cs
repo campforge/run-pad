@@ -2,7 +2,7 @@ using Invoklet.Contracts.Connections;
 using Invoklet.Format.MdRun;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Contracts.Connections;
 
 // The schema cache asks the endpoint once for what several callers want at the same time: the
 // editor, a run and the Connections window often do.

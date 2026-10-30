@@ -1,6 +1,6 @@
 using Invoklet.Services;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Fixtures;
 
 internal sealed class WorkspaceWorkFixture
 {

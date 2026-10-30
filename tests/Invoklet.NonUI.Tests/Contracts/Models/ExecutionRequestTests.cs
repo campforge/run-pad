@@ -7,7 +7,7 @@ using Invoklet.Languages.VB;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Contracts.Models;
 
 // A run is described by a plain ExecutionRequest; the .NET backend alone turns it into a host's
 // options (references, macros, package sources, runtime library) and the editor's package context,

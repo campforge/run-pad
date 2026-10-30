@@ -8,11 +8,13 @@ using Invoklet.Languages.CSharp.Compiler;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Compiler;
+using Invoklet.NonUI.Tests.Infrastructure;
+using Invoklet.NonUI.Tests.Languages.DotnetCommon.Compiler;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using DiagnosticSeverity = Invoklet.Contracts.IntelliSense.DiagnosticSeverity;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // The editor checks a script against the framework the script targets, as the build does — not
 // against the one Invoklet itself runs on. An older target is simulated with a "net9.0" targeting pack

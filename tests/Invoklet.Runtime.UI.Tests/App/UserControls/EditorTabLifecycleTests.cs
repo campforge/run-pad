@@ -13,7 +13,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls;
 
 // A brand-new script starts empty and in-memory-only (no disk
 // write until Save/Save As — see MainWindowViewModel.NewMdRunFile), and its tab tracks whether it has

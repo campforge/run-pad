@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Format.MdRun;
 
 // The Arguments facade goes in the script's *.Generated.cs file, which the compiler takes for
 // generated code with nullable off: an optional argument's T? must not warn there (CS8669).

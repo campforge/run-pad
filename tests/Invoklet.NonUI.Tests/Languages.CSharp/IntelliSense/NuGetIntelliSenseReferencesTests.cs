@@ -4,12 +4,13 @@ using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
 using Invoklet.Languages.DotnetCommon.Compiler;
+using Invoklet.NonUI.Tests.Infrastructure;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using MetadataReference = Microsoft.CodeAnalysis.MetadataReference;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // IntelliSense sees the same package assemblies as the build: after a restore, the versions and
 // transitive packages it resolved; before one, the local package folder chosen with NuGet's version

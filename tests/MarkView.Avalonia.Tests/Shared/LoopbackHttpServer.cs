@@ -4,7 +4,7 @@
 using System.Net;
 using System.Net.Sockets;
 
-namespace MarkView.Avalonia.SyntaxHighlighting.Tests;
+namespace MarkView.Avalonia.Tests.Shared;
 
 /// <summary>
 /// Minimal in-process HTTP server on <c>localhost</c> with canned responses, used to exercise

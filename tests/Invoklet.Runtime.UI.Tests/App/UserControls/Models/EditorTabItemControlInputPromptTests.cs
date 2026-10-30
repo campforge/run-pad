@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls.Models;
 
 // EditorsTabItemControl.ShowInputPrompt/
 // HideInputPrompt/SubmitInputPromptAsync, the UI half of ILanguageHost.InputRequested/SendInputAsync

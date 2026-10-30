@@ -3,7 +3,7 @@ using Invoklet.UserControls;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.UserControls;
 
 public sealed class IntelliSenseEventSubscriptionsTests
 {

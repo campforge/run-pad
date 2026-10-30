@@ -21,7 +21,7 @@ using Invoklet.UserControls.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Services.Scaling;
 
 // Code zoom used to belong to each tab (its own FontSize, reset on restart) and nothing scaled the
 // rest of the interface. Now two settings drive every window: the interface scale (a layout

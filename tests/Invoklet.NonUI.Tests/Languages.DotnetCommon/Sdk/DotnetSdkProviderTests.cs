@@ -1,7 +1,7 @@
 using Invoklet.Languages.DotnetCommon.Sdk;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.DotnetCommon.Sdk;
 
 // Live report 2026-07-26 — the first-run setup wizard let a user browse for a custom dotnet path, but
 // DotnetSdkProvider ignored it entirely (always shelled the bare "dotnet" command). Fixed to accept an

@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Infrastructure;
 
 // Several tests here (CSharpIntelliSenseAnalyzersTests, CSharpIntelliSenseRefactoringsTests) assert
 // on real Microsoft.CodeAnalysis.CSharp.Features CodeAction/diagnostic titles by matching English

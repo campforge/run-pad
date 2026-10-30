@@ -1,9 +1,10 @@
 using Invoklet.Avalonia.CodeTextEditor.Completions;
 using Invoklet.Contracts.IntelliSense;
+using Invoklet.NonUI.Tests.App.Services.Fixtures;
 using Moq;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services;
 
 public sealed class EditorCompletionProviderTests
 {

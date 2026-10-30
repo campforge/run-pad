@@ -1,8 +1,9 @@
 using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Contracts.IntelliSense;
+using Invoklet.NonUI.Tests.App.Services.Fixtures;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services;
 
 public sealed class LightbulbEntriesTests
 {

@@ -1,7 +1,7 @@
 using Invoklet.Desktop.Linux;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Desktop.Linux;
 
 public sealed class KdeWindowRuleTests
 {

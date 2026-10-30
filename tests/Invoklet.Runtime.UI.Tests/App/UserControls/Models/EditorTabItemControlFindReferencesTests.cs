@@ -7,7 +7,7 @@ using Invoklet.Contracts.IntelliSense;
 using Invoklet.UserControls;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls.Models;
 
 // EditorsTabItemControl.BuildFindReferencesMenu builds
 // the clickable results list from the same IDocumentHighlightSpan data the highlight-occurrences

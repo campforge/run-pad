@@ -1,6 +1,7 @@
+using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Fixtures;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // Go to Implementation (Ctrl+F12, the counterpart of Go to Definition/F12) —
 // CSharpIntelliSenseService.GetImplementationsAsync. A single script's own

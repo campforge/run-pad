@@ -4,11 +4,11 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using AvaloniaEdit.Document;
-using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
@@ -20,7 +20,7 @@ using Moq;
 using TextMateSharp.Grammars;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.Avalonia.Themes;
 
 // Switching the theme recolours the shown script at once and every other open script when it is next
 // shown, before it is drawn — keywords and strings (TextMate) and IntelliSense's semantic colours —
@@ -85,7 +85,7 @@ public class EditorThemeRefreshTests : IDisposable
 
     private sealed record Token(int StartOffset, int Length, SemanticTokenKind Kind) : ISemanticToken;
 
-    private static Color? RenderedColor(CodeTextEditor editor, int offset)
+    private static Color? RenderedColor(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor editor, int offset)
     {
         var view = editor.TextArea.TextView;
         if (TopLevel.GetTopLevel(view) is null) return null;
@@ -97,7 +97,7 @@ public class EditorThemeRefreshTests : IDisposable
         return (element?.TextRunProperties.ForegroundBrush as ISolidColorBrush)?.Color;
     }
 
-    private static async Task<Color?> WaitForColorAsync(CodeTextEditor editor, int offset, Color expected)
+    private static async Task<Color?> WaitForColorAsync(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor editor, int offset, Color expected)
     {
         Color? seen = null;
         var deadline = DateTime.UtcNow.AddSeconds(15);
@@ -114,7 +114,7 @@ public class EditorThemeRefreshTests : IDisposable
     // A freshly created editor in the palette: the colour a keyword or a string should have.
     private static async Task<Color> ReferenceAsync(ThemeName palette, int offset)
     {
-        var editor = new CodeTextEditor { Document = new TextDocument(Code) };
+        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor { Document = new TextDocument(Code) };
         var window = new Window { Width = 900, Height = 700, Content = editor };
         window.Show();
         editor.SetLanguage(palette, ".cs");

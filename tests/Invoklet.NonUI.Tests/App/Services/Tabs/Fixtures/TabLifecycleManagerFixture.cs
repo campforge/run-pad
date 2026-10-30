@@ -4,7 +4,7 @@ using Invoklet.Services.Tabs;
 using Invoklet.UserControls.Models;
 using Moq;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Tabs.Fixtures;
 
 /// <summary>The view of a tab as a mock that remembers whether its content is released.</summary>
 internal sealed class TabViewDouble

@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.Infrastructure;
 
 // The windows await work started with Task.Run while tests wait on the UI thread, and the pool adds a
 // thread a second once its minimum is reached, so each such await cost about a second. The minimum is

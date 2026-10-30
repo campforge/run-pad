@@ -2,7 +2,7 @@ using Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.ScriptDocument.Fixtures;
 
 // The context changes the workspace of a session, which is Roslyn's own and is not faked; the session is made over no references.
 internal sealed class ScriptContextFixture : IDisposable

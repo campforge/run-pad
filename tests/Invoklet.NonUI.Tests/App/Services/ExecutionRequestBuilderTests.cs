@@ -4,7 +4,7 @@ using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services;
 
 public sealed class ExecutionRequestBuilderTests
 {

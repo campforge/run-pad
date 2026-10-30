@@ -1,7 +1,7 @@
 using Invoklet.Format.MdRun;
 using Invoklet.Services;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Fixtures;
 
 // DependencyDraft has no injected dependencies; the front matter is data, so the tests use the real one.
 internal sealed class DependencyDraftFixture

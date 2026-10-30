@@ -2,7 +2,7 @@ using Google.Protobuf.Reflection;
 using Invoklet.Connectors.Grpc;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Connectors.Grpc;
 
 // Reproduces the malformed Postman Echo HelloService descriptor (root.proto, syntax "proto3" with
 // a LABEL_REQUIRED field) that made protoc reject an otherwise-successfully-reflected schema:

@@ -13,7 +13,7 @@ using Invoklet.UserControls.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Services;
 
 public sealed class TabRecoveryTests : IDisposable
 {

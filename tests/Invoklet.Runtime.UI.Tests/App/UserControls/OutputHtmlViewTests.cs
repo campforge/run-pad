@@ -5,7 +5,7 @@ using Invoklet.UserControls;
 using Invoklet.UserControls.Models;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls;
 
 // The <html><head><style>...</style></head><body>...</body></html> assembly used to
 // live in EditorTabItemControl.UpdateOutputUi, directly against a bare HtmlPanel x:Name="OutputHtml"

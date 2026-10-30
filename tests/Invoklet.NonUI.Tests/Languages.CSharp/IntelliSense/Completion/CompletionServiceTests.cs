@@ -1,7 +1,8 @@
 using Invoklet.Format.MdRun;
+using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Features.Fixtures;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Completion;
 
 public sealed class CompletionServiceTests
 {

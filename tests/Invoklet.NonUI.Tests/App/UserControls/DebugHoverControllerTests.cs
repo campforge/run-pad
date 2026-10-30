@@ -4,7 +4,7 @@ using Invoklet.UserControls;
 using Invoklet.UserControls.Healpers;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.UserControls;
 
 public sealed class DebugHoverControllerTests
 {

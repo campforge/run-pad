@@ -3,7 +3,7 @@ using Invoklet.Languages.DotnetCommon;
 using NuGet.Configuration;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.DotnetCommon;
 
 // Invoklet's own NuGet.Config: seeding from the user's settings, round-tripping the configurator's
 // list (order, disabled sources, credentials) and keeping unrelated config. Temp folders only —

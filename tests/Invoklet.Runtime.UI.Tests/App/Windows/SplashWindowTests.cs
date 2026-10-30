@@ -2,12 +2,13 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
+using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Windows;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 public class SplashWindowTests
 {
@@ -22,7 +23,7 @@ public class SplashWindowTests
         desktop.SetupProperty(d => d.MainWindow, splash);
         splash.Show();
         var check = new TaskCompletionSource<bool>();
-        var startup = App.StartDesktopAsync(desktop.Object, splash, () => check.Task,
+        var startup = Invoklet.App.StartDesktopAsync(desktop.Object, splash, () => check.Task,
             result => { Assert.Equal(complete, result); return destination; }, Mock.Of<ILogger>());
         Assert.Same(splash, desktop.Object.MainWindow);
         check.SetResult(complete);
@@ -44,7 +45,7 @@ public class SplashWindowTests
         var desktop = new Mock<IClassicDesktopStyleApplicationLifetime>();
         desktop.SetupProperty(d => d.MainWindow, splash);
         splash.Show();
-        await App.StartDesktopAsync(desktop.Object, splash, () => Task.FromResult(true), _ => destination, Mock.Of<ILogger>());
+        await Invoklet.App.StartDesktopAsync(desktop.Object, splash, () => Task.FromResult(true), _ => destination, Mock.Of<ILogger>());
         Dispatcher.UIThread.RunJobs();
 
         Assert.False(splash.HasClosed);
@@ -67,7 +68,7 @@ public class SplashWindowTests
         var desktop = new Mock<IClassicDesktopStyleApplicationLifetime>();
         desktop.SetupProperty(d => d.MainWindow, splash);
         splash.Show();
-        await App.StartDesktopAsync(desktop.Object, splash, () => Task.FromResult(true), _ => destination, Mock.Of<ILogger>(),
+        await Invoklet.App.StartDesktopAsync(desktop.Object, splash, () => Task.FromResult(true), _ => destination, Mock.Of<ILogger>(),
             readyTimeout: TimeSpan.FromMilliseconds(20));
 
         await TestWait.WhileAsync(() => { Dispatcher.UIThread.RunJobs(); return !splash.HasClosed; });
@@ -96,7 +97,7 @@ public class SplashWindowTests
         splash.Show();
         var failedWindow = new FailingStartupWindow();
         var logger = new Mock<ILogger>();
-        await App.StartDesktopAsync(desktop.Object, splash, () => Task.FromResult(true),
+        await Invoklet.App.StartDesktopAsync(desktop.Object, splash, () => Task.FromResult(true),
             _ => failDuringShow ? failedWindow : throw new InvalidOperationException("construction failed"), logger.Object);
         Dispatcher.UIThread.RunJobs();
         Assert.Same(splash, desktop.Object.MainWindow);
@@ -121,7 +122,7 @@ public class SplashWindowTests
         var check = new TaskCompletionSource<bool>();
         var logger = new Mock<ILogger>();
         var create = new Mock<Func<bool, Window>>(MockBehavior.Strict);
-        var startup = App.StartDesktopAsync(Mock.Of<IClassicDesktopStyleApplicationLifetime>(), splash,
+        var startup = Invoklet.App.StartDesktopAsync(Mock.Of<IClassicDesktopStyleApplicationLifetime>(), splash,
             () => check.Task, create.Object, logger.Object);
         splash.Close();
         if (checkFails) check.SetException(new ObjectDisposedException("services"));

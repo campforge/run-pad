@@ -2,7 +2,7 @@ using System.Net;
 using Invoklet.Services.Setup;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Setup;
 
 // Live report 2026-07-27 — the wizard's progress bar was permanently indeterminate because nothing
 // ever measured real download progress. SetupDownloader now reads the response in chunks and reports

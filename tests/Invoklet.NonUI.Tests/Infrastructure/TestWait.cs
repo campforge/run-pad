@@ -1,4 +1,4 @@
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Infrastructure;
 
 // Polling with a deadline on the clock instead of a count of rounds: a count budgets a couple of seconds, which a loaded
 // machine (the whole suite at once) regularly exceeds, and a deadline costs nothing when the condition is met at once. It

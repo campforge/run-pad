@@ -1,6 +1,7 @@
+using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Fixtures;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // Contextual keywords like "orderby"/"equals"/"get"/"value" were
 // offered in completion EVERYWHERE, not just where they're syntactically legal — e.g. "orderby"

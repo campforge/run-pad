@@ -1,6 +1,7 @@
+using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Fixtures;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense;
 
 // The user found that completion (and, worse, the commit-on-"(" behavior) treated the NAME being typed for a fresh
 // declaration as a reference to complete/replace — e.g.

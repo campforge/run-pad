@@ -12,7 +12,7 @@ using Markdig.Syntax.Inlines;
 using MarkView.Avalonia.Extensions;
 using MarkView.Avalonia.Rendering;
 using MarkView.Avalonia.Rendering.Inlines;
-using MarkView.Avalonia.SyntaxHighlighting.Tests;
+using MarkView.Avalonia.Tests.Shared;
 using Xunit;
 
 namespace MarkView.Avalonia.Tests.Inlines;

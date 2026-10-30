@@ -2,7 +2,7 @@ using Invoklet.Languages.CSharp;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.Infrastructure;
 
 // CSharpDecompilerServiceTests/IlDisassemblerTests need a REAL, valid managed assembly on disk — the
 // thing under test is whether ICSharpCode.Decompiler can read actual IL, which a hand-mocked PE file

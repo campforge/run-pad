@@ -3,7 +3,7 @@ using Avalonia.Input;
 using Invoklet.Services.Preferences;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests;
+namespace Invoklet.NonUI.Tests.App.Services.Preferences;
 
 public class KeyboardSettingsTests
 {
