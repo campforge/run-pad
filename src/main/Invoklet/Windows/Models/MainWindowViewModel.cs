@@ -268,7 +268,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // Debounce for file-watcher-triggered tree refreshes — a single file save/rename can raise
     // several FileSystemWatcher events in quick succession; wait for them to settle before
     // rebuilding the tree once.
-    private static readonly TimeSpan WatcherRefreshDebounce = TimeSpan.FromMilliseconds(300);
+    internal static readonly TimeSpan DefaultWatcherRefreshDebounce = TimeSpan.FromMilliseconds(300);
+    private readonly TimeSpan _watcherRefreshDebounce;
 
     // OrdinalIgnoreCase matches Windows'/macOS' default case-insensitive filesystem; Linux's is
     // case-sensitive, where it would incorrectly collapse two distinct files differing only in
@@ -1049,9 +1050,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         ConnectionNavigationViewModel? connectionNavigation = null,
         ISessionSnapshotLoader? snapshotLoader = null,
         ISessionRecoveryCoordinator? recoveryCoordinator = null,
-        IDiskOperations? disk = null)
+        IDiskOperations? disk = null,
+        TimeSpan? watcherRefreshDebounce = null)
     {
         _disk = disk ?? new DiskOperations();
+        _watcherRefreshDebounce = watcherRefreshDebounce ?? DefaultWatcherRefreshDebounce;
         _fileSystemService = fileSystemService;
         _windowService = windowService;
         _prefs = prefs;
@@ -1151,10 +1154,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
     private void OnWatcherEvent(object? sender, FileSystemEventArgs e)
     {
-        // Version-based debounce: capture current version, wait for WatcherRefreshDebounce,
+        // Version-based debounce: capture current version, wait for the watcher refresh debounce,
         // then refresh only if no newer event arrived.
         var version = Interlocked.Increment(ref _debounceVersion);
-        Task.Delay(WatcherRefreshDebounce).ContinueWith(_ =>
+        Task.Delay(_watcherRefreshDebounce).ContinueWith(_ =>
         {
             if (_debounceVersion == version)
                 _dispatcher.Post(() =>

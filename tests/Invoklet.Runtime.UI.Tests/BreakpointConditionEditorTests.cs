@@ -16,7 +16,8 @@ public class BreakpointConditionEditorTests
     public async Task Enter_Should_ApplyValidatedCondition_AndEscape_Cancel(bool cancel)
     {
         using var editor = new BreakpointConditionEditor("i == 2", "% 2", true,
-            (_, _) => Task.FromResult<BreakpointConditionAnalysis?>(new(null, [])));
+            (_, _) => Task.FromResult<BreakpointConditionAnalysis?>(new(null, [])),
+            validationDelay: TimeSpan.Zero);
         var host = new Window { Content = editor };
         (string? Condition, string? HitCondition, bool Enabled)? answer = null;
         var finished = false;
@@ -42,7 +43,8 @@ public class BreakpointConditionEditorTests
     public async Task Suggestions_Should_CompleteWithDownAndEnter_WithoutApplyingTheBreakpoint()
     {
         using var editor = new BreakpointConditionEditor("cou", null, true,
-            (_, _) => Task.FromResult<BreakpointConditionAnalysis?>(new("Incomplete condition", ["count"])));
+            (_, _) => Task.FromResult<BreakpointConditionAnalysis?>(new("Incomplete condition", ["count"])),
+            validationDelay: TimeSpan.Zero);
         var host = new Window { Content = editor };
         var finished = false;
         editor.Finished += _ => finished = true;
@@ -69,7 +71,8 @@ public class BreakpointConditionEditorTests
             {
                 await Task.Delay(analysisDelay, ct);
                 return new("Unknown identifier", []);
-            });
+            },
+            validationDelay: TimeSpan.Zero);
         var host = new Window { Content = editor };
         var finished = false;
         editor.Finished += _ => finished = true;

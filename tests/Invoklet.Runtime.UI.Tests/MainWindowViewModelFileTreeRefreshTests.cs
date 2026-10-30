@@ -108,7 +108,8 @@ public class MainWindowViewModelFileTreeRefreshTests
             fileSystemService: fileSystem.Object,
             windowService: new Mock<IWindowService>().Object,
             prefs: CreatePrefsMock().Object,
-            languageRegistry: new LanguageHostRegistry());
+            languageRegistry: new LanguageHostRegistry(),
+            watcherRefreshDebounce: TimeSpan.Zero); // the late pool-thread callback is the subject, not the wait
         var uiDispatcher = Dispatcher.UIThread;
         uiDispatcher.RunJobs();
         var walksBefore = Volatile.Read(ref walks);
@@ -132,7 +133,7 @@ public class MainWindowViewModelFileTreeRefreshTests
                 recreated = uiThreadField.GetValue(null);
                 posted = uiDispatcher.HasJobsWithPriority(DispatcherPriority.Default);
                 if (recreated is not null || posted) break;
-                Thread.Sleep(10);
+                Thread.Sleep(1);
             }
             while (DateTime.UtcNow < deadline);
         }

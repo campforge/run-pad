@@ -117,17 +117,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // The code zoom shared by every editor of the app (and kept in the preferences).
     private readonly ViewScale _viewScale;
 
-    // Debounce before firing a Quick Info request after the pointer stops moving — long enough
-    // that just passing over a symbol doesn't spam requests, short enough to still feel responsive
-    //.
-    private static readonly TimeSpan QuickInfoHoverDelay = TimeSpan.FromMilliseconds(400);
-
-    // Same rationale as QuickInfoHoverDelay, for refactorings — caret moves far more
-    // often than the pointer stops over a symbol (every arrow key press, every click), so this needs
-    // the same debounce discipline diagnostics/inlay hints already get from NotifyTextChanged's own
-    // 500ms — refactorings just can't share that pass (see GetRefactoringsAsync's own doc comment on
-    // IIntelliSenseService: availability depends on caret position, not on what changed in the text).
-    private static readonly TimeSpan RefactoringDebounceDelay = TimeSpan.FromMilliseconds(400);
+    // The pauses before work that waits for the user to stop; a test gives zeros.
+    private readonly EditorTimings _timings;
 
     // Background callbacks (these debounces, IntelliSense events, run-host output) marshal back via
     // this control's own Dispatcher (AvaloniaObject.Dispatcher, captured at construction), never the
@@ -144,8 +135,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         IPreferencesService prefs,
         IIntelliSenseService? intelliSense,
         IBuildCacheService buildCache, ILogger<EditorsTabItemControl>? runLogger = null,
-        ConnectionDriverRegistry? connectionDrivers = null, ConnectionSchemas? connectionSchemas = null)
+        ConnectionDriverRegistry? connectionDrivers = null, ConnectionSchemas? connectionSchemas = null,
+        EditorTimings? timings = null)
     {
+        _timings = timings ?? EditorTimings.Default;
         _connectionDrivers = connectionDrivers ?? new ConnectionDriverRegistry();
         _connectionSchemas = connectionSchemas;
         if (connectionSchemas is not null) connectionSchemas.Cache.Changed += OnConnectionSchemaChanged;
@@ -1984,7 +1977,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _intelliSenseEventSubscriptions.Attach();
 
         // ── Refactorings (lightbulb: real Roslyn CodeRefactoringProviders) ──────
-        var refactoringRequests = _refactoringRequests = new RefactoringRequests(intelliSense, RefactoringDebounceDelay);
+        var refactoringRequests = _refactoringRequests = new RefactoringRequests(intelliSense, _timings.RefactoringDebounce);
 
         _refactoringCaretHandler = (_, _) =>
         {
@@ -2077,7 +2070,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 var requestCt = linked.Token;
                 try
                 {
-                    await Task.Delay(QuickInfoHoverDelay, requestCt);
+                    await Task.Delay(_timings.QuickInfoHoverDelay, requestCt);
                     var (request, debugContext) = await Dispatcher.InvokeAsync(() =>
                     {
                         var context = State.CurrentDebugCtx;
@@ -2190,7 +2183,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         try
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(300), token);
+            await Task.Delay(_timings.DebugTooltipCloseGrace, token);
             if (_disposed || token.IsCancellationRequested) return;
             await Dispatcher.InvokeAsync(() =>
             {
@@ -2579,7 +2572,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 // Coalesce metadata/SDK/schema bursts before doing the expensive projection and
                 // Roslyn context update. Cancellation remains owned by this captured refresh.
-                await Task.Delay(50, token).ConfigureAwait(false);
+                await Task.Delay(_timings.ContextRefreshCoalesce, token).ConfigureAwait(false);
                 token.ThrowIfCancellationRequested();
                 var shouldReanalyze = Interlocked.Exchange(ref _contextRefreshReanalyzePending, 0) == 1;
                 var generated = frontMatter is null ? null

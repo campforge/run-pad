@@ -13,7 +13,7 @@ namespace Invoklet.Shared;
 // so it has no dependency on preferences and is trivially constructible in isolation).
 public sealed class CollapsiblePanelState : ReactiveObject
 {
-    private static readonly TimeSpan SaveThrottle = TimeSpan.FromMilliseconds(400);
+    private static readonly TimeSpan DefaultSaveThrottle = TimeSpan.FromMilliseconds(400);
 
     private readonly double _defaultExpandedSize;
     private double _lastExpandedSize;
@@ -35,7 +35,9 @@ public sealed class CollapsiblePanelState : ReactiveObject
     /// when the first argument is <see langword="false"/> (mirrors the original call sites' own
     /// "don't overwrite the remembered expanded size with 0 while collapsing" behavior).
     /// </param>
-    public CollapsiblePanelState(bool collapsed, double savedSize, double defaultExpandedSize, Action<bool, double> onChanged)
+    /// <param name="saveThrottle">How long a change must stay still before <paramref name="onChanged"/> is called; a test gives zero.</param>
+    public CollapsiblePanelState(bool collapsed, double savedSize, double defaultExpandedSize, Action<bool, double> onChanged,
+        TimeSpan? saveThrottle = null)
     {
         _defaultExpandedSize = defaultExpandedSize;
         _lastExpandedSize = savedSize;
@@ -45,7 +47,7 @@ public sealed class CollapsiblePanelState : ReactiveObject
 
         this.WhenAnyValue(x => x.Size)
             .Skip(1)
-            .Throttle(SaveThrottle, RxApp.MainThreadScheduler)
+            .Throttle(saveThrottle ?? DefaultSaveThrottle, RxApp.MainThreadScheduler)
             .Subscribe(w => onChanged(w.Value <= 0, w.Value));
     }
 
