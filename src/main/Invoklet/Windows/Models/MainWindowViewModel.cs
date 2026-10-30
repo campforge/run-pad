@@ -1020,12 +1020,6 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // so files nested inside it aren't left with a tab open on a path that's about to disappear out
     // from under them (File.Delete/File.Move only ever touch a single file, not a whole subtree, so
     // this has no equivalent in the plain-file case below).
-    private List<KeyValuePair<string, EditorTabItemViewModel>> FindOpenTabsUnder(string folderPath)
-    {
-        var prefix = folderPath + Path.DirectorySeparatorChar;
-        return _openTabs.Where(kv => kv.Key.StartsWith(prefix, FilePathComparison)).ToList();
-    }
-
     // Completes at once unless a tab has to be saved first and the user is asked about it.
     public Task DeleteFile(string filePath) => TrackWorkspaceOperation(() => DeleteFileCoreAsync(filePath));
 
@@ -1070,13 +1064,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         // Directory.Exists/File.Move are NOT interchangeable — File.Move on a directory path throws,
         // so renaming a folder always failed before this fix.
         // A folder's own name has no extension to preserve (unlike a .inv file's).
-        var isDirectory = Directory.Exists(filePath);
-        var ext = isDirectory ? "" : Path.GetExtension(filePath);
-        var dir = Path.GetDirectoryName(filePath)!;
-        var newFileName = newName + ext;
-        var newPath = Path.Combine(dir, newFileName);
+        var newPath = FileTreePaths.Renamed(filePath, newName, Directory.Exists(filePath));
 
-        return MoveOrRenameOnDisk(filePath, newPath, "Rename Failed", "rename", $"to '{newFileName}'");
+        return MoveOrRenameOnDisk(filePath, newPath, "Rename Failed", "rename", $"to '{Path.GetFileName(newPath)}'");
     }
 
     // File tree drag-and-drop — moves a node into a different folder (or the tree's
@@ -1090,10 +1080,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     public Task MoveFileOrFolder(string sourcePath, string? contextPath)
     {
         var targetDir = ResolveParentDir(contextPath);
-        var name = Path.GetFileName(sourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-        var newPath = Path.Combine(targetDir, name);
+        var newPath = FileTreePaths.Moved(sourcePath, targetDir);
 
-        if (string.Equals(Path.GetFullPath(newPath), Path.GetFullPath(sourcePath), StringComparison.Ordinal))
+        if (FileTreePaths.IsSamePlace(newPath, sourcePath))
             return Task.CompletedTask;
 
         return MoveOrRenameOnDisk(sourcePath, newPath, "Move Failed", "move", $"into '{Path.GetFileName(targetDir)}'");
@@ -1136,16 +1125,13 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         foreach (var tab in affectedTabs)
             CloseTab(tab);
         foreach (var oldPath in oldPaths)
-            OpenTab(isDirectory ? Path.Combine(newPath, Path.GetRelativePath(sourcePath, oldPath)) : newPath);
+            OpenTab(FileTreePaths.Reopened(sourcePath, newPath, oldPath, isDirectory));
     }
 
     // The tab open on `path` itself plus, for a folder, every tab nested inside it.
     private List<EditorTabItemViewModel> FindAffectedTabs(string path, bool isDirectory)
     {
-        var tabs = new List<EditorTabItemViewModel>();
-        if (_openTabs.TryGetValue(path, out var tab)) tabs.Add(tab);
-        if (isDirectory) tabs.AddRange(FindOpenTabsUnder(path).Select(kv => kv.Value));
-        return tabs;
+        return [.. TreePaths.AffectedPaths(_openTabs.Keys, path, isDirectory).Select(p => _openTabs[p])];
     }
 
     // Creates a new folder next to whatever's selected in the file tree — INSIDE the
@@ -1176,11 +1162,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     }
 
     private string ResolveParentDir(string? contextPath) =>
-        contextPath is null
-            ? _fileSystemService.Folder
-            : Directory.Exists(contextPath)
-                ? contextPath
-                : Path.GetDirectoryName(contextPath) ?? _fileSystemService.Folder;
+        new FileTreePaths(_fileSystemService.Folder, FilePathComparison).ParentFolder(contextPath, contextPath is not null && Directory.Exists(contextPath));
+
+    private FileTreePaths TreePaths => new(_fileSystemService.Folder, FilePathComparison);
 
     public void OpenContainingFolder(string filePath)
     {
