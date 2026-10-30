@@ -27,6 +27,9 @@ public enum ConnectionParamType
 
     /// <summary>A list of texts.</summary>
     List,
+
+    /// <summary>The path of a file, as text with placeholders allowed; the form can browse for it.</summary>
+    File,
 }
 
 /// <summary>

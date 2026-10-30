@@ -91,11 +91,13 @@
                             <DataTemplate DataType="viewModels:ConnectionFieldViewModel">
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="{Binding Label}" FontSize="12" IsVisible="{Binding !IsBoolean}"/>
-                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6" IsVisible="{Binding IsTextBox}">
+                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6" IsVisible="{Binding IsTextBox}">
                                         <TextBox Classes="field form-field" Text="{Binding Text}" PlaceholderText="{Binding Example}" AutomationProperties.Name="{Binding Param.Label}"/>
                                         <controls:SecretPicker Grid.Column="1"
                                                   SecretNames="{Binding SecretNames}" SelectedSecret="{Binding SecretToInsert}" IsVisible="{Binding CanInsertSecret}"
                                                   AutomationProperties.Name="{Binding Param.Label, StringFormat='Insert secret into {0}'}" ToolTip.Tip="Insert secret"/>
+                                        <Button Grid.Column="2" Classes="secondary" Content="Browse..." IsVisible="{Binding CanBrowse}" Click="BrowseButton_Click"
+                                                AutomationProperties.Name="{Binding Param.Label, StringFormat='Browse for {0}'}"/>
                                     </Grid>
                                     <CheckBox IsVisible="{Binding IsBoolean}" IsChecked="{Binding BooleanValue}" Content="{Binding Param.Label}"/>
                                     <TextBox Classes="form-field" IsVisible="{Binding IsList}" AcceptsReturn="True" MinHeight="60" Text="{Binding Text}" PlaceholderText="One per line"

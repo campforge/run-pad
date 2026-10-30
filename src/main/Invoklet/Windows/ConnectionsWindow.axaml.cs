@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Invoklet.Services;
 using Invoklet.Windows.Models;
 
@@ -21,6 +22,14 @@ public partial class ConnectionsWindow : Window
     }
 
     public ConnectionsWindow() => InitializeComponent();
+
+    // The path comes back whole: the form keeps what the user types, and a placeholder or a relative path is typed by hand.
+    private async void BrowseButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is not ConnectionFieldViewModel field) return;
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = "Select " + field.Param.Label, AllowMultiple = false });
+        if (files.FirstOrDefault()?.TryGetLocalPath() is { } path) field.Text = path;
+    }
 
     // Opens with a new connection of that driver selected, ready to be filled in.
     internal void StartNew(string driverId)

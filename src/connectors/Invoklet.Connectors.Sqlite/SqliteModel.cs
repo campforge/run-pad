@@ -7,7 +7,17 @@ internal sealed record SqliteEntity(SqliteTable Table, string SetName, string Cl
 {
     // EF Core can only read a table without a primary key (and a view).
     public bool Keyless => Key.Count == 0;
+
+    /// <summary>The foreign keys of this table that the script can walk: each is a reference here and a collection on the other side.</summary>
+    public List<SqliteRelation> Relations { get; } = [];
 }
+
+/// <summary>
+/// A foreign key as navigation properties: <c>order.Customer</c> on the table that holds the key (the dependent) and
+/// <c>customer.Orders</c> on the table it points to (the principal).
+/// </summary>
+internal sealed record SqliteRelation(SqliteEntity Principal, string ReferenceName, string CollectionName,
+    List<SqliteProperty> ForeignKey, List<SqliteProperty> PrincipalKey);
 
 /// <summary>A column as a property of its row class.</summary>
 internal sealed record SqliteProperty(SqliteColumn Column, string PropertyName, string ClrType, bool IsValueType, bool Nullable);
@@ -36,6 +46,7 @@ internal static class SqliteModel
     {
         var taken = new HashSet<string>(ContextMembers, StringComparer.Ordinal) { clientClassName };
         var entities = new List<SqliteEntity>();
+        var memberSets = new List<HashSet<string>>();
         foreach (var table in tables)
         {
             var name = Pascal(table.Name, "Table");
@@ -56,8 +67,41 @@ internal static class SqliteModel
                 ? [] : columns.Where(c => c.Column.PrimaryKey > 0).OrderBy(c => c.Column.PrimaryKey)
                 .Select(c => c.PropertyName).ToList();
             entities.Add(new SqliteEntity(table, setName, className, columns, key));
+            memberSets.Add(members);
         }
+        AddRelations(entities, memberSets);
         return entities;
+    }
+
+    // A foreign key becomes navigation properties when EF Core can model it: both tables have a key (a table without one can only be read),
+    // and each pair of columns has one type. Anything else stays a plain column.
+    private static void AddRelations(List<SqliteEntity> entities, List<HashSet<string>> memberSets)
+    {
+        var byName = entities.Select((e, i) => (e, i)).ToDictionary(x => x.e.Table.Name, x => x, StringComparer.OrdinalIgnoreCase);
+        foreach (var (dependent, dependentIndex) in entities.Select((e, i) => (e, i)))
+        {
+            if (dependent.Keyless) continue;
+            foreach (var foreignKey in dependent.Table.ForeignKeys)
+            {
+                if (!byName.TryGetValue(foreignKey.Table, out var found) || found.e.Keyless) continue;
+                var (principal, principalIndex) = found;
+
+                var from = foreignKey.Columns.Select(c => dependent.Columns.Find(p => p.Column.Name.Equals(c, StringComparison.OrdinalIgnoreCase))).ToList();
+                // Without "to" the key points at the primary key of the other table.
+                var to = foreignKey.ReferencedColumns.Count == 0
+                    ? principal.Key.Select(k => principal.Columns.Find(p => p.PropertyName == k)).ToList()
+                    : foreignKey.ReferencedColumns.Select(c => principal.Columns.Find(p => p.Column.Name.Equals(c, StringComparison.OrdinalIgnoreCase))).ToList();
+                if (from.Count == 0 || from.Count != to.Count || from.Contains(null) || to.Contains(null)) continue;
+                if (from.Zip(to).Any(pair => pair.First!.ClrType != pair.Second!.ClrType)) continue;
+
+                // order.customer_id is order.Customer; a key of several columns, or one not named like that, is named after the table.
+                var reference = from is [{ } single] && single.PropertyName.Length > 2 && single.PropertyName.EndsWith("Id", StringComparison.Ordinal)
+                    ? single.PropertyName[..^2] : principal.ClassName;
+                reference = Unique(reference, memberSets[dependentIndex], "Ref");
+                var collection = Unique(dependent.SetName, memberSets[principalIndex], "By" + reference);
+                dependent.Relations.Add(new SqliteRelation(principal, reference, collection, from!, to!));
+            }
+        }
     }
 
     // SQLite's own rules (https://sqlite.org/datatype3.html, "Determination Of Column Affinity"), with

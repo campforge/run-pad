@@ -90,7 +90,8 @@ public sealed class ConnectionFieldViewModel : ReactiveObject
     public string? Description => Param.Description;
     public bool HasDescription => Param.Description is not null;
     public string? Example => Param.Example ?? Param.Default;
-    public bool IsTextBox => Param.Type is ConnectionParamType.Text or ConnectionParamType.Number;
+    public bool IsTextBox => Param.Type is ConnectionParamType.Text or ConnectionParamType.Number or ConnectionParamType.File;
+    public bool CanBrowse => Param.Type is ConnectionParamType.File;
     public bool CanInsertSecret => Param.Type is ConnectionParamType.Text && SecretNames.Count > 0;
     public bool IsBoolean => Param.Type is ConnectionParamType.Boolean;
     public bool IsMap => Param.Type is ConnectionParamType.Map;
