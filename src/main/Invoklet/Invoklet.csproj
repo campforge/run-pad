@@ -6,7 +6,7 @@
     <ApplicationIcon>Assets/icon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <Product>Invoklet</Product>
-    <Version>0.10.2</Version>
+    <Version>0.10.3</Version>
     <Authors>hobobyte</Authors>
     <Company>hobobyte</Company>
     <Copyright>© 2026 Vadim S (hobobyte)</Copyright>
