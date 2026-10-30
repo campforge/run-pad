@@ -197,4 +197,34 @@ public sealed class ScriptDocumentLayoutTests
         // Assert
         Assert.Same(options, sut.ParseOptions);
     }
+
+    [Fact]
+    public async Task FullText_WhileTheUsingsChange_IsAlwaysBuiltFromOnePreamble()
+    {
+        // Arrange
+        var sut = new ScriptDocumentLayoutFixture().CreateSut();
+        sut.SetKind(MdRunKind.Program);
+        var code = ScriptDocumentLayoutFixture.ProgramCode;
+        using var stop = new CancellationTokenSource();
+        var changer = Task.Run(() =>
+        {
+            for (var i = 0; !stop.IsCancellationRequested; i++) sut.SetExtraUsings(i % 2 == 0 ? ["Newtonsoft.Json"] : []);
+        }, TestContext.Current.CancellationToken);
+
+        // Act
+        var mismatches = 0;
+        for (var i = 0; i < 2000; i++)
+        {
+            var text = sut.FullText(code);
+            var header = text.IndexOf("void Main", StringComparison.Ordinal);
+            // The code starts right after the header: a text built from two preambles would put it elsewhere.
+            if (!text.Contains("\n\n") || header < 0 || text.IndexOf("global using", header, StringComparison.Ordinal) >= 0) mismatches++;
+        }
+
+        await stop.CancelAsync();
+        await changer;
+
+        // Assert
+        Assert.Equal(0, mismatches);
+    }
 }

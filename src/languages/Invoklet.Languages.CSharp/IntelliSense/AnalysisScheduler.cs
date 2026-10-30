@@ -16,6 +16,15 @@ internal sealed class AnalysisScheduler(
     private readonly object _gate = new();
     private CancellationTokenSource? _current;
     private Task? _pass;
+    private bool _stopped;
+
+    private bool Stopped
+    {
+        get
+        {
+            lock (_gate) return _stopped;
+        }
+    }
 
     /// <summary>The pass last started; for tests to await.</summary>
     internal Task? Pass
@@ -36,6 +45,8 @@ internal sealed class AnalysisScheduler(
         CancellationToken token;
         lock (_gate)
         {
+            // After Stop nothing starts again, not even the repeat of a pass that was still running: its owner is gone.
+            if (_stopped) return;
             // Not disposed: a superseded pass can still be past its checks of the token (inside a code fix provider that does not
             // poll it), and reading a disposed source throws. A source whose wait handle is never touched holds no unmanaged
             // resources, so the superseded one is left to the collector; Stop disposes the last one.
@@ -55,7 +66,8 @@ internal sealed class AnalysisScheduler(
                 }
                 catch (Exception ex)
                 {
-                    onFailure(ex);
+                    // Not told once stopped: the owner is gone.
+                    if (!Stopped) onFailure(ex);
                 }
             });
         }
@@ -71,6 +83,7 @@ internal sealed class AnalysisScheduler(
         Task? pass;
         lock (_gate)
         {
+            _stopped = true;
             source = _current;
             pass = _pass;
         }

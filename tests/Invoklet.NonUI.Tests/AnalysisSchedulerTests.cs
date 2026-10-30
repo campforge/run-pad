@@ -214,4 +214,74 @@ public sealed class AnalysisSchedulerTests
         // Assert
         Assert.Null(Record.Exception(stop));
     }
+
+    [Fact]
+    public async Task Notify_AfterStop_StartsNothing()
+    {
+        // Arrange
+        var sut = new AnalysisSchedulerFixture().CreateSut();
+        sut.Stop();
+        var analysed = 0;
+
+        // Act
+        sut.Notify(() => "text", (_, _) =>
+        {
+            Interlocked.Increment(ref analysed);
+            return Task.FromResult(true);
+        });
+        await AnalysisSchedulerFixture.SettleAsync(sut);
+
+        // Assert
+        Assert.Equal(0, analysed);
+    }
+
+    [Fact]
+    public async Task Stop_PassThatIgnoresCancellationAndEndsLaterWantingARepeat_DoesNotRunAgain()
+    {
+        // Arrange
+        var fixture = new AnalysisSchedulerFixture { StopTimeout = TimeSpan.FromMilliseconds(50) };
+        var sut = fixture.CreateSut();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var analysed = 0;
+        sut.Notify(() => "text", (_, _) =>
+        {
+            Interlocked.Increment(ref analysed);
+            started.TrySetResult();
+            return release.Task;
+        });
+        await started.Task.WaitAsync(Limit, TestContext.Current.CancellationToken);
+        await Task.Run(sut.Stop, TestContext.Current.CancellationToken);
+
+        // Act: the late pass says its result is obsolete, which would start a repeat of it
+        release.SetResult(false);
+        await AnalysisSchedulerFixture.SettleAsync(sut);
+
+        // Assert
+        Assert.Equal(1, analysed);
+    }
+
+    [Fact]
+    public async Task Stop_PassThatFailsLater_DoesNotTellTheOwnerWhoIsGone()
+    {
+        // Arrange
+        var fixture = new AnalysisSchedulerFixture { StopTimeout = TimeSpan.FromMilliseconds(50) };
+        var sut = fixture.CreateSut();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        sut.Notify(() => "text", (_, _) =>
+        {
+            started.TrySetResult();
+            return release.Task;
+        });
+        await started.Task.WaitAsync(Limit, TestContext.Current.CancellationToken);
+        await Task.Run(sut.Stop, TestContext.Current.CancellationToken);
+
+        // Act
+        release.SetException(new InvalidOperationException("workspace disposed"));
+        await AnalysisSchedulerFixture.SettleAsync(sut);
+
+        // Assert
+        Assert.Empty(fixture.Failures);
+    }
 }

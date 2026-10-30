@@ -35,10 +35,18 @@ internal sealed class ScriptDocumentLayout
     private CSharpParseOptions _parseOptions = CSharpScriptCompiler.ParseOptions(Environment.Version.Major, Environment.Version.Minor);
     private KindShape? _shape;
 
-    public ScriptDocumentLayout() => Preamble = BuildPreamble([]);
+    public ScriptDocumentLayout() => _preamble = BuildPreamble([]);
 
     /// <summary>The <c>global using</c> lines that start the document, and a blank line.</summary>
-    public string Preamble { get; private set; }
+    public string Preamble
+    {
+        get
+        {
+            lock (_gate) return _preamble;
+        }
+    }
+
+    private string _preamble;
 
     public MdRunKind Kind
     {
@@ -72,7 +80,7 @@ internal sealed class ScriptDocumentLayout
         {
             if (extra.SequenceEqual(_extraUsings, StringComparer.Ordinal)) return false;
             _extraUsings = extra;
-            Preamble = BuildPreamble(extra);
+            _preamble = BuildPreamble(extra);
             return true;
         }
     }
@@ -91,8 +99,12 @@ internal sealed class ScriptDocumentLayout
     /// <summary>The text of the analysis document for this code.</summary>
     public string FullText(string code)
     {
-        var shape = ShapeFor(code);
-        return ScriptDocumentProjection.Create(Preamble, shape.Prefix, shape.Projection.Text, shape.Suffix, TrailingPad).FullText;
+        // One state of the layout for the whole text: the usings may change between the two reads otherwise.
+        lock (_gate)
+        {
+            var shape = ShapeFor(code);
+            return ScriptDocumentProjection.Create(_preamble, shape.Prefix, shape.Projection.Text, shape.Suffix, TrailingPad).FullText;
+        }
     }
 
     /// <summary>
@@ -109,7 +121,10 @@ internal sealed class ScriptDocumentLayout
     public ProgramBodyProjection Projection(string code) => ShapeFor(code).Projection;
 
     /// <summary>The offset in the document of the start of the user's code: the preamble and, for a program, the wrapper's prefix.</summary>
-    public int HeaderLength(string code) => Preamble.Length + Prefix(code).Length;
+    public int HeaderLength(string code)
+    {
+        lock (_gate) return _preamble.Length + ShapeFor(code).Prefix.Length;
+    }
 
     /// <summary>The offset in the document of an offset in the user's code.</summary>
     public int ToDocumentOffset(string code, int offset) => HeaderLength(code) + Projection(code).ToProjected(offset);

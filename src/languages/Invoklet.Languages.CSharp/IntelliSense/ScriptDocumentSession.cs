@@ -102,7 +102,7 @@ internal sealed class ScriptDocumentSession : IDisposable
         lock (SyncLock) return version == _contextVersion;
     }
 
-    /// <summary>The script's document at its current text, whatever the sync made of it.</summary>
+    /// <summary>The project of the workspace as it is now; read under <see cref="SyncLock"/> by whoever needs it to stay so.</summary>
     public Project Project => Workspace.CurrentSolution.GetProject(DocumentId.ProjectId)!;
 
     /// <summary>The project's context changed (references, options, generated documents): the document is synced again next time and
@@ -160,7 +160,7 @@ internal sealed class ScriptDocumentSession : IDisposable
         }
     }
 
-    /// <summary>The solution's options with the editor's indentation: for code that formats outside the workspace.</summary>
+    /// <summary>The solution's options with the editor's indentation: for code that formats outside the workspace; call it under <see cref="SyncLock"/> so that the indentation and the options come from one state.</summary>
     public OptionSet FormattingOptionsSnapshot() => Workspace.CurrentSolution.Options
         .WithChangedOption(FormattingOptions.UseTabs, LanguageNames.CSharp, _useTabs)
         .WithChangedOption(FormattingOptions.TabSize, LanguageNames.CSharp, _indentationSize)

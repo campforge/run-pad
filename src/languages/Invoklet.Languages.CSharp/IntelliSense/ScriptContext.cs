@@ -66,11 +66,12 @@ internal sealed class ScriptContext
     // runs them while compiling for analysis, off the UI thread.
     private IReadOnlyList<string> _generatorPaths = [];
     // The script's own .dll references with the same-folder dependencies the build adds.
-    private IReadOnlyList<string> _userReferencePaths = [];
-    private readonly List<MetadataReference> _nugetRefs = [];
+    private volatile IReadOnlyList<string> _userReferencePaths = [];
+    // Replaced as a whole, never changed in place: completion and navigation read them without the lock.
+    private volatile IReadOnlyList<MetadataReference> _nugetRefs = [];
     private IReadOnlyList<string> _nugetPaths = [];
     private IReadOnlyList<MdRunArgumentContractMember> _argumentContract = [];
-    private List<KeyValuePair<string, (DocumentId Id, string Text)>> _connectionFiles = [];
+    private volatile List<KeyValuePair<string, (DocumentId Id, string Text)>> _connectionFiles = [];
 
     // Test-only: called when an execution context request has done its slow lookups and is about to be applied, so a test can hold an
     // older request there while a newer one overtakes it.
@@ -357,8 +358,7 @@ internal sealed class ScriptContext
                     .WithParseOptions(parseOptions).WithAnalyzerReferences(generatorRefs).Solution))
                 return; // the next update tries again: _nugetPaths still describes the workspace
 
-            _nugetRefs.Clear();
-            _nugetRefs.AddRange(newRefs);
+            _nugetRefs = newRefs;
             _nugetPaths = newPaths;
             _frameworkPaths = frameworkPaths;
             _layout.ParseOptions = parseOptions;
