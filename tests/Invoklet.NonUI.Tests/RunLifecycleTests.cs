@@ -174,10 +174,18 @@ public sealed class RunLifecycleTests
         var sut = new RunLifecycleFixture().CreateSut();
         var generation = sut.Begin();
         var spinning = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sawTheStop = false;
         var reader = RunLifecycleFixture.RunOnAnotherThread(() =>
         {
+            var giveUpAt = RunLifecycleFixture.SpinDeadline();
             spinning.SetResult();
-            while (sut.IsCurrent(generation)) { } // as a host callback asking whether its run still counts
+            // As a host callback asking whether its run still counts. It ends by itself at the deadline, so a
+            // failed test never leaves a thread running.
+            while (sut.IsCurrent(generation))
+            {
+                if (Environment.TickCount64 > giveUpAt) return;
+            }
+            sawTheStop = true;
         });
         await spinning.Task.WaitAsync(Limit, TestContext.Current.CancellationToken);
 
@@ -185,7 +193,8 @@ public sealed class RunLifecycleTests
         sut.Stop();
 
         // Assert
-        await reader.WaitAsync(Limit, TestContext.Current.CancellationToken); // it saw the stop, however it was compiled
+        await reader.WaitAsync(Limit, TestContext.Current.CancellationToken);
+        Assert.True(sawTheStop); // it saw the stop, however the code was compiled
         Assert.False(sut.IsCurrent(generation));
     }
 
@@ -199,25 +208,30 @@ public sealed class RunLifecycleTests
         var reading = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var reader = RunLifecycleFixture.RunOnAnotherThread(() =>
         {
+            var giveUpAt = RunLifecycleFixture.SpinDeadline();
             var last = sut.RunGeneration;
             reading.SetResult();
-            while (!Volatile.Read(ref done))
+            while (!Volatile.Read(ref done) && Environment.TickCount64 <= giveUpAt)
             {
                 var now = sut.RunGeneration;
                 if (now < last) wentBackwards = true;
                 last = now;
             }
         });
-        await reading.Task.WaitAsync(Limit, TestContext.Current.CancellationToken);
 
-        // Act
-        for (var i = 0; i < 20_000; i++)
+        try
         {
-            sut.Begin();
-            sut.Stop();
-            sut.End();
+            await reading.Task.WaitAsync(Limit, TestContext.Current.CancellationToken);
+
+            // Act
+            for (var i = 0; i < 20_000; i++)
+            {
+                sut.Begin();
+                sut.Stop();
+                sut.End();
+            }
         }
-        Volatile.Write(ref done, true);
+        finally { Volatile.Write(ref done, true); } // also when the test fails: the reader must not outlive it
         await reader.WaitAsync(Limit, TestContext.Current.CancellationToken);
 
         // Assert
