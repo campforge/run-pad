@@ -3,12 +3,16 @@
 Notable changes in each Invoklet release. Downloads are on the
 [releases page](https://github.com/tervforge/invoklet/releases).
 
-## [Unreleased]
+## [0.10.4] — 2026-10-30
 
 ### Fixed
 
 - The application icon on Windows fills its frame again instead of sitting in a margin, so it is no longer
   small in the taskbar, the title bar and the Start menu.
+- File-tree delete, rename and move operations now handle folders and open tabs consistently, including
+  unsaved tabs and Save As during the operation.
+- Closing the window or saving the session now waits for pending workspace operations and tab saves to finish,
+  so the snapshot cannot capture a half-completed change.
 
 ## [0.10.3] — 2026-10-30
 
@@ -910,4 +914,5 @@ better choice. RunPad began as DotPad two days after the last commit to the fork
 [0.10.1]: https://github.com/tervforge/invoklet/releases/tag/v0.10.1
 [0.10.2]: https://github.com/tervforge/invoklet/releases/tag/v0.10.2
 [0.10.3]: https://github.com/tervforge/invoklet/releases/tag/v0.10.3
+[0.10.4]: https://github.com/tervforge/invoklet/releases/tag/v0.10.4
 [0.9.5]: https://github.com/tervforge/invoklet/releases/tag/v0.9.5
