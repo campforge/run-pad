@@ -4,6 +4,7 @@ using System.Reactive.Disposables;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Connections;
 using Invoklet.Format.MdRun;
+using Invoklet.Services;
 using Invoklet.Services.Connections;
 using Invoklet.Services.Secrets;
 using Invoklet.Shared;
@@ -153,12 +154,6 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     // "finished typing"; Enter still searches immediately (SearchNow).
     private static readonly TimeSpan DefaultSearchDebounce = TimeSpan.FromMilliseconds(500);
 
-    private sealed class DraftPackage(string id, string version)
-    {
-        public string Id { get; } = id;
-        public string Version { get; set; } = version;
-    }
-
     private readonly IPackageSearchService _search;
     private readonly ILocalPackageCacheService _cache;
     private readonly INuGetSourceStore _sources;
@@ -166,7 +161,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     private readonly CompositeDisposable _disposables = new();
 
     private MdRunFrontMatter? _original;
-    private readonly List<DraftPackage> _draftPackages = [];
+    private readonly DependencyDraft _draft = new();
     private bool _applied;
     private bool _disposed;
 
@@ -750,7 +745,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     {
         Connections = new ScriptConnectionsViewModel(connections, secrets, connectionDrivers, connectionSchemas);
         Connections.UsePackages(
-            () => new HashSet<string>(_draftPackages.Select(p => p.Id), StringComparer.OrdinalIgnoreCase),
+            () => new HashSet<string>(_draft.Packages.Select(p => p.Id), StringComparer.OrdinalIgnoreCase),
             (id, version) => AddPackage(id, version),
             RemovePackage);
         Connections.Edited += UpdateHasChanges;
@@ -821,10 +816,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         _original = fm;
         _applied = false;
 
-        _draftPackages.Clear();
-        if (fm?.Packages is { } packages)
-            foreach (var (id, package) in packages)
-                _draftPackages.Add(new DraftPackage(id, package.Version));
+        _draft.Load(fm);
 
         ResetEntries(References, fm?.References, RemoveReference);
         _namespacesText = fm?.Namespaces is { Count: > 0 } namespaces
@@ -862,44 +854,21 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         if (_disposed || _applied || _original is not { } fm || HasNamespaceError || Arguments.HasError || !ComputeHasChanges()) return false;
         _applied = true;
 
-        var previous = fm.Packages is null
-            ? new Dictionary<string, Package>()
-            : new Dictionary<string, Package>(fm.Packages);
-        var packages = fm.Packages ??= new Dictionary<string, Package>();
-        packages.Clear();
-        foreach (var draft in _draftPackages)
-            packages[draft.Id] = previous.TryGetValue(draft.Id, out var old) && old.Version == draft.Version
-                ? old
-                : new Package(draft.Version);
+        _draft.ApplyTo(fm);
 
-        fm.References = CopyBack(fm.References, References.Select(e => e.Value));
-        fm.Namespaces = CopyBack(fm.Namespaces, ParseNamespaces(_namespacesText).Names);
+        fm.References = DependencyDraft.CopyBack(fm.References, References.Select(e => e.Value));
+        fm.Namespaces = DependencyDraft.CopyBack(fm.Namespaces, ParseNamespaces(_namespacesText).Names);
         if (HasUnsafeOption) fm.AllowUnsafe = _allowUnsafe;
         fm.Connections = Connections.ToList();
         Arguments.ApplyTo(fm);
         return true;
     }
 
-    private static List<string>? CopyBack(List<string>? original, IEnumerable<string> draft)
-    {
-        var values = draft.ToList();
-        if (original is null && values.Count == 0) return null;
-        original ??= [];
-        original.Clear();
-        original.AddRange(values);
-        return original;
-    }
-
     private bool ComputeHasChanges()
     {
         if (_original is not { } fm) return false;
 
-        var originalPackages = fm.Packages?.ToList() ?? [];
-        var packagesChanged = originalPackages.Count != _draftPackages.Count
-                              || originalPackages.Zip(_draftPackages).Any(p =>
-                                  p.First.Key != p.Second.Id || p.First.Value.Version != p.Second.Version);
-
-        return packagesChanged
+        return _draft.DiffersFrom(fm)
                || !(fm.References ?? []).SequenceEqual(References.Select(r => r.Value), StringComparer.Ordinal)
                || !(fm.Namespaces ?? []).SequenceEqual(ParseNamespaces(_namespacesText).Names, StringComparer.Ordinal)
                || (HasUnsafeOption && fm.AllowUnsafe != _allowUnsafe)
@@ -909,8 +878,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
     private void UpdateHasChanges() => HasChanges = ComputeHasChanges();
 
-    private DraftPackage? FindDraft(string id)
-        => _draftPackages.FirstOrDefault(p => string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase));
+    private DraftPackage? FindDraft(string id) => _draft.Find(id);
 
 
     // ── Package actions ────────────────────────────────────────────────────────
@@ -919,22 +887,19 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     // Never adds a second entry differing only by case; re-adding the same package is a no-op.
     private void AddPackage(string id, string? version)
     {
-        if (!HasFrontMatter || string.IsNullOrWhiteSpace(version) || FindDraft(id) is not null) return;
-        _draftPackages.Add(new DraftPackage(id, version.Trim()));
+        if (!HasFrontMatter || !_draft.Add(id, version)) return;
         OnDraftPackagesChanged();
     }
 
     private void UpdatePackage(string id, string? version)
     {
-        if (!HasFrontMatter || string.IsNullOrWhiteSpace(version) || FindDraft(id) is not { } draft) return;
-        draft.Version = version.Trim();
+        if (!HasFrontMatter || !_draft.Update(id, version)) return;
         OnDraftPackagesChanged();
     }
 
     private void RemovePackage(string id)
     {
-        if (!HasFrontMatter || FindDraft(id) is not { } draft) return;
-        _draftPackages.Remove(draft);
+        if (!HasFrontMatter || !_draft.Remove(id)) return;
         OnDraftPackagesChanged();
     }
 
@@ -984,7 +949,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         bool Matches(string id) => filter.Length == 0 || id.Contains(filter, StringComparison.OrdinalIgnoreCase);
 
         var items = new List<PackageListItemViewModel>();
-        foreach (var p in _draftPackages.Where(p => Matches(p.Id)))
+        foreach (var p in _draft.Packages.Where(p => Matches(p.Id)))
         {
             var known = FindOnlineResult(p.Id);
             items.Add(new PackageListItemViewModel(p.Id, p.Version, known?.Description ?? "",
@@ -1018,7 +983,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
             ? null
             : filter.Length > 0
                 ? "No packages in this script or the local cache match the filter."
-                : _draftPackages.Count == 0 && (_cachedPackages?.Count ?? 0) == 0 && LocalError is null
+                : _draft.Packages.Count == 0 && (_cachedPackages?.Count ?? 0) == 0 && LocalError is null
                     ? "This script has no packages and the local package cache is empty."
                     : null;
     }
