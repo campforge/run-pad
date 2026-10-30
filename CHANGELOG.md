@@ -11,9 +11,11 @@ Notable changes in each Invoklet release. Downloads are on the
   windows, desktop packages and documentation.
 - Keep the text and output of only the three most recently used tabs in memory. The other tabs
   keep their window, but their text, output and syntax colouring wait on disk and come back, with
-  unsaved changes, caret, scroll position and output, when you select the tab or save it. A tab
-  that is running, or whose run ended while you were on another tab, keeps its content. A closed
-  Markdown preview is released instead of kept hidden.
+  unsaved changes, caret and scroll position, when you select the tab or save it. A tab that is
+  running, or whose run ended while you were on another tab, keeps its content. A closed Markdown
+  preview is released instead of kept hidden.
+- Keep the output of a script's last run in the script's build folder, next to its library, and
+  show it again when the script is opened.
 
 ### Fixed
 

@@ -240,7 +240,12 @@ public class App : Application
         services.AddSingleton<IWindowService, WindowService>();
         services.AddSingleton<IBuildCacheService, BuildCacheService>();
         services.AddSingleton<IResidencyPolicy, RecentTabsResidencyPolicy>();
-        services.AddSingleton<ITabSpillStore>(_ => TempFileTabSpillStore.ForThisProcess());
+        // Released tab content waits in the session folder of the recovery store, which owns it.
+        services.AddSingleton<ITabSpillStore>(sp =>
+        {
+            var recovery = sp.GetRequiredService<DiskRecoveryStore>();
+            return new SessionSpillStore(() => recovery.SessionFolder);
+        });
         services.AddSingleton<TabLifecycleManager>();
         services.AddSingleton<IPrerequisiteService, PrerequisiteService>();
         services.AddSingleton<ISetupDownloader, SetupDownloader>();
@@ -262,8 +267,9 @@ public class App : Application
         });
 
         services.AddTransient<Windows_MainWindow>();
-        services.AddSingleton<IRecoveryStore>(_ => new DiskRecoveryStore(Path.Combine(
+        services.AddSingleton(_ => new DiskRecoveryStore(Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Invoklet", "recovery", "v1")));
+        services.AddSingleton<IRecoveryStore>(sp => sp.GetRequiredService<DiskRecoveryStore>());
         services.AddSingleton<ISessionSnapshotLoader, DiskSessionSnapshotLoader>();
         services.AddTransient<ISessionRecoveryCoordinator, SessionRecoveryCoordinator>();
         services.AddTransient<MainWindowViewModel>();

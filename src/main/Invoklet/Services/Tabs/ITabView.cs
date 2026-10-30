@@ -12,8 +12,8 @@ internal interface ITabView
     /// <summary>Moves the text and the output to disk. False: nothing was released.</summary>
     bool TryReleaseContent();
 
-    /// <summary>Brings them back. False: they could not be read, and the tab stays released.</summary>
-    bool TryRestoreContent();
+    /// <summary>Brings them back, without holding up the UI. False: they could not be read, and the tab stays released.</summary>
+    Task<bool> TryRestoreContentAsync();
 
     /// <summary>Only the view being looked at colours its text.</summary>
     void SetHighlightingActive(bool active);

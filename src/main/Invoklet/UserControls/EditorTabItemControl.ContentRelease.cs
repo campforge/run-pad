@@ -1,7 +1,9 @@
 using Avalonia.Threading;
 using AvaloniaEdit.Document;
+using Invoklet.Services;
 using Invoklet.Services.Tabs;
 using Invoklet.UserControls.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Invoklet.UserControls;
 
@@ -10,6 +12,7 @@ namespace Invoklet.UserControls;
 public partial class EditorsTabItemControl
 {
     private bool _contentReleased;
+    private Task<bool>? _restoring;
 
     internal ITabSpillStore? SpillStore { get; set; }
 
@@ -19,7 +22,9 @@ public partial class EditorsTabItemControl
     {
         if (_disposed || _contentReleased || HasRunningProcess || SpillStore is not { } store) return false;
         var editor = State.Editor;
-        if (!store.TryWrite(_vm.RecoveryId, new ReleasedContent(editor.Text, CaptureViewState(), CaptureOutput())))
+        // The output of a run waits in the folder of that run; only an output without one goes to the spill.
+        var spilledOutput = SaveRunOutput() ? null : CaptureOutput();
+        if (!store.TryWrite(_vm.RecoveryId, new ReleasedContent(editor.Text, CaptureViewState(), spilledOutput)))
             return false;
 
         var dirty = _vm.IsDirty;
@@ -34,25 +39,90 @@ public partial class EditorsTabItemControl
         return true;
     }
 
-    internal bool TryRestoreContent()
+    /// <summary>
+    /// Brings the text and the output back. The file is read off the UI thread, and the editor stays
+    /// invisible until it is filled, so neither a freeze nor an empty editor is seen. Asked again while it runs,
+    /// it is the same restore.
+    /// </summary>
+    internal Task<bool> TryRestoreContentAsync()
     {
-        if (_disposed || !_contentReleased) return true;
-        if (SpillStore?.TryRead(_vm.RecoveryId) is not { } content) return false;
+        if (_disposed || !_contentReleased) return Task.FromResult(true);
+        if (_restoring is { } running) return running;
+        var restoring = RestoreContentAsync();
+        if (!restoring.IsCompleted) _restoring = restoring;
+        return restoring;
+    }
 
+    private async Task<bool> RestoreContentAsync()
+    {
         var editor = State.Editor;
-        var dirty = _vm.IsDirty;
-        // A script that was saved is read again, so a change made to its file meanwhile is not hidden.
-        var saved = !dirty && FrontMatterSnapshot() == _metadataBaseline && _vm.FilePath is not null;
-        // From here the handlers see the text come back, as they would see a typed one.
-        _contentReleased = false;
-        editor.IsReadOnly = false;
-        editor.Document = new TextDocument(content.Text);
-        if (saved) ReloadFromDisk();
-        else _vm.IsDirty = dirty;
+        editor.Opacity = 0;
+        try
+        {
+            var store = SpillStore;
+            var id = _vm.RecoveryId;
+            var content = store is null ? null : await Task.Run(() => store.TryRead(id));
+            if (_disposed) return false;
+            if (!_contentReleased) return true;
+            if (content is null) return false;
 
-        RestoreOutput(content.Output);
-        RestoreViewState(content.Editor);
-        return true;
+            var dirty = _vm.IsDirty;
+            // A script that was saved is read again, so a change made to its file meanwhile is not hidden.
+            var saved = !dirty && FrontMatterSnapshot() == _metadataBaseline && _vm.FilePath is not null;
+            // From here the handlers see the text come back, as they would see a typed one.
+            _contentReleased = false;
+            editor.IsReadOnly = false;
+            editor.Document = new TextDocument(content.Text);
+            if (saved)
+                KeepTextIfFileIsGone(ReloadFromDisk());
+            else
+                _vm.IsDirty = dirty;
+
+            RestoreOutput(content.Output ?? (State.OutputDirectory is { } folder ? RunOutputFile.TryLoad(folder) : null));
+            RestoreViewState(content.Editor);
+            return true;
+        }
+        finally
+        {
+            _restoring = null;
+            if (_contentReleased) editor.Opacity = 1; // not restored: the empty read-only editor, as the error says
+        }
+    }
+
+    // The file of a saved script was read again and could not give a script of this tab's language: what
+    // the tab showed stays on screen, and it no longer matches a file, so it is unsaved.
+    private void KeepTextIfFileIsGone(DiskReload result)
+    {
+        if (result == DiskReload.Reloaded) return;
+        _vm.IsDirty = true;
+        SetStatus(result == DiskReload.OtherLanguage
+            ? "The file is now in another language; showing the text from before"
+            : "The file could not be read; showing the text from before", "Invoklet.Status.ErrorBrush");
+        UpdateOutputUi();
+    }
+
+    // The output of the last run, beside the library it ran: written when a run ends, and when the content
+    // of the tab is released. False when the tab has no such folder yet.
+    private bool SaveRunOutput()
+    {
+        if (State.OutputDirectory is not { } folder) return false;
+        try
+        {
+            RunOutputFile.Save(folder, CaptureOutput());
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _runLogger.LogWarning("Could not keep the output of a run ({ErrorType})", ex.GetType().Name);
+            return false;
+        }
+    }
+
+    // Shows the output of the last run the script's folder holds, for a tab opened again.
+    private void LoadRunOutput()
+    {
+        if (State.Output.Content.Length > 0 || State.OutputDirectory is not { } folder) return;
+        if (RunOutputFile.TryLoad(folder) is { } output) RestoreOutput(output);
     }
 
     private EditorViewState CaptureViewState()
@@ -71,21 +141,22 @@ public partial class EditorsTabItemControl
 
         // The editor may have no size yet, and a line can only be scrolled to once it has one. It stays
         // invisible until then, so the text is never seen at the top and then jumping.
-        Opacity = 0;
+        editor.Opacity = 0;
         Dispatcher.UIThread.Post(() =>
         {
             if (_disposed) return;
             editor.UpdateLayout();
             ScrollEditorToLine(state.TopLine);
-            Opacity = 1;
+            editor.Opacity = 1;
         }, DispatcherPriority.Loaded);
     }
 
     private TabOutputState CaptureOutput()
         => new(State.Output.Content, State.HadRunError, new Dictionary<string, string>(State.DumpContainerBlocks));
 
-    private void RestoreOutput(TabOutputState output)
+    private void RestoreOutput(TabOutputState? output)
     {
+        if (output is null) return;
         State.Output.Clear();
         State.Output.Append(output.Content);
         State.HadRunError = output.HadRunError;

@@ -1,3 +1,4 @@
+using System.Reactive.Linq;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
@@ -8,6 +9,7 @@ using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
+using Invoklet.Services.Recovery;
 using Invoklet.Services.Tabs;
 using Invoklet.UserControls;
 using Invoklet.UserControls.Models;
@@ -34,9 +36,9 @@ public class EditorTabsControlResidencyTests
     }
 
     private static (EditorTabsControl Tabs, MainWindowViewModel Vm, string Folder, FlakySpill Spill) CreateHarness(
-        Mock<IWindowService>? windowService = null)
+        Mock<IWindowService>? windowService = null, Mock<IBuildCacheService>? buildCache = null, string? folder = null)
     {
-        var folder = Directory.CreateTempSubdirectory("Invoklet-residency-test").FullName;
+        folder ??= Directory.CreateTempSubdirectory("Invoklet-residency-test").FullName;
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
         prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
@@ -52,10 +54,10 @@ public class EditorTabsControlResidencyTests
             new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
         var windows = windowService ?? new Mock<IWindowService>();
         var vm = new MainWindowViewModel([], fileSystem.Object, windows.Object, prefs.Object, new LanguageHostRegistry());
-        var spill = new FlakySpill(new TempFileTabSpillStore(Path.Combine(folder, ".spill")));
+        var spill = new FlakySpill(new SessionSpillStore(() => Path.Combine(folder, ".session")));
         var tabs = new EditorTabsControl(theme.Object, windows.Object,
             new Mock<ILanguageHostRegistry>().WithCSharpIntelliSense(() => new Mock<IIntelliSenseService>().Object),
-            prefs.Object, new Mock<IBuildCacheService>().Object,
+            prefs.Object, (buildCache ?? new Mock<IBuildCacheService>()).Object,
             lifecycle: new TabLifecycleManager(new RecentTabsResidencyPolicy(), spill));
         new Window { Content = tabs }.Show();
         tabs.Attach(vm);
@@ -80,7 +82,13 @@ public class EditorTabsControlResidencyTests
         for (var i = 0; i < count; i++) await AddTabAsync(tabs, vm);
     }
 
-    private static void Select(EditorTabsControl tabs, MainWindowViewModel vm, EditorTabItemViewModel tab) => vm.ActiveTab = tab;
+    // The content is read back off the UI thread: wait until it is there.
+    private static async Task SelectAsync(EditorTabsControl tabs, MainWindowViewModel vm, EditorTabItemViewModel tab)
+    {
+        vm.ActiveTab = tab;
+        await TestWait.WhileAsync(() => !tabs.IsLoadedForTests(tab));
+        await TestWait.SettleAsync(() => Loaded(tabs, vm));
+    }
 
     private static Task<EditorTabItemViewModel> FirstTabAsync(EditorTabsControl tabs, MainWindowViewModel vm)
         => TestWait.WhileAsync(() => vm.Tabs.Count == 0 || tabs.ControlForTests(vm.Tabs[0]) is null).ContinueWith(_ => vm.Tabs[0]);
@@ -114,7 +122,7 @@ public class EditorTabsControlResidencyTests
             await FirstTabAsync(tabs, vm);
             await AddTabsAsync(tabs, vm, 4);
 
-            Select(tabs, vm, vm.Tabs[0]);
+            await SelectAsync(tabs, vm, vm.Tabs[0]);
 
             Assert.True(tabs.IsLoadedForTests(vm.Tabs[0]));
             Assert.False(tabs.IsLoadedForTests(vm.Tabs[2])); // the oldest of the three that were loaded
@@ -154,8 +162,8 @@ public class EditorTabsControlResidencyTests
             await AddTabAsync(tabs, vm);
             Assert.True(tabs.IsLoadedForTests(finished));
 
-            Select(tabs, vm, finished); // the user looks at the result ...
-            foreach (var other in vm.Tabs.Skip(3).Take(3)) Select(tabs, vm, other); // ... and moves on
+            await SelectAsync(tabs, vm, finished); // the user looks at the result ...
+            foreach (var other in vm.Tabs.Skip(3).Take(3)) await SelectAsync(tabs, vm, other); // ... and moves on
 
             Assert.False(tabs.IsLoadedForTests(finished));
         }
@@ -178,7 +186,7 @@ public class EditorTabsControlResidencyTests
             Assert.Equal("", EditorText(tabs, edited)); // it is not held in memory
             Assert.True(edited.IsDirty); // and the tab still shows it as unsaved
 
-            Select(tabs, vm, edited);
+            await SelectAsync(tabs, vm, edited);
 
             Assert.Equal("var unsaved = 1;", EditorText(tabs, edited));
             Assert.True(edited.IsDirty);
@@ -209,7 +217,7 @@ public class EditorTabsControlResidencyTests
             Assert.Equal("", control.State.Output.Content);
             Assert.Equal("a > 0", Assert.Single(editor.Breakpoints).Condition); // the gutter is not released
 
-            Select(tabs, vm, file);
+            await SelectAsync(tabs, vm, file);
 
             Assert.Equal(4, editor.CaretOffset);
             Assert.Equal("<div>result 42</div>", control.State.Output.Content);
@@ -234,7 +242,7 @@ public class EditorTabsControlResidencyTests
             Assert.False(tabs.IsLoadedForTests(file));
 
             File.WriteAllText(path, Script("var changed = 2;\n"));
-            Select(tabs, vm, file);
+            await SelectAsync(tabs, vm, file);
 
             Assert.Contains("var changed = 2;", EditorText(tabs, file));
             Assert.False(file.IsDirty);
@@ -298,7 +306,8 @@ public class EditorTabsControlResidencyTests
             await AddTabsAsync(tabs, vm, 4);
             spill.FailReads = true;
 
-            Select(tabs, vm, edited);
+            vm.ActiveTab = edited;
+            await TestWait.WhileAsync(() => windows.Invocations.Count(i => i.Method.Name == nameof(IWindowService.ShowErrorAsync)) == 0);
 
             windows.Verify(w => w.ShowErrorAsync("Tab Not Loaded", It.IsAny<string>()), Times.Once);
             Assert.False(tabs.IsLoadedForTests(edited));
@@ -307,8 +316,8 @@ public class EditorTabsControlResidencyTests
             Assert.True(control.State.Editor.IsReadOnly);
 
             spill.FailReads = false;
-            Select(tabs, vm, vm.Tabs[1]);
-            Select(tabs, vm, edited);
+            await SelectAsync(tabs, vm, vm.Tabs[1]);
+            await SelectAsync(tabs, vm, edited);
             Assert.Equal("var unsaved = 1;", control.State.Editor.Text); // the next try works
         }
         finally { tabs.Dispose(); Directory.Delete(folder, true); }
@@ -329,10 +338,161 @@ public class EditorTabsControlResidencyTests
             Assert.True(Highlighting(first).IsFrozen);
             Assert.False(Highlighting(second).IsFrozen);
 
-            Select(tabs, vm, first);
+            await SelectAsync(tabs, vm, first);
 
             Assert.False(Highlighting(first).IsFrozen);
             Assert.True(Highlighting(second).IsFrozen);
+        }
+        finally { tabs.Dispose(); Directory.Delete(folder, true); }
+    }
+
+    // A saved script on disk that is edited, and then released by opening more tabs.
+    private static async Task<EditorTabItemViewModel> ReleasedEditedFileAsync(
+        EditorTabsControl tabs, MainWindowViewModel vm, string folder)
+    {
+        var path = Path.Combine(folder, "A.inv");
+        File.WriteAllText(path, Script("var a = 1;\n"));
+        vm.OpenTab(path);
+        await TestWait.WhileAsync(() => vm.Tabs.Count == 0 || tabs.ControlForTests(vm.Tabs[0]) is null || vm.Tabs[0].FilePath is null);
+        var file = vm.Tabs[0];
+        tabs.ControlForTests(file)!.State.Editor.Text = "var edited = 3;\n";
+        await AddTabsAsync(tabs, vm, 4);
+        Assert.False(tabs.IsLoadedForTests(file));
+        return file;
+    }
+
+    [AvaloniaFact]
+    public async Task SaveAs_OfAReleasedEditedTab_Should_WriteItsText_NotAnEmptyEditor()
+    {
+        var windows = new Mock<IWindowService>();
+        var (tabs, vm, folder, _) = CreateHarness(windows);
+        try
+        {
+            var file = await ReleasedEditedFileAsync(tabs, vm, folder);
+            var target = Path.Combine(folder, "B.inv");
+            windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(target);
+
+            await file.SaveAsCommand.Execute();
+
+            Assert.Contains("var edited = 3;", File.ReadAllText(target));
+        }
+        finally { tabs.Dispose(); Directory.Delete(folder, true); }
+    }
+
+    [AvaloniaFact]
+    public async Task Duplicate_OfAReleasedEditedTab_Should_WriteItsText_NotAnEmptyEditor()
+    {
+        var (tabs, vm, folder, _) = CreateHarness();
+        try
+        {
+            var file = await ReleasedEditedFileAsync(tabs, vm, folder);
+            var copy = Path.Combine(folder, "A copy.inv");
+
+            file.DuplicateCommand.Execute().Subscribe();
+            await TestWait.WhileAsync(() => !File.Exists(copy));
+
+            Assert.Contains("var edited = 3;", File.ReadAllText(copy));
+        }
+        finally { tabs.Dispose(); Directory.Delete(folder, true); }
+    }
+
+    [AvaloniaFact]
+    public async Task TheOutputOfARun_Should_WaitInTheFolderOfThatRun_NotInTheSpill()
+    {
+        var folder = Directory.CreateTempSubdirectory("Invoklet-residency-test").FullName;
+        var runFolder = Path.Combine(folder, "run");
+        var cache = new Mock<IBuildCacheService>();
+        cache.Setup(c => c.EnsureOutputDirectory(It.IsAny<string>(), It.IsAny<string>())).Returns(runFolder);
+        var (tabs, vm, _, spill) = CreateHarness(buildCache: cache, folder: folder);
+        try
+        {
+            var path = Path.Combine(folder, "A.inv");
+            File.WriteAllText(path, Script("var a = 1;\n"));
+            vm.OpenTab(path);
+            await TestWait.WhileAsync(() => vm.Tabs.Count == 0 || tabs.ControlForTests(vm.Tabs[0]) is null || vm.Tabs[0].FilePath is null);
+            var file = vm.Tabs[0];
+            var output = tabs.ControlForTests(file)!.State.Output;
+            output.Append("<div>result 42</div>");
+
+            await AddTabsAsync(tabs, vm, 4);
+
+            Assert.True(File.Exists(Path.Combine(runFolder, "run-output.json")));
+            Assert.Null(spill.TryRead(file.RecoveryId)!.Output);
+            Assert.Equal("", output.Content);
+
+            await SelectAsync(tabs, vm, file);
+
+            Assert.Equal("<div>result 42</div>", output.Content);
+        }
+        finally { tabs.Dispose(); Directory.Delete(folder, true); }
+    }
+
+    [AvaloniaFact]
+    public async Task ATabOpenedAgain_Should_ShowTheOutputOfTheLastRunOfItsScript()
+    {
+        var folder = Directory.CreateTempSubdirectory("Invoklet-residency-test").FullName;
+        var runFolder = Path.Combine(folder, "run");
+        RunOutputFile.Save(runFolder, new TabOutputState("<div>old run</div>", true, new Dictionary<string, string>()));
+        var cache = new Mock<IBuildCacheService>();
+        cache.Setup(c => c.EnsureOutputDirectory(It.IsAny<string>(), It.IsAny<string>())).Returns(runFolder);
+        var (tabs, vm, _, _) = CreateHarness(buildCache: cache, folder: folder);
+        try
+        {
+            var path = Path.Combine(folder, "A.inv");
+            File.WriteAllText(path, Script("var a = 1;\n"));
+            vm.OpenTab(path);
+            await TestWait.WhileAsync(() => vm.Tabs.Count == 0 || tabs.ControlForTests(vm.Tabs[0]) is null || vm.Tabs[0].FilePath is null);
+
+            var state = tabs.ControlForTests(vm.Tabs[0])!.State;
+
+            Assert.Equal("<div>old run</div>", state.Output.Content);
+            Assert.True(state.HadRunError);
+        }
+        finally { tabs.Dispose(); Directory.Delete(folder, true); }
+    }
+
+    [AvaloniaFact]
+    public async Task ASavedTabWhoseFileIsGone_Should_KeepItsTextAsUnsaved_WhenSelectedAgain()
+    {
+        var (tabs, vm, folder, _) = CreateHarness();
+        try
+        {
+            var path = Path.Combine(folder, "A.inv");
+            File.WriteAllText(path, Script("var a = 1;\n"));
+            vm.OpenTab(path);
+            await TestWait.WhileAsync(() => vm.Tabs.Count == 0 || tabs.ControlForTests(vm.Tabs[0]) is null || vm.Tabs[0].FilePath is null);
+            var file = vm.Tabs[0];
+            var text = EditorText(tabs, file);
+            await AddTabsAsync(tabs, vm, 4);
+            Assert.False(tabs.IsLoadedForTests(file));
+            File.Delete(path);
+
+            await SelectAsync(tabs, vm, file);
+
+            Assert.Equal(text, EditorText(tabs, file)); // not an empty editor
+            Assert.True(file.IsDirty); // and no longer the file's
+        }
+        finally { tabs.Dispose(); Directory.Delete(folder, true); }
+    }
+
+    [AvaloniaFact]
+    public async Task AskedTwiceWhileItIsBeingRead_Should_RestoreOnce()
+    {
+        var (tabs, vm, folder, _) = CreateHarness();
+        try
+        {
+            var edited = await FirstTabAsync(tabs, vm);
+            tabs.ControlForTests(edited)!.State.Editor.Text = "var unsaved = 1;";
+            await AddTabsAsync(tabs, vm, 4);
+            var control = tabs.ControlForTests(edited)!;
+            Assert.True(control.IsContentReleased);
+
+            var first = control.TryRestoreContentAsync();
+            var second = control.TryRestoreContentAsync();
+
+            Assert.Same(first, second);
+            Assert.True(await first);
+            Assert.Equal("var unsaved = 1;", control.State.Editor.Text);
         }
         finally { tabs.Dispose(); Directory.Delete(folder, true); }
     }

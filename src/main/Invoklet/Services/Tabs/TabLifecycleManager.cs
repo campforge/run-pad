@@ -20,6 +20,7 @@ public sealed class TabLifecycleManager
         public ITabView View { get; } = view;
         public bool UnseenResult { get; set; }
         public IDisposable? RunSubscription { get; set; }
+        public Task? Restoring { get; set; }
     }
 
     private readonly IResidencyPolicy _policy;
@@ -77,15 +78,17 @@ public sealed class TabLifecycleManager
         if (!_entries.TryGetValue(tab, out var entry)) return;
         _policy.Touch(tab);
         entry.UnseenResult = false;
-        Restore(tab, entry);
+        _ = RestoreAsync(tab, entry);
         Rebalance();
     }
 
     /// <summary>Completes once <paramref name="tab"/> has its text again (or once that failed).</summary>
     internal Task EnsureContentAsync(EditorTabItemViewModel tab)
     {
-        if (_entries.TryGetValue(tab, out var entry)) Restore(tab, entry);
-        return Task.CompletedTask;
+        if (!_entries.TryGetValue(tab, out var entry)) return Task.CompletedTask;
+        // Something is using the tab, so it is not one to give up again as soon as its text is back.
+        _policy.Touch(tab);
+        return RestoreAsync(tab, entry);
     }
 
     /// <summary>Releases the content of the tabs the policy gives up and colours only the tab being looked at.</summary>
@@ -103,11 +106,30 @@ public sealed class TabLifecycleManager
             entry.View.SetHighlightingActive(ReferenceEquals(tab, active));
     }
 
-    private void Restore(EditorTabItemViewModel tab, Entry entry)
+    // One restore at a time per tab: selecting it again, or saving it, while its content is being read waits for it.
+    private Task RestoreAsync(EditorTabItemViewModel tab, Entry entry)
     {
-        if (!entry.View.IsContentReleased || entry.View.TryRestoreContent()) return;
-        _logger?.LogWarning("The content of a tab could not be restored");
-        _contentNotRestored?.Invoke(tab);
+        if (!entry.View.IsContentReleased) return Task.CompletedTask;
+        if (entry.Restoring is { } running) return running;
+        var restoring = RestoreCoreAsync(tab, entry);
+        // Not when it already finished: its end has cleared the field, and a stale task would stay.
+        if (!restoring.IsCompleted) entry.Restoring = restoring;
+        return restoring;
+    }
+
+    private async Task RestoreCoreAsync(EditorTabItemViewModel tab, Entry entry)
+    {
+        try
+        {
+            if (await entry.View.TryRestoreContentAsync()) return;
+            _logger?.LogWarning("The content of a tab could not be restored");
+            _contentNotRestored?.Invoke(tab);
+        }
+        finally
+        {
+            entry.Restoring = null;
+            Rebalance();
+        }
     }
 
     private bool IsActive(EditorTabItemViewModel tab) => ReferenceEquals(tab, _activeTab?.Invoke());
