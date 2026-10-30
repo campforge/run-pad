@@ -8,10 +8,17 @@ internal sealed partial class SplashWindow : Window
     private readonly CancellationTokenSource _revealCancellation = new();
 
     // The splash appears only when startup takes longer than this, so a fast start flashes nothing.
-    internal static TimeSpan RevealDelay { get; set; } = TimeSpan.FromMilliseconds(250);
+    internal static readonly TimeSpan DefaultRevealDelay = TimeSpan.FromMilliseconds(250);
 
-    public SplashWindow()
+    private readonly TimeSpan _revealDelay;
+
+    public SplashWindow() : this(DefaultRevealDelay)
     {
+    }
+
+    internal SplashWindow(TimeSpan revealDelay)
+    {
+        _revealDelay = revealDelay;
         InitializeComponent();
         BorderlessWindowChrome.Attach(this, DialogSurface);
         Opacity = 0;
@@ -44,7 +51,7 @@ internal sealed partial class SplashWindow : Window
     {
         try
         {
-            await Task.Delay(RevealDelay, _revealCancellation.Token);
+            await Task.Delay(_revealDelay, _revealCancellation.Token);
             if (IsVisible) Opacity = 1;
         }
         catch (OperationCanceledException) when (_revealCancellation.IsCancellationRequested)
