@@ -108,7 +108,7 @@ public sealed class DebugHoverControllerTests
     [Fact]
     public async Task LoadChildren_ShouldTimeout()
     {
-        var controller = new DebugHoverController();
+        var controller = new DebugHoverController(childTimeout: TimeSpan.FromMilliseconds(30));
         var parent = new Variable("root", "T", "{}", true, 1);
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             controller.LoadChildrenAsync(new BlockingContext(), parent, TestContext.Current.CancellationToken));

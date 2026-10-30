@@ -2243,7 +2243,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     }
 
     // Like the Locals panel's rows (CreateDebugLocal), but members are fetched only while this tip's
-    // stop is current, at most MaxChildren of them and within ChildTimeout.
+    // stop is current, at most MaxChildren of them and within the child timeout.
     private DebugLocal CreateDebugHoverLocal(IVariableInfo variable, IBreakpointHitContext? context,
         CancellationToken token, string? name = null)
     {
