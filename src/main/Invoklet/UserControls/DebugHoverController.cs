@@ -1,8 +1,9 @@
 using Invoklet.Contracts.Models;
+using Invoklet.Services;
 
 namespace Invoklet.UserControls;
 
-internal sealed class DebugHoverController : IDisposable
+internal sealed class DebugHoverController : IDisposable, IDebugHoverSource
 {
     public const int MaxChildren = 100;
     // Hovering evaluates on its own, so it gives up fast; expanding a member is asked for, so it waits longer.

@@ -2182,6 +2182,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // ── Quick Info tooltips on hover ──────────────────────────────────────
         ToolTip.SetShowDelay(editor.TextArea.TextView, 0);
         _quickInfoCts = new CancellationTokenSource();
+        var hoverResolver = new HoverResolver(_debugHover, intelliSense);
 
         _quickInfoPointerMovedHandler = (_, e) =>
         {
@@ -2220,63 +2221,42 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 try
                 {
                     await Task.Delay(QuickInfoHoverDelay, requestCt);
-                    var (offset, text, identifierChars, debugContext, debugLocals) =
-                        await Dispatcher.InvokeAsync(() =>
-                        {
-                            var context = State.CurrentDebugCtx;
-                            return (editor.GetOffsetFromPoint(pos), editor.Text,
-                                editor.IdentifierChars, context, DebugHoverController.Capture(context));
-                        });
-                    if (offset < 0 || ct.IsCancellationRequested) return;
-
-                    var symbol = DebugHoverSymbolExtractor.Extract(text, offset, identifierChars, out var symbolStart);
-                    var debugValue = DebugHoverController.ResolveSnapshot(debugLocals, symbol);
-                    // Snapshot locals are preferred. Only the bounded, identifier/dotted-token policy
-                    // may fall back to DAP evaluation; never send arbitrary editor text.
-                    if (debugValue is null && debugContext is not null &&
-                        ReferenceEquals(debugContext, State.CurrentDebugCtx) && symbol is not null)
-                        debugValue = await _debugHover.EvaluateHoverAsync(debugContext, symbol, requestCt);
-                    if (debugValue is not null)
+                    var (request, debugContext) = await Dispatcher.InvokeAsync(() =>
                     {
-                        if (symbol is null) return;
-                        await Dispatcher.InvokeAsync(() =>
-                        {
-                            if (!_disposed && _debugHover.IsCurrent(debugGeneration) && !ct.IsCancellationRequested &&
-                                ReferenceEquals(debugContext, State.CurrentDebugCtx))
-                            {
-                                _debugTooltipSpan = (symbolStart, symbol.Length);
-                                editor.SetHoverTokenHighlight(symbolStart, symbol.Length,
-                                    ThemeBrush("Invoklet.Editor.HoverHighlightBrush", new SolidColorBrush(Color.FromArgb(55, 90, 140, 210))));
-                                ToolTip.SetTip(editor.TextArea.TextView, null);
-                                ShowDebugValuePopup(editor, symbolStart,
-                                    BuildDebugHoverContent(debugValue!, debugContext, debugToken, symbol));
-                            }
-                        });
-                        return;
-                    }
+                        var context = State.CurrentDebugCtx;
+                        return (new HoverRequest(editor.Text, editor.GetOffsetFromPoint(pos), editor.IdentifierChars, context,
+                            DebugHoverController.Capture(context), squiggleRenderer.Diagnostics,
+                            () => ReferenceEquals(context, State.CurrentDebugCtx)), context);
+                    });
+                    if (request.Offset < 0 || ct.IsCancellationRequested) return;
 
-                    // A diagnostic under the cursor takes priority over Quick Info — seeing why a
-                    // squiggle is there is usually more useful than the symbol's signature.
-                    var diagnostic =
-                        squiggleRenderer.Diagnostics.FirstOrDefault(d =>
-                            offset >= d.StartOffset && offset < d.EndOffset);
-                    var quickInfo = diagnostic is null
-                        ? await intelliSense.GetQuickInfoAsync(text, offset, requestCt)
-                        : null;
+                    var hover = await hoverResolver.ResolveAsync(request, requestCt);
 
                     await Dispatcher.InvokeAsync(() =>
                     {
                         if (_disposed || ct.IsCancellationRequested || !_debugHover.IsCurrent(debugGeneration) ||
                             !ReferenceEquals(debugContext, State.CurrentDebugCtx)) return;
 
-                        // Built here, not above — DisplaySegmentRenderer creates Avalonia controls,
+                        if (hover is DebugValueHover value)
+                        {
+                            _debugTooltipSpan = (value.SymbolStart, value.Symbol.Length);
+                            editor.SetHoverTokenHighlight(value.SymbolStart, value.Symbol.Length,
+                                ThemeBrush("Invoklet.Editor.HoverHighlightBrush", new SolidColorBrush(Color.FromArgb(55, 90, 140, 210))));
+                            ToolTip.SetTip(editor.TextArea.TextView, null);
+                            ShowDebugValuePopup(editor, value.SymbolStart,
+                                BuildDebugHoverContent(value.Value, debugContext, debugToken, value.Symbol));
+                            return;
+                        }
+
+                        // Built here, not in the resolver — DisplaySegmentRenderer creates Avalonia controls,
                         // which must happen on the UI thread, unlike the rest of this background task.
-                        object? content = diagnostic is not null
-                            ? diagnostic.Message
-                            : quickInfo is null
-                                ? null
-                                : DisplaySegmentRenderer.BuildWithSummary(
-                                    quickInfo.Signature, quickInfo.Summary, _themeService.CurrentTheme.Editor.IsDark);
+                        object? content = hover switch
+                        {
+                            DiagnosticHover diagnostic => diagnostic.Message,
+                            QuickInfoHover quickInfo => DisplaySegmentRenderer.BuildWithSummary(
+                                quickInfo.Info.Signature, quickInfo.Info.Summary, _themeService.CurrentTheme.Editor.IsDark),
+                            _ => null,
+                        };
                         ToolTip.SetTip(editor.TextArea.TextView, content);
                     });
                 }
