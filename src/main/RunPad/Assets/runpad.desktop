@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=RunPad
-Comment=C# scratchpad/scripting IDE for .rpad files
-Exec=RunPad %f
-Icon=runpad
-Categories=Development;IDE;
-Terminal=false
-MimeType=text/x-rpad;

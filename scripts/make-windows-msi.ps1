@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Builds RunPad-win-x64.msi end to end (publish + WiX build) for local use - mirrors the CI recipe
+    Builds Invoklet-win-x64.msi end to end (publish + WiX build) for local use - mirrors the CI recipe
     in .github/workflows/dotnet-desktop.yml's build-windows job (installer/windows/Package.wxs), as a
     standalone script so it doesn't have to be pieced back together by hand every time. Unlike
     scripts/make-linux-*.sh/make-macos-app-bundle.sh (which wrap an ALREADY-published output, since CI
@@ -8,7 +8,7 @@
     run directly by a person, not composed into a multi-step CI job.
 
 .PARAMETER OutputPath
-    Directory to write RunPad-win-x64.msi into. Defaults to the repo root.
+    Directory to write Invoklet-win-x64.msi into. Defaults to the repo root.
 
 .PARAMETER SkipPublish
     Reuse whatever is already in publish/win-x64 instead of doing a fresh `dotnet publish` - faster
@@ -18,7 +18,7 @@
 
 .EXAMPLE
     .\scripts\make-windows-msi.ps1
-    Publishes RunPad fresh and writes RunPad-win-x64.msi to the repo root.
+    Publishes Invoklet fresh and writes Invoklet-win-x64.msi to the repo root.
 
 .EXAMPLE
     .\scripts\make-windows-msi.ps1 -SkipPublish
@@ -42,12 +42,12 @@ if (-not (Test-Path $OutputPath)) { New-Item -ItemType Directory -Force -Path $O
 $publishDir = "publish/win-x64"
 
 if (-not $SkipPublish) {
-    Write-Host "==> Publishing RunPad (win-x64, self-contained)..." -ForegroundColor Cyan
+    Write-Host "==> Publishing Invoklet (win-x64, self-contained)..." -ForegroundColor Cyan
     if (Test-Path $publishDir) { Remove-Item -Recurse -Force $publishDir }
-    dotnet publish src/main/RunPad/RunPad.csproj -c Release -r win-x64 --self-contained true -o $publishDir
+    dotnet publish src/main/Invoklet/Invoklet.csproj -c Release -r win-x64 --self-contained true -o $publishDir
     if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed (exit $LASTEXITCODE)" }
-} elseif (-not (Test-Path "$publishDir/RunPad.exe")) {
-    throw "-SkipPublish was passed but $publishDir/RunPad.exe doesn't exist yet - run once without -SkipPublish first."
+} elseif (-not (Test-Path "$publishDir/Invoklet.exe")) {
+    throw "-SkipPublish was passed but $publishDir/Invoklet.exe doesn't exist yet - run once without -SkipPublish first."
 }
 
 # WiX Toolset v5 CLI - installed as a per-user global .NET tool the first time this script runs.
@@ -71,13 +71,13 @@ if (-not ($installedExtensions -match "WixToolset\.UI\.wixext")) {
     if ($LASTEXITCODE -ne 0) { throw "Failed to install the WixToolset.UI.wixext extension (exit $LASTEXITCODE)" }
 }
 
-# Version comes from RunPad.csproj itself - the same source of truth CI reads (via a regex in the
+# Version comes from Invoklet.csproj itself - the same source of truth CI reads (via a regex in the
 # YAML); a real XML parse here since this is PowerShell, not bash.
-[xml]$csprojXml = Get-Content "src/main/RunPad/RunPad.csproj"
+[xml]$csprojXml = Get-Content "src/main/Invoklet/Invoklet.csproj"
 $version = $csprojXml.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
-if (-not $version) { throw "Could not read <Version> from src/main/RunPad/RunPad.csproj" }
+if (-not $version) { throw "Could not read <Version> from src/main/Invoklet/Invoklet.csproj" }
 
-$msiPath = Join-Path $OutputPath "RunPad-win-x64.msi"
+$msiPath = Join-Path $OutputPath "Invoklet-win-x64.msi"
 Write-Host "==> Building $msiPath (version $version)..." -ForegroundColor Cyan
 
 # WiX ships targeting an older net TFM than the SDK version this repo pins - LatestMajor makes sure it
@@ -85,7 +85,7 @@ Write-Host "==> Building $msiPath (version $version)..." -ForegroundColor Cyan
 # runtime also being present (same env var CI sets for the same reason).
 $env:DOTNET_ROLL_FORWARD = "LatestMajor"
 wix build installer/windows/Package.wxs -ext WixToolset.UI.wixext `
-    -d "RunPadVersion=$version" -d "PublishDir=$publishDir" `
+    -d "InvokletVersion=$version" -d "PublishDir=$publishDir" `
     -arch x64 -out $msiPath
 if ($LASTEXITCODE -ne 0) { throw "wix build failed (exit $LASTEXITCODE)" }
 

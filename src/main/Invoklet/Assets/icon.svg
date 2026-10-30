@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="surface" x1="0" y1="0" x2="0.8" y2="1">
+      <stop stop-color="#343E50"/>
+      <stop offset="0.5" stop-color="#232A36"/>
+      <stop offset="1" stop-color="#141923"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0.5" y2="1">
+      <stop stop-color="#77869D" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#77869D" stop-opacity="0.04"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="0.75" y2="1">
+      <stop stop-color="#8AAFFF"/>
+      <stop offset="0.5" stop-color="#5B8CFF"/>
+      <stop offset="1" stop-color="#3D68DF"/>
+    </linearGradient>
+    <linearGradient id="grip" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#8AAFFF"/>
+      <stop offset="0.45" stop-color="#5B8CFF"/>
+      <stop offset="1" stop-color="#365AC3"/>
+    </linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="0.25" y2="1">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="0.45" stop-color="#E8EDF5"/>
+      <stop offset="1" stop-color="#B7C5D9"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FFE8A6"/>
+      <stop offset="1" stop-color="#EDB44D"/>
+    </linearGradient>
+    <filter id="shadow" x="-25%" y="-25%" width="150%" height="160%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="12" stdDeviation="9" flood-color="#080D17" flood-opacity="0.45"/>
+    </filter>
+    <path id="hash" d="M366 580 330 808 M500 580 464 808 M270 640H550 M252 750H532"/>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#surface)"/>
+  <rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="url(#rim)" stroke-width="3"/>
+  <g filter="url(#shadow)">
+    <g fill="none" stroke-width="52" stroke-linecap="round">
+      <use href="#hash" transform="translate(0 8)" stroke="#294896"/>
+      <use href="#hash" stroke="url(#blue)"/>
+    </g>
+    <g transform="translate(595 395) rotate(-45)">
+      <path d="M -30 -98 Q -30 -112 -16 -112 L 16 -112 Q 30 -112 30 -98 L 34 306 Q 34 340 0 340 Q -34 340 -34 306 Z" fill="url(#grip)"/>
+      <path d="M -140 -58 Q -140 -72 -126 -72 L 76 -72 L 160 -36 Q 172 -31 172 -18 L 172 18 Q 172 31 160 36 L 76 72 L -126 72 Q -140 72 -140 58 Z" fill="url(#steel)"/>
+      <path d="M -126 -72 H76 L160 -36 L144 -22 L70 -48 H-116 L-140 -58 Q-140 -72 -126 -72 Z" fill="#FFFFFF" fill-opacity="0.75"/>
+      <path d="M -140 58 L-116 48 H70 L152 20 L172 18 Q172 31 160 36 L76 72 H-126 Q-140 72 -140 58 Z" fill="#8E9FB9" fill-opacity="0.6"/>
+    </g>
+  </g>
+  <g stroke="url(#gold)" stroke-width="26" stroke-linecap="round">
+    <line x1="350" y1="528" x2="300" y2="520"/>
+    <line x1="394" y1="500" x2="350" y2="460" stroke-width="28"/>
+    <line x1="428" y1="488" x2="420" y2="438"/>
+  </g>
+</svg>

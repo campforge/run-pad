@@ -1,0 +1,48 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Invoklet.Windows.AboutWindow"
+        Icon="/Assets/icon.ico"
+        Title="About Invoklet"
+        Width="360"
+        MinWidth="320" MinHeight="180"
+        CanResize="False"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Invoklet.Panel.BackgroundBrush}"
+        Foreground="{DynamicResource Invoklet.Text.PrimaryBrush}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://Invoklet.Avalonia.Themes/Metrics.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+
+    <StackPanel Margin="24" Spacing="{DynamicResource Invoklet.Space.Tight}">
+
+        <!-- A Grid, not a horizontal StackPanel: the text column gets the width that is left, so a
+             long version (it carries the commit) is cut with an ellipsis instead of at the edge. -->
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="0,0,0,12">
+            <Image Grid.Column="0" Source="/Assets/icon.ico" Width="32" Height="32"/>
+            <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center">
+                <TextBlock Text="Invoklet" FontSize="18" FontWeight="Bold"/>
+                <TextBlock x:Name="VersionBlock" FontSize="{DynamicResource Invoklet.Type.Caption}"
+                           TextTrimming="CharacterEllipsis"
+                           Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+            </StackPanel>
+        </Grid>
+
+        <TextBlock Text="A desktop C# scratchpad/scripting IDE." FontSize="{DynamicResource Invoklet.Type.Caption}" TextWrapping="Wrap"/>
+        <TextBlock x:Name="AuthorsBlock" FontSize="{DynamicResource Invoklet.Type.Caption}"
+                   Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}" Margin="0,8,0,0"/>
+        <TextBlock x:Name="CopyrightBlock" FontSize="11"
+                   Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="OK" Width="80" Click="OkButton_Click" IsDefault="True" IsCancel="True"/>
+        </StackPanel>
+
+    </StackPanel>
+
+</Window>

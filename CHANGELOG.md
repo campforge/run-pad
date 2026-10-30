@@ -1,7 +1,58 @@
 # Changelog
 
-Notable changes in each RunPad release. Downloads are on the
-[releases page](https://github.com/campforge/run-pad/releases).
+Notable changes in each Invoklet release. Downloads are on the
+[releases page](https://github.com/tervforge/invoklet/releases).
+
+## [Unreleased]
+
+### Changed
+
+- Refine the application icon with a raised hammer, three sparks and shaded surfaces across
+  windows, desktop packages and documentation.
+- Keep only the three most recently used tabs loaded in memory. The other tabs show just their
+  header and are built again when selected, with their caret, scroll position and breakpoints. A
+  tab that is running, was running while you were elsewhere, or has unsaved changes stays loaded.
+  A closed Markdown preview is released instead of kept hidden.
+
+### Fixed
+
+- Closing a tab or an editor window no longer leaves a background highlighting thread behind.
+
+## [0.10.1] — 2026-10-29
+
+### Changed
+
+- RunPad is now Invoklet, hosted by Tervforge, with a new application icon and updated documentation.
+- The script-format library is now `Invoklet.Format.MdRun`, with `MdRun` model and parser names.
+  Scripts now use the `.inv` extension; the Markdown/YAML document syntax remains unchanged.
+- **Breaking change:** rename existing `.rpad` scripts to `.inv` to use them in the script tree and
+  File → Open. New files, bundled examples and LINQPad conversions use `.inv`.
+- **Breaking change:** assemblies, namespaces, command-line executable and application data paths
+  now use the Invoklet name. Existing settings, recovery sessions and secrets are not automatically
+  migrated from the former RunPad folders. Scripts that explicitly reference `RunPad.Runtime` must
+  use `Invoklet.Runtime` instead.
+- **Breaking change:** environment variables use the `INVOKLET_` prefix: `RUNPAD_SECRETS_FILE` is
+  now `INVOKLET_SECRETS_FILE` and `RUNPAD_WAYLAND` is `INVOKLET_WAYLAND`.
+- On macOS and Linux the Secret Store's values are encrypted with a key kept in the macOS Keychain or
+  the Linux Secret Service, as they already were with DPAPI on Windows; a plain-text store is
+  encrypted when Invoklet starts. Without a Secret Service on Linux they stay plain text, and the
+  Secret Store window says so. A script reads an encrypted store only when Invoklet or the
+  command-line runner starts it.
+- `Util.GetSecret` asks for a secret the Secret Store doesn't have yet, masked, in the input bar,
+  as LINQPad's `Util.GetPassword` does, and Invoklet keeps the answer in the store. Under the
+  debugger and in the command-line runner a missing secret still raises `KeyNotFoundException`.
+- **Breaking change:** `Util.GetPassword(prompt)` is removed. It only asked for masked text and kept
+  nothing, while LINQPad's `Util.GetPassword(name)` reads a saved password: use
+  `Util.GetSecret(name)`, which asks, masked, for a secret it doesn't have and keeps it.
+- `Util.SetSecret(name, value)` saves a secret from a script, as LINQPad's `Util.SetPassword` does.
+  Importing a `.linq` file turns LINQPad's `Util.GetPassword(name)` and `Util.SetPassword(name, value)`
+  into `Util.GetSecret` and `Util.SetSecret`.
+
+### Fixed
+
+- Use the updated application icon in windows, executables and desktop packages.
+- Restore platform-specific window decorations and desktop integration on macOS, Windows and Linux
+  after the application rename.
 
 ## [0.10.0] — 2026-10-28
 
@@ -664,7 +715,7 @@ The first public release.
 
 ### Changed
 
-- RunPad is now developed in the open at [campforge/run-pad](https://github.com/campforge/run-pad),
+- RunPad is now developed in the open at [tervforge/invoklet](https://github.com/tervforge/invoklet),
   with a [roadmap](ROADMAP.md) and a [contributing guide](CONTRIBUTING.md).
 - Every package ships the license texts and `THIRD-PARTY-NOTICES.txt`, which lists every
   third-party component with its license, next to the application.
@@ -679,7 +730,7 @@ The first public release.
 ### Added
 
 - A plain text editor window for configuration and other text files.
-- The [user guide](https://campforge.github.io/run-pad-docs/), with screenshots and downloadable
+- The [user guide](https://tervforge.github.io/invoklet-docs/), with screenshots and downloadable
   examples.
 - The installers show an end-user license agreement.
 
@@ -807,27 +858,28 @@ Even this groundwork showed how large the rest of the changes would be — the d
 features had not been started yet — so writing a new application from scratch turned out to be the
 better choice. RunPad began as DotPad two days after the last commit to the fork.
 
-[0.5.0]: https://github.com/campforge/run-pad/releases/tag/v0.5.0
-[0.4.2]: https://github.com/campforge/run-pad/releases/tag/v0.4.2
-[0.4.1]: https://github.com/campforge/run-pad/releases/tag/v0.4.1
-[0.4.0]: https://github.com/campforge/run-pad/releases/tag/v0.4.0
-[0.3.0]: https://github.com/campforge/run-pad/releases/tag/v0.3.0
-[0.2.0]: https://github.com/campforge/run-pad/releases/tag/v0.2.0
+[0.5.0]: https://github.com/tervforge/invoklet/releases/tag/v0.5.0
+[0.4.2]: https://github.com/tervforge/invoklet/releases/tag/v0.4.2
+[0.4.1]: https://github.com/tervforge/invoklet/releases/tag/v0.4.1
+[0.4.0]: https://github.com/tervforge/invoklet/releases/tag/v0.4.0
+[0.3.0]: https://github.com/tervforge/invoklet/releases/tag/v0.3.0
+[0.2.0]: https://github.com/tervforge/invoklet/releases/tag/v0.2.0
 
-[0.6.0]: https://github.com/campforge/run-pad/releases/tag/v0.6.0
+[0.6.0]: https://github.com/tervforge/invoklet/releases/tag/v0.6.0
 
-[0.7.0]: https://github.com/campforge/run-pad/releases/tag/v0.7.0
+[0.7.0]: https://github.com/tervforge/invoklet/releases/tag/v0.7.0
 
-[0.8.0]: https://github.com/campforge/run-pad/releases/tag/v0.8.0
+[0.8.0]: https://github.com/tervforge/invoklet/releases/tag/v0.8.0
 
-[0.9.0]: https://github.com/campforge/run-pad/releases/tag/v0.9.0
+[0.9.0]: https://github.com/tervforge/invoklet/releases/tag/v0.9.0
 
-[0.9.1]: https://github.com/campforge/run-pad/releases/tag/v0.9.1
+[0.9.1]: https://github.com/tervforge/invoklet/releases/tag/v0.9.1
 
-[0.9.2]: https://github.com/campforge/run-pad/releases/tag/v0.9.2
+[0.9.2]: https://github.com/tervforge/invoklet/releases/tag/v0.9.2
 
-[0.9.3]: https://github.com/campforge/run-pad/releases/tag/v0.9.3
-[0.9.4]: https://github.com/campforge/run-pad/releases/tag/v0.9.4
+[0.9.3]: https://github.com/tervforge/invoklet/releases/tag/v0.9.3
+[0.9.4]: https://github.com/tervforge/invoklet/releases/tag/v0.9.4
 
-[0.10.0]: https://github.com/campforge/run-pad/releases/tag/v0.10.0
-[0.9.5]: https://github.com/campforge/run-pad/releases/tag/v0.9.5
+[0.10.0]: https://github.com/tervforge/invoklet/releases/tag/v0.10.0
+[0.10.1]: https://github.com/tervforge/invoklet/releases/tag/v0.10.1
+[0.9.5]: https://github.com/tervforge/invoklet/releases/tag/v0.9.5

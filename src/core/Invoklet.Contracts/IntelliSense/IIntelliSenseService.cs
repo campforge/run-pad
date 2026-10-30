@@ -1,0 +1,181 @@
+using Invoklet.Contracts.Models;
+using Invoklet.Format.MdRun;
+
+namespace Invoklet.Contracts.IntelliSense;
+
+public interface IIntelliSenseService : IDisposable
+{
+    Task<ICompletionList?> GetCompletionsAsync(
+        string code,
+        int position,
+        CompletionTrigger trigger = default,
+        CancellationToken cancellationToken = default);
+
+    Task<ISignatureHelpResult?> GetSignatureHelpAsync(
+        string code,
+        int position,
+        char? triggerCharacter = null,
+        CancellationToken cancellationToken = default);
+
+    Task<IQuickInfoResult?> GetQuickInfoAsync(
+        string code,
+        int position,
+        CancellationToken cancellationToken = default);
+
+    // Every occurrence of the symbol at position, elsewhere in
+    // the same document (for highlighting them all while the caret sits on one) — null when
+    // position isn't on an identifier that resolves to any symbol.
+    Task<IReadOnlyList<IDocumentHighlightSpan>?> GetDocumentHighlightsAsync(
+        string code,
+        int position,
+        CancellationToken cancellationToken = default);
+
+    // Resolves what an F2 rename at position should do — null
+    // when there's nothing renameable there (not on an identifier, or the symbol isn't declared in
+    // the user's own script — see IRenameInfo).
+    Task<IRenameInfo?> GetRenameInfoAsync(
+        string code,
+        int position,
+        CancellationToken cancellationToken = default);
+
+    // Resolves what F12 at position should do — null when
+    // position isn't on an identifier that resolves to any symbol. See IDefinitionResult for the
+    // in-source-vs-external split.
+    Task<IDefinitionResult?> GetDefinitionAsync(
+        string code,
+        int position,
+        CancellationToken cancellationToken = default);
+
+    // Every implementation (interface member) or
+    // override (abstract/virtual member) of the symbol at position, declared in the script itself —
+    // null when position isn't on an identifier, the symbol isn't implementable/overridable, or no
+    // implementations exist in this script. See IImplementationLocation.
+    Task<IReadOnlyList<IImplementationLocation>?> GetImplementationsAsync(
+        string code,
+        int position,
+        CancellationToken cancellationToken = default);
+
+    // Checks a debugger condition without executing it; names are scoped to the breakpoint position.
+    Task<BreakpointConditionAnalysis?> AnalyzeBreakpointConditionAsync(string code, int position,
+        string expression, CancellationToken cancellationToken = default)
+        => Task.FromResult<BreakpointConditionAnalysis?>(null);
+
+    // Whether a member template (a property, say) fits at the position: inside the braces of a type
+    // that has no members yet. Languages without such templates keep the default.
+    Task<bool> IsEmptyTypeBodyPositionAsync(string code, int position, CancellationToken cancellationToken = default)
+        => Task.FromResult(false);
+
+    // Shared indentation policy for formatting and generated edits; unsupported languages may ignore it.
+    void UpdateIndentation(bool useTabs, int indentationSize) { }
+
+    // Reformats whitespace/indentation using the language's default formatting rules (Roslyn's
+    // Formatter for C#). Returns null on failure or if code is already formatted; the caller keeps
+    // the original text in that case.
+    Task<string?> FormatDocumentAsync(string code, CancellationToken cancellationToken = default);
+
+    // Real Roslyn refactorings (Use
+    // Expression Body, Introduce Local, Reverse For Statement, Invert If, ...) available AT position,
+    // not tied to any diagnostic the way CodeFixesChanged's fixes are — reuses the same ICodeFixInfo
+    // shape rather than a parallel contract type (a CodeAction is a CodeAction either way — see
+    // ICodeFixInfo's own doc comment for why it's just a lightweight candidate descriptor now, not
+    // the materialized fix itself). Pull-based like GetQuickInfoAsync, not push: the caller re-fetches
+    // this on caret move, not on text change — a refactoring's availability depends on WHERE the caret
+    // is, which NotifyTextChanged's background pass has no way to know about. Null on failure; empty
+    // when nothing applies at position.
+    Task<IReadOnlyList<ICodeFixInfo>?> GetRefactoringsAsync(
+        string code,
+        int position,
+        CancellationToken cancellationToken = default);
+
+    // The deferred half of
+    // both CodeFixesChanged's fixes and GetRefactoringsAsync's refactorings (see ICodeFixInfo's own
+    // doc comment for the full rationale): does the actual, expensive work of running the fix/
+    // refactoring provider's document transform and diffing it, for the ONE candidate identified by
+    // key — called only once the user clicks a specific lightbulb menu item, never speculatively.
+    // Null if key no longer resolves to anything (the underlying RoslynCodeFixEngine cache moved on to
+    // a newer computation pass since the candidate was listed — the code changed enough in the
+    // meantime that re-materializing against it wouldn't be meaningful anyway).
+    Task<IMaterializedFix?> MaterializeFixAsync(
+        string code,
+        string key,
+        CancellationToken cancellationToken = default);
+
+    // ReSharper-style "resolve all missing usings" — resolves every
+    // unambiguous unresolved-type diagnostic in the document at once instead of requiring the
+    // lightbulb's "using X;" fix to be accepted one at a time. Reuses IMaterializedFix purely as a
+    // return shape: this never touches the visible text (NewCode is always == the input code), only
+    // UsingsToAdd — the caller applies the result through the exact same path a single fix's
+    // UsingsToAdd already goes through. Never null (unlike MaterializeFixAsync — there's no "stale
+    // key" failure mode here); UsingsToAdd is simply empty if nothing was resolved.
+    Task<IMaterializedFix> ResolveAllMissingUsingsAsync(
+        string code,
+        CancellationToken cancellationToken = default);
+
+    // Fires from a background thread. First arg = the code that produced the diagnostics.
+    event Action<string, IReadOnlyList<IDiagnosticInfo>>? DiagnosticsChanged;
+
+    // Fires from a background thread. First arg = the code that produced the tokens.
+    event Action<string, IReadOnlyList<ISemanticToken>>? SemanticTokensChanged;
+
+    // Fires from a background thread. First arg = the code the fixes were computed against.
+    event Action<string, IReadOnlyList<ICodeFixInfo>>? CodeFixesChanged;
+
+    // Every inferred `var`/`foreach (var ...)` type annotation to render
+    // inline (Rider/VS Code style). Fires from a background thread. First arg = the code the hints
+    // were computed against — same push/debounce pattern as SemanticTokensChanged, not a pull-based
+    // method, since the editor wants this recomputed on every text change the same way.
+    event Action<string, IReadOnlyList<IInlayHint>>? InlayHintsChanged;
+
+    void NotifyTextChanged(string code);
+
+    /// <summary>
+    /// Like <see cref="NotifyTextChanged(string)"/>, for an editor that changes on every keystroke:
+    /// <paramref name="getCode"/> (e.g. reading an immutable document snapshot) is called only for the
+    /// latest notification once the service actually analyzes, off the UI thread — so typing doesn't
+    /// copy the whole document into a string per keystroke. The default just calls it right away.
+    /// </summary>
+    void NotifyTextChanged(Func<string> getCode) => NotifyTextChanged(getCode());
+
+    // Call when the tab's NuGet packages change so IntelliSense sees the new types.
+    void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages);
+
+    /// <summary>
+    /// Like <see cref="UpdatePackageReferences(IReadOnlyDictionary{string, Package})"/>, with where the
+    /// script builds: a service can then use the assemblies its last package restore selected. Call
+    /// again after each build and whenever the packages change. The default ignores the context.
+    /// </summary>
+    void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages, PackageReferenceContext context)
+        => UpdatePackageReferences(packages);
+
+    /// <summary>
+    /// The script's packages and references with where and on what it builds, as a run would ask for
+    /// them (see <see cref="ExecutionRequest"/>): the service interprets the references the way its
+    /// language's build does, so the editor and the build agree. Call on load, after each build,
+    /// when the packages or references change and when the SDK changes.
+    /// </summary>
+    void UpdateExecutionContext(ExecutionRequest request);
+
+    /// <summary>
+    /// <see cref="UpdateExecutionContext"/> for a caller that may ask again before
+    /// the answer is ready: it can run on a worker thread, and a request cancelled by the time its
+    /// slow work is done is dropped (throwing <see cref="OperationCanceledException"/>) rather than
+    /// applied over the newer one. The default applies the request regardless.
+    /// </summary>
+    void ApplyExecutionContext(ExecutionRequest request, CancellationToken cancellationToken)
+        => UpdateExecutionContext(request);
+
+    // Call when the tab's .inv front-matter `namespaces:` list changes (including once at initial
+    // load) so completion/diagnostics/quick-fix ranking see the same global usings the compiler
+    // will add — see IMaterializedFix.UsingsToAdd.
+    void UpdateGlobalUsings(IReadOnlyList<string> usings);
+
+    // Call when the tab's .inv front-matter `kind:` changes (including once at initial load) so live
+    // analysis mirrors the same kind-specific transform the compiler applies before running/debugging
+    // (e.g. MdRunKind.Program's implicit `Main();` call) — otherwise the user's own entry point can be
+    // flagged as unused.
+    void UpdateKind(MdRunKind kind);
+
+    // Turns Invoklet's own analyzers (RPAD… diagnostics) on or off; they are an experimental feature,
+    // off until the host says otherwise. Takes effect on the next analysis pass (NotifyTextChanged).
+    void UpdateInvokletAnalyzers(bool enabled) { }
+}

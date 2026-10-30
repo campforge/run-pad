@@ -1,0 +1,421 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Invoklet.Avalonia.Themes.InvokletTheme">
+    <StyleInclude Source="avares://Invoklet.Avalonia.Themes/Themes/VsCodeDark.axaml" />
+    <StyleInclude Source="avares://Invoklet.Avalonia.Themes/Themes/VsCodeLight.axaml" />
+    <StyleInclude Source="avares://Invoklet.Avalonia.Themes/Themes/RiderDark.axaml" />
+    <StyleInclude Source="avares://Invoklet.Avalonia.Themes/Themes/RiderLight.axaml" />
+    <StyleInclude Source="avares://Invoklet.Avalonia.Themes/Themes/Vs2022Dark.axaml" />
+    <StyleInclude Source="avares://Invoklet.Avalonia.Themes/Themes/Vs2022Light.axaml" />
+    <StyleInclude Source="avares://Invoklet.Avalonia.Themes/Themes/InvokletMidnight.axaml" />
+    <StyleInclude Source="avares://Invoklet.Avalonia.Themes/Themes/InvokletWarmLight.axaml" />
+
+    <Styles.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://Invoklet.Avalonia.Themes/Metrics.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <FocusAdornerTemplate x:Key="Invoklet.Focus.Adorner">
+                <Border Name="FocusRingPrimary"
+                        BorderBrush="{DynamicResource Invoklet.Focus.BorderBrush}"
+                        BorderThickness="{DynamicResource Invoklet.Focus.Thickness}"
+                        CornerRadius="{DynamicResource Invoklet.Focus.CornerRadius}">
+                    <Border Name="FocusRingContrast"
+                            BorderBrush="{DynamicResource Invoklet.Focus.ContrastBrush}"
+                            BorderThickness="{DynamicResource Invoklet.Focus.ContrastThickness}"
+                            CornerRadius="{DynamicResource Invoklet.Focus.InnerCornerRadius}"/>
+                </Border>
+            </FocusAdornerTemplate>
+        </ResourceDictionary>
+    </Styles.Resources>
+
+    <!-- ── DataGrid ─────────────────────────────────────────────────────── -->
+    <Style Selector="DataGrid">
+        <Setter Property="Background"               Value="{DynamicResource Invoklet.Output.BackgroundBrush}"/>
+        <Setter Property="Foreground"               Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush"              Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource Invoklet.Separator.BackgroundBrush}"/>
+        <Setter Property="VerticalGridLinesBrush"   Value="{DynamicResource Invoklet.Separator.BackgroundBrush}"/>
+        <Setter Property="RowBackground"            Value="Transparent"/>
+    </Style>
+
+    <Style Selector="DataGridColumnHeader">
+        <Setter Property="Background"     Value="{DynamicResource Invoklet.Panel.BackgroundBrush}"/>
+        <Setter Property="Foreground"     Value="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+        <Setter Property="SeparatorBrush" Value="{DynamicResource Invoklet.Separator.BackgroundBrush}"/>
+        <Setter Property="FontSize"       Value="{DynamicResource Invoklet.Type.Caption}"/>
+        <Setter Property="MinHeight"      Value="28"/>
+    </Style>
+    <Style Selector="DataGridColumnHeader:pointerover /template/ Grid#PART_ColumnHeaderRoot">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
+    </Style>
+
+    <Style Selector="DataGridRow">
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+        <Setter Property="MinHeight"  Value="24"/>
+    </Style>
+    <Style Selector="DataGridRow:pointerover /template/ Rectangle#BackgroundRectangle">
+        <Setter Property="Fill"    Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="DataGridRow:selected /template/ Rectangle#BackgroundRectangle">
+        <Setter Property="Fill"    Value="{DynamicResource Invoklet.Accent.BackgroundBrush}"/>
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="DataGridRow:selected:pointerover /template/ Rectangle#BackgroundRectangle">
+        <Setter Property="Fill"    Value="{DynamicResource Invoklet.Accent.BackgroundBrush}"/>
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="DataGridRow:selected:focus /template/ Rectangle#BackgroundRectangle">
+        <Setter Property="Fill"    Value="{DynamicResource Invoklet.Accent.BackgroundBrush}"/>
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="DataGridRow:selected:pointerover:focus /template/ Rectangle#BackgroundRectangle">
+        <Setter Property="Fill"    Value="{DynamicResource Invoklet.Accent.BackgroundBrush}"/>
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+
+    <Style Selector="DataGridCell">
+        <Setter Property="Foreground"     Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+        <Setter Property="FontSize"       Value="{DynamicResource Invoklet.Type.Body}"/>
+        <Setter Property="MinHeight"      Value="24"/>
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+
+    <!-- ── TreeView ──────────────────────────────────────────────────────── -->
+    <Style Selector="TreeView">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding"    Value="0"/>
+    </Style>
+    <Style Selector="TreeViewItem">
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+        <Setter Property="Padding"    Value="2,4"/>
+    </Style>
+    <Style Selector="TreeViewItem:pointerover /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <Style Selector="TreeViewItem:selected /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Accent.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="TreeViewItem:selected:pointerover /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Accent.BackgroundBrush}"/>
+    </Style>
+    <!-- On the selected item's own header only: a Foreground on the whole item is inherited by its
+         children's text too. -->
+    <Style Selector="TreeViewItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Accent.ForegroundBrush}"/>
+    </Style>
+
+    <!-- Secondary form actions follow the palette instead of the platform's grey fill. -->
+    <!-- Dialog and form buttons are as tall as the fields beside them; small buttons with a size of
+         their own (icons, tab close, title bar) don't use these classes. -->
+    <Style Selector=":is(Button).primary, :is(Button).secondary, Button[IsDefault=True], Button[IsCancel=True], :is(TextBox), :is(ComboBox), NumericUpDown">
+        <Setter Property="MinHeight" Value="{DynamicResource Invoklet.Size.Control}"/>
+    </Style>
+    <Style Selector=":is(Button).secondary">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Editor.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Invoklet.Radius.Control}"/>
+    </Style>
+    <Style Selector="Button.secondary /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Editor.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="Button.secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <Style Selector="Button.secondary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.BackgroundBrush}"/>
+    </Style>
+    <Style Selector=":is(Button).secondary:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+        <Setter Property="Opacity" Value="0.55"/>
+    </Style>
+
+    <!-- The dropdown presenter starts at x=0 inside the border; an opaque fill hides its left edge. -->
+    <Style Selector=":is(DropDownButton).secondary /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+    </Style>
+    <Style Selector=":is(DropDownButton).secondary:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+    </Style>
+    <Style Selector=":is(DropDownButton).secondary /template/ Border#RootBorder">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Editor.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+    </Style>
+    <Style Selector=":is(DropDownButton).secondary:pointerover /template/ Border#RootBorder">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <Style Selector=":is(DropDownButton).secondary:pressed /template/ Border#RootBorder">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.BackgroundBrush}"/>
+    </Style>
+
+    <!-- All form inputs use the toolbar surface instead of the editor's near-black canvas. This keeps
+         fields legible in every dialog while keyboard focus still has its shared focus ring. -->
+    <Style Selector=":is(TextBox), ComboBox">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Invoklet.Radius.Control}"/>
+    </Style>
+    <!-- NumericUpDown is a ButtonSpinner around an inner TextBox.  Style both layers so its
+         value field and increment/decrement buttons stay on the same surface as other inputs. -->
+    <Style Selector="NumericUpDown">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Invoklet.Radius.Control}"/>
+    </Style>
+    <Style Selector="NumericUpDown /template/ ButtonSpinner">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="NumericUpDown /template/ ButtonSpinner /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="NumericUpDown:pointerover /template/ ButtonSpinner /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <Style Selector="NumericUpDown /template/ ButtonSpinner /template/ RepeatButton /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="NumericUpDown:pointerover /template/ ButtonSpinner /template/ RepeatButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <Style Selector=":is(TextBox):not(:error) /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+    </Style>
+    <!-- Fluent's ComboBox paints hover on its internal Background border, so styling only the
+         control itself leaves the field turning black on pointer-over. Keep all states on our
+         theme surfaces. -->
+    <Style Selector="ComboBox /template/ Border#Background">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="ComboBox:pointerover /template/ Border#Background">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="ComboBox:pressed /template/ Border#Background">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+    </Style>
+
+    <!-- ── Default dialog button ──────────────────────────────────────────── -->
+    <!-- A primary form action can be accented without making Enter save a text field.
+         Default dialog actions share the style; disabled keeps Fluent's own look. -->
+    <Style Selector="Button[IsDefault=True]:not(:disabled) /template/ ContentPresenter#PART_ContentPresenter, Button.primary:not(:disabled) /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background"  Value="{DynamicResource Invoklet.Button.Primary.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Button.Primary.BackgroundBrush}"/>
+        <Setter Property="Foreground"  Value="{DynamicResource Invoklet.Button.Primary.ForegroundBrush}"/>
+    </Style>
+    <Style Selector="Button[IsDefault=True]:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.primary:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background"  Value="{DynamicResource Invoklet.Button.Primary.HoverBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Button.Primary.HoverBrush}"/>
+        <Setter Property="Foreground"  Value="{DynamicResource Invoklet.Button.Primary.ForegroundBrush}"/>
+    </Style>
+    <Style Selector="Button[IsDefault=True]:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter, Button.primary:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background"  Value="{DynamicResource Invoklet.Button.Primary.PressedBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Button.Primary.PressedBrush}"/>
+        <Setter Property="Foreground"  Value="{DynamicResource Invoklet.Button.Primary.ForegroundBrush}"/>
+    </Style>
+
+    <!-- ── Panel seam ──────────────────────────────────────────────────── -->
+    <!-- A one-DIP layout seam with a five-DIP transparent drag target overlapping the adjacent
+         panels. The hit area does not reserve a blank band on either side of the line. -->
+    <Style Selector="GridSplitter.seam">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="ZIndex" Value="10"/>
+        <Setter Property="Template">
+            <ControlTemplate TargetType="GridSplitter">
+                <Panel Background="{TemplateBinding Background}">
+                    <Border x:Name="PART_Line" Background="{DynamicResource Invoklet.Separator.BackgroundBrush}"/>
+                </Panel>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="GridSplitter.seam[ResizeDirection=Columns]">
+        <Setter Property="Width" Value="5"/>
+        <Setter Property="Margin" Value="-2,0"/>
+    </Style>
+    <Style Selector="GridSplitter.seam[ResizeDirection=Rows]">
+        <Setter Property="Height" Value="5"/>
+        <Setter Property="Margin" Value="0,-2"/>
+    </Style>
+    <Style Selector="GridSplitter.seam[ResizeDirection=Columns] /template/ Border#PART_Line">
+        <Setter Property="Width" Value="1"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="GridSplitter.seam[ResizeDirection=Rows] /template/ Border#PART_Line">
+        <Setter Property="Height" Value="1"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <!-- Keep the seam subtle at rest, with a soft accent only while it is being used. -->
+    <Style Selector="GridSplitter.seam:pointerover /template/ Border#PART_Line,
+                    GridSplitter.seam:focus /template/ Border#PART_Line">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+        <Setter Property="Opacity" Value="1"/>
+        <Setter Property="Effect">
+            <DropShadowEffect BlurRadius="5"
+                              Opacity="0.12"
+                              Color="{DynamicResource Invoklet.Tab.AccentColor}"/>
+        </Setter>
+    </Style>
+
+    <!-- One focus geometry for shell controls, including the tree's template focus target.
+         The contrasting inner edge keeps the ring visible on selected rows and primary buttons.
+         Code editors keep their own caret/selection behavior. All dimensions and brushes are theme
+         resources; neither a system accent nor a control's shape decides the focus appearance. -->
+    <Style Selector=":is(Button), :is(ComboBox), NumericUpDown, TabItem, TabStripItem, ListBoxItem, TextBox, TreeViewItem, :is(TreeView), :is(ListBox), GridSplitter, DataGridCell, DataGridColumnHeader">
+        <Setter Property="FocusAdorner" Value="{StaticResource Invoklet.Focus.Adorner}"/>
+    </Style>
+    <Style Selector="TreeViewItem /template/ Border#PART_LayoutRoot">
+        <Setter Property="FocusAdorner" Value="{StaticResource Invoklet.Focus.Adorner}"/>
+    </Style>
+    <Style Selector="ComboBox:focus-visible /template/ Border#HighlightBackground">
+        <Setter Property="IsVisible" Value="False"/>
+    </Style>
+    <!-- DataGrid has its own square focus rectangles in addition to Control.FocusAdorner. -->
+    <Style Selector="DataGridCell:focus /template/ Grid#FocusVisual, DataGridColumnHeader:focus-visible /template/ Grid#FocusVisual">
+        <Setter Property="IsVisible" Value="False"/>
+    </Style>
+    <!-- TextBox normally draws a separate accent border on focus. Keep its ordinary border and
+         caret; keyboard focus is indicated by the same adorner as the other controls. Error borders
+         retain their validation meaning. Pointer focus does not add a keyboard-focus ring. -->
+    <Style Selector="TextBox:focus:not(:error) /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="{Binding $parent[TextBox].BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="{Binding $parent[TextBox].BorderThickness}"/>
+    </Style>
+
+    <!-- ── Panel tabs ─────────────────────────────────────────────────────── -->
+    <!-- Tabs of a panel (Results/Debugger/IL, and the Debugger's own Threads/Locals/…), drawn like
+         the document tabs above the editor: inactive tabs on the panel colour, the selected tab in
+         the colour of its content so the two join, a separator after each tab, the hover brush on
+         hover, no accent line; keyboard focus uses the shared theme ring. TabControl.Background is the
+         content's colour. "nested" is the smaller row inside a panel. -->
+    <Style Selector="TabControl.panel">
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="ItemsPanel">
+            <ItemsPanelTemplate>
+                <WrapPanel Orientation="Horizontal"/>
+            </ItemsPanelTemplate>
+        </Setter>
+        <Setter Property="Template">
+            <ControlTemplate TargetType="TabControl">
+                <DockPanel>
+                    <Border x:Name="PART_Strip" DockPanel.Dock="Top"
+                            Background="{DynamicResource Invoklet.Panel.BackgroundBrush}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}"/>
+                            <ContentPresenter Grid.Column="1" Content="{TemplateBinding Tag}"
+                                              VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                    <Border Background="{TemplateBinding Background}">
+                        <ContentPresenter Name="PART_SelectedContentHost"
+                                          Content="{TemplateBinding SelectedContent}"
+                                          ContentTemplate="{TemplateBinding SelectedContentTemplate}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    </Border>
+                </DockPanel>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="TabControl.panel > TabItem">
+        <Setter Property="FontSize"   Value="{DynamicResource Invoklet.Type.Body}"/>
+        <Setter Property="MinHeight"  Value="{DynamicResource Invoklet.Size.PanelTab}"/>
+        <Setter Property="Height"     Value="28"/>
+        <Setter Property="Padding"    Value="12,0"/>
+        <Setter Property="Margin"     Value="0"/>
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Panel.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+        <Setter Property="Template">
+            <ControlTemplate TargetType="TabItem">
+                <!-- Transparent: the whole tab takes clicks whatever brush the theme supplies. -->
+                <Panel Background="Transparent">
+                    <Border x:Name="Root"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{DynamicResource Invoklet.Separator.BackgroundBrush}"
+                            BorderThickness="0,0,1,0"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter x:Name="PART_ContentPresenter"
+                                          Content="{TemplateBinding Header}"
+                                          ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                </Panel>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="TabControl.panel > TabItem:selected">
+        <Setter Property="Background" Value="{Binding $parent[TabControl].Background}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+    </Style>
+    <Style Selector="TabControl.panel > TabItem:pointerover /template/ Border#Root">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <Style Selector="TabControl.panel.nested > TabItem">
+        <Setter Property="FontSize"  Value="{DynamicResource Invoklet.Type.Caption}"/>
+        <Setter Property="MinHeight" Value="{DynamicResource Invoklet.Size.NestedTab}"/>
+        <Setter Property="Height"    Value="{DynamicResource Invoklet.Size.NestedTab}"/>
+        <Setter Property="Padding"   Value="10,0"/>
+    </Style>
+
+    <!-- Tool-window views are compact selectors, distinct from document tabs. -->
+    <Style Selector="TabControl.panel.tool > TabItem">
+        <Setter Property="Margin" Value="4,3,0,3"/>
+        <Setter Property="Height" Value="{DynamicResource Invoklet.Size.NestedTab}"/>
+        <Setter Property="MinHeight" Value="{DynamicResource Invoklet.Size.NestedTab}"/>
+        <Setter Property="FontSize" Value="{DynamicResource Invoklet.Type.Caption}"/>
+        <Setter Property="Padding" Value="9,0"/>
+    </Style>
+    <Style Selector="TabControl.panel.tool > TabItem /template/ Border#Root">
+        <Setter Property="CornerRadius" Value="{DynamicResource Invoklet.Radius.Control}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+    <Style Selector="TabControl.panel.tool > TabItem:selected">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.ToolTab.SelectedBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.ToolTab.SelectedForegroundBrush}"/>
+    </Style>
+    <Style Selector="TabControl.panel.tool > TabItem:selected /template/ Border#Root">
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.ToolTab.SelectedBorderBrush}"/>
+    </Style>
+
+    <!-- List selections use the same subdued tool-surface treatment as panel tabs instead of the
+         platform's saturated blue fill. Keep the text contrast from the theme. -->
+    <Style Selector="ListBoxItem:selected /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.ToolTab.SelectedBackgroundBrush}"/>
+    </Style>
+    <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.ToolTab.SelectedForegroundBrush}"/>
+    </Style>
+    <!-- Dropdown rows are rounded like menu items (PopupStyles). -->
+    <Style Selector="ComboBoxItem">
+        <Setter Property="CornerRadius" Value="{DynamicResource Invoklet.Radius.Control}"/>
+    </Style>
+    <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+    </Style>
+    <Style Selector="ComboBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.ToolTab.SelectedBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.ToolTab.SelectedForegroundBrush}"/>
+    </Style>
+</Styles>

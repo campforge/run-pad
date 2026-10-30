@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/src/main/RunPad/RunPad.csproj",
+                "${workspaceFolder}/src/main/Invoklet/Invoklet.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -24,7 +24,7 @@
             "args": [
                 "watch",
                 "build",
-                "${workspaceFolder}/src/main/RunPad/RunPad.csproj"
+                "${workspaceFolder}/src/main/Invoklet/Invoklet.csproj"
             ],
             "problemMatcher": "$msCompile"
         }

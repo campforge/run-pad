@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- macOS desktop integration: AppKit's menu bar and Control-click. Invoklet references this
+       project only in macOS builds. -->
+  <PropertyGroup>
+    <RootNamespace>Invoklet.Desktop.MacOS</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Invoklet.Desktop\Invoklet.Desktop.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Invoklet.NonUI.Tests" />
+    <InternalsVisibleTo Include="Invoklet.Runtime.UI.Tests" />
+    <InternalsVisibleTo Include="Invoklet.IntegrationTests" />
+  </ItemGroup>
+</Project>

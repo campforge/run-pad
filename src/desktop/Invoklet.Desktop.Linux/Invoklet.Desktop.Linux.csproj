@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Linux desktop integration: Avalonia's native Wayland back end and the fixes it needs, and
+       KDE window rules. Invoklet references this project only in Linux builds. -->
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Wayland" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Invoklet.Desktop\Invoklet.Desktop.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Invoklet.NonUI.Tests" />
+  </ItemGroup>
+</Project>

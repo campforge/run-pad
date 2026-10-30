@@ -18,13 +18,13 @@ function releaseTag(version)
 function expectedAssetNames(version)
 {
     return [
-        'RunPad-win-x64.zip',
-        'RunPad-win-x64.msi',
-        'RunPad-linux-x64.tar.gz',
-        'RunPad-x86_64.AppImage',
-        `runpad_${version}_amd64.deb`,
-        'RunPad-osx-x64.dmg',
-        'RunPad-osx-arm64.dmg',
+        'Invoklet-win-x64.zip',
+        'Invoklet-win-x64.msi',
+        'Invoklet-linux-x64.tar.gz',
+        'Invoklet-x86_64.AppImage',
+        `invoklet_${version}_amd64.deb`,
+        'Invoklet-osx-x64.dmg',
+        'Invoklet-osx-arm64.dmg',
     ];
 }
 
@@ -32,7 +32,7 @@ function expectedAssetNames(version)
 // it and a different run/commit never mixes its builds into it.
 function ownershipMarker(context)
 {
-    return `<!-- runpad-release source-sha=${context.sha} run-id=${context.runId} -->`;
+    return `<!-- invoklet-release source-sha=${context.sha} run-id=${context.runId} -->`;
 }
 
 // Portable replacement for `grep -oP` (not available in macOS grep).
@@ -41,12 +41,12 @@ function readVersion(csprojText)
     const match = /<Version>([^<]*)<\/Version>/.exec(csprojText);
     if (!match)
     {
-        throw new Error('No <Version> element found in RunPad.csproj.');
+        throw new Error('No <Version> element found in Invoklet.csproj.');
     }
     const version = match[1].trim();
     if (!/^[0-9A-Za-z][0-9A-Za-z.+-]*$/.test(version))
     {
-        throw new Error(`Unexpected <Version> value '${version}' in RunPad.csproj.`);
+        throw new Error(`Unexpected <Version> value '${version}' in Invoklet.csproj.`);
     }
     return version;
 }
@@ -153,8 +153,8 @@ async function tagExists(github, context, tag)
 function versionPublishedError(version)
 {
     return new Error(
-        `RunPad v${version} is already published (release or tag ${releaseTag(version)} exists). ` +
-        'Bump <Version> in src/main/RunPad/RunPad.csproj to release this commit; ' +
+        `Invoklet v${version} is already published (release or tag ${releaseTag(version)} exists). ` +
+        'Bump <Version> in src/main/Invoklet/Invoklet.csproj to release this commit; ' +
         'published releases are never replaced.');
 }
 
@@ -245,7 +245,7 @@ async function prepareDraft({ github, context, core, version, notes })
         repo,
         tag_name: tag,
         target_commitish: context.sha,
-        name: `RunPad ${tag}`,
+        name: `Invoklet ${tag}`,
         body: notes ? `${absolutizeLinks(notes, context)}\n\n${ownershipMarker(context)}` : ownershipMarker(context),
         draft: true,
     });
@@ -363,7 +363,7 @@ async function publishDraft({ github, context, core, releaseId, version })
         target_commitish: context.sha,
         draft: false,
     });
-    core.info(`Published RunPad ${releaseTag(version)} (release ${release.id}).`);
+    core.info(`Published Invoklet ${releaseTag(version)} (release ${release.id}).`);
 }
 
 module.exports = {

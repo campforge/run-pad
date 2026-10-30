@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+      <NoWarn>CS0436;SYSLIB0014</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="./External/Core/Utils/ImageError.png">
+      <LogicalName>TheArtOfDev.HtmlRenderer.Core.Utils.ImageError.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="./External/Core/Utils/ImageLoad.png">
+      <LogicalName>TheArtOfDev.HtmlRenderer.Core.Utils.ImageLoad.png</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,15 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:htmlRenderer="clr-namespace:Invoklet.Avalonia.HtmlRenderer;assembly=Invoklet.Avalonia.HtmlRenderer"
+             x:Class="Invoklet.UserControls.OutputHtmlView">
+
+    <htmlRenderer:HtmlPanel x:Name="OutputHtml"
+                            Background="{DynamicResource Invoklet.Output.BackgroundBrush}">
+        <ToolTip.Tip>
+            <ToolTip BorderBrush="Transparent" Padding="0" ShowDelay="5000">
+                <htmlRenderer:HtmlLabel x:Name="HtmlTooltipLabel"/>
+            </ToolTip>
+        </ToolTip.Tip>
+    </htmlRenderer:HtmlPanel>
+
+</UserControl>

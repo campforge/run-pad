@@ -1,7 +1,0 @@
-Package: runpad
-Version: __VERSION__
-Architecture: amd64
-Maintainer: hobobyte
-Description: C# scratchpad/scripting IDE
- RunPad edits and runs .rpad files: self-documenting Markdown documents
- with a YAML front matter header and one executable C# code block.
