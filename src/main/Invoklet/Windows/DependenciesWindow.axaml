@@ -797,8 +797,8 @@
              and the window's close button ask whether to save pending changes. Save is deliberately
              not IsDefault so Enter in a field never applies the dialog. -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
-                        <Button x:Name="CancelButton" Classes="secondary" Content="Cancel" Width="80" Click="Cancel_Click" IsCancel="True"/>
-            <Button x:Name="OkButton" Classes="primary" Content="Save" Width="80" Click="Ok_Click"
+            <Button x:Name="CancelButton" Classes="secondary" Content="Cancel" MinWidth="{DynamicResource Invoklet.Size.DialogButton}" Click="Cancel_Click" IsCancel="True"/>
+            <Button x:Name="OkButton" Classes="primary" Content="Save" MinWidth="{DynamicResource Invoklet.Size.DialogButton}" Click="Ok_Click"
                     IsEnabled="{Binding CanApply}"/>
         </StackPanel>
     </Grid>

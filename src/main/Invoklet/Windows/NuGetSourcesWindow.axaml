@@ -137,10 +137,10 @@
                            Text="Used by package search and by restore of every script. Invoklet keeps its own NuGet.Config; your global NuGet settings are not changed."/>
             </Expander>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0">
-                <Button x:Name="OkButton" Classes="primary" Content="OK" Width="80"
+                <Button x:Name="OkButton" Classes="primary" Content="OK" MinWidth="{DynamicResource Invoklet.Size.DialogButton}"
                         IsEnabled="{Binding CanSave}"
                         Click="Ok_Click"/>
-                <Button x:Name="CancelButton" Classes="secondary" Content="Cancel" Width="80"
+                <Button x:Name="CancelButton" Classes="secondary" Content="Cancel" MinWidth="{DynamicResource Invoklet.Size.DialogButton}"
                         IsCancel="True"
                         Click="Cancel_Click"/>
             </StackPanel>

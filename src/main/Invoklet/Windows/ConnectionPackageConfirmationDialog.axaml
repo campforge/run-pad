@@ -8,7 +8,7 @@
     <local:DialogLayout x:Name="Layout" Heading="Add connection to script?">
         <local:DialogLayout.Actions>
             <StackPanel Orientation="Horizontal" Spacing="{DynamicResource Invoklet.Space.Control}">
-                <Button Classes="secondary" Content="Cancel" MinWidth="72" Click="Cancel_Click" IsCancel="True"/>
+                <Button Classes="secondary" Content="Cancel" MinWidth="{DynamicResource Invoklet.Size.DialogButton}" Click="Cancel_Click" IsCancel="True"/>
                 <Button Classes="primary" Content="Add Connection and Packages" MinWidth="190" Click="Add_Click" IsDefault="True"/>
             </StackPanel>
         </local:DialogLayout.Actions>

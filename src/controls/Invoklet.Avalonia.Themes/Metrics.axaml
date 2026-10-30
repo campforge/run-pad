@@ -12,6 +12,7 @@
     <!-- One height for a form's buttons and fields (Fluent's TextBox, ComboBox and NumericUpDown
          height), so a row of them lines up. -->
     <x:Double x:Key="Invoklet.Size.Control">32</x:Double>
+    <x:Double x:Key="Invoklet.Size.DialogButton">88</x:Double>
     <x:Double x:Key="Invoklet.Size.ToolbarIcon">16</x:Double>
     <Thickness x:Key="Invoklet.Padding.IconButton">4</Thickness>
     <CornerRadius x:Key="Invoklet.Radius.Control">4</CornerRadius>
