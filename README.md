@@ -106,7 +106,7 @@ folder); its origin and changes are described in
 
 ## License
 
-Copyright (C) 2026 Vadim S ([hobobyte](https://github.com/hobobyte)). Invoklet is licensed under the
+Copyright (C) 2026 Vadim S ([svncore](https://github.com/svncore), <svnpub@proton.me>). Invoklet is licensed under the
 [GNU General Public License v3.0](LICENSE).
 
 The `Invoklet.Runtime` library ([`src/runtime/Invoklet.Runtime`](src/runtime/Invoklet.Runtime)) — the only

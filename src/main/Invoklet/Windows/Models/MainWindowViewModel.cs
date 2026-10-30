@@ -26,21 +26,16 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     private readonly ILogger<MainWindowViewModel> _logger;
     private readonly IRecoveryStore? _recovery;
     private readonly ISessionSnapshotLoader _snapshotLoader;
+    private readonly IDiskOperations _disk;
     private readonly ISessionRecoveryCoordinator? _recoveryCoordinator;
     private readonly bool _recoveryMode;
     private readonly SemaphoreSlim _recoveryGate = new(1);
     private Task? _restoreTask;
     private long _recoveryRevision;
     private bool _recoveryFailed;
-    private readonly HashSet<Task> _workspaceOperations = [];
+    private readonly WorkspaceWork _work = new();
 
-    private Task TrackWorkspaceOperation(Func<Task> operation)
-    {
-        _workspaceOperations.RemoveWhere(task => task.IsCompleted);
-        var task = operation();
-        if (!task.IsCompleted) _workspaceOperations.Add(task);
-        return task;
-    }
+    private Task TrackWorkspaceOperation(Func<Task> operation) => _work.Track(operation);
 
     public bool RestoresDrafts => _recovery is not null && _recoveryMode && !_recoveryFailed;
 
@@ -219,25 +214,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
                 case ExitUnsavedChoice.KeepInStash:
                     return await CheckpointRecoveryCoreAsync();
                 case ExitUnsavedChoice.SaveAll:
-                    foreach (var tab in unsaved)
-                    {
-                        if (!tab.IsDirty || !Tabs.Contains(tab)) continue;
-                        if (tab.FilePath is not null)
-                        {
-                            var result = await SaveInPlaceAsync(tab);
-                            if (result.Status == InPlaceSaveStatus.Cancelled) return false;
-                            if (result.Status == InPlaceSaveStatus.Failed)
-                            {
-                                await _windowService.ShowErrorAsync("Save Failed", result.Error);
-                                return false;
-                            }
-                        }
-                        else
-                        {
-                            await ((IEditorTabActions)this).SaveAsAsync(tab);
-                            if (tab.IsDirty) return false; // Save As was cancelled or failed
-                        }
-                    }
+                    if (!await Unsaved.SaveAllAsync(unsaved, Tabs.Contains)) return false;
                     // The session (which files are open, the active tab) is still kept for the next start.
                     return await CheckpointRecoveryCoreAsync();
                 default:
@@ -284,24 +261,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
 
     // The tabs once every editor exists and no save, Save As or workspace operation is running.
-    private async Task<List<EditorTabItemViewModel>> WaitForPendingWorkAsync(EditorTabItemViewModel? exclude)
-    {
-        var tabs = Tabs.Where(t => t != exclude).ToList();
-        // A closing window must not skip tabs whose per-language editor is still being created.
-        await Task.WhenAll(tabs.Select(t => t.RecoveryReady.Task)).WaitAsync(TimeSpan.FromSeconds(20));
-        // Save As owns path rebasing as well as the write; a snapshot must see both or neither.
-        while (true)
-        {
-            var pending = Tabs.SelectMany(t => new Task?[] { t.PendingSave, t.PendingSaveAs }).OfType<Task>()
-                .Concat(_workspaceOperations).Where(task => !task.IsCompleted).Distinct().ToArray();
-            if (pending.Length == 0) break;
-            await Task.WhenAll(pending);
-        }
-        _workspaceOperations.RemoveWhere(task => task.IsCompleted);
-        tabs = Tabs.Where(t => t != exclude).ToList();
-        await Task.WhenAll(tabs.Select(t => t.RecoveryReady.Task)).WaitAsync(TimeSpan.FromSeconds(20));
-        return tabs;
-    }
+    private Task<List<EditorTabItemViewModel>> WaitForPendingWorkAsync(EditorTabItemViewModel? exclude)
+        => _work.WaitUntilIdleAsync<EditorTabItemViewModel>(
+            () => [.. Tabs], tab => tab != exclude, tab => tab.RecoveryReady.Task, tab => [tab.PendingSave, tab.PendingSaveAs]);
 
     // Debounce for file-watcher-triggered tree refreshes — a single file save/rename can raise
     // several FileSystemWatcher events in quick succession; wait for them to settle before
@@ -727,14 +689,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     private async Task SaveTabAsCoreAsync(EditorTabItemViewModel vm, Action<string> writeToPath)
     {
         var newPath = await _windowService.ShowSaveFileDialogAsync(vm.FileName, _fileSystemService.Folder);
-        if (newPath is null) return; // cancelled
-
-        // An untitled copy of a file (a recovered draft whose file was already open) never replaces
-        // that file, nor a file another tab has open: either would overwrite the other version unasked.
-        var fullPath = Path.GetFullPath(newPath);
-        if ((vm.FilePath is null && vm.RestoredRecovery?.OriginalPath is { } original
-                && string.Equals(Path.GetFullPath(original), fullPath, FilePathComparison))
-            || (_openTabs.TryGetValue(fullPath, out var other) && other != vm))
+        var fullPath = newPath is null ? "" : Path.GetFullPath(newPath);
+        var outcome = TabFilePaths.DecideSaveAs(newPath, vm.FilePath, vm.RestoredRecovery?.OriginalPath,
+            newPath is not null && _openTabs.TryGetValue(fullPath, out var other) && other != vm, FilePathComparison);
+        if (outcome == SaveAsOutcome.Cancelled) return;
+        if (outcome == SaveAsOutcome.Rejected)
         {
             await _windowService.ShowErrorAsync("Save Failed",
                 $"'{Path.GetFileName(newPath)}' has its own version open or is the file this copy was made from. Save the copy to another file.");
@@ -743,7 +702,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
         // Choosing the tab's own file again is an in-place save: the picker's own "replace?" question
         // is about overwriting a file, not about one changed by another program meanwhile.
-        if (vm.FilePath is { } ownPath && string.Equals(Path.GetFullPath(newPath), Path.GetFullPath(ownPath), FilePathComparison))
+        if (outcome == SaveAsOutcome.InPlace)
         {
             var result = await InPlaceSave.CheckAndWriteAsync(vm, _windowService, () => SaveTabAsCoreAsync(vm, writeToPath));
             if (result.Status == InPlaceSaveStatus.Failed)
@@ -782,18 +741,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     {
         if (vm.FilePath is not { } sourcePath) return;
 
-        var dir = Path.GetDirectoryName(sourcePath)!;
-        var baseName = Path.GetFileNameWithoutExtension(sourcePath);
-        var ext = Path.GetExtension(sourcePath);
-
-        string newPath;
-        var i = 1;
-        do
-        {
-            var suffix = i == 1 ? " copy" : $" copy {i}";
-            newPath = Path.Combine(dir, $"{baseName}{suffix}{ext}");
-            i++;
-        } while (File.Exists(newPath));
+        var newPath = TabFilePaths.NextCopyPath(sourcePath, File.Exists);
 
         try
         {
@@ -868,26 +816,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     //   - untitled tab: Save/Don't Save/Cancel, Save opening Save As.
     // Save As only clears IsDirty on success — still dirty means its dialog was cancelled or the
     // write failed, so that's "changed my mind about closing", not closing with the content lost.
-    internal async Task<bool> ResolveUnsavedChangesBeforeCloseAsync(EditorTabItemViewModel vm)
-    {
-        if (!vm.IsDirty) return true;
+    internal Task<bool> ResolveUnsavedChangesBeforeCloseAsync(EditorTabItemViewModel vm)
+        => Unsaved.ResolveBeforeCloseAsync(vm);
 
-        if (vm.FilePath is not null)
-        {
-            // A declined save (the file changed on disk and the user cancelled) stops the close too.
-            var result = await SaveInPlaceAsync(vm);
-            if (result.Status == InPlaceSaveStatus.Saved) return true;
-            if (result.Status == InPlaceSaveStatus.Cancelled) return false;
-            await _windowService.ShowErrorAsync("Save Failed", result.Error);
-        }
-
-        var choice = await ConfirmDiscardUnsavedChangesAsync(vm.FileName);
-        if (choice == UnsavedChangesResult.Cancel) return false;
-        if (choice == UnsavedChangesResult.DontSave) return true;
-
-        await ((IEditorTabActions)this).SaveAsAsync(vm);
-        return !vm.IsDirty;
-    }
+    private UnsavedChangesFlow Unsaved => new(_windowService, SaveInPlaceAsync, ((IEditorTabActions)this).SaveAsAsync);
 
     // Writes a dirty named tab to its own path (the same serializer explicit Save uses, via
     // vm.WriteToFile), asking first if the file changed on disk (InPlaceSave). A clean or untitled tab
@@ -904,19 +836,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // Rename/move/delete flush every affected dirty tab first and abort the whole
     // operation (nothing closed, nothing touched on disk) if any of them can't be written or the
     // user declines to replace a file changed on disk.
-    private async Task<bool> TrySaveTabsBeforeFileOperationAsync(IEnumerable<EditorTabItemViewModel> tabs, string errorTitle)
-    {
-        foreach (var tab in tabs)
-        {
-            var result = await SaveInPlaceAsync(tab);
-            if (result.Status == InPlaceSaveStatus.Saved) continue;
-            if (result.Status == InPlaceSaveStatus.Failed)
-                _ = _windowService.ShowErrorAsync(errorTitle, result.Error);
-            return false;
-        }
-
-        return true;
-    }
+    private Task<bool> TrySaveTabsBeforeFileOperationAsync(IEnumerable<EditorTabItemViewModel> tabs, string errorTitle)
+        => Unsaved.SaveBeforeFileOperationAsync(tabs, errorTitle);
 
     // "File → Import LINQPad Query..." — converts a .linq file (picked via a native
     // Open dialog, so it can live anywhere on disk, not just inside the current workspace folder) to
@@ -1020,132 +941,47 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // so files nested inside it aren't left with a tab open on a path that's about to disappear out
     // from under them (File.Delete/File.Move only ever touch a single file, not a whole subtree, so
     // this has no equivalent in the plain-file case below).
-    private List<KeyValuePair<string, EditorTabItemViewModel>> FindOpenTabsUnder(string folderPath)
-    {
-        var prefix = folderPath + Path.DirectorySeparatorChar;
-        return _openTabs.Where(kv => kv.Key.StartsWith(prefix, FilePathComparison)).ToList();
-    }
-
     // Completes at once unless a tab has to be saved first and the user is asked about it.
-    public Task DeleteFile(string filePath) => TrackWorkspaceOperation(() => DeleteFileCoreAsync(filePath));
-
-    private async Task DeleteFileCoreAsync(string filePath)
-    {
-        // Directory.Exists/File.Delete are NOT interchangeable — File.Delete on a directory path
-        // throws (silently swallowed below, before this fix), so a folder never actually left disk
-        // even though the tree acted like it had.
-        var isDirectory = Directory.Exists(filePath);
-
-        // Affected tabs — the file itself, or (for a folder) every tab nested inside it.
-        // They're flushed first (a failed write aborts the delete) and only closed once the delete
-        // actually succeeded, so a failed delete leaves the very same tabs (editor state included)
-        // open instead of closing and reloading them from disk.
-        var affectedTabs = FindAffectedTabs(filePath, isDirectory);
-        if (!await TrySaveTabsBeforeFileOperationAsync(affectedTabs, "Delete Failed")) return;
-
-        try
-        {
-            if (isDirectory)
-                Directory.Delete(filePath, recursive: true);
-            else
-                File.Delete(filePath);
-        }
-        catch (Exception ex)
-        {
-            // Report instead of the previous silent catch-and-ignore — a failed delete used to leave
-            // the tree acting like the folder/file was gone while it was still on disk, with no way
-            // to tell why.
-            _ = _windowService.ShowErrorAsync(
-                "Delete Failed", $"Could not delete '{Path.GetFileName(filePath)}':\n{ex.Message}");
-            return;
-        }
-
-        foreach (var tab in affectedTabs)
-            CloseTab(tab);
-        FileTree.RemoveByPath(filePath);
-    }
+    public Task DeleteFile(string filePath) => TrackWorkspaceOperation(() => FileOperations.DeleteAsync(filePath));
 
     public Task RenameFile(string filePath, string newName)
-    {
-        // Directory.Exists/File.Move are NOT interchangeable — File.Move on a directory path throws,
-        // so renaming a folder always failed before this fix.
-        // A folder's own name has no extension to preserve (unlike a .inv file's).
-        var isDirectory = Directory.Exists(filePath);
-        var ext = isDirectory ? "" : Path.GetExtension(filePath);
-        var dir = Path.GetDirectoryName(filePath)!;
-        var newFileName = newName + ext;
-        var newPath = Path.Combine(dir, newFileName);
+        => TrackWorkspaceOperation(() => FileOperations.RenameAsync(filePath, newName));
 
-        return MoveOrRenameOnDisk(filePath, newPath, "Rename Failed", "rename", $"to '{newFileName}'");
-    }
-
-    // File tree drag-and-drop — moves a node into a different folder (or the tree's
-    // root, contextPath null), reusing the exact same target-directory resolution CreateFolderAsync/
-    // CreateFileAsync already use (ResolveParentDir) — dropping onto a folder node moves INSIDE it,
-    // onto a file node moves alongside it (same parent), onto empty tree space moves to the root. A
-    // no-op (not an error) if that resolves to the node's own current parent — that's what dropping a
-    // node back onto where it already lives looks like; dropping a folder onto its own descendant is
-    // still a real error (Directory.Move already throws a sensible message for that on its own, no
-    // separate check needed).
+    // File tree drag-and-drop: a node dropped on a folder moves inside it, on a file alongside it, on empty
+    // space to the root of the tree.
     public Task MoveFileOrFolder(string sourcePath, string? contextPath)
+        => TrackWorkspaceOperation(() => FileOperations.MoveAsync(sourcePath, contextPath));
+
+    private FileTreeOperations FileOperations
+        => new(_disk, _windowService, new FileOperationTabs(this), new FileTreeSurface(this), TreePaths);
+
+    // The tabs and the tree as the file operations see them.
+    private sealed class FileOperationTabs(MainWindowViewModel owner) : IFileOperationTabs
     {
-        var targetDir = ResolveParentDir(contextPath);
-        var name = Path.GetFileName(sourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-        var newPath = Path.Combine(targetDir, name);
+        public IReadOnlyList<FileOperationTab> OpenTabs
+            => [.. owner._openTabs.Select(kv => new FileOperationTab(kv.Value, kv.Key))];
 
-        if (string.Equals(Path.GetFullPath(newPath), Path.GetFullPath(sourcePath), StringComparison.Ordinal))
-            return Task.CompletedTask;
+        public string? CurrentPath(FileOperationTab tab)
+            => owner.Tabs.Contains((EditorTabItemViewModel)tab.Handle) ? ((EditorTabItemViewModel)tab.Handle).FilePath : null;
 
-        return MoveOrRenameOnDisk(sourcePath, newPath, "Move Failed", "move", $"into '{Path.GetFileName(targetDir)}'");
-    }
+        public Task<bool> SaveAsync(IReadOnlyList<FileOperationTab> tabs, string errorTitle)
+            => owner.TrySaveTabsBeforeFileOperationAsync(tabs.Select(t => (EditorTabItemViewModel)t.Handle).ToList(), errorTitle);
 
-    // Shared by RenameFile (same directory, new name) and MoveFileOrFolder (new directory, same
-    // name). Affected tab(s) are flushed to the OLD path first (a failed write aborts
-    // the operation), and only closed/reopened at the new path once the move succeeded — a failed
-    // move leaves the very same tabs open rather than closing and reloading them from disk.
-    private Task MoveOrRenameOnDisk(
-        string sourcePath, string newPath, string errorTitle, string errorVerb, string errorDestinationPhrase)
-        => TrackWorkspaceOperation(() => MoveOrRenameCoreAsync(sourcePath, newPath, errorTitle, errorVerb, errorDestinationPhrase));
-
-    private async Task MoveOrRenameCoreAsync(
-        string sourcePath, string newPath, string errorTitle, string errorVerb, string errorDestinationPhrase)
-    {
-        var isDirectory = Directory.Exists(sourcePath);
-
-        var affectedTabs = FindAffectedTabs(sourcePath, isDirectory);
-        if (!await TrySaveTabsBeforeFileOperationAsync(affectedTabs, errorTitle)) return;
-
-        try
+        public void Close(IReadOnlyList<FileOperationTab> tabs)
         {
-            if (isDirectory)
-                Directory.Move(sourcePath, newPath);
-            else
-                File.Move(sourcePath, newPath);
-        }
-        catch (Exception ex)
-        {
-            _ = _windowService.ShowErrorAsync(
-                errorTitle,
-                $"Could not {errorVerb} '{Path.GetFileName(sourcePath)}' {errorDestinationPhrase}:\n{ex.Message}");
-            return;
+            // A tab the user closed while a save was being decided is already gone.
+            foreach (var tab in tabs.Select(t => (EditorTabItemViewModel)t.Handle))
+                if (owner.Tabs.Contains(tab)) owner.CloseTab(tab);
         }
 
-        RefreshNodes();
-
-        var oldPaths = affectedTabs.Select(t => t.FilePath!).ToList();
-        foreach (var tab in affectedTabs)
-            CloseTab(tab);
-        foreach (var oldPath in oldPaths)
-            OpenTab(isDirectory ? Path.Combine(newPath, Path.GetRelativePath(sourcePath, oldPath)) : newPath);
+        public void Open(string path) => owner.OpenTab(path);
     }
 
-    // The tab open on `path` itself plus, for a folder, every tab nested inside it.
-    private List<EditorTabItemViewModel> FindAffectedTabs(string path, bool isDirectory)
+    private sealed class FileTreeSurface(MainWindowViewModel owner) : IFileTreeSurface
     {
-        var tabs = new List<EditorTabItemViewModel>();
-        if (_openTabs.TryGetValue(path, out var tab)) tabs.Add(tab);
-        if (isDirectory) tabs.AddRange(FindOpenTabsUnder(path).Select(kv => kv.Value));
-        return tabs;
+        public void Remove(string path) => owner.FileTree.RemoveByPath(path);
+
+        public void Refresh() => owner.RefreshNodes();
     }
 
     // Creates a new folder next to whatever's selected in the file tree — INSIDE the
@@ -1176,11 +1012,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     }
 
     private string ResolveParentDir(string? contextPath) =>
-        contextPath is null
-            ? _fileSystemService.Folder
-            : Directory.Exists(contextPath)
-                ? contextPath
-                : Path.GetDirectoryName(contextPath) ?? _fileSystemService.Folder;
+        new FileTreePaths(_fileSystemService.Folder, FilePathComparison).ParentFolder(contextPath, contextPath is not null && _disk.IsDirectory(contextPath));
+
+    private FileTreePaths TreePaths => new(_fileSystemService.Folder, FilePathComparison);
 
     public void OpenContainingFolder(string filePath)
     {
@@ -1214,8 +1048,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         ILogger<MainWindowViewModel>? logger = null, IRecoveryStore? recovery = null,
         ConnectionNavigationViewModel? connectionNavigation = null,
         ISessionSnapshotLoader? snapshotLoader = null,
-        ISessionRecoveryCoordinator? recoveryCoordinator = null)
+        ISessionRecoveryCoordinator? recoveryCoordinator = null,
+        IDiskOperations? disk = null)
     {
+        _disk = disk ?? new DiskOperations();
         _fileSystemService = fileSystemService;
         _windowService = windowService;
         _prefs = prefs;

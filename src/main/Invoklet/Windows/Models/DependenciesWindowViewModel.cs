@@ -4,6 +4,7 @@ using System.Reactive.Disposables;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Connections;
 using Invoklet.Format.MdRun;
+using Invoklet.Services;
 using Invoklet.Services.Connections;
 using Invoklet.Services.Secrets;
 using Invoklet.Shared;
@@ -153,12 +154,6 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     // "finished typing"; Enter still searches immediately (SearchNow).
     private static readonly TimeSpan DefaultSearchDebounce = TimeSpan.FromMilliseconds(500);
 
-    private sealed class DraftPackage(string id, string version)
-    {
-        public string Id { get; } = id;
-        public string Version { get; set; } = version;
-    }
-
     private readonly IPackageSearchService _search;
     private readonly ILocalPackageCacheService _cache;
     private readonly INuGetSourceStore _sources;
@@ -166,7 +161,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     private readonly CompositeDisposable _disposables = new();
 
     private MdRunFrontMatter? _original;
-    private readonly List<DraftPackage> _draftPackages = [];
+    private readonly DependencyDraft _draft = new();
     private bool _applied;
     private bool _disposed;
 
@@ -183,12 +178,9 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
     // Every request carries the generation it started in; a late answer from an older generation
     // (even one from a service that ignores its CancellationToken) is dropped.
-    private CancellationTokenSource? _searchCts;
-    private int _searchGeneration;
-    private CancellationTokenSource? _versionsCts;
-    private int _versionsGeneration;
-    private CancellationTokenSource? _detailsCts;
-    private int _detailsGeneration;
+    private readonly LatestRequest _searchRequest = new();
+    private readonly LatestRequest _versionsRequest = new();
+    private readonly LatestRequest _detailsRequest = new();
     // What the sources said about a package version, so going back to one needs no new request;
     // null is also an answer (no source supplies it). Dropped when the sources change.
     private readonly Dictionary<string, PackageDetails?> _detailsCache = new(StringComparer.OrdinalIgnoreCase);
@@ -571,12 +563,11 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
     // Asks the sources about the selected package at the selected version, off the UI thread; an answer
     // for a package or version no longer selected is dropped.
+    private bool IsCurrentDetails(int generation) => !_disposed && _detailsRequest.IsCurrent(generation);
+
     private void LoadDetails()
     {
-        _detailsCts?.Cancel();
-        _detailsCts?.Dispose();
-        _detailsCts = null;
-        var generation = ++_detailsGeneration;
+        var generation = _detailsRequest.Invalidate();
 
         DetailsError = null;
         if (_detailsId is null)
@@ -598,8 +589,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         }
 
         Details = null;
-        _detailsCts = new CancellationTokenSource();
-        PendingDetails = LoadDetailsAsync(id, version, generation, _detailsCts.Token);
+        PendingDetails = LoadDetailsAsync(id, version, generation, _detailsRequest.NewToken());
     }
 
     private async Task LoadDetailsAsync(string id, string? version, int generation, CancellationToken ct)
@@ -617,13 +607,13 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             // The card still works without it; adding the package never waits for this.
-            if (generation != _detailsGeneration || _disposed) return;
+            if (!IsCurrentDetails(generation)) return;
             DetailsError = $"Couldn't load the package details: {ex.Message}";
             IsLoadingDetails = false;
             return;
         }
 
-        if (generation != _detailsGeneration || _disposed) return;
+        if (!IsCurrentDetails(generation)) return;
         _detailsCache[DetailsKey(id, version)] = details;
         Details = details;
         IsLoadingDetails = false;
@@ -750,7 +740,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     {
         Connections = new ScriptConnectionsViewModel(connections, secrets, connectionDrivers, connectionSchemas);
         Connections.UsePackages(
-            () => new HashSet<string>(_draftPackages.Select(p => p.Id), StringComparer.OrdinalIgnoreCase),
+            () => new HashSet<string>(_draft.Packages.Select(p => p.Id), StringComparer.OrdinalIgnoreCase),
             (id, version) => AddPackage(id, version),
             RemovePackage);
         Connections.Edited += UpdateHasChanges;
@@ -821,10 +811,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         _original = fm;
         _applied = false;
 
-        _draftPackages.Clear();
-        if (fm?.Packages is { } packages)
-            foreach (var (id, package) in packages)
-                _draftPackages.Add(new DraftPackage(id, package.Version));
+        _draft.Load(fm);
 
         ResetEntries(References, fm?.References, RemoveReference);
         _namespacesText = fm?.Namespaces is { Count: > 0 } namespaces
@@ -862,44 +849,21 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         if (_disposed || _applied || _original is not { } fm || HasNamespaceError || Arguments.HasError || !ComputeHasChanges()) return false;
         _applied = true;
 
-        var previous = fm.Packages is null
-            ? new Dictionary<string, Package>()
-            : new Dictionary<string, Package>(fm.Packages);
-        var packages = fm.Packages ??= new Dictionary<string, Package>();
-        packages.Clear();
-        foreach (var draft in _draftPackages)
-            packages[draft.Id] = previous.TryGetValue(draft.Id, out var old) && old.Version == draft.Version
-                ? old
-                : new Package(draft.Version);
+        _draft.ApplyTo(fm);
 
-        fm.References = CopyBack(fm.References, References.Select(e => e.Value));
-        fm.Namespaces = CopyBack(fm.Namespaces, ParseNamespaces(_namespacesText).Names);
+        fm.References = DependencyDraft.CopyBack(fm.References, References.Select(e => e.Value));
+        fm.Namespaces = DependencyDraft.CopyBack(fm.Namespaces, ParseNamespaces(_namespacesText).Names);
         if (HasUnsafeOption) fm.AllowUnsafe = _allowUnsafe;
         fm.Connections = Connections.ToList();
         Arguments.ApplyTo(fm);
         return true;
     }
 
-    private static List<string>? CopyBack(List<string>? original, IEnumerable<string> draft)
-    {
-        var values = draft.ToList();
-        if (original is null && values.Count == 0) return null;
-        original ??= [];
-        original.Clear();
-        original.AddRange(values);
-        return original;
-    }
-
     private bool ComputeHasChanges()
     {
         if (_original is not { } fm) return false;
 
-        var originalPackages = fm.Packages?.ToList() ?? [];
-        var packagesChanged = originalPackages.Count != _draftPackages.Count
-                              || originalPackages.Zip(_draftPackages).Any(p =>
-                                  p.First.Key != p.Second.Id || p.First.Value.Version != p.Second.Version);
-
-        return packagesChanged
+        return _draft.DiffersFrom(fm)
                || !(fm.References ?? []).SequenceEqual(References.Select(r => r.Value), StringComparer.Ordinal)
                || !(fm.Namespaces ?? []).SequenceEqual(ParseNamespaces(_namespacesText).Names, StringComparer.Ordinal)
                || (HasUnsafeOption && fm.AllowUnsafe != _allowUnsafe)
@@ -909,8 +873,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
     private void UpdateHasChanges() => HasChanges = ComputeHasChanges();
 
-    private DraftPackage? FindDraft(string id)
-        => _draftPackages.FirstOrDefault(p => string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase));
+    private DraftPackage? FindDraft(string id) => _draft.Find(id);
 
 
     // ── Package actions ────────────────────────────────────────────────────────
@@ -919,22 +882,19 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     // Never adds a second entry differing only by case; re-adding the same package is a no-op.
     private void AddPackage(string id, string? version)
     {
-        if (!HasFrontMatter || string.IsNullOrWhiteSpace(version) || FindDraft(id) is not null) return;
-        _draftPackages.Add(new DraftPackage(id, version.Trim()));
+        if (!HasFrontMatter || !_draft.Add(id, version)) return;
         OnDraftPackagesChanged();
     }
 
     private void UpdatePackage(string id, string? version)
     {
-        if (!HasFrontMatter || string.IsNullOrWhiteSpace(version) || FindDraft(id) is not { } draft) return;
-        draft.Version = version.Trim();
+        if (!HasFrontMatter || !_draft.Update(id, version)) return;
         OnDraftPackagesChanged();
     }
 
     private void RemovePackage(string id)
     {
-        if (!HasFrontMatter || FindDraft(id) is not { } draft) return;
-        _draftPackages.Remove(draft);
+        if (!HasFrontMatter || !_draft.Remove(id)) return;
         OnDraftPackagesChanged();
     }
 
@@ -984,7 +944,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         bool Matches(string id) => filter.Length == 0 || id.Contains(filter, StringComparison.OrdinalIgnoreCase);
 
         var items = new List<PackageListItemViewModel>();
-        foreach (var p in _draftPackages.Where(p => Matches(p.Id)))
+        foreach (var p in _draft.Packages.Where(p => Matches(p.Id)))
         {
             var known = FindOnlineResult(p.Id);
             items.Add(new PackageListItemViewModel(p.Id, p.Version, known?.Description ?? "",
@@ -1018,7 +978,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
             ? null
             : filter.Length > 0
                 ? "No packages in this script or the local cache match the filter."
-                : _draftPackages.Count == 0 && (_cachedPackages?.Count ?? 0) == 0 && LocalError is null
+                : _draft.Packages.Count == 0 && (_cachedPackages?.Count ?? 0) == 0 && LocalError is null
                     ? "This script has no packages and the local package cache is empty."
                     : null;
     }
@@ -1196,25 +1156,22 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         RebuildOnline();
     }
 
-    private bool IsCurrentSearch(int generation) => !_disposed && generation == _searchGeneration;
+    private bool IsCurrentSearch(int generation) => !_disposed && _searchRequest.IsCurrent(generation);
 
     // Cancels the pending search and makes any late answer from it stale, even from a service
     // that ignores the token.
-    private void InvalidateSearch()
+    private int InvalidateSearch()
     {
-        _searchCts?.Cancel();
-        _searchCts?.Dispose();
-        _searchCts = null;
-        ++_searchGeneration;
+        var generation = _searchRequest.Invalidate();
         IsSearching = false;
         PendingSearch = Task.CompletedTask;
+        return generation;
     }
 
     // A new query, source or prerelease setting starts again from the first page.
     private void TriggerSearch(bool immediate, bool resetPage = true)
     {
-        InvalidateSearch();
-        var generation = _searchGeneration;
+        var generation = InvalidateSearch();
         if (resetPage)
             _skip = 0;
 
@@ -1230,8 +1187,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         }
 
         var options = new PackageSearchOptions(SelectedSourceOption.SourceName, IncludePrerelease, _skip);
-        _searchCts = new CancellationTokenSource();
-        PendingSearch = SearchAsync(query, options, generation, immediate, _searchCts.Token);
+        PendingSearch = SearchAsync(query, options, generation, immediate, _searchRequest.NewToken());
     }
 
     private async Task SearchAsync(string query, PackageSearchOptions options, int generation, bool immediate,
@@ -1382,14 +1338,11 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         this.RaisePropertyChanged(nameof(SelectedVersion));
     }
 
-    private bool IsCurrentVersions(int generation) => !_disposed && generation == _versionsGeneration;
+    private bool IsCurrentVersions(int generation) => !_disposed && _versionsRequest.IsCurrent(generation);
 
     private void LoadVersions()
     {
-        _versionsCts?.Cancel();
-        _versionsCts?.Dispose();
-        _versionsCts = null;
-        var generation = ++_versionsGeneration;
+        var generation = _versionsRequest.Invalidate();
 
         VersionsError = null;
         if (_detailsId is null)
@@ -1399,8 +1352,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        _versionsCts = new CancellationTokenSource();
-        PendingVersions = LoadVersionsAsync(_detailsId, generation, _versionsCts.Token);
+        PendingVersions = LoadVersionsAsync(_detailsId, generation, _versionsRequest.NewToken());
     }
 
     private async Task LoadVersionsAsync(string id, int generation, CancellationToken ct)
@@ -1518,15 +1470,9 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         if (_disposed) return;
         _disposed = true;
 
-        _searchCts?.Cancel();
-        _searchCts?.Dispose();
-        _searchCts = null;
-        _versionsCts?.Cancel();
-        _versionsCts?.Dispose();
-        _versionsCts = null;
-        _detailsCts?.Cancel();
-        _detailsCts?.Dispose();
-        _detailsCts = null;
+        _searchRequest.Dispose();
+        _versionsRequest.Dispose();
+        _detailsRequest.Dispose();
 
         foreach (var entry in References)
             entry.RemoveCommand.Dispose();

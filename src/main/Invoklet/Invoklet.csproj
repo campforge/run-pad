@@ -6,10 +6,10 @@
     <ApplicationIcon>Assets/icon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <Product>Invoklet</Product>
-    <Version>0.10.3</Version>
-    <Authors>hobobyte</Authors>
-    <Company>hobobyte</Company>
-    <Copyright>© 2026 Vadim S (hobobyte)</Copyright>
+    <Version>0.10.4</Version>
+    <Authors>svncore</Authors>
+    <Company>svncore</Company>
+    <Copyright>© 2026 Vadim S (svncore)</Copyright>
     <!-- AVLN3001: XAML controls using constructor DI have no public ctor — expected pattern -->
     <NoWarn>$(NoWarn);AVLN3001</NoWarn>
   </PropertyGroup>

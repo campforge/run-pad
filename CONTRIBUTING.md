@@ -4,6 +4,7 @@ Thanks for helping. Bug reports, ideas, documentation fixes and code are all wel
 ideas as [GitHub issues](https://github.com/tervforge/invoklet/issues) — for a bug, include your OS,
 the Invoklet version (Help → About Invoklet), `dotnet --list-sdks` and the smallest `.inv` script that
 shows the problem. For anything larger than a small fix, open an issue first and agree on the approach.
+For what does not belong in a public issue, write to svnpub@proton.me.
 
 ## Getting started
 
