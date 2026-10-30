@@ -1897,7 +1897,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             foreach (var item in result.Items)
             {
                 var activeParameter = item.Parameters.ElementAtOrDefault(item.ActiveParameterIndex);
-                var content = BuildOverloadContentText(item.Summary, activeParameter);
+                var content = OverloadDescription.Of(item.Summary, activeParameter);
                 e.Overloads.Add((
                     DisplaySegmentRenderer.BuildParameterInfoSignature(item.Signature, isDark, maxWidth, charWidth),
                     content is null ? null : new TextBlock { Text = content, TextWrapping = TextWrapping.Wrap, MaxWidth = maxWidth }));
@@ -2285,18 +2285,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.FoldingStrategy = profile.FoldingRegionsProvider is { } computeFoldRegions
             ? new DelegateFoldingStrategy(computeFoldRegions)
             : new BraceFoldingStrategy();
-    }
-
-    // The signature-help header already shows the full (syntax-highlighted) signature with the
-    // active parameter bolded, so the content area below it only needs the descriptive text: the
-    // method's own summary plus the active parameter's own <param> doc, LINQPad/VS Code-style.
-    private static string? BuildOverloadContentText(string? methodSummary, ISignatureHelpParameter? activeParameter)
-    {
-        var parts = new List<string>();
-        if (!string.IsNullOrEmpty(methodSummary)) parts.Add(methodSummary);
-        if (!string.IsNullOrEmpty(activeParameter?.Summary))
-            parts.Add($"{activeParameter.Name}: {activeParameter.Summary}");
-        return parts.Count == 0 ? null : string.Join("\n\n", parts);
     }
 
     // A script of this tab is running or being debugged: its control, its host and its debug session
