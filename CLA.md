@@ -2,7 +2,7 @@
 
 Version 1.0
 
-This agreement is between you and Vadim S (GitHub: [hobobyte](https://github.com/hobobyte); email: svnpub@proton.me), the
+This agreement is between you and Vadim S (GitHub: [svncore](https://github.com/svncore); email: svnpub@proton.me), the
 maintainer and copyright holder of Invoklet ("the maintainer"). It covers everything you submit to
 Invoklet — code, documentation or other material — through pull requests, issues or otherwise
 ("your contributions").

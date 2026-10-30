@@ -13,8 +13,8 @@
     <!-- MIT, unlike the rest of Invoklet (GPL-3.0): this library is compiled into and shipped with users'
          own scripts, so it must not put them under the GPL. See LICENSE in this folder. The copyright
          string is embedded in Invoklet.Runtime.dll, so the notice travels with every copy. -->
-    <Authors>Vadim S (hobobyte)</Authors>
-    <Copyright>Copyright (c) 2026 Vadim S (hobobyte). Licensed under the MIT License.</Copyright>
+    <Authors>Vadim S (svncore)</Authors>
+    <Copyright>Copyright (c) 2026 Vadim S (svncore). Licensed under the MIT License.</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RootNamespace>Invoklet.Runtime</RootNamespace>
   </PropertyGroup>

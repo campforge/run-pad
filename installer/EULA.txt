@@ -1,6 +1,6 @@
 Invoklet - End-User License Agreement
 
-Copyright (C) 2026 Vadim S (hobobyte), svnpub@proton.me
+Copyright (C) 2026 Vadim S (svncore), svnpub@proton.me
 
 Please read this agreement before installing or using Invoklet.
 

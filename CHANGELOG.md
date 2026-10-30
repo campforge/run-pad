@@ -876,7 +876,7 @@ The first public release.
 ## Before that
 
 The first plan was to extend RoslynPad rather than start from scratch: a
-[fork of RoslynPad](https://github.com/hobobyte/roslynpad) was meant to gain a debugger and the
+[fork of RoslynPad](https://github.com/svncore/roslynpad) was meant to gain a debugger and the
 other features RunPad has today. The work in the fork, in April 2024, prepared the ground:
 
 - removed the Windows-only WPF front end (its editor, dialogs and glyphs), keeping only the
