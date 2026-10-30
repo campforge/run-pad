@@ -91,6 +91,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private string? _filePath;
     // The last file WriteFile wrote an .inv document to, and the document ID written there.
     private (string Path, Guid Id)? _writtenId;
+    private readonly ScriptDocumentWriter _documentWriter = new();
     private IDisposable? _selectedSdkSub;
     private IDisposable? _selectedArgumentSetSub;
     private bool _syncingArgumentSet;
@@ -420,56 +421,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         // The editor is empty while its text is on disk: writing it would replace the script with nothing.
         if (_contentReleased) throw new IOException("The text of this tab is not loaded.");
-        byte[] bytes;
-        if (State.MdRunDocument is { } rpad)
-        {
-            rpad.RunCode = State.Editor.Text;
-            // The document's identity: its own file keeps it, and a file written before IDs gets one
-            // here. Another file (Save As, Duplicate) is a separate document with a new ID, which the
-            // tab takes only once it really moved there (OnFilePathChanged) — Duplicate never moves it,
-            // and a failed Save As leaves it as it was.
-            var id = rpad.FrontMatter.Id;
-            if (string.Equals(path, _vm.FilePath, StringComparison.Ordinal))
-                id = rpad.FrontMatter.Id ??= Guid.NewGuid();
-            else
-                rpad.FrontMatter.Id = Guid.NewGuid();
-            // A script written to another folder (Save As) gets its relative references rewritten so
-            // they still reach the same files; the tab adopts them only once it really moved there
-            // (OnFilePathChanged) — a cancelled or failed Save As leaves its references as they were.
-            var references = rpad.FrontMatter.References;
-            if (references is not null && RebasedReferences(references, _vm.ReferenceAnchorPath, path) is { } rebased)
-                rpad.FrontMatter.References = rebased;
-            try
-            {
-                // As File.WriteAllText(path, text, Encoding.UTF8) did: with the UTF-8 byte order mark.
-                bytes = [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(MdRunWriter.Write(rpad))];
-            }
-            finally
-            {
-                rpad.FrontMatter.References = references;
-                _writtenId = (path, rpad.FrontMatter.Id!.Value);
-                rpad.FrontMatter.Id = id;
-            }
-        }
-        else
-        {
-            // As File.WriteAllText(path, text) did: UTF-8 without a byte order mark.
-            bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(State.Editor.Text);
-        }
-        File.WriteAllBytes(path, bytes);
-        _vm.LastWrite = (path, ScriptFileState.Of(bytes));
-    }
-
-    // The references as written for the script saved at newPath instead of oldPath (its own file, or
-    // the one an untitled copy was made from), or null if nothing changes (same folder, an untitled
-    // tab whose relative references had no folder yet, or nothing relative).
-    private static List<string>? RebasedReferences(List<string> references, string? oldPath, string newPath)
-    {
-        if (oldPath is null) return null;
-        var oldDirectory = Path.GetDirectoryName(Path.GetFullPath(oldPath))!;
-        var newDirectory = Path.GetDirectoryName(Path.GetFullPath(newPath))!;
-        var rebased = references.Select(r => ReferencePath.Rebase(r, oldDirectory, newDirectory, OperatingSystem.IsWindows())).ToList();
-        return rebased.SequenceEqual(references, StringComparer.Ordinal) ? null : rebased;
+        var written = _documentWriter.Serialize(State.MdRunDocument, State.Editor.Text, path, _vm.FilePath, _vm.ReferenceAnchorPath);
+        if (written.DocumentId is { } id) _writtenId = (path, id);
+        File.WriteAllBytes(path, written.Bytes);
+        _vm.LastWrite = (path, ScriptFileState.Of(written.Bytes));
     }
 
     // Save As rebinds the tab to its new file: the references written there become its own, and
@@ -485,7 +440,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var anchor = oldPath ?? _vm.RestoredRecovery?.OriginalPath;
         if (anchor is not null
             && State.MdRunDocument?.FrontMatter is { References: { } references } frontMatter
-            && RebasedReferences(references, anchor, newPath) is { } rebased)
+            && _documentWriter.RebasedReferences(references, anchor, newPath) is { } rebased)
         {
             frontMatter.References = rebased;
             _metadataBaseline = FrontMatterSnapshot();
