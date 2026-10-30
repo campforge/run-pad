@@ -288,4 +288,18 @@ public class QuickOpenDialogTests
         Assert.NotNull(modified);
         Assert.Equal("sales", folder);
     }
+
+    [AvaloniaFact]
+    public async Task CancelAndOpen_Should_NotTouch()
+    {
+        double gap = 0;
+        await UseAsync(d =>
+        {
+            var cancel = d.GetLogicalDescendants().OfType<Button>().Single(b => (string?)b.Content == "Cancel");
+            var open = d.FindControl<Button>("OpenButton")!;
+            gap = open.Bounds.Left - cancel.Bounds.Right;
+        });
+
+        Assert.True(gap >= 8, $"the buttons are {gap} px apart");
+    }
 }

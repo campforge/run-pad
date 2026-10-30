@@ -123,7 +123,7 @@
                         Click="CancelButton_Click"
                         IsCancel="True"/>
                 <Button x:Name="OpenButton" Grid.Column="4" Classes="primary" Content="Open"
-                        Margin="{DynamicResource Invoklet.Space.ControlLeft}"
+                        Margin="8,0,0,0"
                         MinWidth="{DynamicResource Invoklet.Size.DialogButton}"
                         Click="OpenButton_Click"
                         IsDefault="True"/>
