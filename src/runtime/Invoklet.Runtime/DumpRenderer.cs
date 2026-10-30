@@ -46,6 +46,13 @@ internal static class DumpRenderer
             return;
         }
 
+        // Util.Highlight, WithStyle and WithHeading: the value is rendered as it would be alone, at the same depth.
+        if (value is DumpWrapper wrapper)
+        {
+            RenderWrapper(sb, wrapper, depth, options);
+            return;
+        }
+
         var type = value.GetType();
 
         if (IsPrimitiveLike(type))
@@ -89,6 +96,29 @@ internal static class DumpRenderer
         }
 
         RenderObject(sb, value, type, depth, options);
+    }
+
+    private static void RenderWrapper(StringBuilder sb, DumpWrapper wrapper, int depth, DumpOptions options)
+    {
+        var inner = new StringBuilder();
+        RenderValue(inner, wrapper.Value, depth, options);
+
+        if (wrapper.HasHeading)
+        {
+            sb.Append("<div class=\"dp-headed\"><div class=\"dp-heading\">");
+            if (wrapper.Heading is string text) sb.Append(Encode(text));
+            else RenderValue(sb, wrapper.Heading, depth, options);
+            sb.Append("</div>").Append(inner).Append("</div>");
+            return;
+        }
+
+        // Around text a span keeps the line; around a table or a block, only a div can hold it.
+        var html = inner.ToString();
+        var block = html.Contains("<table") || html.Contains("<div") || html.Contains("<details");
+        var tag = block ? "div" : "span";
+        sb.Append('<').Append(tag).Append(" class=\"").Append(wrapper.CssClass).Append('"');
+        if (wrapper.Style is { } style) sb.Append(" style=\"").Append(Encode(style)).Append('"');
+        sb.Append('>').Append(html).Append("</").Append(tag).Append('>');
     }
 
     // void, not string — every call site invokes this as a statement, and materializing outer's

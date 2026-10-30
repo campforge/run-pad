@@ -164,4 +164,38 @@ public class DumpHtmlSpectreRendererTests
         Assert.Contains("Working", output);
         Assert.Contains("70%", output);
     }
+
+    [Fact]
+    public void Render_Should_KeepTheTextOfAHighlight()
+    {
+        var output = RenderToText("<span class=\"dp-highlight\"><span class=\"dp-number\">42</span></span>");
+
+        Assert.Contains("42", output);
+    }
+
+    [Fact]
+    public void Render_Should_ShowTheContentOfAHighlightedPlainText()
+    {
+        var output = RenderToText("<span class=\"dp-highlight\">marked</span>");
+
+        Assert.Contains("marked", output);
+    }
+
+    [Fact]
+    public void Render_Should_ShowTheHeadingAboveTheValue()
+    {
+        var output = RenderToText("<div class=\"dp-headed\"><div class=\"dp-heading\">Totals</div><span class=\"dp-number\">5</span></div>");
+
+        Assert.Contains("Totals", output);
+        Assert.Contains("5", output);
+        Assert.True(output.IndexOf("Totals", StringComparison.Ordinal) < output.IndexOf('5'));
+    }
+
+    [Fact]
+    public void Render_Should_PassAStyledWrapperThroughToItsContent()
+    {
+        var output = RenderToText("<span class=\"dp-styled\" style=\"color:red\"><span class=\"dp-string\">&quot;hi&quot;</span></span>");
+
+        Assert.Contains("hi", output);
+    }
 }

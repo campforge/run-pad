@@ -33,6 +33,9 @@ public static class HtmlThemeStylesheet
         var dpDate = GetColor("Invoklet.Dump.DateTimeBrush", variant, isDark ? "#C8A0D4" : "#7B3FA0");
         var dpProp = GetColor("Invoklet.Dump.PropertyNameBrush", variant, isDark ? "#9CDCFE" : "#0F4A8A");
         var dpDumpBg = isDark ? "rgba(255,255,255,0.02)" : "transparent";
+        // A highlight is a marker pen: yellow with black text in every theme, so it reads the same on a dark and a light panel.
+        var highlightBg = isDark ? "#E6C84A" : "#FFF176";
+        const string highlightFg = "#000000";
 
         // The HTML renderer has no overflow-wrap, so break-all is what lets a single long token fit.
         var preWrap = wrapLongLines ? " white-space:pre-wrap; word-break:break-all;" : "";
@@ -47,6 +50,8 @@ public static class HtmlThemeStylesheet
             .stacktrace { color:{{stackFg}}; font-size:0.85em; }
             .dp-dump    { margin:8px 0; padding:4px 6px 4px 10px; border-left:3px solid {{dpAccent}}; background-color:{{dpDumpBg}}; border-radius:0 2px 2px 0; }
             .dp-label   { color:{{fgSec}}; font-size:0.85em; margin-bottom:3px; font-style:italic; }
+            .dp-heading { color:{{fg}}; font-weight:bold; margin-bottom:3px; }
+            .dp-highlight { background-color:{{highlightBg}}; color:{{highlightFg}}; padding:0 3px; }
             .dp-type    { color:{{fgSec}}; font-size:0.82em; margin-bottom:2px; }
             .dp-count   { color:{{fgSec}}; font-size:0.82em; margin-bottom:4px; }
             .dp-table   { border-collapse:collapse; font-size:12px; margin:2px 0; border:1px solid {{dpBorder}}; }

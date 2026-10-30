@@ -32,6 +32,14 @@ internal static class DumpHtmlSpectreRenderer
 
         switch (el.Name.LocalName)
         {
+            // Util.Highlight: marked text keeps its marker; around anything with structure only the content is shown.
+            case "span" or "div" when cls.Contains("dp-highlight"):
+                return el.Elements().Any()
+                    ? Combine(el.Nodes().Select(RenderNode))
+                    : new Markup($"[black on yellow]{Markup.Escape(el.Value)}[/]");
+            // Util.WithHeading: the heading as a label, then the value.
+            case "div" when cls.Contains("dp-heading"):
+                return new Markup($"[bold underline]{Markup.Escape(el.Value)}[/]");
             case "span":
                 return StyledText(cls, el.Value) ?? new Markup(Markup.Escape(el.Value));
             case "div" when cls.Contains("dp-label"):

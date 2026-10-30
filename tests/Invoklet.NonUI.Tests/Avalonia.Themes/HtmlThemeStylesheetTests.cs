@@ -41,4 +41,18 @@ public class HtmlThemeStylesheetTests
         string Others(string css) => string.Join('\n', css.Split('\n').Where(l => !wrapping.Any(s => l.TrimStart().StartsWith(s + " "))));
         Assert.Equal(Others(plain), Others(wrapped));
     }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void TheStylesheet_Should_StyleHighlightsAsAMarkerAndHeadingsAsBold(bool isDark)
+    {
+        var css = HtmlThemeStylesheet.Generate(isDark ? ThemeVariant.Dark : ThemeVariant.Light, isDark);
+
+        var highlight = css.Split('\n').Single(l => l.TrimStart().StartsWith(".dp-highlight "));
+        var heading = css.Split('\n').Single(l => l.TrimStart().StartsWith(".dp-heading "));
+        Assert.Contains("background-color:#", highlight);
+        Assert.Contains("color:#000000", highlight);
+        Assert.Contains("font-weight:bold", heading);
+    }
 }
