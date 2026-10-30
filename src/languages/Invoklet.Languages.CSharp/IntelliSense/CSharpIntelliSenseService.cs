@@ -157,15 +157,15 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     private readonly ILogger<CSharpIntelliSenseService> _logger;
     // The text of the analysis document and the offsets into it; holds no workspace.
     private readonly ScriptDocumentLayout _layout = new();
-    private readonly AdhocWorkspace _workspace;
-    private readonly DocumentId _documentId;
+    // The workspace of the analysis, its document and the baseline the sync diffs against.
+    private readonly ScriptDocumentSession _session;
 
     // Test-only visibility (InternalsVisibleTo) — confirms the FormattingOptions.NewLine override
     // below actually takes effect on the workspace's live option set. Environment.NewLine can't be
     // forced to '\r\n' on a non-Windows dev/CI machine, so this is the closest local check for the
     // fix without a real Windows run.
     internal string FormattingNewLineOptionForTests
-        => _workspace.CurrentSolution.Options.GetOption(FormattingOptions.NewLine, LanguageNames.CSharp);
+        => _session.Workspace.CurrentSolution.Options.GetOption(FormattingOptions.NewLine, LanguageNames.CSharp);
     // The references the service was created with (the framework's, Invoklet.Runtime): package updates
     // select from these again, so a framework assembly a package displaced comes back with it. The
     // framework part — the assemblies in System.Runtime.dll's directory — is replaced by the script
@@ -191,44 +191,10 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
 
     public void UpdateInvokletAnalyzers(bool enabled) => _InvokletAnalyzersEnabled = enabled;
     private IReadOnlyList<MdRunArgumentContractMember> _argumentContract = [];
-    private string _lastCode = "";
+    // Test-only observability (InternalsVisibleTo): confirms that the sync took the incremental WithChanges path (the lineage of the
+    // SourceText kept across calls) and did not fall back to SourceText.From every time.
+    internal SourceText? LastSyncedSourceTextForTests => _session.LastSyncedSourceText;
 
-    // The full synced document
-    // text (preamble + KindPrefix + code + TrailingPad) and the live SourceText it produced, kept
-    // alongside _lastCode so SyncDocument can hand Roslyn a minimal TextChange (ComputeMinimalChange)
-    // against _lastSourceText instead of rebuilding the whole document from a fresh string on every
-    // keystroke. SourceText.WithChanges preserves lineage to the old SourceText, letting Roslyn's
-    // incremental lexer/parser reuse syntax nodes outside the edited span — benchmarked at ~7x faster
-    // parsing and ~2-3x faster completion on 200-1000 line scripts versus SourceText.From every time
-    // (full semantic diagnostics don't benefit the same way — GetDiagnostics is binding-dominated, not
-    // parsing-dominated — see RoslynCodeFixEngine's own class doc comment for the bigger win that
-    // targeted). _lastSourceText is also reset to null (forcing one full SourceText.From rebuild) in
-    // UpdateGlobalUsings/UpdateKind alongside their own _lastCode = "" reset: both change _preamble or
-    // _layout.Kind, which feed directly into newFullText, so the cached _lastFullText baseline would no
-    // longer describe what the workspace's document is about to hold, and diffing against it would
-    // compute a TextChange against the wrong text. UpdatePackageReferences's own _lastCode = "" reset
-    // deliberately does NOT clear these two — it only swaps MetadataReferences (symbol resolution),
-    // never the document's text, so the cached baseline is still accurate there and reusing it (a
-    // no-op WithChanges diff) is strictly cheaper than forcing a full reparse for no reason.
-    private string _lastFullText = "";
-    private SourceText? _lastSourceText;
-
-    // Test-only observability (InternalsVisibleTo), same "internal test hook" pattern as
-    // CodeFixMargin.Fixes — lets a test confirm SyncDocument actually took the incremental
-    // WithChanges path (SourceText lineage preserved across calls) rather than silently falling back
-    // to SourceText.From every time, via SourceText.GetChangeRanges(older) which throws unless the two
-    // instances share a lineage.
-    internal SourceText? LastSyncedSourceTextForTests => _lastSourceText;
-
-    // Guards _lastCode and the AdhocWorkspace's CurrentSolution against concurrent SyncDocument
-    // calls — completion/signature-help/quick-info/background-analysis each run on their own
-    // Task.Run, so without this a completion request for the text at keystroke N could race a
-    // still-in-flight background-analysis pass for keystroke N-2.
-    private readonly object _syncLock = new();
-    // Counts the changes to the project's references, options and generated documents. A background
-    // analysis pass that began on an older one describes a solution that no longer exists, so it
-    // publishes nothing and runs again. Changed under _syncLock only.
-    private int _contextVersion;
     // Test-only: called by a background analysis pass once it holds its document snapshot, before it
     // analyses it, so a test can change the context at exactly that point.
     internal Action? AnalysisSnapshotTakenForTests { get; set; }
@@ -284,58 +250,10 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
                 ? _defaultFrameworkPaths : _otherBaseReferencePaths).Add(path);
         _frameworkPaths = _defaultFrameworkPaths;
 
-        _workspace = new AdhocWorkspace(InvokletRoslynHost.HostServices);
-
-        // Root cause of a Windows-CI-only bug (chased down via extensive logging — see
-        // RoslynCodeFixEngine's own comments): _preamble/KindPrefix/TrailingPad are all built with
-        // literal '\n' regardless of OS, but Roslyn's own FormattingOptions.NewLine defaults to
-        // Environment.NewLine ('\r\n' on Windows, '\n' on Linux/macOS) whenever a workspace doesn't
-        // set it explicitly. A code fix that reformats whitespace it touches (RemoveUnusedVariable
-        // normalizing the blank line before the statement it deletes, observed in production) then
-        // emits '\r\n' where the document only ever had '\n' — on Windows this makes the fix's edit
-        // span start earlier than expected (each extra newline byte shifts it back one more),
-        // straddling across preambleLength by just enough to trip RoslynCodeFixEngine.
-        // ApplyRelocatingPreambleEdits' "any preamble-touching edit that isn't a pure `using X;`
-        // insertion is unsafe, discard the whole fix" safety check — so the fix silently vanishes
-        // instead of applying, string-identical logic and all, depending only on which OS happens to
-        // be running it. Forcing '\n' here makes Roslyn's own formatting match what this document
-        // actually contains everywhere, independent of OS.
-        _workspace.TryApplyChanges(_workspace.CurrentSolution.WithOptions(
-            _workspace.CurrentSolution.Options.WithChangedOption(FormattingOptions.NewLine, LanguageNames.CSharp, "\n")));
+        _session = new ScriptDocumentSession(_layout, refs);
 
         _codeFixEngine = new RoslynCodeFixEngine(InvokletRoslynHost.CompositionHost, logger);
         _analyzerEngine = new RoslynAnalyzerEngine(logger);
-
-        var projectId = ProjectId.CreateNewId("InvokletScript");
-        _documentId = DocumentId.CreateNewId(projectId, "Script.cs");
-
-        var projectInfo = ProjectInfo.Create(
-            projectId,
-            VersionStamp.Create(),
-            name: "InvokletScript",
-            assemblyName: "InvokletScript",
-            language: LanguageNames.CSharp,
-            compilationOptions: new CSharpCompilationOptions(
-                OutputKind.DynamicallyLinkedLibrary,
-                nullableContextOptions: NullableContextOptions.Enable),
-            parseOptions: _layout.ParseOptions,
-            metadataReferences: refs);
-
-        _workspace.AddProject(projectInfo);
-        _workspace.AddDocument(DocumentInfo.Create(
-            _documentId,
-            "Script.cs",
-            loader: TextLoader.From(TextAndVersion.Create(
-                SourceText.From(_layout.Preamble, Encoding.UTF8),
-                VersionStamp.Create())),
-            filePath: Path.Combine(ScriptFolder, "Script.cs")));
-        // Code actions format what they write with the options an .editorconfig beside the document
-        // gives, not with the formatting options passed to Formatter: this one carries the editor's
-        // indentation (UpdateIndentation). It is never written to disk.
-        _editorConfigId = DocumentId.CreateNewId(projectId, ".editorconfig");
-        _workspace.TryApplyChanges(_workspace.CurrentSolution.AddAnalyzerConfigDocument(
-            _editorConfigId, ".editorconfig", SourceText.From(EditorConfig(_useTabs, _indentationSize)),
-            filePath: Path.Combine(ScriptFolder, ".editorconfig")));
     }
 
     public void UpdateGlobalUsings(IReadOnlyList<string> usings)
@@ -345,7 +263,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         // _lastSourceText/_lastFullText baseline (see their own doc comment): the preamble just
         // changed underneath it, so diffing against it would compute a TextChange against text the
         // workspace no longer holds.
-        lock (_syncLock) { _lastCode = ""; _lastFullText = ""; _lastSourceText = null; }
+        _session.InvalidateBaseline();
     }
 
     /// <summary>Updates the typed <c>Arguments</c> members offered by completion.</summary>
@@ -354,29 +272,27 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     public void UpdateArgumentContract(MdRunArgumentContract? contract)
     {
         var members = contract?.Members ?? [];
-        lock (_syncLock)
+        lock (_session.SyncLock)
         {
             var source = contract is { Members.Count: > 0 } ? contract.GenerateCSharpFacade() : "";
             if (_argumentContract.SequenceEqual(members) && _argumentSource?.Text == source) return;
 
-            var project = _workspace.CurrentSolution.GetProject(_documentId.ProjectId);
+            var project = _session.Workspace.CurrentSolution.GetProject(_session.DocumentId.ProjectId);
             if (project is null) return;
             var solution = project.Solution;
             if (_argumentSource is { } old) solution = solution.RemoveDocument(old.Id);
             (DocumentId Id, string Text)? next = null;
             if (source.Length > 0)
             {
-                var id = DocumentId.CreateNewId(_documentId.ProjectId, "Arguments.g.cs");
+                var id = DocumentId.CreateNewId(_session.DocumentId.ProjectId, "Arguments.g.cs");
                 solution = solution.AddDocument(id, "Arguments.g.cs", SourceText.From(GeneratedHeader + source, Encoding.UTF8));
                 next = (id, source);
             }
-            if (!_workspace.TryApplyChanges(solution)) return;
+            if (!_session.Workspace.TryApplyChanges(solution)) return;
             _argumentContract = members;
             _argumentSource = next;
-            _lastCode = "";
-            _lastFullText = "";
-            _lastSourceText = null;
-            _contextVersion++;
+            _session.InvalidateBaseline();
+            _session.ContextChanged();
         }
     }
 
@@ -385,14 +301,14 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         if (!_layout.SetKind(kind)) return;
         // force re-sync with the new kind-transform prefix on the next analysis pass — same
         // baseline-invalidation reasoning as UpdateGlobalUsings above.
-        lock (_syncLock) { _lastCode = ""; _lastFullText = ""; _lastSourceText = null; }
+        _session.InvalidateBaseline();
     }
 
     // ── Document sync ──────────────────────────────────────────────────────────
 
     private Document SyncDocument(string code)
     {
-        lock (_syncLock)
+        lock (_session.SyncLock)
         {
             var sourceRequired = ConnectionContractAssemblyCache.RequiresSourceCompilation(code);
             if (sourceRequired != _contractSourcesNeeded)
@@ -400,34 +316,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
                 _contractSourcesNeeded = sourceRequired;
                 ApplyConnectionRepresentation();
             }
-            if (_lastCode != code)
-            {
-                var newFullText = _layout.FullText(code);
-
-                // Hand Roslyn a
-                // minimal TextChange against the previous SourceText instead of always building a fresh
-                // one from a full string — see _lastFullText/_lastSourceText's own doc comment for why
-                // (incremental lexing/parsing reuse) and the measured impact. Only the very first sync,
-                // or the first one after a forced reset (UpdateGlobalUsings/UpdateKind), falls back to a
-                // full SourceText.From — there's no prior lineage to diff against at that point.
-                var text = _lastSourceText is null
-                    ? SourceText.From(newFullText, Encoding.UTF8)
-                    : _lastSourceText.WithChanges(ScriptDocumentProjection.ComputeMinimalChange(_lastFullText, newFullText));
-
-                var newSolution = _workspace.CurrentSolution.WithDocumentText(_documentId, text);
-                // Only remember the new code once the workspace actually reflects it — TryApplyChanges
-                // can fail (e.g. a solution-version conflict from a concurrent update elsewhere), and
-                // updating _lastCode unconditionally used to mean a failed apply left CurrentSolution
-                // showing stale text while _lastCode claimed it was already in sync, permanently
-                // skipping the sync on every later call with that same code.
-                if (_workspace.TryApplyChanges(newSolution))
-                {
-                    _lastCode = code;
-                    _lastFullText = newFullText;
-                    _lastSourceText = text;
-                }
-            }
-            return _workspace.CurrentSolution.GetDocument(_documentId)!;
+            return _session.Sync(code);
         }
     }
 
@@ -475,10 +364,10 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         try
         {
             Document document;
-            lock (_syncLock)
+            lock (_session.SyncLock)
             {
                 document = SyncDocument(code);
-                contextVersion.Value = _contextVersion;
+                contextVersion.Value = _session.ContextVersion;
             }
             CompletionSnapshotTakenForTests?.Invoke();
             var model = await document.GetSemanticModelAsync(ct);
@@ -1547,32 +1436,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     public Task<bool> IsEmptyTypeBodyPositionAsync(string code, int position, CancellationToken cancellationToken = default)
         => Task.Run(() => CSharpMemberPosition.IsInEmptyTypeBody(code, position, cancellationToken), cancellationToken);
 
-    private bool _useTabs;
-    private int _indentationSize = 4;
-    private readonly DocumentId _editorConfigId;
-
-    // Where the script document and its .editorconfig appear to be; nothing is stored there.
-    private static readonly string ScriptFolder = Path.Combine(Path.GetTempPath(), "InvokletScript");
-
-    private static string EditorConfig(bool useTabs, int indentationSize) =>
-        $"root = true\n[*.cs]\nindent_style = {(useTabs ? "tab" : "space")}\nindent_size = {indentationSize}\ntab_width = {indentationSize}\n";
-
-    private OptionSet FormattingOptionsSnapshot() => _workspace.CurrentSolution.Options
-        .WithChangedOption(FormattingOptions.UseTabs, LanguageNames.CSharp, _useTabs)
-        .WithChangedOption(FormattingOptions.TabSize, LanguageNames.CSharp, _indentationSize)
-        .WithChangedOption(FormattingOptions.IndentationSize, LanguageNames.CSharp, _indentationSize);
-
-    public void UpdateIndentation(bool useTabs, int indentationSize)
-    {
-        lock (_syncLock)
-        {
-            // Applying solution options writes shared Roslyn services; keep each editor's policy local.
-            _useTabs = useTabs;
-            _indentationSize = Math.Clamp(indentationSize, 1, 16);
-            _workspace.TryApplyChanges(_workspace.CurrentSolution.WithAnalyzerConfigDocumentText(
-                _editorConfigId, SourceText.From(EditorConfig(_useTabs, _indentationSize))));
-        }
-    }
+    public void UpdateIndentation(bool useTabs, int indentationSize) => _session.UpdateIndentation(useTabs, indentationSize);
 
     // Formats in a throwaway workspace/project containing only the user's code (no preamble) so
     // Roslyn's Formatter output maps back to the editor text directly, with no preamble/code
@@ -1583,10 +1447,10 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         {
             CSharpParseOptions parseOptions;
             OptionSet formattingOptions;
-            lock (_syncLock)
+            lock (_session.SyncLock)
             {
                 parseOptions = _layout.ParseOptions;
-                formattingOptions = FormattingOptionsSnapshot();
+                formattingOptions = _session.FormattingOptionsSnapshot();
             }
             using var formatWorkspace = new AdhocWorkspace(InvokletRoslynHost.HostServices);
             var projectId = ProjectId.CreateNewId("Format");
@@ -1681,11 +1545,11 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         if (changedSpans.Count == 0) return newCode;
 
         OptionSet options;
-        lock (_syncLock) options = FormattingOptionsSnapshot();
+        lock (_session.SyncLock) options = _session.FormattingOptionsSnapshot();
         var useTabs = options.GetOption(FormattingOptions.UseTabs, LanguageNames.CSharp);
         var unit = useTabs ? "\t" : new string(' ', options.GetOption(FormattingOptions.IndentationSize, LanguageNames.CSharp));
         CSharpParseOptions parseOptions;
-        lock (_syncLock) parseOptions = _layout.ParseOptions;
+        lock (_session.SyncLock) parseOptions = _layout.ParseOptions;
 
         var lines = newCode.Split('\n');
         var lineStarts = new int[lines.Length];
@@ -1805,10 +1669,10 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     {
         Document document;
         int version;
-        lock (_syncLock)
+        lock (_session.SyncLock)
         {
             document = SyncDocument(code);
-            version = _contextVersion;
+            version = _session.ContextVersion;
         }
         AnalysisSnapshotTakenForTests?.Invoke();
         await Task.WhenAll(
@@ -1818,10 +1682,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         return IsCurrent(version);
     }
 
-    private bool IsCurrent(int version)
-    {
-        lock (_syncLock) return version == _contextVersion;
-    }
+    private bool IsCurrent(int version) => _session.IsCurrent(version);
 
     // Whether a result may be published: a newer text notification cancels the pass, and a change to
     // the project's context makes its solution obsolete. Checked right before each event, since the
@@ -2074,7 +1935,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     private string? _requestedContractAssembly;
     private bool _contractSourcesNeeded;
     private int _contextRequests;
-    private int _appliedContextRequest; // under _syncLock
+    private int _appliedContextRequest; // under _session.SyncLock
 
     private void ApplyConnectionRepresentation()
     {
@@ -2118,7 +1979,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             }
         }
         ExecutionContextResolvedForTests?.Invoke(request);
-        lock (_syncLock)
+        lock (_session.SyncLock)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (sequence < _appliedContextRequest) return;
@@ -2133,7 +1994,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // A source location in the script's own document, not in the generated Connections document,
     // whose offsets mean nothing in the editor.
     private bool IsInScript(Location location) =>
-        location.IsInSource && location.SourceTree is { } tree && _workspace.CurrentSolution.GetDocumentId(tree) == _documentId;
+        location.IsInSource && location.SourceTree is { } tree && _session.Workspace.CurrentSolution.GetDocumentId(tree) == _session.DocumentId;
 
     // A symbol declared in one of the generated connection documents (UpdateConnections) rather
     // than the script itself or a compiled metadata assembly -- the state every gRPC/HTTP-contract
@@ -2146,7 +2007,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         foreach (var location in symbol.Locations)
         {
             if (!location.IsInSource || location.SourceTree is not { } tree) continue;
-            var id = _workspace.CurrentSolution.GetDocumentId(tree);
+            var id = _session.Workspace.CurrentSolution.GetDocumentId(tree);
             if (id is null) continue;
             foreach (var (_, (docId, text)) in _connectionFiles)
                 if (docId == id)
@@ -2161,9 +2022,9 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // when available; before the first build (or for partial extensions) they remain source documents.
     private void UpdateConnections(IReadOnlyList<GeneratedSourceFile> files, string? contract)
     {
-        lock (_syncLock)
+        lock (_session.SyncLock)
         {
-            var project = _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!;
+            var project = _session.Workspace.CurrentSolution.GetProject(_session.DocumentId.ProjectId)!;
             var filesChanged = !files.Select(f => (f.Name, f.Text)).SequenceEqual(_connectionFiles.Select(f => (f.Key, f.Value.Text)));
             var referencesChanged = contract != _connectionContractReference
                 || contract is not null && !project.MetadataReferences.Any(r => r.Display == contract);
@@ -2182,17 +2043,16 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
                 added = [];
                 foreach (var file in files)
                 {
-                    var id = DocumentId.CreateNewId(_documentId.ProjectId, file.Name);
+                    var id = DocumentId.CreateNewId(_session.DocumentId.ProjectId, file.Name);
                     solution = solution.AddDocument(id, file.Name, SourceText.From(GeneratedHeader + file.Text, Encoding.UTF8));
                     added.Add(KeyValuePair.Create(file.Name, (id, file.Text)));
                 }
             }
             // A single solution change: analysis must never see both source and metadata definitions.
-            if (!_workspace.TryApplyChanges(solution)) return;
+            if (!_session.Workspace.TryApplyChanges(solution)) return;
             _connectionFiles = added;
             _connectionContractReference = contract;
-            _lastCode = "";
-            _contextVersion++;
+            _session.ContextChanged();
         }
     }
 
@@ -2200,14 +2060,13 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // nor hides that a script without the setting won't compile.
     private void UpdateAllowUnsafe(bool allowUnsafe)
     {
-        lock (_syncLock)
+        lock (_session.SyncLock)
         {
-            var project = _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!;
+            var project = _session.Workspace.CurrentSolution.GetProject(_session.DocumentId.ProjectId)!;
             var options = (CSharpCompilationOptions)project.CompilationOptions!;
             if (options.AllowUnsafe == allowUnsafe) return;
-            if (!_workspace.TryApplyChanges(project.WithCompilationOptions(options.WithAllowUnsafe(allowUnsafe)).Solution)) return;
-            _lastCode = ""; // force re-sync on next analysis pass
-            _contextVersion++;
+            if (!_session.Workspace.TryApplyChanges(project.WithCompilationOptions(options.WithAllowUnsafe(allowUnsafe)).Solution)) return;
+            _session.ContextChanged(); // force re-sync on next analysis pass
         }
     }
 
@@ -2242,7 +2101,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
 
         // The same workspace lock as SyncDocument: a background analysis pass applies its own changes
         // under it, and both sides must see one consistent "current" solution.
-        lock (_syncLock)
+        lock (_session.SyncLock)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (newPaths.SequenceEqual(_nugetPaths, StringComparer.OrdinalIgnoreCase)
@@ -2264,9 +2123,9 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             // Replaced as a whole: another target's generators never linger next to the new ones.
             var generatorRefs = generatorPaths.Select(p => (AnalyzerReference)new GeneratorReference(p, _logger)).ToList();
 
-            var project = _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!;
+            var project = _session.Workspace.CurrentSolution.GetProject(_session.DocumentId.ProjectId)!;
 
-            if (!_workspace.TryApplyChanges(project.WithMetadataReferences(baseRefs.Concat(newRefs).ToList())
+            if (!_session.Workspace.TryApplyChanges(project.WithMetadataReferences(baseRefs.Concat(newRefs).ToList())
                     .WithParseOptions(parseOptions).WithAnalyzerReferences(generatorRefs).Solution))
                 return; // the next update tries again: _nugetPaths still describes the workspace
 
@@ -2278,8 +2137,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             _generatorPaths = generatorPaths;
             _userReferencePaths = userReferencePaths;
             // force re-sync on next analysis pass
-            _lastCode = "";
-            _contextVersion++;
+            _session.ContextChanged();
         }
     }
 
@@ -2326,7 +2184,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // references them unless the framework provides the same assembly at a higher version.
     internal IReadOnlyList<string> PackageReferencePathsForTests
     {
-        get { lock (_syncLock) return _nugetPaths; }
+        get { lock (_session.SyncLock) return _nugetPaths; }
     }
 
     // Test-only (InternalsVisibleTo): the source generator assemblies the workspace runs.
@@ -2334,8 +2192,8 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     {
         get
         {
-            lock (_syncLock)
-                return _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!.AnalyzerReferences
+            lock (_session.SyncLock)
+                return _session.Workspace.CurrentSolution.GetProject(_session.DocumentId.ProjectId)!.AnalyzerReferences
                     .Select(r => r.FullPath!).ToList();
         }
     }
@@ -2345,8 +2203,8 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     {
         get
         {
-            lock (_syncLock)
-                return _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!.MetadataReferences
+            lock (_session.SyncLock)
+                return _session.Workspace.CurrentSolution.GetProject(_session.DocumentId.ProjectId)!.MetadataReferences
                     .OfType<PortableExecutableReference>().Select(r => r.FilePath!).ToList();
         }
     }
@@ -2354,7 +2212,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // Cancel() alone only *requests* cooperative cancellation — NotifyTextChanged's Task.Run body can
     // still be mid-flight (e.g. deep inside RoslynCodeFixEngine.ComputeFixesAsync, which doesn't poll
     // the token between individual CodeFixProviders) when this method would otherwise return
-    // immediately, racing _workspace.Dispose() right below and continuing to burn CPU on a ThreadPool
+    // immediately, racing _session.Workspace.Dispose() right below and continuing to burn CPU on a ThreadPool
     // thread after this service is considered "gone" by its caller. Observed as a same-process,
     // cross-test CPU-starvation flake in CI (background analysis from an earlier, already-disposed
     // test's service still running while a later test's own NotifyTextChanged competes for ThreadPool
@@ -2366,7 +2224,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     public void Dispose()
     {
         _scheduler.Stop();
-        _workspace.Dispose();
+        _session.Workspace.Dispose();
     }
 
     // ── Private model types ────────────────────────────────────────────────────
