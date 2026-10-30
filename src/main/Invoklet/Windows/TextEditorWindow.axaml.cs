@@ -6,6 +6,7 @@ using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.Services.Scaling;
 using Invoklet.UserControls;
+using Invoklet.UserControls.Healpers;
 using Invoklet.Windows.Models;
 
 namespace Invoklet.Windows;
@@ -75,7 +76,7 @@ public partial class TextEditorWindow : Window
             {
                 if (preferences.Editor is not { } settings) return;
                 editor.FontFamily = MonospaceFont.Resolve(settings.FontFamily);
-                editor.FontSize = EditorsTabItemControl.CodeFontSize(settings, viewScale.CodeZoom);
+                editor.FontSize = EditorSettingsApplier.CodeFontSize(settings, viewScale.CodeZoom);
             }
             void OnZoomRequested(int direction)
             {

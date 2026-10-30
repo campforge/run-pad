@@ -174,7 +174,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         OutputSettingsButton.Flyout!.Opened += OnOutputSettingsFlyoutOpened;
 
         _viewScale = ViewScale.For(prefs);
-        ApplyEditorSettings(editor, prefs.Editor, _viewScale.CodeZoom);
+        EditorSettingsApplier.ApplyEditorSettings(editor, prefs.Editor, _viewScale.CodeZoom);
         prefs.Keyboard.ApplyTo(editor);
         prefs.Changed += OnPreferencesChanged;
 
@@ -237,7 +237,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             // tab restored at startup may only be opened after the theme changed.
             editor.TrySetLanguage(_themeService!.CurrentTheme.Editor.TextMateName,
                 _registry.GetEditorProfile(ResolveLanguageId())?.SourceFileExtension ?? "");
-            ApplySelectionColor(editor);
+            EditorSettingsApplier.ApplySelectionColor(editor);
         };
         editor.AttachedToVisualTree += _editorAttachedHandler;
 
@@ -327,7 +327,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             State.Editor.Background = editorBg;
         }
 
-        ApplySelectionColor(State.Editor);
+        EditorSettingsApplier.ApplySelectionColor(State.Editor);
         State.Output.Css = HtmlThemeStylesheet.Generate(theme.Interface.Variant, theme.Interface.IsDark, _resultsWordWrap);
         UpdateOutputUi();
         ApplyPreviewThemeNow(theme);
@@ -1710,7 +1710,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             // Posted before the tab closed: its editor services are gone by now.
             if (_disposed) return;
-            ApplyEditorSettings(State.Editor, _prefs.Editor, _viewScale.CodeZoom);
+            EditorSettingsApplier.ApplyEditorSettings(State.Editor, _prefs.Editor, _viewScale.CodeZoom);
             ApplyResultsWordWrap(_prefs.Editor.ResultsWordWrap);
 
             _intelliSense?.UpdateIndentation(_prefs.Editor.UseTabs, _prefs.Editor.IndentationSize);
@@ -1738,13 +1738,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // ── Editor zoom ───────────────────────────────────────────────────────────
 
-    // The editor's own font size: the configured size times the code zoom. The interface scale is
-    // not part of it — the window's layout transform already applies that to everything inside.
-    internal static double CodeFontSize(EditorSettings s, double codeZoom) => Math.Max(1, s.FontSize * codeZoom);
-
     private void OnViewScaleChanged()
     {
-        State.Editor.FontSize = CodeFontSize(_prefs.Editor, _viewScale.CodeZoom);
+        State.Editor.FontSize = EditorSettingsApplier.CodeFontSize(_prefs.Editor, _viewScale.CodeZoom);
         UpdateZoomButton();
     }
 
@@ -1799,41 +1795,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // pure refactorings too.
     private void UpdateLightbulb()
         => State.Editor.UpdateCodeFixes([.. _lightbulb.Visible(_prefs.CSharp.CodeFixesEnabled, _prefs.CSharp.ExcludedDiagnosticIds)]);
-
-    private static void ApplySelectionColor(CodeTextEditor editor)
-    {
-        // TextMate may set SelectionBrush to a dark color even for light themes.
-        // Read the brush from the current theme so it's fully configurable per theme.
-        var variant = Application.Current?.ActualThemeVariant;
-        if (Application.Current?.TryGetResource("Invoklet.Editor.SelectionBrush", variant, out var res) == true
-            && res is IBrush brush)
-            editor.TextArea.SelectionBrush = brush;
-        editor.TextArea.SelectionForeground = null;
-    }
-
-    // Test-only observability (InternalsVisibleTo), same "internal test hook" pattern used elsewhere
-    // in the solution — lets a test confirm settings (notably FontFamily) actually reach
-    // the real CodeTextEditor without needing to construct a whole EditorTabItemControl.
-    internal static void ApplyEditorSettings(CodeTextEditor editor, EditorSettings s, double codeZoom = 1)
-    {
-        editor.ShowLineNumberText = s.ShowLineNumbers;
-        editor.ShowFolding = s.ShowFolding;
-        editor.FontSize = CodeFontSize(s, codeZoom);
-        editor.FontFamily = MonospaceFont.Resolve(s.FontFamily);
-        editor.WordWrap = s.WordWrap;
-        editor.Options.ConvertTabsToSpaces = !s.UseTabs;
-        editor.Options.IndentationSize = s.IndentationSize;
-        if (editor.TextArea.IndentationStrategy is AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy strategy)
-            strategy.IndentationString = editor.Options.IndentationString;
-        editor.Options.ShowTabs = s.ShowTabs;
-        editor.Options.ShowSpaces = s.ShowSpaces;
-        editor.Options.ShowEndOfLine = s.ShowEndOfLine;
-        editor.Options.ColumnRulerPositions = s.ShowColumnRuler
-            ? [s.ColumnRulerPosition]
-            : [];
-        editor.CommitCharactersEnabled = s.CommitCharactersEnabled;
-    }
-
 
     // ── Setup helpers ─────────────────────────────────────────────────────────
 

@@ -1,15 +1,15 @@
 using Avalonia.Headless.XUnit;
 using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Services.Preferences;
-using Invoklet.UserControls;
+using Invoklet.UserControls.Healpers;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests.App.UserControls.Models;
+namespace Invoklet.Runtime.UI.Tests.App.UserControls.Healpers;
 
 // Live user report: the editor's font family is whatever the OS/theme default
 // resolves to, ligature-capable fonts included (e.g. "=>" rendering as a single arrow glyph) — no
 // setting to change it, because Invoklet never asked for a specific font in the first place.
-public class EditorTabItemControlFontSettingsTests
+public class EditorSettingsApplierTests
 {
     [AvaloniaTheory]
     [InlineData(false, 2, "  ")]
@@ -17,12 +17,12 @@ public class EditorTabItemControlFontSettingsTests
     public void IndentationSettings_Should_ControlInsertedTabText(bool tabs, int size, string expected)
     {
         var editor = new CodeTextEditor();
-        EditorsTabItemControl.ApplyEditorSettings(editor, new EditorSettings { UseTabs = tabs, IndentationSize = size });
+        EditorSettingsApplier.ApplyEditorSettings(editor, new EditorSettings { UseTabs = tabs, IndentationSize = size });
         Assert.Equal(!tabs, editor.Options.ConvertTabsToSpaces);
         Assert.Equal(size, editor.Options.IndentationSize);
         Assert.Equal(expected, editor.Options.IndentationString);
         editor.TextArea.IndentationStrategy = new global::AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(editor.Options);
-        EditorsTabItemControl.ApplyEditorSettings(editor, new EditorSettings { UseTabs = !tabs, IndentationSize = 3 });
+        EditorSettingsApplier.ApplyEditorSettings(editor, new EditorSettings { UseTabs = !tabs, IndentationSize = 3 });
         var strategy = Assert.IsType<global::AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy>(editor.TextArea.IndentationStrategy);
         Assert.Equal(tabs ? "   " : "\t", strategy.IndentationString);
     }
@@ -49,7 +49,7 @@ public class EditorTabItemControlFontSettingsTests
     {
         var editor = new CodeTextEditor();
 
-        EditorsTabItemControl.ApplyEditorSettings(editor, new EditorSettings { FontFamily = "monospace" });
+        EditorSettingsApplier.ApplyEditorSettings(editor, new EditorSettings { FontFamily = "monospace" });
 
         Assert.Equal(MonospaceFont.Default, editor.FontFamily);
     }
@@ -62,7 +62,7 @@ public class EditorTabItemControlFontSettingsTests
         var editor = new CodeTextEditor();
         var settings = new EditorSettings { FontFamily = "No Such Font 7f3c" };
 
-        EditorsTabItemControl.ApplyEditorSettings(editor, settings);
+        EditorSettingsApplier.ApplyEditorSettings(editor, settings);
 
         Assert.Equal(MonospaceFont.Default, editor.FontFamily);
         Assert.Equal("No Such Font 7f3c", settings.FontFamily);
@@ -74,7 +74,7 @@ public class EditorTabItemControlFontSettingsTests
         var editor = new CodeTextEditor();
         var settings = new EditorSettings { FontSize = 18, FontFamily = "monospace" };
 
-        EditorsTabItemControl.ApplyEditorSettings(editor, settings);
+        EditorSettingsApplier.ApplyEditorSettings(editor, settings);
 
         Assert.Equal(18, editor.FontSize);
         Assert.Equal(MonospaceFont.Default, editor.FontFamily);
