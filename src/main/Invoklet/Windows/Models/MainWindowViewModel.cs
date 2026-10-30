@@ -821,11 +821,17 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // comment) — no command is reachable by the user before that, so these no-op rather than throw
     // if it somehow still happened.
 
-    Task IEditorTabActions.SaveAsAsync(EditorTabItemViewModel vm) =>
-        vm.WriteToFile is { } writeToFile ? SaveTabAsAsync(vm, writeToFile) : Task.CompletedTask;
-
-    void IEditorTabActions.Duplicate(EditorTabItemViewModel vm)
+    async Task IEditorTabActions.SaveAsAsync(EditorTabItemViewModel vm)
     {
+        await vm.EnsureContent();
+        if (vm.WriteToFile is { } writeToFile) await SaveTabAsAsync(vm, writeToFile);
+    }
+
+    void IEditorTabActions.Duplicate(EditorTabItemViewModel vm) => _ = DuplicateAsync(vm);
+
+    private async Task DuplicateAsync(EditorTabItemViewModel vm)
+    {
+        await vm.EnsureContent();
         if (vm.WriteToFile is { } writeToFile) DuplicateTab(vm, writeToFile);
     }
 
@@ -887,10 +893,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // vm.WriteToFile), asking first if the file changed on disk (InPlaceSave). A clean or untitled tab
     // is a successful no-op. Fails closed: a dirty named tab whose editor isn't wired up (no
     // WriteToFile) can't be written, so it must not be reported as saved and then discarded.
-    private Task<InPlaceSaveResult> SaveInPlaceAsync(EditorTabItemViewModel vm)
+    private async Task<InPlaceSaveResult> SaveInPlaceAsync(EditorTabItemViewModel vm)
     {
-        if (!vm.IsDirty || vm.FilePath is null) return Task.FromResult(InPlaceSaveResult.Saved);
-        return InPlaceSave.SaveAsync(vm, _windowService, () => ((IEditorTabActions)this).SaveAsAsync(vm));
+        if (!vm.IsDirty || vm.FilePath is null) return InPlaceSaveResult.Saved;
+        // A tab whose text is on disk has nothing to write from yet.
+        await vm.EnsureContent();
+        return await InPlaceSave.SaveAsync(vm, _windowService, () => ((IEditorTabActions)this).SaveAsAsync(vm));
     }
 
     // Rename/move/delete flush every affected dirty tab first and abort the whole

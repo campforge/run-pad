@@ -1,5 +1,4 @@
 using System.Collections.Specialized;
-using System.Reactive.Linq;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
@@ -13,6 +12,7 @@ using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
 using Invoklet.Services.Scaling;
+using Invoklet.Services.Tabs;
 using Invoklet.UserControls.Models;
 using Invoklet.Windows.Models;
 using Microsoft.Extensions.Logging;
@@ -20,18 +20,12 @@ using ReactiveUI;
 
 namespace Invoklet.UserControls;
 
-public partial class EditorTabsControl : UserControl, IDisposable
+public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost
 {
-    // Control is null while the tab is unloaded (see TabResidencyManager): only its header is shown.
-    private readonly Dictionary<EditorTabItemViewModel, (TabItem Tab, EditorsTabItemControl? Control)> _tabs = new();
-    private readonly HashSet<EditorTabItemViewModel> _loading = new();
-    // Tabs where a run ended while another tab was shown: their output stays loaded until the user
-    // looks at it.
-    private readonly HashSet<EditorTabItemViewModel> _unseenResults = new();
-    // What an unloaded tab's editor showed besides its text, for the editor built again.
-    private readonly Dictionary<EditorTabItemViewModel, EditorViewState> _viewStates = new();
-    private readonly Dictionary<EditorTabItemViewModel, IDisposable> _runSubs = new();
-    private readonly TabResidencyManager? _residency;
+    private readonly Dictionary<EditorTabItemViewModel, (TabItem Tab, EditorsTabItemControl Control)> _tabs = new();
+    private readonly TabLifecycleManager? _lifecycle;
+    private readonly TabDiskSync? _diskSync;
+    private readonly CancellationTokenSource _closed = new();
     // Tabs whose editor services are still being created: closing one cancels its creation.
     private readonly Dictionary<EditorTabItemViewModel, CancellationTokenSource> _creating = new();
     private IDisposable? _activeTabSub;
@@ -66,10 +60,11 @@ public partial class EditorTabsControl : UserControl, IDisposable
         IPreferencesService prefs,
         IBuildCacheService buildCache, ILogger<EditorsTabItemControl>? runLogger = null,
         ConnectionDriverRegistry? connectionDrivers = null, ConnectionSchemas? connectionSchemas = null,
-        TabResidencyManager? residency = null)
+        TabLifecycleManager? lifecycle = null)
     {
         InitializeComponent();
-        _residency = residency;
+        _lifecycle = lifecycle;
+        _diskSync = new TabDiskSync(windowService);
         _connectionDrivers = connectionDrivers;
         _connectionSchemas = connectionSchemas;
         _themeService = themeService;
@@ -93,6 +88,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         var fileTabControl = this.FindControl<TabControl>("FileTabControl")!;
         fileTabControl.SelectionChanged += OnFileTabSelectionChanged;
 
+        _lifecycle?.Attach(() => _vm?.ActiveTab, OnContentNotRestored);
         vm.Tabs.CollectionChanged += OnTabsCollectionChanged;
         _activeTabSub = vm.WhenAnyValue(x => x.ActiveTab).Subscribe(OnActiveTabChanged);
         vm.DependenciesWindowClosed += OnDependenciesWindowClosed;
@@ -181,19 +177,18 @@ public partial class EditorTabsControl : UserControl, IDisposable
                 var position = _vm!.Tabs.TakeWhile(t => !ReferenceEquals(t, vm)).Count(_tabs.ContainsKey);
                 var tab = AddTabItem(ctrl, vm, fileTabControl, position);
                 _tabs[vm] = (tab, ctrl);
-                _residency?.Touch(vm);
-                _runSubs[vm] = vm.WhenAnyValue(x => x.RunState).Skip(1).Subscribe(state =>
+                if (_lifecycle is not null)
                 {
-                    if (state == RunState.Idle && !ReferenceEquals(_vm?.ActiveTab, vm)) _unseenResults.Add(vm);
-                });
+                    ctrl.SpillStore = _lifecycle.Spill;
+                    _lifecycle.Register(vm, ctrl);
+                }
 
                 // ActiveTab may already have been set to vm (e.g. it's the tab that was just
                 // opened) before this entry existed — OnActiveTabChanged no-ops in that case, so
                 // select it explicitly now if it's still the active one.
                 if (ReferenceEquals(_vm?.ActiveTab, vm))
                     fileTabControl.SelectedItem = tab;
-                UnloadColdTabs();
-                SyncHighlighting();
+                _lifecycle?.Rebalance();
                 SignalWorkspaceShownIfDone();
             }
         }
@@ -208,13 +203,10 @@ public partial class EditorTabsControl : UserControl, IDisposable
                 // to go — the tab and its editor are being destroyed. Every removal path resolves
                 // unsaved content BEFORE removing (MainWindowViewModel.
                 // ResolveUnsavedChangesBeforeCloseAsync / TrySaveTabsBeforeFileOperation).
-                entry.Control?.Dispose();
+                _lifecycle?.Unregister(vm);
+                entry.Control.Dispose();
                 fileTabControl.Items.Remove(entry.Tab);
                 _tabs.Remove(vm);
-                _residency?.Forget(vm);
-                _unseenResults.Remove(vm);
-                _viewStates.Remove(vm);
-                if (_runSubs.Remove(vm, out var runSub)) runSub.Dispose();
                 vm.Dispose();
             }
             SignalWorkspaceShownIfDone();
@@ -248,11 +240,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         if (_tabs.TryGetValue(vm, out var entry) && fileTabControl.SelectedItem != entry.Tab)
             fileTabControl.SelectedItem = entry.Tab;
 
-        _residency?.Touch(vm);
-        _unseenResults.Remove(vm);
-        if (entry.Tab is not null && entry.Control is null) _ = LoadAsync(vm);
-        else UnloadColdTabs();
-        SyncHighlighting();
+        _lifecycle?.Activated(vm);
     }
 
     // Only the tab shown colours its text.
@@ -262,105 +250,12 @@ public partial class EditorTabsControl : UserControl, IDisposable
             ctrl?.SetHighlightingActive(ReferenceEquals(tabVm, _vm?.ActiveTab));
     }
 
-    // ── Tab residency ──────────────────────────────────────────────────────────
+    internal bool IsLoadedForTests(EditorTabItemViewModel vm) => _lifecycle?.IsContentLoaded(vm) ?? HasControl(vm);
 
-    // A tab's editor, IntelliSense workspace and preview exist only while it is among the tabs used
-    // last. An unloaded tab keeps its view model and its header; selecting it builds the control again
-    // from the file, exactly as when the tab was first opened.
-    private void UnloadColdTabs()
-    {
-        if (_residency is null || _vm is null || _disposed) return;
-        var loaded = _vm.Tabs.Where(t => _tabs.TryGetValue(t, out var e) && e.Control is not null).ToList();
-        foreach (var vm in _residency.ColdTabs(loaded, CanUnload))
-            Unload(vm);
-    }
-
-    private bool CanUnload(EditorTabItemViewModel vm)
-        => !ReferenceEquals(vm, _vm?.ActiveTab) && vm.RunState == RunState.Idle
-            && vm.PendingSave is not { IsCompleted: false } && !_creating.ContainsKey(vm) && !_loading.Contains(vm)
-            && !_unseenResults.Contains(vm);
-
-    private void Unload(EditorTabItemViewModel vm)
-    {
-        if (!_tabs.TryGetValue(vm, out var entry) || entry.Control is not { } ctrl || ctrl.HasRunningProcess) return;
-        var snapshot = ctrl.CaptureRecovery();
-        // Unsaved work, in the text or in the metadata, stays in its editor.
-        if (snapshot.IsDirty) return;
-        // The session checkpoint still gets this tab's state, without a live editor to ask.
-        vm.CaptureRecovery = () => snapshot;
-        _viewStates[vm] = ctrl.CaptureViewState();
-        // The editor's own background, not an empty tab: nothing flashes while the control is built again.
-        entry.Tab.Content = new Border { Background = _themeService!.GetBrush("Invoklet.Editor.BackgroundBrush") };
-        ctrl.Dispose();
-        _tabs[vm] = (entry.Tab, null);
-    }
-
-    private async Task LoadAsync(EditorTabItemViewModel vm)
-    {
-        if (_disposed || !_loading.Add(vm)) return;
-        try
-        {
-            using var creation = new CancellationTokenSource();
-            _creating[vm] = creation;
-            IIntelliSenseService? intelliSense = null;
-            try
-            {
-                intelliSense = await CreateIntelliSenseAsync(vm, creation.Token);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                // The tab is worth more without code intelligence than not at all.
-                _runLogger?.LogWarning("Could not create the editor services of a tab being loaded ({ErrorType})", ex.GetType().Name);
-            }
-            finally
-            {
-                _creating.Remove(vm);
-            }
-
-            // Closed, or loaded by someone else, while the service was being created.
-            if (_disposed || !_tabs.TryGetValue(vm, out var entry) || entry.Control is not null)
-            {
-                intelliSense?.Dispose();
-                return;
-            }
-
-            EditorsTabItemControl ctrl;
-            try
-            {
-                ctrl = CreateControl(vm, intelliSense);
-            }
-            catch (Exception ex)
-            {
-                // The tab stays unloaded, as before: selecting it again tries again.
-                intelliSense?.Dispose();
-                _runLogger?.LogWarning("Could not build the control of a tab being loaded ({ErrorType})", ex.GetType().Name);
-                if (_windowService is not null)
-                    await _windowService.ShowErrorAsync("Tab Not Loaded", $"Could not load '{vm.FileName}': {ex.Message}");
-                return;
-            }
-
-            try
-            {
-                if (_viewStates.Remove(vm, out var viewState)) ctrl.RestoreViewState(viewState);
-            }
-            catch (Exception ex)
-            {
-                // Only the caret, scroll position and breakpoints are lost; the tab itself is fine.
-                _runLogger?.LogWarning("Could not restore the view of a tab being loaded ({ErrorType})", ex.GetType().Name);
-            }
-
-            entry.Tab.Content = ctrl;
-            _tabs[vm] = (entry.Tab, ctrl);
-        }
-        finally
-        {
-            _loading.Remove(vm);
-            UnloadColdTabs();
-            SyncHighlighting();
-        }
-    }
-
-    internal bool IsLoadedForTests(EditorTabItemViewModel vm) => _tabs.TryGetValue(vm, out var entry) && entry.Control is not null;
+    // A tab's text could not be brought back from disk: it stays empty and read-only, and saving it fails,
+    // so nothing is overwritten.
+    private void OnContentNotRestored(EditorTabItemViewModel tab)
+        => _ = _windowService?.ShowErrorAsync("Tab Not Loaded", $"Could not read back the text of '{tab.FileName}'.");
 
     // ── Theme ──────────────────────────────────────────────────────────────────
 
@@ -370,7 +265,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
     private void OnThemeChanged(ActiveTheme theme)
     {
         foreach (var (_, ctrl) in _tabs.Values)
-            ctrl?.ApplyTheme(theme);
+            ctrl.ApplyTheme(theme);
     }
 
     // ── Hotkey actions ─────────────────────────────────────────────────────────
@@ -483,8 +378,8 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
     internal async Task RevertActiveAsync()
     {
-        if (_vm?.ActiveTab is not { FilePath: { } path } vm || GetActiveControl() is null || _windowService is null) return;
-        if (!CanReload(vm, path, vm.DiskState)) return;
+        if (_vm?.ActiveTab is not { FilePath: { } path } vm || GetActiveControl() is null || _windowService is null || _diskSync is null) return;
+        if (!TabDiskSync.CanReload(this, vm, path, vm.DiskState)) return;
         var known = vm.DiskState;
         if (!File.Exists(path))
         {
@@ -492,106 +387,17 @@ public partial class EditorTabsControl : UserControl, IDisposable
             return;
         }
         if (vm.IsDirty && !await _windowService.ShowRevertFileDialogAsync(Path.GetFileName(path))) return;
-        if (_vm.ActiveTab != vm || !CanReload(vm, path, known)) return;
-        await ReloadAsync(vm, "Revert Failed");
+        if (_vm.ActiveTab != vm || !TabDiskSync.CanReload(this, vm, path, known)) return;
+        await _diskSync.ReloadAsync(this, vm, "Revert Failed");
     }
 
     // ── Files changed by other programs ───────────────────────────────────────
 
-    private bool _checkingDisk;
-    private bool _checkAgain;
-
     /// <summary>
-    /// Brings open tabs up to date with files another program changed: a tab without unsaved
-    /// changes reloads quietly, one with unsaved changes asks first. A tab that is running, saving
-    /// or whose file is gone is left alone; so is a version of the file the user already chose to
-    /// keep their changes over. Runs when Invoklet's window is activated and when the scripts folder
-    /// reports a change.
+    /// Brings open tabs up to date with files another program changed (see <see cref="TabDiskSync"/>).
+    /// Runs when Invoklet's window is activated and when the scripts folder reports a change.
     /// </summary>
-    public async Task CheckFilesChangedOnDiskAsync()
-    {
-        if (_checkingDisk)
-        {
-            // A dialog of the running check is open: look again once it is done.
-            _checkAgain = true;
-            return;
-        }
-        _checkingDisk = true;
-        try
-        {
-            do
-            {
-                _checkAgain = false;
-                await CheckFilesChangedOnDiskOnceAsync();
-            } while (_checkAgain && !_disposed);
-        }
-        finally
-        {
-            _checkingDisk = false;
-        }
-    }
-
-    private async Task CheckFilesChangedOnDiskOnceAsync()
-    {
-        if (_vm is null || _windowService is null) return;
-        var candidates = _vm.Tabs
-            .Where(vm => HasControl(vm) && vm.FilePath is not null && vm.DiskState is not null)
-            .Select(vm => (Vm: vm, Path: vm.FilePath!, Known: vm.DiskState!))
-            .ToList();
-        if (candidates.Count == 0) return;
-
-        // Reading and hashing the files stays off the UI thread: a script folder can be on a slow drive.
-        var states = await Task.Run(() => candidates.Select(c =>
-        {
-            try { return ScriptFileState.Read(c.Path); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
-        }).ToList());
-
-        for (var i = 0; i < candidates.Count; i++)
-        {
-            var (vm, path, known) = candidates[i];
-            if (_disposed) return;
-            if (states[i] is not { Hash: not null } onDisk) continue;
-            // Saved or reloaded meanwhile: what was read may be that very write, half done.
-            if (!HasControl(vm) || vm.FilePath != path || !ReferenceEquals(vm.DiskState, known)) continue;
-            if (known.SameAs(onDisk) || vm.DeclinedDiskState?.SameAs(onDisk) == true) continue;
-            if (vm.RunState != RunState.Idle || vm.PendingSave is { IsCompleted: false }) continue;
-
-            if (vm.IsDirty)
-            {
-                var reload = await _windowService.ShowReloadChangedFileDialogAsync(Path.GetFileName(path));
-                if (!CanReload(vm, path, known)) continue;
-                if (!reload)
-                {
-                    vm.DeclinedDiskState = onDisk;
-                    continue;
-                }
-
-            }
-            await ReloadAsync(vm, "Reload Failed");
-        }
-    }
-
-    // A dialog yields to saves, runs and tab removal; its decision belongs to the old baseline.
-    private bool CanReload(EditorTabItemViewModel vm, string path, ScriptFileState? known)
-        => !_disposed && HasControl(vm) && vm.FilePath == path
-            && ReferenceEquals(vm.DiskState, known) && vm.RunState == RunState.Idle
-            && vm.PendingSave is not { IsCompleted: false };
-
-    private async Task ReloadAsync(EditorTabItemViewModel vm, string errorTitle)
-    {
-        if (_vm is null || !_tabs.TryGetValue(vm, out var entry) || entry.Control is not { } ctrl) return;
-        switch (ctrl.ReloadFromDisk())
-        {
-            case DiskReload.OtherLanguage:
-                // Its editor services are another language's: the script opens in a new tab in its place.
-                _vm.ReopenTab(vm);
-                break;
-            case DiskReload.Unavailable when _windowService is not null:
-                await _windowService.ShowErrorAsync(errorTitle, $"Could not read '{Path.GetFileName(vm.FilePath)}'.");
-                break;
-        }
-    }
+    public Task CheckFilesChangedOnDiskAsync() => _diskSync?.CheckAsync(this, _closed.Token) ?? Task.CompletedTask;
 
     public void FormatActive()
         => _ = GetActiveControl()?.FormatAsync();
@@ -644,8 +450,8 @@ public partial class EditorTabsControl : UserControl, IDisposable
         return true;
     }
 
-    // An unloaded tab is read from its file when it is selected again, so there is nothing to reload.
-    private bool HasControl(EditorTabItemViewModel vm) => _tabs.TryGetValue(vm, out var entry) && entry.Control is not null;
+    // A tab whose text is on disk is read from its file when it is selected again, so there is nothing to reload.
+    private bool HasControl(EditorTabItemViewModel vm) => _tabs.TryGetValue(vm, out var entry) && !entry.Control.IsContentReleased;
 
     private EditorsTabItemControl? GetActiveControl()
     {
@@ -728,7 +534,8 @@ public partial class EditorTabsControl : UserControl, IDisposable
         }
 
         _activeTabSub?.Dispose();
-        foreach (var sub in _runSubs.Values) sub.Dispose();
+        _closed.Cancel();
+        _lifecycle?.Detach();
         foreach (var creation in _creating.Values) creation.Cancel();
 
         // No save here: unsaved content was already resolved by MainWindow's Closing
@@ -736,7 +543,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         // into a window that no longer exists.
         foreach (var (tabVm, (_, ctrl)) in _tabs)
         {
-            ctrl?.Dispose();
+            ctrl.Dispose();
             tabVm.Dispose();
         }
 

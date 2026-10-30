@@ -69,6 +69,7 @@ Invoklet, under the project's license and, if the licensing ever changes, under 
   `tests/Invoklet.Runtime.UI.Tests`, everything else to `tests/Invoklet.NonUI.Tests` or the project's own
   test project. A test of a window or control replaces the classes it only uses with mocks or fakes and
   does not compile or decompile anything; what needs the real thing goes to `tests/Invoklet.IntegrationTests`.
+  New and modified unit tests follow the [unit testing guidelines](UNIT_TESTING_GUIDELINES.md).
 - **Style:** `.editorconfig` (CRLF, 4 spaces, Allman braces, file-scoped namespaces) and no warnings.
   Match the surrounding code. Comments are in English, explain *why* and stand on their own — no
   references to issue numbers or notes outside the repository.
