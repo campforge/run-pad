@@ -1,3 +1,4 @@
+using Invoklet.Build.Core.Secrets;
 using Invoklet.Connectors.Grpc;
 using Invoklet.Connectors.Http;
 using Invoklet.Connectors.Sqlite;
@@ -24,7 +25,7 @@ public sealed record CliServices(ILanguageHostRegistry Registry, ISdkProvider Sd
     public static CliServices CreateDefault()
     {
         var runtimeReferences = new DotnetRuntimeReferenceLocator();
-        var registry = new LanguageHostRegistry();
+        var registry = new LanguageHostRegistry { ExportSecretKey = ExportKey };
         registry.Register(new CSharpLanguageHostFactory(NullLoggerFactory.Instance, runtimeReferences));
         registry.Register(new VbLanguageHostFactory(NullLoggerFactory.Instance, runtimeReferences));
         var connectionDrivers = new ConnectionDriverRegistry();
@@ -36,12 +37,30 @@ public sealed record CliServices(ILanguageHostRegistry Registry, ISdkProvider Sd
         return new CliServices(registry, new DotnetSdkProvider(), connectionDrivers, schemas);
     }
 
+    private static readonly object KeyLock = new();
+    private static bool _keyExported;
+
+    // Reads the key of an encrypted Secret Store from the keychain, once, when something needs a secret.
+    private static void ExportKey()
+    {
+        lock (KeyLock)
+        {
+            if (_keyExported) return;
+            _keyExported = true;
+            SecretKeys.ExportForScripts(SecretKeys.DefaultStorePath());
+        }
+    }
+
     // The Secret Store's value, read as a script reads it; a missing or unreadable one is null, which
     // the schema reports as missing.
     private static string? Secret(string name)
     {
-        try { return Util.GetSecret(name); }
-        catch (Exception ex) when (ex is KeyNotFoundException or InvalidDataException or IOException or UnauthorizedAccessException)
+        try
+        {
+            ExportKey();
+            return Util.GetSecret(name);
+        }
+        catch (Exception ex) when (ex is KeyNotFoundException or InvalidDataException or IOException or UnauthorizedAccessException or InvalidOperationException)
         {
             return null;
         }

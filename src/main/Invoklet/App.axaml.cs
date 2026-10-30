@@ -258,7 +258,13 @@ public class App : Application
             ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             // A secret a script asked the user for (Util.GetSecret) is kept in the Secret Store.
             var secrets = sp.GetRequiredService<ISecretStore>();
-            LanguageHostRegistry registry = new() { SecretSaver = secrets.Put };
+            // The Secret Store's key goes to a script only when it can ask for a secret (the host decides, from its text), and a store
+            // still in plain text is encrypted then: the keychain, which may ask the user to unlock it, is not opened at start.
+            LanguageHostRegistry registry = new()
+            {
+                SecretSaver = secrets.Put,
+                ExportSecretKey = secrets is FileSecretStore store ? store.PrepareForScripts : null,
+            };
             var runtimeReferences = sp.GetRequiredService<IRuntimeReferenceLocator>();
             registry.Register(new CSharpLanguageHostFactory(loggerFactory, runtimeReferences));
             registry.Register(new VbLanguageHostFactory(loggerFactory, runtimeReferences));
@@ -313,10 +319,6 @@ public class App : Application
         services.AddSingleton<Func<Windows_ConnectionsWindow>>(sp => () => sp.GetRequiredService<Windows_ConnectionsWindow>());
 
         var provider = services.BuildServiceProvider();
-
-        // Before any script runs: the Secret Store's key goes to the scripts this process starts, and
-        // a store still in plain text is encrypted. The keychain may ask the user to unlock it first.
-        if (provider.GetRequiredService<ISecretStore>() is FileSecretStore secretStore) secretStore.PrepareForScripts();
 
         // ToDo: split this out into a dedicated app warmup service
         // Each language prepares its editor services in the background so the first tab's completion is fast.

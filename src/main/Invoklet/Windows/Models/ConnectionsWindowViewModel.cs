@@ -505,7 +505,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
 
     private static IReadOnlyList<string> SecretNamesOf(ISecretStore secrets)
     {
-        try { return [.. secrets.LoadSnapshot().Secrets.Select(s => s.Name).Order(StringComparer.OrdinalIgnoreCase)]; }
+        try { return [.. secrets.LoadNames().Order(StringComparer.OrdinalIgnoreCase)]; }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { return []; }
     }
 

@@ -20,6 +20,12 @@ Notable changes in each Invoklet release. Downloads are on the
 - Logging can be turned down or off in Preferences → Logging: Off, Fatal errors only (crashes of Invoklet itself), Errors,
   Warnings, Information (as before) or Debug. The change takes effect at once, and with logging off no log file is made.
 
+### Fixed
+
+- The system keychain (macOS Keychain, Linux Secret Service) is no longer asked to unlock the Secret Store's key when Invoklet starts or when a
+  script runs that does not ask for a secret. Only a script that mentions `Util.GetSecret` or `Util.SetSecret`, or whose connections use a
+  secret, reads the key, and listing the names of the secrets (in the connections panel and windows) does not need it.
+
 ## [0.10.5] — 2026-10-30
 
 ### Fixed

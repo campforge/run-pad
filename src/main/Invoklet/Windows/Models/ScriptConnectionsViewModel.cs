@@ -669,7 +669,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
         _secretNamesRead = true;
         _secretNames = null;
         if (_secrets is null) return;
-        try { _secretNames = new HashSet<string>(_secrets.LoadSnapshot().Secrets.Select(s => s.Name), StringComparer.OrdinalIgnoreCase); }
+        try { _secretNames = new HashSet<string>(_secrets.LoadNames(), StringComparer.OrdinalIgnoreCase); }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { }
     }
 

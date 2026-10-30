@@ -350,7 +350,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject, IDisposable
         HashSet<string>? secretNames = null;
         if (_secrets is not null)
         {
-            try { secretNames = _secrets.LoadSnapshot().Secrets.Select(s => s.Name).ToHashSet(StringComparer.Ordinal); }
+            try { secretNames = _secrets.LoadNames().ToHashSet(StringComparer.Ordinal); }
             catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { }
         }
         var statuses = new Dictionary<string, ConnectionStatus>(StringComparer.Ordinal);

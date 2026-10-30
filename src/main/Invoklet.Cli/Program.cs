@@ -1,4 +1,3 @@
-using Invoklet.Build.Core.Secrets;
 using Invoklet.Cli;
 using Spectre.Console;
 
@@ -11,9 +10,8 @@ Console.CancelKeyPress += (_, e) =>
     cts.Cancel();
 };
 
-// Util.GetSecret here and in the script reads an encrypted Secret Store with the key Invoklet keeps
-// in the system keychain.
-SecretKeys.ExportForScripts(SecretKeys.DefaultStorePath());
+// The key of an encrypted Secret Store, which Invoklet keeps in the system keychain, is read only when a script can ask for a secret
+// (see CliServices): a script that cannot never makes the system ask the user to unlock it.
 // Nothing here answers a script's input requests yet: a missing secret is reported, not asked for.
 Environment.SetEnvironmentVariable(Invoklet.Build.Core.ProcessRunners.ChildProcess.InputEnvVar, "0");
 

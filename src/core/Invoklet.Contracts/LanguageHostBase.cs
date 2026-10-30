@@ -56,6 +56,13 @@ public abstract class LanguageHostBase : ILanguageHost
     /// </summary>
     public Action<string, string>? SecretSaver { get; set; }
 
+    /// <summary>
+    /// Called before a run or a debug session of a script that may ask for a secret (it mentions <c>GetSecret</c> or <c>SetSecret</c>), to hand
+    /// the key of the Secret Store to the script's process. A script that does not never calls it, so the system keychain is not opened for it.
+    /// Null: nothing is handed over.
+    /// </summary>
+    public Action? ExportSecretKey { get; set; }
+
     // --- Debug: virtual, throws if capability not declared ---
 
     public virtual Task RunDebugAsync(

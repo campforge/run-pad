@@ -17,6 +17,10 @@ public static class SecretStoreExtensions
         try { return store.LoadSnapshot().Secrets.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase))?.Value; }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { return null; }
     }
+
+    /// <summary>The names of the secrets; from a store that can list them without decrypting, without reading its key.</summary>
+    public static IReadOnlyList<string> LoadNames(this ISecretStore store)
+        => store is ISecretNames named ? named.LoadNames() : [.. store.LoadSnapshot().Secrets.Select(s => s.Name)];
 }
 
 public static class SecretStorePut
@@ -54,6 +58,18 @@ public sealed class SecretStoreConflictException() : IOException("The secret sto
 public sealed class SecretStoreBusyException(Exception inner) : IOException("The secret store is in use.", inner);
 
 /// <summary>
+/// A store that can list the names of its secrets without opening what protects their values. The names are not encrypted, so where a list of
+/// names is all that is needed (which secrets a connection can use) <see cref="LoadNames"/> is asked, not <see cref="ISecretStore.LoadSnapshot"/>:
+/// the key is not read from the system keychain, which may ask the user to unlock it.
+/// </summary>
+public interface ISecretNames
+{
+    /// <summary>The names, in the order the secrets were saved; empty when there is no store yet.</summary>
+    /// <exception cref="InvalidDataException">The file can't be read here: damaged or from a newer Invoklet.</exception>
+    IReadOnlyList<string> LoadNames();
+}
+
+/// <summary>
 /// Invoklet's Secret Store: secrets kept on this machine for this user, outside every script, so a
 /// script names a secret instead of containing it. Edited in Tools → Secret Store.
 /// </summary>
@@ -88,7 +104,7 @@ public interface ISecretStore
 /// Invoklet.Runtime reads this file itself for <c>Util.GetSecret</c> (its own copy of the format, as
 /// for the data folder): the version, the protection names and the value encoding must stay in step.
 /// </remarks>
-public sealed class FileSecretStore : ISecretStore
+public sealed class FileSecretStore : ISecretStore, ISecretNames
 {
     /// <summary>Also read by <c>Util.GetSecret</c> in the script's process.</summary>
     public const string FileEnvVar = SecretKeys.FileEnvVar;
@@ -142,10 +158,46 @@ public sealed class FileSecretStore : ISecretStore
 
     public IReadOnlyList<Secret> Load() => LoadSnapshot().Secrets;
 
+    public IReadOnlyList<string> LoadNames()
+    {
+        var bytes = ReadBytes(FilePath);
+        return bytes is null ? [] : [.. (ParseFile(bytes).Secrets ?? []).Keys];
+    }
+
     public SecretStoreSnapshot LoadSnapshot()
     {
         var bytes = ReadBytes(FilePath);
         if (bytes is null) return new SecretStoreSnapshot([], null);
+        var file = ParseFile(bytes);
+
+        var unprotect = file.Protection switch
+        {
+            NoProtection => (Func<string, string, string>)((_, value) => value),
+            Dpapi when OperatingSystem.IsWindows() => (_, value) =>
+            {
+                System.Diagnostics.Debug.Assert(OperatingSystem.IsWindows());
+                return Unprotect(value);
+            }
+            ,
+            Dpapi => throw new InvalidDataException("The secret store is encrypted for a Windows user and can't be read here."),
+            SecretKeys.Protection => KeychainUnprotect(),
+            _ => throw new InvalidDataException($"The secret store uses an unknown protection ({file.Protection})."),
+        };
+        try
+        {
+            return new SecretStoreSnapshot([.. (file.Secrets ?? []).Select(pair => new Secret(pair.Key, unprotect(pair.Key, pair.Value!)))], VersionOf(bytes));
+        }
+        catch (Exception ex) when (ex is CryptographicException or FormatException)
+        {
+            throw new InvalidDataException(file.Protection == Dpapi
+                ? "The secret store is encrypted for another Windows user or is damaged."
+                : "The secret store doesn't match the key in the system keychain, or is damaged.", ex);
+        }
+    }
+
+    // The file as written, checked, with its values still as they are stored: reading it asks nothing of the keychain.
+    private static StoreFile ParseFile(byte[] bytes)
+    {
         StoreFile file;
         try
         {
@@ -171,30 +223,7 @@ public sealed class FileSecretStore : ISecretStore
             if (!names.Add(name))
                 throw new InvalidDataException($"The secret store file is damaged: two secrets are named '{name}' (letter case aside).");
         }
-
-        var unprotect = file.Protection switch
-        {
-            NoProtection => (Func<string, string, string>)((_, value) => value),
-            Dpapi when OperatingSystem.IsWindows() => (_, value) =>
-            {
-                System.Diagnostics.Debug.Assert(OperatingSystem.IsWindows());
-                return Unprotect(value);
-            }
-            ,
-            Dpapi => throw new InvalidDataException("The secret store is encrypted for a Windows user and can't be read here."),
-            SecretKeys.Protection => KeychainUnprotect(),
-            _ => throw new InvalidDataException($"The secret store uses an unknown protection ({file.Protection})."),
-        };
-        try
-        {
-            return new SecretStoreSnapshot([.. (file.Secrets ?? []).Select(pair => new Secret(pair.Key, unprotect(pair.Key, pair.Value!)))], VersionOf(bytes));
-        }
-        catch (Exception ex) when (ex is CryptographicException or FormatException)
-        {
-            throw new InvalidDataException(file.Protection == Dpapi
-                ? "The secret store is encrypted for another Windows user or is damaged."
-                : "The secret store doesn't match the key in the system keychain, or is damaged.", ex);
-        }
+        return file;
     }
 
     // The key of a store encrypted with one, exported for the scripts this process starts.
