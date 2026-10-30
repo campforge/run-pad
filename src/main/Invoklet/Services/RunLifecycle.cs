@@ -5,17 +5,24 @@ namespace Invoklet.Services;
 /// let the work of an earlier run (a callback posted to the UI, a prompt) tell it is no longer the current one.
 /// It owns nothing that runs: the host, its cancellation and the clean-up stay with the tab, which asks this
 /// class whether it may start, whether it was stopped meanwhile and whether a late callback still counts.
-/// Everything happens on the UI thread.
+/// The state changes on the UI thread. The generations are also read from any thread, as the host reports
+/// its events on its own: they are read and written with the memory ordering that makes a stop visible to
+/// such a reader at once. The rest is for the UI thread alone.
 /// </summary>
 internal sealed class RunLifecycle
 {
     private Task? _active;
+    private int _runGeneration;
+    private int _stopGeneration;
 
-    /// <summary>Counts the runs that started, and every stop: a callback of an earlier run compares its own.</summary>
-    internal int RunGeneration { get; private set; }
+    /// <summary>
+    /// Counts the runs that started, and every stop: a callback of an earlier run compares its own. May be read
+    /// from any thread.
+    /// </summary>
+    internal int RunGeneration => Volatile.Read(ref _runGeneration);
 
     /// <summary>Counts the stops: whoever began before one sees it has been stopped.</summary>
-    internal int StopGeneration { get; private set; }
+    internal int StopGeneration => Volatile.Read(ref _stopGeneration);
 
     /// <summary>A run is executing (from its host being created to its clean-up).</summary>
     internal bool InProgress { get; private set; }
@@ -48,7 +55,7 @@ internal sealed class RunLifecycle
     internal int Begin()
     {
         InProgress = true;
-        return ++RunGeneration;
+        return Interlocked.Increment(ref _runGeneration);
     }
 
     internal void End() => InProgress = false;
@@ -57,10 +64,11 @@ internal sealed class RunLifecycle
     internal void Stop()
     {
         RestartRequested = false;
-        StopGeneration++;
-        RunGeneration++;
+        Interlocked.Increment(ref _stopGeneration);
+        Interlocked.Increment(ref _runGeneration);
     }
 
+    /// <summary>Whether the run of <paramref name="generation"/> is still the current one; callable from any thread.</summary>
     internal bool IsCurrent(int generation) => generation == RunGeneration;
 
     internal bool IsStoppedSince(int stopGeneration) => stopGeneration != StopGeneration;
