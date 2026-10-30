@@ -54,7 +54,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private CancellationTokenSource? _debugTooltipCloseCts;
     private CancellationTokenSource? _quickInfoCts;
     private CancellationTokenSource? _navigationCts;
-    private CancellationTokenSource? _refactoringCts;
+    private RefactoringRequests? _refactoringRequests;
     private EventHandler? _refactoringCaretHandler;
     private EventHandler? _intelliSenseTextChangedHandler;
     private EventHandler<VisualTreeAttachmentEventArgs>? _editorAttachedHandler;
@@ -841,9 +841,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             State.Editor.TextArea.TextView.PointerMoved -= quickInfoMoved;
         if (_quickInfoPointerExitedHandler is { } quickInfoExited)
             State.Editor.TextArea.TextView.PointerExited -= quickInfoExited;
-        var refactoringCts = Interlocked.Exchange(ref _refactoringCts, null);
-        refactoringCts?.Cancel();
-        refactoringCts?.Dispose();
+        _refactoringRequests?.Cancel();
         if (_squiggleRenderer is { } squiggle)
             State.Editor.TextArea.TextView.BackgroundRenderers.Remove(squiggle);
         if (_semanticHighlighter is { } semantic)
@@ -2025,32 +2023,21 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _intelliSenseEventSubscriptions.Attach();
 
         // ── Refactorings (lightbulb: real Roslyn CodeRefactoringProviders) ──────
-        _refactoringCts = new CancellationTokenSource();
+        var refactoringRequests = _refactoringRequests = new RefactoringRequests(intelliSense, RefactoringDebounceDelay);
 
         _refactoringCaretHandler = (_, _) =>
         {
-            // Same not-disposed-here rationale as quickInfoCts below — a superseded fetch's
-            // background Task.Run can still be mid-flight past this point.
-            var previousRefactoringCts = Interlocked.Exchange(ref _refactoringCts, null);
-            previousRefactoringCts?.Cancel();
-            previousRefactoringCts?.Dispose();
-            var refactoringCts = _refactoringCts = new CancellationTokenSource();
-
-            // User request 2026-07-21 — the master "show code fixes" switch skips even
-            // asking for refactorings, not just hiding them once listed: a caret move fires on every
-            // arrow key/click, and Roslyn's own CodeRefactoringProviders do real syntax/semantic work
-            // just to decide "am I applicable here", independent of whether the result ever gets
-            // filtered out for display.
+            // The master "show code fixes" switch skips even asking for refactorings, not just hiding them
+            // once listed: a caret move fires on every arrow key and click, and Roslyn's own providers do real
+            // syntax and semantic work just to decide whether they apply, whether or not the result is shown.
             if (!_prefs.CSharp.CodeFixesEnabled)
             {
+                refactoringRequests.Cancel();
                 _lightbulb.SetRefactorings(null);
                 UpdateLightbulb();
-                refactoringCts.Dispose();
-                Interlocked.CompareExchange(ref _refactoringCts, null, refactoringCts);
                 return;
             }
 
-            var ct = refactoringCts.Token;
             var offset = editor.TextArea.Caret.Offset;
             // a snapshot, materialized only if this caret position survives the debounce — every typed
             // character moves the caret, and editor.Text here copied the whole document per keystroke
@@ -2060,26 +2047,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 try
                 {
-                    await Task.Delay(RefactoringDebounceDelay, ct);
-                    var text = snapshot.Text;
-                    var refactorings = await intelliSense.GetRefactoringsAsync(text, offset, ct);
-                    if (ct.IsCancellationRequested) return;
+                    string? text = null; // read once the position survives the debounce
+                    var result = await refactoringRequests.RequestAsync(() => text = snapshot.Text, offset);
 
                     await Dispatcher.InvokeAsync(() =>
                     {
-                        if (_disposed || ct.IsCancellationRequested) return;
+                        if (_disposed || result.Request.IsCancellationRequested) return;
                         if (!ReferenceEquals(editor.Text, text) && editor.Text != text) return;
-                        _lightbulb.SetRefactorings(refactorings);
+                        _lightbulb.SetRefactorings(result.Refactorings);
                         UpdateLightbulb();
                     });
                 }
                 catch (OperationCanceledException)
                 {
-                }
-                finally
-                {
-                    refactoringCts.Dispose();
-                    Interlocked.CompareExchange(ref _refactoringCts, null, refactoringCts);
                 }
             });
         };
