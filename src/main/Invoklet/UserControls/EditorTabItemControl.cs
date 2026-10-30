@@ -1135,35 +1135,18 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // NOT another tab — the script keeps running/editable behind it, mirroring how dnSpy/ILSpy show a
     // decompiled member without disturbing whatever else is open).
     // ── Coalesced partial redraws for background analysis results ──
-    // Semantic colors and inlay hints used to each force a full TextView.Redraw() (every visible line
-    // rebuilt and re-colorized, twice per analysis). Now each update reports only the span whose
-    // decorations changed; spans arriving before the posted redraw runs are merged, and the redraw
-    // covers just their union — nothing at all when the analysis changed nothing.
-    private (int Start, int End)? _pendingRedraw;
-    private bool _redrawPosted;
+    private RedrawCoalescer? _redraws;
 
-    internal int RedrawsRun { get; private set; } // test observability
+    internal int RedrawsRun => _redraws?.RedrawsRun ?? 0; // test observability
     internal SemanticHighlighter? SemanticHighlighterForTests => _semanticHighlighter;
 
     private void RequestRedraw(CodeTextEditor editor, (int Start, int End)? changed)
     {
-        if (changed is not { } range) return;
-        _pendingRedraw = _pendingRedraw is { } pending
-            ? (Math.Min(pending.Start, range.Start), Math.Max(pending.End, range.End))
-            : range;
-        if (_redrawPosted) return;
-
-        _redrawPosted = true;
-        Dispatcher.Post(() =>
-        {
-            _redrawPosted = false;
-            if (_disposed || _pendingRedraw is not { } union || editor.Document is not { } document) return;
-            _pendingRedraw = null;
-            var start = Math.Clamp(union.Start, 0, document.TextLength);
-            var end = Math.Clamp(union.End, start, document.TextLength);
-            editor.TextArea.TextView.Redraw(start, Math.Max(end - start, 1)); // a hint is zero-length
-            RedrawsRun++;
-        }, DispatcherPriority.Background);
+        _redraws ??= new RedrawCoalescer(
+            work => Dispatcher.Post(work, DispatcherPriority.Background),
+            () => _disposed ? null : editor.Document?.TextLength,
+            (start, length) => editor.TextArea.TextView.Redraw(start, length));
+        _redraws.Request(changed);
     }
 
     // The rows of the completion window; they are controls, so they stay with the tab.
