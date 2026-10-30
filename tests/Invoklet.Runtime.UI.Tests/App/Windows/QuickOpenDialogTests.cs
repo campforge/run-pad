@@ -40,14 +40,21 @@ public class QuickOpenDialogTests
         var owner = new Window();
         owner.Show();
         var dialog = new QuickOpenDialog(content ?? Content());
-        var result = dialog.ShowDialog<QuickOpenEntry?>(owner);
-        Dispatcher.UIThread.RunJobs();
-        act(dialog);
-        Dispatcher.UIThread.RunJobs();
-        if (!result.IsCompleted) dialog.Close(null);
-        var path = await result;
-        owner.Close();
-        return path;
+        try
+        {
+            var result = dialog.ShowDialog<QuickOpenEntry?>(owner);
+            Dispatcher.UIThread.RunJobs();
+            act(dialog);
+            Dispatcher.UIThread.RunJobs();
+            if (!result.IsCompleted) dialog.Close(null);
+            return await result;
+        }
+        finally
+        {
+            // Whatever the test did or failed to do, no window outlives it.
+            dialog.Close(null);
+            owner.Close();
+        }
     }
 
     [AvaloniaFact]
@@ -182,21 +189,27 @@ public class QuickOpenDialogTests
             d.FindControl<CheckBox>("OtherFilesCheck")!.IsChecked = true;
             Dispatcher.UIThread.RunJobs();
         });
-        // The files are listed by a task; wait for it in the second dialog, where the check is made after the pump.
+        // The files are listed by a task: wait for it, with the box still open.
         var owner = new Window();
         owner.Show();
         var dialog = new QuickOpenDialog(Content());
-        _ = dialog.ShowDialog<QuickOpenEntry?>(owner);
-        Dispatcher.UIThread.RunJobs();
-        dialog.FindControl<CheckBox>("OtherFilesCheck")!.IsChecked = true;
-        for (var i = 0; i < 200 && !Names(dialog).Contains("notes.md"); i++)
+        try
         {
-            await Task.Delay(10, TestContext.Current.CancellationToken);
+            _ = dialog.ShowDialog<QuickOpenEntry?>(owner);
             Dispatcher.UIThread.RunJobs();
+            dialog.FindControl<CheckBox>("OtherFilesCheck")!.IsChecked = true;
+            for (var i = 0; i < 200 && !Names(dialog).Contains("notes.md"); i++)
+            {
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+                Dispatcher.UIThread.RunJobs();
+            }
+            after = Names(dialog);
         }
-        after = Names(dialog);
-        dialog.Close(null);
-        owner.Close();
+        finally
+        {
+            dialog.Close(null);
+            owner.Close();
+        }
 
         Assert.DoesNotContain("notes.md", before!);
         Assert.Contains("notes.md", after);
@@ -257,19 +270,25 @@ public class QuickOpenDialogTests
         var owner = new Window();
         owner.Show();
         var dialog = new QuickOpenDialog(Content(textOfGamma: "var needle = 1;"));
-        _ = dialog.ShowDialog<QuickOpenEntry?>(owner);
-        Dispatcher.UIThread.RunJobs();
-        dialog.FindControl<CheckBox>("SearchInsideCheck")!.IsChecked = true;
-        dialog.FindControl<TextBox>("QueryBox")!.Text = "needle";
         string[] names = [];
-        for (var i = 0; i < 300 && !names.Contains("Gamma"); i++)
+        try
         {
-            await Task.Delay(10, TestContext.Current.CancellationToken);
+            _ = dialog.ShowDialog<QuickOpenEntry?>(owner);
             Dispatcher.UIThread.RunJobs();
-            names = Names(dialog);
+            dialog.FindControl<CheckBox>("SearchInsideCheck")!.IsChecked = true;
+            dialog.FindControl<TextBox>("QueryBox")!.Text = "needle";
+            for (var i = 0; i < 300 && !names.Contains("Gamma"); i++)
+            {
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+                Dispatcher.UIThread.RunJobs();
+                names = Names(dialog);
+            }
         }
-        dialog.Close(null);
-        owner.Close();
+        finally
+        {
+            dialog.Close(null);
+            owner.Close();
+        }
 
         Assert.Equal(["Gamma"], names);
     }

@@ -36,6 +36,7 @@ public sealed class EditorTabsEditorServicesTests : IDisposable
         public ManualResetEventSlim? Gate { get; set; }
         public bool HonourCancellation { get; set; }
         public bool Throws { get; set; }
+        public bool DisposeThrows { get; set; }
 
         // What the test waits for instead of polling: the first creation call has ended (with a service, or cancelled), and the first
         // service it made has been disposed.
@@ -64,7 +65,11 @@ public sealed class EditorTabsEditorServicesTests : IDisposable
                 if (Throws) throw new InvalidOperationException("the language failed to start");
                 if (!hasEditorServices) return null;
                 var service = new Mock<IIntelliSenseService>();
-                service.Setup(s => s.Dispose()).Callback(() => FirstDisposed.TrySetResult());
+                service.Setup(s => s.Dispose()).Callback(() =>
+                {
+                    FirstDisposed.TrySetResult();
+                    if (DisposeThrows) throw new InvalidOperationException("dispose failed");
+                });
                 lock (_lock) Created.Add(service);
                 return service.Object;
             }
@@ -267,6 +272,29 @@ public sealed class EditorTabsEditorServicesTests : IDisposable
 
             Assert.Null(ctrl.IntelliSenseForTests);
             Assert.Empty(csharp.Created);
+        }
+        finally { host.Close(); }
+    }
+
+    // What arrives late is disposed by nobody who could see a failure of it: the failure is logged, not left unobserved.
+    [AvaloniaFact]
+    public async Task ALateServiceThatFailsToDispose_Should_NotBreakTheTab()
+    {
+        using var gate = new ManualResetEventSlim();
+        var csharp = new FakeLanguage("csharp") { Gate = gate, DisposeThrows = true };
+        var (tabs, shell, host) = Open(csharp);
+        try
+        {
+            tabs.ServiceCreationTimeout = TimeSpan.FromMilliseconds(150);
+            tabs.Attach(shell);
+            var ctrl = await ShownAsync(tabs, shell.Tabs[0]);
+
+            gate.Set();
+            await csharp.FirstDisposed.Task.WaitAsync(TestWait.DefaultTimeout, TestContext.Current.CancellationToken);
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+
+            Assert.NotNull(tabs.ControlForTests(shell.Tabs[0]));
+            Assert.Same(ctrl, tabs.ControlForTests(shell.Tabs[0]));
         }
         finally { host.Close(); }
     }

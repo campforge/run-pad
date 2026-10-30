@@ -37,7 +37,7 @@ public partial class QuickOpenDialog : Window
         OtherFilesCheck.IsCheckedChanged += async (_, _) => await OnOtherFilesChangedAsync();
         ResultList.DoubleTapped += (_, _) => Accept();
         Opened += (_, _) => QueryBox.Focus();
-        Closed += (_, _) => _contentSearch?.Cancel();
+        Closed += (_, _) => ReleaseContentSearch();
         ShowResults();
     }
 
@@ -79,7 +79,7 @@ public partial class QuickOpenDialog : Window
     // What the text of the scripts holds is looked up after a short pause, off the UI thread, and replaced by the next text typed.
     private async void StartContentSearch()
     {
-        _contentSearch?.Cancel();
+        ReleaseContentSearch();
         var query = QueryBox.Text ?? "";
         if (!_session.SearchInside || query.Trim().Length == 0) return;
 
@@ -95,6 +95,31 @@ public partial class QuickOpenDialog : Window
         catch (OperationCanceledException)
         {
             // A newer text, or the box closed.
+        }
+        finally
+        {
+            // The source of a search that was not replaced is released here; a replaced one was released by whoever replaced it.
+            if (ReferenceEquals(_contentSearch, source))
+            {
+                _contentSearch = null;
+                source.Dispose();
+            }
+        }
+    }
+
+    // Cancels the search in progress and releases its source: the task that holds the token sees the cancellation, not a disposed source.
+    private void ReleaseContentSearch()
+    {
+        var source = _contentSearch;
+        _contentSearch = null;
+        if (source is null) return;
+        try
+        {
+            source.Cancel();
+        }
+        finally
+        {
+            source.Dispose();
         }
     }
 

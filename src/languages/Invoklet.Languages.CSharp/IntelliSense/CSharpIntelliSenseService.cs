@@ -299,10 +299,21 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // checks its token shouldn't be able to hang Dispose (or, in production, a tab close) forever.
     public void Dispose()
     {
-        _analysis.Stop();
-        _scheduler.Stop();
-        _session.Workspace.Dispose();
+        // Once: a second call (a tab that disposes what the creation also disposes) finds nothing left to do.
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        try
+        {
+            _analysis.Stop();
+            _scheduler.Stop();
+        }
+        finally
+        {
+            // The workspace goes even if stopping a pass threw.
+            _session.Dispose();
+        }
     }
+
+    private int _disposed;
 
     // ── Private model types ────────────────────────────────────────────────────
 

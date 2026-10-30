@@ -12,6 +12,7 @@ namespace Invoklet.NonUI.Tests.App.Windows.Models.Fixtures;
 internal sealed class MainWindowViewModelQuickOpenFixture : IDisposable
 {
     private readonly DirectoryInfo _folder = Directory.CreateTempSubdirectory("quickopen");
+    private readonly List<MainWindowViewModel> _created = [];
 
     public Mock<IWindowService> Windows { get; } = new();
 
@@ -38,15 +39,28 @@ internal sealed class MainWindowViewModelQuickOpenFixture : IDisposable
         Windows.Setup(w => w.ShowQuickOpenAsync(It.IsAny<QuickOpenContent>()))
             .Callback<QuickOpenContent>(content => Shown = content)
             .ReturnsAsync(choice);
-        return new MainWindowViewModel(
+        var viewModel = new MainWindowViewModel(
             sdkProviders: [],
             fileSystemService: fileSystem.Object,
             windowService: Windows.Object,
             prefs: prefs.Object,
             languageRegistry: new LanguageHostRegistry());
+        _created.Add(viewModel);
+        return viewModel;
     }
 
     public QuickOpenEntry ScriptEntry => new(QuickOpenKind.Script, ScriptPath, "Report", "", -1);
 
-    public void Dispose() => _folder.Delete(recursive: true);
+    public void Dispose()
+    {
+        // The view models first (they watch the folder and hold its files), then the folder, even if one of them fails to dispose.
+        try
+        {
+            foreach (var viewModel in _created) viewModel.Dispose();
+        }
+        finally
+        {
+            _folder.Delete(recursive: true);
+        }
+    }
 }

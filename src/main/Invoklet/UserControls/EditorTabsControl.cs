@@ -164,14 +164,30 @@ public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost,
                     // vm's disposal in this case either: MainWindowViewModel.CloseTab doesn't dispose
                     // it itself, it relies on the (normally synchronous) OldItems branch below —
                     // which already ran and only cancelled the creation, since _tabs had no entry yet.
-                    intelliSense?.Dispose();
-                    vm.Dispose();
-                    SignalWorkspaceShownIfDone();
+                    try
+                    {
+                        intelliSense?.Dispose();
+                    }
+                    finally
+                    {
+                        vm.Dispose();
+                        SignalWorkspaceShownIfDone();
+                    }
                     continue;
                 }
 
-                // From here on the tab owns the service and disposes it with itself.
-                var ctrl = CreateControl(vm, intelliSense);
+                // From here on the tab owns the service and disposes it with itself; until the control has taken it, a failure
+                // to build the control must not leave the service behind.
+                EditorsTabItemControl ctrl;
+                try
+                {
+                    ctrl = CreateControl(vm, intelliSense);
+                }
+                catch
+                {
+                    intelliSense?.Dispose();
+                    throw;
+                }
 
                 // Where vm is among the tabs already shown: the end, unless it took the place of one.
                 var position = _vm!.Tabs.TakeWhile(t => !ReferenceEquals(t, vm)).Count(_tabs.ContainsKey);
@@ -440,10 +456,7 @@ public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost,
         await timer.CancelAsync(); // the timer of a creation that finished in time must not run on
         if (!ReferenceEquals(finished, work))
         {
-            _ = work.ContinueWith(late =>
-            {
-                if (late.IsCompletedSuccessfully) late.Result?.Dispose();
-            }, TaskScheduler.Default);
+            _ = work.ContinueWith(late => DisposeLate(late, id), TaskScheduler.Default);
             if (!cancellationToken.IsCancellationRequested)
                 _runLogger?.LogWarning("The editor services of {Language} were not ready after {Timeout}; the tab opens without them.", id, ServiceCreationTimeout);
             return null;
@@ -463,6 +476,20 @@ public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost,
             // as plain text.
             _runLogger?.LogWarning(ex, "The editor services of {Language} could not be created; the tab opens without them.", id);
             return null;
+        }
+    }
+
+    // What a creation returns after nobody is waiting for it any more. A failure to dispose it is logged: nothing else can see it.
+    private void DisposeLate(Task<IIntelliSenseService?> late, string language)
+    {
+        if (!late.IsCompletedSuccessfully) return;
+        try
+        {
+            late.Result?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            _runLogger?.LogWarning(ex, "The editor services of {Language} that arrived late could not be disposed.", language);
         }
     }
 
