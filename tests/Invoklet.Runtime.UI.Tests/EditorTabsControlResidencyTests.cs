@@ -496,4 +496,61 @@ public class EditorTabsControlResidencyTests
         }
         finally { tabs.Dispose(); Directory.Delete(folder, true); }
     }
+
+    [AvaloniaFact]
+    public async Task TheOutputOfAnUnsavedTab_Should_GoToTheSpill_AndComeBackInTheSession()
+    {
+        var (tabs, vm, folder, spill) = CreateHarness(); // no build folder, as an unsaved script has none
+        try
+        {
+            var untitled = await FirstTabAsync(tabs, vm);
+            var output = tabs.ControlForTests(untitled)!.State.Output;
+            output.Append("<div>untitled output</div>");
+
+            await AddTabsAsync(tabs, vm, 4);
+
+            Assert.Equal("", output.Content);
+            Assert.Equal("<div>untitled output</div>", spill.TryRead(untitled.RecoveryId)!.Output!.Content);
+
+            await SelectAsync(tabs, vm, untitled);
+
+            Assert.Equal("<div>untitled output</div>", output.Content);
+        }
+        finally { tabs.Dispose(); Directory.Delete(folder, true); }
+    }
+
+    [AvaloniaFact]
+    public async Task SaveAs_Should_MoveTheRunFolder_SoTheOldFileKeepsOnlyItsOwnOutput()
+    {
+        var folder = Directory.CreateTempSubdirectory("Invoklet-residency-test").FullName;
+        var cache = new Mock<IBuildCacheService>();
+        cache.Setup(c => c.EnsureOutputDirectory(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns((string path, string _) => Path.Combine(folder, "run-" + Path.GetFileNameWithoutExtension(path)));
+        var windows = new Mock<IWindowService>();
+        var (tabs, vm, _, _) = CreateHarness(windows, cache, folder);
+        try
+        {
+            var path = Path.Combine(folder, "A.inv");
+            File.WriteAllText(path, Script("var a = 1;\n"));
+            vm.OpenTab(path);
+            await TestWait.WhileAsync(() => vm.Tabs.Count == 0 || tabs.ControlForTests(vm.Tabs[0]) is null || vm.Tabs[0].FilePath is null);
+            var file = vm.Tabs[0];
+            var control = tabs.ControlForTests(file)!;
+            control.State.Output.Append("<div>run of A</div>");
+            await AddTabsAsync(tabs, vm, 4); // releasing the content keeps the output in A's folder
+            await SelectAsync(tabs, vm, file);
+            var runOfA = Path.Combine(folder, "run-A");
+            Assert.Equal("<div>run of A</div>", RunOutputFile.TryLoad(runOfA)!.Content);
+
+            windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(Path.Combine(folder, "B.inv"));
+            await file.SaveAsCommand.Execute();
+            control.State.Output.Append("<div>run of B</div>");
+            await AddTabsAsync(tabs, vm, 4);
+
+            Assert.Equal("<div>run of A</div>", RunOutputFile.TryLoad(runOfA)!.Content); // untouched by B
+            Assert.Contains("run of B", RunOutputFile.TryLoad(Path.Combine(folder, "run-B"))!.Content);
+        }
+        finally { tabs.Dispose(); Directory.Delete(folder, true); }
+    }
 }

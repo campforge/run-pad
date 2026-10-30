@@ -15,7 +15,8 @@ Notable changes in each Invoklet release. Downloads are on the
   running, or whose run ended while you were on another tab, keeps its content. A closed Markdown
   preview is released instead of kept hidden.
 - Keep the output of a script's last run in the script's build folder, next to its library, and
-  show it again when the script is opened.
+  show it again when the script is opened. A script that is not saved yet has no such folder, so its
+  output is kept only while Invoklet runs.
 
 ### Fixed
 

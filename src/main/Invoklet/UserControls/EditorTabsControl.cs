@@ -25,6 +25,7 @@ public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost
     private readonly Dictionary<EditorTabItemViewModel, (TabItem Tab, EditorsTabItemControl Control)> _tabs = new();
     private readonly TabLifecycleManager? _lifecycle;
     private readonly TabDiskSync? _diskSync;
+    private readonly CancellationTokenSource _closed = new();
     // Tabs whose editor services are still being created: closing one cancels its creation.
     private readonly Dictionary<EditorTabItemViewModel, CancellationTokenSource> _creating = new();
     private IDisposable? _activeTabSub;
@@ -396,7 +397,7 @@ public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost
     /// Brings open tabs up to date with files another program changed (see <see cref="TabDiskSync"/>).
     /// Runs when Invoklet's window is activated and when the scripts folder reports a change.
     /// </summary>
-    public Task CheckFilesChangedOnDiskAsync() => _diskSync?.CheckAsync(this) ?? Task.CompletedTask;
+    public Task CheckFilesChangedOnDiskAsync() => _diskSync?.CheckAsync(this, _closed.Token) ?? Task.CompletedTask;
 
     public void FormatActive()
         => _ = GetActiveControl()?.FormatAsync();
@@ -533,6 +534,7 @@ public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost
         }
 
         _activeTabSub?.Dispose();
+        _closed.Cancel();
         _lifecycle?.Detach();
         foreach (var creation in _creating.Values) creation.Cancel();
 

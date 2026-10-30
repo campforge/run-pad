@@ -498,6 +498,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // The ID written to the new file is now this document's own.
         if (_writtenId is ({ } writtenPath, var writtenId) && writtenPath == newPath && State.MdRunDocument is { } moved)
             moved.FrontMatter.Id = writtenId;
+        RebindRunFolder(newPath);
         RefreshIntelliSenseContext(reanalyze: true);
         UpdatePreviewNow();
     }
