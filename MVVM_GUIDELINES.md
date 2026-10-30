@@ -17,6 +17,18 @@ when refactoring an older screen; a contribution does not have to rewrite unrela
 The view may translate a UI event into a view-model command or call when a binding cannot express
 it cleanly. A code-behind handler should not become a second implementation of the same feature.
 
+## UI thread rule
+
+Do not run business or domain operations on the UI thread. This includes synchronous file and
+network access, process calls, compilation, decompilation, parsing or hashing large inputs, and other
+work that can block or grow with user data. A view or view model starts the operation through a
+service; the service performs blocking or CPU-heavy work away from the UI thread. An `async` method
+alone does not move synchronous work off that thread.
+
+Use the UI thread only to read or update UI-bound state and controls. When background work finishes,
+apply its result on the UI thread after checking cancellation and that the owning window or tab is
+still current. Show progress and errors through view-model state instead of freezing the interface.
+
 ## Project conventions
 
 - Use **ReactiveUI** (`ReactiveObject`, observable properties, and `ReactiveCommand`); do not add
@@ -39,6 +51,7 @@ it cleanly. A code-behind handler should not become a second implementation of t
 - Can the feature's state and command be understood without reading a view's event handlers?
 - Does the view contain only behavior that needs an Avalonia control or visual coordinate?
 - Are infrastructure operations behind a service boundary, with errors shown to the user?
+- Can any operation on the UI thread block or grow with script, file, or network size?
 - Are subscriptions and asynchronous work released or cancelled with their owner?
 - Do UI tests cover the binding or event path, while unit tests cover isolated view-model behavior?
 
