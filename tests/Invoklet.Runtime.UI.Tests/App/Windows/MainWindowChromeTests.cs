@@ -156,6 +156,7 @@ public class MainWindowChromeTests
         "Edit/Select All",
         "Edit/---",
         "Edit/Format Document",
+        "Edit/Format Selection",
         "Edit/Go to Line...",
         "Edit/Resolve All Usings",
         "View",

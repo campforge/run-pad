@@ -7,6 +7,9 @@ Notable changes in each Invoklet release. Downloads are on the
 
 ### Added
 
+- Format Selection (Edit → Format Selection, Ctrl+Shift+F, or Cmd+Shift+F on macOS) reformats the lines of the selection, or the
+  line of the caret, and leaves the rest of the script alone. Invoklet also formats as you type: after a `;` the statement, after a
+  `}` the block with its header. Preferences → Editor → "Format the statement after ; and the block after } as you type" turns it off.
 - Quick Open (File → Quick Open…, Ctrl+,) opens a script by name. Type part of the name or the first letters of its words;
   the list shows each script with its folder and when it was last changed, the recent ones first. It searches your scripts and
   the bundled samples (each can be switched off), and with "Search inside" it also finds scripts by their text; "Include

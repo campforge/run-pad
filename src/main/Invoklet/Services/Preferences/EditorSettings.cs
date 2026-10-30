@@ -19,6 +19,9 @@ public sealed class EditorSettings
     [System.Text.Json.Serialization.JsonIgnore]
     public string IndentationUnit => UseTabs ? "\t" : new string(' ', IndentationSize);
 
+    /// <summary>Formats the statement after a ';' and the block after a '}' as they are typed.</summary>
+    public bool FormatOnType { get; set; } = true;
+
     public bool ShowTabs { get; set; }
     public bool ShowSpaces { get; set; }
     public bool ShowEndOfLine { get; set; }

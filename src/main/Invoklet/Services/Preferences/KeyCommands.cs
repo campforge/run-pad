@@ -76,6 +76,7 @@ public static class KeyCommands
     public static readonly KeyCommand JumpToBracket = new("editor.jumpToBracket", Editor, "Jump to Matching Bracket", "Ctrl+]");
     public static readonly KeyCommand ToggleLineComment = new("editor.toggleLineComment", Editor, "Toggle Line Comment", "Ctrl+/", "Cmd+/");
     public static readonly KeyCommand Format = new("editor.format", Editor, "Format Document", "Shift+Alt+F");
+    public static readonly KeyCommand FormatSelection = new("editor.formatSelection", Editor, "Format Selection", "Ctrl+Shift+F", "Cmd+Shift+F");
     public static readonly KeyCommand GoToLine = new("editor.goToLine", Editor, "Go to Line", "Ctrl+G");
     public static readonly KeyCommand ResolveAllUsings = new("editor.resolveAllUsings", Editor, "Resolve All Usings", "Ctrl+Alt+U", "Cmd+Alt+U");
 
@@ -97,7 +98,7 @@ public static class KeyCommands
         RunOrContinue, ExecuteSelection, Restart, Stop, ToggleDebugMode, StepOver, StepInto, StepOut, Pause, RunToCursor,
         FindText, ReplaceText, FindNext, FindPrevious, ReplaceNext, ReplaceAll,
         TriggerCompletion, SignatureHelp, GoToDefinition, FindReferences, RenameSymbol, JumpToBracket, ToggleLineComment,
-        Format, GoToLine, ResolveAllUsings,
+        Format, FormatSelection, GoToLine, ResolveAllUsings,
         RenameFile, DeleteFile,
         ExplorerBack, ExplorerForward, ExplorerSearch, ExplorerAnalyze, ExplorerRemoveAssembly, ExplorerNextTab,
         ExplorerPreviousTab,

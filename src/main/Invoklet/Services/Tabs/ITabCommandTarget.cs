@@ -26,6 +26,8 @@ internal interface ITabCommandTarget
 
     Task FormatAsync();
 
+    Task FormatSelectionAsync();
+
     Task ResolveAllUsingsAsync();
 
     void ShowGoToLine();

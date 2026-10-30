@@ -73,6 +73,17 @@ public interface IIntelliSenseService : IDisposable
     // the original text in that case.
     Task<string?> FormatDocumentAsync(string code, CancellationToken cancellationToken = default);
 
+    // Formats the lines the range touches, as edits to the text (so the caret, the undo stack and the parts of the code that stay as
+    // they are are not disturbed). Null when the language cannot, or when it fails; empty when nothing needs to change.
+    Task<IReadOnlyList<TextEdit>?> FormatRangeAsync(string code, int start, int length, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<TextEdit>?>(null);
+
+    // The edits that tidy what was just typed: after a ';' the statement, after a '}' the block with its header. Null when
+    // <paramref name="typed"/> at <paramref name="caret"/> is not something to format after (a ';' in a string or a comment, a character the
+    // language does not format on), or when it fails.
+    Task<IReadOnlyList<TextEdit>?> FormatOnTypeAsync(string code, int caret, char typed, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<TextEdit>?>(null);
+
     // Real Roslyn refactorings (Use
     // Expression Body, Introduce Local, Reverse For Statement, Invert If, ...) available AT position,
     // not tied to any diagnostic the way CodeFixesChanged's fixes are — reuses the same ICodeFixInfo

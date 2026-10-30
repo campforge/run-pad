@@ -390,6 +390,7 @@ public sealed partial class MainWindow : Window, IDisposable, IStartupWindow
                 new MainMenuCommand("Select _All", EditCommand(e => e.SelectAll(), t => t.SelectAll()), Hotkey(h => h.SelectAll)),
                 new MainMenuSeparator(),
                 Item("_Format Document", KeyCommands.Format),
+                Item("Format Se_lection", KeyCommands.FormatSelection),
                 Item("_Go to Line...", KeyCommands.GoToLine),
                 Item("_Resolve All Usings", KeyCommands.ResolveAllUsings),
             ]),

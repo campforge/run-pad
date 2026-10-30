@@ -207,6 +207,9 @@
                                            Minimum="1" Maximum="16" Increment="1"/>
                         </Grid>
                         <CheckBox IsChecked="{Binding WordWrap}" Content="Wrap long lines in code editor"/>
+                        <CheckBox IsChecked="{Binding FormatOnType}">
+                            <TextBlock Text="Format the statement after ; and the block after } as you type" TextWrapping="Wrap"/>
+                        </CheckBox>
                         <CheckBox IsChecked="{Binding CommitCharactersEnabled}">
                             <TextBlock Text="Accept completion when typing punctuation" TextWrapping="Wrap"/>
                         </CheckBox>

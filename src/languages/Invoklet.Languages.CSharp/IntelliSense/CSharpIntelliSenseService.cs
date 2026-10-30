@@ -184,6 +184,12 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     public Task<string?> FormatDocumentAsync(string code, CancellationToken ct = default) => _formatter.FormatDocumentAsync(code, ct);
 
+    public Task<IReadOnlyList<TextEdit>?> FormatRangeAsync(string code, int start, int length, CancellationToken ct = default)
+        => _formatter.FormatRangeAsync(code, start, length, ct);
+
+    public Task<IReadOnlyList<TextEdit>?> FormatOnTypeAsync(string code, int caret, char typed, CancellationToken ct = default)
+        => _formatter.FormatOnTypeAsync(code, caret, typed, ct);
+
     public Task<bool> IsEmptyTypeBodyPositionAsync(string code, int position, CancellationToken cancellationToken = default)
         => Task.Run(() => CSharpMemberPosition.IsInEmptyTypeBody(code, position, cancellationToken), cancellationToken);
 
