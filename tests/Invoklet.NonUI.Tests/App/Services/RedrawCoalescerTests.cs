@@ -1,4 +1,5 @@
 using Invoklet.NonUI.Tests.App.Services.Fixtures;
+using Invoklet.Services;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests.App.Services;
@@ -101,5 +102,26 @@ public sealed class RedrawCoalescerTests
         // Assert
         Assert.Empty(fixture.Redraws);
         Assert.Equal(0, sut.RedrawsRun);
+    }
+
+    [Fact]
+    public void Request_MadeWhileTheRedrawRuns_IsNotLost()
+    {
+        // Arrange
+        var posted = new Queue<Action>();
+        var redraws = new List<(int Start, int Length)>();
+        RedrawCoalescer? sut = null;
+        sut = new RedrawCoalescer(posted.Enqueue, () => 100, (start, length) =>
+        {
+            redraws.Add((start, length));
+            if (redraws.Count == 1) sut!.Request((40, 50));
+        });
+        sut.Request((10, 20));
+
+        // Act
+        while (posted.Count > 0) posted.Dequeue()();
+
+        // Assert
+        Assert.Equal([(10, 10), (40, 10)], redraws);
     }
 }

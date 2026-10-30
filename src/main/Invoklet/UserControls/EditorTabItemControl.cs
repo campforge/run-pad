@@ -1136,17 +1136,23 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // decompiled member without disturbing whatever else is open).
     // ── Coalesced partial redraws for background analysis results ──
     private RedrawCoalescer? _redraws;
+    private CodeTextEditor? _redrawsEditor;
 
     internal int RedrawsRun => _redraws?.RedrawsRun ?? 0; // test observability
     internal SemanticHighlighter? SemanticHighlighterForTests => _semanticHighlighter;
 
     private void RequestRedraw(CodeTextEditor editor, (int Start, int End)? changed)
     {
-        _redraws ??= new RedrawCoalescer(
-            work => Dispatcher.Post(work, DispatcherPriority.Background),
-            () => _disposed ? null : editor.Document?.TextLength,
-            (start, length) => editor.TextArea.TextView.Redraw(start, length));
-        _redraws.Request(changed);
+        // One coalescer per editor: spans of another editor's text mean nothing here.
+        if (!ReferenceEquals(_redrawsEditor, editor))
+        {
+            _redrawsEditor = editor;
+            _redraws = new RedrawCoalescer(
+                work => Dispatcher.Post(work, DispatcherPriority.Background),
+                () => _disposed ? null : editor.Document?.TextLength,
+                (start, length) => editor.TextArea.TextView.Redraw(start, length));
+        }
+        _redraws!.Request(changed);
     }
 
     // The rows of the completion window; they are controls, so they stay with the tab.

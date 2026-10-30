@@ -2,7 +2,7 @@ using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Services.Preferences;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests.Avalonia.CodeTextEditor;
+namespace Invoklet.NonUI.Tests.Avalonia.CodeEditor;
 
 public class LineCommentToggleTests
 {

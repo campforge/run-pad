@@ -9,8 +9,7 @@ using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Avalonia.CodeTextEditor.Margins;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeTextEditor;
-
+namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeEditor;
 // The editor gutter, Rider-style: a thin separator between the gutter and the code, chevrons of
 // expanded blocks only while the folding column is hovered (collapsed ones always), and the brace
 // pair at the caret with its scope guide emphasized. Real pointer events where hovering or clicking
@@ -28,9 +27,9 @@ public class GutterAppearanceTests
         }
         """;
 
-    private static (Window Window, Invoklet.Avalonia.CodeTextEditor.CodeTextEditor Editor) CreateEditor(string text = Code)
+    private static (Window Window, CodeTextEditor Editor) CreateEditor(string text = Code)
     {
-        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor { Document = new TextDocument(text), ShowBreakpoints = true };
+        var editor = new CodeTextEditor { Document = new TextDocument(text), ShowBreakpoints = true };
         // what the C# language profile supplies in the app
         editor.BracePairs['('] = ')';
         editor.BracePairs['{'] = '}';
@@ -40,7 +39,7 @@ public class GutterAppearanceTests
         return (window, editor);
     }
 
-    private static void Settle(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor editor)
+    private static void Settle(CodeTextEditor editor)
     {
         editor.UpdateLayout();
         Dispatcher.UIThread.RunJobs();
@@ -49,11 +48,11 @@ public class GutterAppearanceTests
         Dispatcher.UIThread.RunJobs();
     }
 
-    private static FoldingMargin Folding(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor editor) => editor.FoldingMarginForTests!;
+    private static FoldingMargin Folding(CodeTextEditor editor) => editor.FoldingMarginForTests!;
 
     private static Point InWindow(Window window, Visual visual, Point point) => visual.TranslatePoint(point, window)!.Value;
 
-    private static double RowCenter(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor editor, int line)
+    private static double RowCenter(CodeTextEditor editor, int line)
         => GutterMetrics.Row(editor.TextArea.TextView, line) is var (top, height) ? top + height / 2 : throw new InvalidOperationException();
 
     // ── Separator ───────────────────────────────────────────────────────────
@@ -164,7 +163,7 @@ public class GutterAppearanceTests
 
     // ── Brace pair and active scope ──────────────────────────────────────────
 
-    private static int OffsetOf(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor editor, int line, string text)
+    private static int OffsetOf(CodeTextEditor editor, int line, string text)
     {
         var docLine = editor.Document.GetLineByNumber(line);
         return docLine.Offset + editor.Document.GetText(docLine).IndexOf(text, StringComparison.Ordinal);

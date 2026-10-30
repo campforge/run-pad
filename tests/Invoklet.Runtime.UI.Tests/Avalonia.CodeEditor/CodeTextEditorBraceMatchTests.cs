@@ -1,18 +1,18 @@
 using Avalonia.Headless.XUnit;
 using AvaloniaEdit.Document;
+using Invoklet.Avalonia.CodeTextEditor;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeTextEditor;
-
+namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeEditor;
 // Brace matching runs on every caret move (every keystroke). It used to copy the whole document into a
 // string each time; it now reads outward from the brace in 4 KB chunks (editor smoothness, 2026-10-12).
 // These pin its results down, including matches across chunk boundaries in both directions.
 public class CodeTextEditorBraceMatchTests
 {
     // the pairs come from the language's EditorLanguageProfile; a bare editor has none — use C#'s
-    private static Invoklet.Avalonia.CodeTextEditor.CodeTextEditor Editor(string text)
+    private static CodeTextEditor Editor(string text)
     {
-        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor { Document = new TextDocument(text) };
+        var editor = new CodeTextEditor { Document = new TextDocument(text) };
         editor.BracePairs['('] = ')';
         editor.BracePairs['['] = ']';
         editor.BracePairs['{'] = '}';

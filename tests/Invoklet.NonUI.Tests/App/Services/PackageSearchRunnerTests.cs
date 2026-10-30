@@ -109,4 +109,31 @@ public sealed class PackageSearchRunnerTests
         // Assert
         Assert.Same(OnePage, outcome!.Page);
     }
+
+    [Fact]
+    public async Task RunAsync_SupersededWhileTheServiceIsStillWorking_DropsThePageItLaterReturns()
+    {
+        // Arrange
+        var fixture = new PackageSearchRunnerFixture();
+        var inService = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var answer = new TaskCompletionSource<PackageSearchPage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Search.Setup(s => s.SearchAsync(It.IsAny<string>(), It.IsAny<PackageSearchOptions>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                inService.SetResult();
+                return answer.Task;
+            });
+        var sut = fixture.CreateSut();
+        var wanted = true;
+        var running = sut.RunAsync("json", PackageSearchRunnerFixture.Options, true, () => wanted, () => { }, TestContext.Current.CancellationToken);
+        await inService.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+        // Act: a newer query takes over while the service is still working, and the old one answers late
+        wanted = false;
+        answer.SetResult(OnePage);
+        var outcome = await running.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Null(outcome);
+    }
 }

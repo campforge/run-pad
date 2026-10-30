@@ -2,10 +2,10 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Invoklet.Avalonia.CodeTextEditor;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeTextEditor;
-
+namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeEditor;
 // Live user report ("if you press ctrl+c with no characters selected, the whole line gets copied,
 // including the line break" / same for Ctrl+X): the forked AvaloniaEdit's EditingCommandHandler already implements
 // this exact behavior (OnCopy/OnCut fall back to CopyWholeLine when TextArea.Selection.IsEmpty), gated
@@ -17,9 +17,9 @@ namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeTextEditor;
 // before, upstream (AvaloniaEdit.Tests) or in Invoklet.
 public class EditorClipboardWholeLineTests
 {
-    private static (Window Window, Invoklet.Avalonia.CodeTextEditor.CodeTextEditor Editor) CreateEditorWithText(string text)
+    private static (Window Window, CodeTextEditor Editor) CreateEditorWithText(string text)
     {
-        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor();
+        var editor = new CodeTextEditor();
         var window = new Window { Content = editor };
         window.Show();
         editor.Text = text;

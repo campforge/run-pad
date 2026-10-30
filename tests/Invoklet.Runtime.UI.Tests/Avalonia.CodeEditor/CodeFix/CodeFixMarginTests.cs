@@ -12,15 +12,14 @@ using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Avalonia.CodeTextEditor.CodeFix;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeTextEditor.CodeFix;
-
+namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeEditor.CodeFix;
 // The quick-fix lightbulb margin: severity colors, the compact column as wide as the bulb's square,
 // the square click target (through the helpers and through real pointer events) and the menu.
 public class CodeFixMarginTests
 {
-    private static (Window Window, Invoklet.Avalonia.CodeTextEditor.CodeTextEditor Editor, CodeFixMargin Margin) CreateEditor(string text)
+    private static (Window Window, CodeTextEditor Editor, CodeFixMargin Margin) CreateEditor(string text)
     {
-        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor { Document = new TextDocument(text) };
+        var editor = new CodeTextEditor { Document = new TextDocument(text) };
         var window = new Window { Content = editor };
         window.Show();
         var margin = editor.TextArea.LeftMargins.OfType<CodeFixMargin>().Single();
@@ -421,7 +420,7 @@ public class CodeFixMarginTests
 
     // ── The bulb's square click target ───────────────────────────────────────
 
-    private static CodeFixMargin MarginWithFixOnCaretLine(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor editor, CodeFixMargin margin, int line)
+    private static CodeFixMargin MarginWithFixOnCaretLine(CodeTextEditor editor, CodeFixMargin margin, int line)
     {
         editor.TextArea.Caret.Line = line;
         margin.Update([new CodeFixEntry(line, "fix", CodeFixSeverity.Error, "fix-key")]);
@@ -430,14 +429,14 @@ public class CodeFixMarginTests
     }
 
     // Layout, then the margin's deferred re-measure, then layout again.
-    private static void Settle(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor editor)
+    private static void Settle(CodeTextEditor editor)
     {
         editor.UpdateLayout();
         Dispatcher.UIThread.RunJobs();
         editor.UpdateLayout();
     }
 
-    private static void ScrollTo(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor editor, double offset)
+    private static void ScrollTo(CodeTextEditor editor, double offset)
     {
         editor.ScrollToVerticalOffset(offset);
         Settle(editor);
@@ -675,9 +674,9 @@ public class CodeFixMarginTests
     // click on the square's transparent padding used to miss the margin — it draws only the glyph —
     // and moved the caret in the text area instead.
 
-    private static (Window Window, Invoklet.Avalonia.CodeTextEditor.CodeTextEditor Editor, CodeFixMargin Margin, Rect Target) BulbOnLine2()
+    private static (Window Window, CodeTextEditor Editor, CodeFixMargin Margin, Rect Target) BulbOnLine2()
     {
-        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor { Document = new TextDocument("line1\nvar value = \"sample\";\nline3\n") };
+        var editor = new CodeTextEditor { Document = new TextDocument("line1\nvar value = \"sample\";\nline3\n") };
         var window = new Window { Content = editor, Width = 600, Height = 300 };
         window.Show();
         var margin = editor.TextArea.LeftMargins.OfType<CodeFixMargin>().Single();

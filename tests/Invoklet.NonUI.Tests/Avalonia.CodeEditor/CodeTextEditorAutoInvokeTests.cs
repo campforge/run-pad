@@ -1,7 +1,7 @@
+using Invoklet.Avalonia.CodeTextEditor;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests.Avalonia.CodeTextEditor;
-
+namespace Invoklet.NonUI.Tests.Avalonia.CodeEditor;
 // Completion used to only show up after '.' or an explicit Ctrl+Space, never while just
 // typing an identifier (LINQPad/VS Code's "24/7 IntelliSense"). CodeTextEditor.IsStartOfNewIdentifier
 // decides whether a just-typed letter should auto-invoke completion — it must fire exactly once per
@@ -27,7 +27,7 @@ public class CodeTextEditorAutoInvokeTests
     [InlineData(";\ns", 3)] // after a statement terminator + newline
     public void IsStartOfNewIdentifier_Should_BeTrue_RightAfterANonIdentifierCharacter(string text, int caretOffset)
     {
-        Assert.True(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.IsStartOfNewIdentifier(text, caretOffset, CSharpIdentifierChars, CSharpTriggerChars));
+        Assert.True(CodeTextEditor.IsStartOfNewIdentifier(text, caretOffset, CSharpIdentifierChars, CSharpTriggerChars));
     }
 
     [Theory]
@@ -36,7 +36,7 @@ public class CodeTextEditorAutoInvokeTests
     public void IsStartOfNewIdentifier_Should_BeFalse_WhenContinuingAnIdentifierAlreadyBeingTyped(
         string text, int caretOffset)
     {
-        Assert.False(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.IsStartOfNewIdentifier(text, caretOffset, CSharpIdentifierChars, CSharpTriggerChars));
+        Assert.False(CodeTextEditor.IsStartOfNewIdentifier(text, caretOffset, CSharpIdentifierChars, CSharpTriggerChars));
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public class CodeTextEditorAutoInvokeTests
         // '.' already has its own trigger (CompletionTriggers) that opens the window with
         // context-specific results — auto-invoking again on the next letter would replace those with
         // the unrelated general symbol list one keystroke later.
-        Assert.False(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.IsStartOfNewIdentifier("x.s", 3, CSharpIdentifierChars, CSharpTriggerChars));
+        Assert.False(CodeTextEditor.IsStartOfNewIdentifier("x.s", 3, CSharpIdentifierChars, CSharpTriggerChars));
     }
 
     [Fact]
@@ -53,20 +53,20 @@ public class CodeTextEditorAutoInvokeTests
     {
         // '_' isn't universal — a language that doesn't configure it as an identifier char should see
         // it as a plain word boundary instead, the same as any other punctuation.
-        Assert.False(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.IsStartOfNewIdentifier("_s", 2, CSharpIdentifierChars, CSharpTriggerChars));
-        Assert.True(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.IsStartOfNewIdentifier("_s", 2, NoExtraChars, CSharpTriggerChars));
+        Assert.False(CodeTextEditor.IsStartOfNewIdentifier("_s", 2, CSharpIdentifierChars, CSharpTriggerChars));
+        Assert.True(CodeTextEditor.IsStartOfNewIdentifier("_s", 2, NoExtraChars, CSharpTriggerChars));
     }
 
     [Fact]
     public void IsMemberAccessContext_Should_BeTrue_RightAfterATriggerCharacter_SkippingThePartialIdentifier()
     {
-        Assert.True(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.IsMemberAccessContext("x.Wri", 5, CSharpIdentifierChars, CSharpTriggerChars));
+        Assert.True(CodeTextEditor.IsMemberAccessContext("x.Wri", 5, CSharpIdentifierChars, CSharpTriggerChars));
     }
 
     [Fact]
     public void IsMemberAccessContext_Should_BeFalse_AtStatementLevel()
     {
-        Assert.False(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.IsMemberAccessContext("var x", 5, CSharpIdentifierChars, CSharpTriggerChars));
+        Assert.False(CodeTextEditor.IsMemberAccessContext("var x", 5, CSharpIdentifierChars, CSharpTriggerChars));
     }
 
     [Theory]
@@ -77,14 +77,14 @@ public class CodeTextEditorAutoInvokeTests
         string text, int caretOffset)
     {
         var expected = text == "List<";
-        Assert.Equal(expected, Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.IsContextualTriggerContext(text, caretOffset, CSharpIdentifierChars));
+        Assert.Equal(expected, CodeTextEditor.IsContextualTriggerContext(text, caretOffset, CSharpIdentifierChars));
     }
 
     [Fact]
     public void IsWordTriggerContext_Should_BeTrue_RightAfterARegisteredWord()
     {
         var wordTriggers = new HashSet<string> { "new" };
-        Assert.True(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.IsWordTriggerContext("var x = new ", 12, CSharpIdentifierChars, wordTriggers));
+        Assert.True(CodeTextEditor.IsWordTriggerContext("var x = new ", 12, CSharpIdentifierChars, wordTriggers));
     }
 
     [Theory]
@@ -93,13 +93,13 @@ public class CodeTextEditorAutoInvokeTests
     public void IsWordTriggerContext_Should_BeFalse_ForADifferentOrUnrelatedWord(string text, int caretOffset)
     {
         var wordTriggers = new HashSet<string> { "new" };
-        Assert.False(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.IsWordTriggerContext(text, caretOffset, CSharpIdentifierChars, wordTriggers));
+        Assert.False(CodeTextEditor.IsWordTriggerContext(text, caretOffset, CSharpIdentifierChars, wordTriggers));
     }
 
     [Fact]
     public void IsWordTriggerContext_Should_BeFalse_WhenNoWordsAreRegistered()
     {
-        Assert.False(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.IsWordTriggerContext("new ", 4, CSharpIdentifierChars, new HashSet<string>()));
+        Assert.False(CodeTextEditor.IsWordTriggerContext("new ", 4, CSharpIdentifierChars, new HashSet<string>()));
     }
 
     // Regression guard: ShowCompletion captures the caret offset before `await`-ing the language
@@ -113,11 +113,11 @@ public class CodeTextEditorAutoInvokeTests
         const string text = "x";
         const int staleOffset = 50;
 
-        Assert.False(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.IsMemberAccessContext(text, staleOffset, CSharpIdentifierChars, CSharpTriggerChars));
-        Assert.True(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.IsStartOfNewIdentifier(text, staleOffset, CSharpIdentifierChars, CSharpTriggerChars));
-        Assert.False(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.IsContextualTriggerContext(text, staleOffset, CSharpIdentifierChars));
-        Assert.False(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.IsWordTriggerContext(text, staleOffset, CSharpIdentifierChars, new HashSet<string> { "new" }));
-        Assert.Equal(0, Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.GetWordStart(text, staleOffset, CSharpIdentifierChars));
+        Assert.False(CodeTextEditor.IsMemberAccessContext(text, staleOffset, CSharpIdentifierChars, CSharpTriggerChars));
+        Assert.True(CodeTextEditor.IsStartOfNewIdentifier(text, staleOffset, CSharpIdentifierChars, CSharpTriggerChars));
+        Assert.False(CodeTextEditor.IsContextualTriggerContext(text, staleOffset, CSharpIdentifierChars));
+        Assert.False(CodeTextEditor.IsWordTriggerContext(text, staleOffset, CSharpIdentifierChars, new HashSet<string> { "new" }));
+        Assert.Equal(0, CodeTextEditor.GetWordStart(text, staleOffset, CSharpIdentifierChars));
     }
 
     // Regression guard: the 24/7 auto-invoke opens the completion window one character *after* the
@@ -131,14 +131,14 @@ public class CodeTextEditorAutoInvokeTests
     public void GetWordStart_Should_WalkBackToTheStartOfTheWordBeingCompleted(
         string text, int offset, int expectedStart)
     {
-        Assert.Equal(expectedStart, Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.GetWordStart(text, offset, CSharpIdentifierChars));
+        Assert.Equal(expectedStart, CodeTextEditor.GetWordStart(text, offset, CSharpIdentifierChars));
     }
 
     [Fact]
     public void GetWordStart_Should_NotWalkPastANonIdentifierTriggerCharacter()
     {
         // Right after '.' (nothing of the member name typed yet) there's nothing to walk back over.
-        Assert.Equal(2, Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.GetWordStart("x.", 2, CSharpIdentifierChars));
+        Assert.Equal(2, CodeTextEditor.GetWordStart("x.", 2, CSharpIdentifierChars));
     }
 
     // A Tab-triggered commit consumes any pre-existing remainder of the word the
@@ -150,14 +150,14 @@ public class CodeTextEditorAutoInvokeTests
     public void GetWordEnd_Should_WalkForwardToTheEndOfTheWordBeingCompleted(
         string text, int offset, int expectedEnd)
     {
-        Assert.Equal(expectedEnd, Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.GetWordEnd(text, offset, CSharpIdentifierChars));
+        Assert.Equal(expectedEnd, CodeTextEditor.GetWordEnd(text, offset, CSharpIdentifierChars));
     }
 
     [Fact]
     public void GetWordEnd_Should_NotWalkPastANonIdentifierCharacter()
     {
         // "Cons|.Wri" — a '.' right after the caret isn't part of the remainder.
-        Assert.Equal(4, Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.GetWordEnd("Cons.Wri", 4, CSharpIdentifierChars));
+        Assert.Equal(4, CodeTextEditor.GetWordEnd("Cons.Wri", 4, CSharpIdentifierChars));
     }
 
     // Typing '_' mid-identifier used to commit the completion window's selected item
@@ -174,7 +174,7 @@ public class CodeTextEditorAutoInvokeTests
     [InlineData('3')]
     public void IsCommitCharacter_Should_BeFalse_ForIdentifierContinuationOrSpace(char ch)
     {
-        Assert.False(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.IsCommitCharacter(ch, CSharpIdentifierChars));
+        Assert.False(CodeTextEditor.IsCommitCharacter(ch, CSharpIdentifierChars));
     }
 
     [Theory]
@@ -184,7 +184,7 @@ public class CodeTextEditorAutoInvokeTests
     [InlineData('<')]
     public void IsCommitCharacter_Should_BeTrue_ForPunctuationOutsideIdentifierChars(char ch)
     {
-        Assert.True(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.IsCommitCharacter(ch, CSharpIdentifierChars));
+        Assert.True(CodeTextEditor.IsCommitCharacter(ch, CSharpIdentifierChars));
     }
 
     [Fact]
@@ -192,6 +192,6 @@ public class CodeTextEditorAutoInvokeTests
     {
         // '_' isn't universal (see IsStartOfNewIdentifier's own underscore test) — a language that
         // doesn't register it as an identifier char should see it as ordinary punctuation instead.
-        Assert.True(Invoklet.Avalonia.CodeTextEditor.CodeTextEditor.IsCommitCharacter('_', NoExtraChars));
+        Assert.True(CodeTextEditor.IsCommitCharacter('_', NoExtraChars));
     }
 }

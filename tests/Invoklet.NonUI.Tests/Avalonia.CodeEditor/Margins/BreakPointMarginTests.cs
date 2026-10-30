@@ -2,7 +2,7 @@ using Invoklet.Avalonia.CodeTextEditor.Breakpoints;
 using Invoklet.Avalonia.CodeTextEditor.Margins;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests.Avalonia.CodeTextEditor.Margins;
+namespace Invoklet.NonUI.Tests.Avalonia.CodeEditor.Margins;
 
 // Breakpoints used to render as the exact same filled disc for every state, just
 // recolored (Verified/Unverified/Pending all one shape, three colors; Condition/HitCondition not

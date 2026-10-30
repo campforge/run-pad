@@ -20,7 +20,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeTextEditor;
+namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeEditor;
 
 // Editor smoothness (user report: typing felt laggy and the editor flickered). Background
 // decorations — semantic colors, inlay hints, squiggles, occurrence highlights — used to sit on the

@@ -3,10 +3,10 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using AvaloniaEdit.Document;
+using Invoklet.Avalonia.CodeTextEditor;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeTextEditor;
-
+namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeEditor;
 // CodeTextEditor's own half of F2 rename is just "recognize
 // the keypress and raise RenameSymbolRequested"; the host (EditorTabItemControl) resolves what's
 // renameable and drives the actual dialog/edit (see EditorTabItemControlRenameEditsTests.cs for
@@ -16,9 +16,9 @@ namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeTextEditor;
 // untouched rather than being swallowed).
 public class CodeTextEditorRenameSymbolTests
 {
-    private static (Window Window, Invoklet.Avalonia.CodeTextEditor.CodeTextEditor Editor) CreateEditor(string initialText)
+    private static (Window Window, CodeTextEditor Editor) CreateEditor(string initialText)
     {
-        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor { Document = new TextDocument(initialText) };
+        var editor = new CodeTextEditor { Document = new TextDocument(initialText) };
         var window = new Window { Content = editor };
         window.Show();
         editor.TextArea.Focus();

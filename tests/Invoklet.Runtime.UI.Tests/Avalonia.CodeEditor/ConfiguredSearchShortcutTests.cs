@@ -4,18 +4,19 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.VisualTree;
 using AvaloniaEdit.Search;
+using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Services.Preferences;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeTextEditor;
+namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeEditor;
 
 public class ConfiguredSearchShortcutTests
 {
     [AvaloniaFact]
     public void SearchKeys_Should_RebindUnbindAndUpdateHints_WithoutChangingOtherEditors()
     {
-        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor { Text = "one two one" };
-        var other = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor();
+        var editor = new CodeTextEditor { Text = "one two one" };
+        var other = new CodeTextEditor();
         var keyboard = new KeyboardSettings();
         keyboard.SetKey(KeyCommands.FindText, "F7");
         keyboard.SetKey(KeyCommands.ReplaceText, "F8");

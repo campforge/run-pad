@@ -4,6 +4,7 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Styling;
+using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Invoklet.Services;
@@ -14,7 +15,6 @@ using Moq;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests.App.Windows;
-
 // The text editor window:
 // one whole file per window; Save / Save As keep its encoding and line breaks; unsaved changes are
 // shown, and closing asks Save / Don't Save / Cancel; a failed write keeps the window and its text.
@@ -273,7 +273,7 @@ public sealed class TextEditorWindowTests : IDisposable
     [InlineData("Makefile", false)]
     public void TrySetLanguage_Should_HighlightKnownExtensions_AndLeaveOthersPlain(string name, bool highlighted)
     {
-        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor();
+        var editor = new CodeTextEditor();
         new Window { Content = editor }.Show();
 
         Assert.Equal(highlighted, editor.TrySetLanguage(TextMateSharp.Grammars.ThemeName.DarkPlus, Path.GetExtension(name)));

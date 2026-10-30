@@ -1,11 +1,11 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using AvaloniaEdit.Document;
+using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Runtime.UI.Tests.Infrastructure;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeTextEditor;
-
+namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeEditor;
 // End-to-end: CodeTextEditor.UpdateOccurrenceHighlights fires
 // on every caret move and applies whatever AsyncOccurrencesProvider returns via
 // OccurrenceHighlighter. The actual symbol-matching logic is covered at the provider level directly
@@ -13,9 +13,9 @@ namespace Invoklet.Runtime.UI.Tests.Avalonia.CodeTextEditor;
 // (caret move -> provider call -> highlights applied/cleared), so a trivial fake provider is enough.
 public class CodeTextEditorOccurrenceHighlightTests
 {
-    private static (Window Window, Invoklet.Avalonia.CodeTextEditor.CodeTextEditor Editor) CreateEditor(string initialText)
+    private static (Window Window, CodeTextEditor Editor) CreateEditor(string initialText)
     {
-        var editor = new Invoklet.Avalonia.CodeTextEditor.CodeTextEditor { Document = new TextDocument(initialText) };
+        var editor = new CodeTextEditor { Document = new TextDocument(initialText) };
         var window = new Window { Content = editor };
         window.Show();
         editor.TextArea.Focus();

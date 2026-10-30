@@ -1,7 +1,7 @@
 using Invoklet.Avalonia.CodeTextEditor.Completions;
 using Xunit;
 
-namespace Invoklet.NonUI.Tests.Avalonia.CodeTextEditor.Completions;
+namespace Invoklet.NonUI.Tests.Avalonia.CodeEditor.Completions;
 
 // Building the rich Description control (real Avalonia TextBlock/Run
 // construction via DisplaySegmentRenderer) eagerly for every completion item — up to ~584 of them
