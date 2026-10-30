@@ -17,7 +17,7 @@ public sealed class SymbolNavigatorTests
         var sut = fixture.CreateSut();
 
         // Act
-        await sut.GoToDefinitionAsync(fixture.Target.Object);
+        await sut.GoToDefinitionAsync(fixture.Target.Object, TestContext.Current.CancellationToken);
 
         // Assert
         fixture.Target.Verify(t => t.JumpTo(12), Times.Once);
@@ -35,7 +35,7 @@ public sealed class SymbolNavigatorTests
         var sut = fixture.CreateSut();
 
         // Act
-        await sut.GoToDefinitionAsync(fixture.Target.Object);
+        await sut.GoToDefinitionAsync(fixture.Target.Object, TestContext.Current.CancellationToken);
 
         // Assert
         fixture.Target.Verify(t => t.ShowImplementations(implementations), Times.Once);
@@ -50,7 +50,7 @@ public sealed class SymbolNavigatorTests
         var sut = fixture.CreateSut();
 
         // Act
-        await sut.GoToDefinitionAsync(fixture.Target.Object);
+        await sut.GoToDefinitionAsync(fixture.Target.Object, TestContext.Current.CancellationToken);
 
         // Assert
         fixture.Target.Verify(t => t.JumpTo(It.IsAny<int>()), Times.Never);
@@ -66,7 +66,7 @@ public sealed class SymbolNavigatorTests
         var sut = fixture.CreateSut();
 
         // Act
-        await sut.GoToDefinitionAsync(fixture.Target.Object);
+        await sut.GoToDefinitionAsync(fixture.Target.Object, TestContext.Current.CancellationToken);
 
         // Assert
         fixture.Target.Verify(t => t.JumpTo(30), Times.Once);
@@ -83,7 +83,7 @@ public sealed class SymbolNavigatorTests
         var sut = fixture.CreateSut();
 
         // Act
-        await sut.GoToDefinitionAsync(fixture.Target.Object);
+        await sut.GoToDefinitionAsync(fixture.Target.Object, TestContext.Current.CancellationToken);
 
         // Assert
         fixture.Windows.Verify(w => w.ShowDefinitionInAssemblyExplorerAsync(
@@ -102,7 +102,7 @@ public sealed class SymbolNavigatorTests
         var sut = fixture.CreateSut();
 
         // Act
-        await sut.GoToDefinitionAsync(fixture.Target.Object);
+        await sut.GoToDefinitionAsync(fixture.Target.Object, TestContext.Current.CancellationToken);
 
         // Assert
         fixture.Windows.Verify(w => w.ShowDefinitionInAssemblyExplorerAsync(decompiled, definition.Object), Times.Once);
@@ -118,7 +118,7 @@ public sealed class SymbolNavigatorTests
         var sut = fixture.CreateSut();
 
         // Act
-        await sut.GoToDefinitionAsync(fixture.Target.Object);
+        await sut.GoToDefinitionAsync(fixture.Target.Object, TestContext.Current.CancellationToken);
 
         // Assert
         fixture.Windows.Verify(w => w.ShowDefinitionInAssemblyExplorerAsync(
@@ -135,7 +135,7 @@ public sealed class SymbolNavigatorTests
         var sut = fixture.CreateSut();
 
         // Act
-        await sut.FindReferencesAsync(fixture.Target.Object);
+        await sut.FindReferencesAsync(fixture.Target.Object, TestContext.Current.CancellationToken);
 
         // Assert
         fixture.Target.Verify(t => t.ShowReferences(highlights), Times.Once);
@@ -151,9 +151,92 @@ public sealed class SymbolNavigatorTests
         var sut = fixture.CreateSut();
 
         // Act
-        await sut.FindReferencesAsync(fixture.Target.Object);
+        await sut.FindReferencesAsync(fixture.Target.Object, TestContext.Current.CancellationToken);
 
         // Assert
         fixture.Target.Verify(t => t.ShowReferences(It.IsAny<IReadOnlyList<IDocumentHighlightSpan>>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GoToDefinitionAsync_CancelledWhileLookingForImplementations_ThrowsAndTouchesNothing()
+    {
+        // Arrange
+        var fixture = new SymbolNavigatorFixture();
+        using var cancellation = new CancellationTokenSource();
+        fixture.IntelliSense.Setup(i => i.GetImplementationsAsync("code", 4, It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                cancellation.Cancel(); // the tab closed, or a newer request replaced this one
+                return Task.FromResult<IReadOnlyList<IImplementationLocation>?>([SymbolNavigatorFixture.CreateImplementation(12)]);
+            });
+        var sut = fixture.CreateSut();
+
+        // Act
+        var navigate = () => sut.GoToDefinitionAsync(fixture.Target.Object, cancellation.Token);
+
+        // Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(navigate);
+        fixture.Target.Verify(t => t.JumpTo(It.IsAny<int>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GoToDefinitionAsync_CancelledWhileDecompiling_ThrowsAndOpensNoWindow()
+    {
+        // Arrange
+        var fixture = new SymbolNavigatorFixture();
+        using var cancellation = new CancellationTokenSource();
+        fixture.SetupDefinition();
+        fixture.Decompile.Setup(d => d(It.IsAny<IDefinitionResult>()))
+            .Returns(() =>
+            {
+                cancellation.Cancel();
+                return new DecompiledMemberResult("class C {}", 1, "C");
+            });
+        var sut = fixture.CreateSut();
+
+        // Act
+        var navigate = () => sut.GoToDefinitionAsync(fixture.Target.Object, cancellation.Token);
+
+        // Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(navigate);
+        fixture.Windows.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task FindReferencesAsync_CancelledWhileSearching_ThrowsAndOffersNothing()
+    {
+        // Arrange
+        var fixture = new SymbolNavigatorFixture();
+        using var cancellation = new CancellationTokenSource();
+        fixture.IntelliSense.Setup(i => i.GetDocumentHighlightsAsync("code", 4, It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                cancellation.Cancel();
+                return Task.FromResult<IReadOnlyList<IDocumentHighlightSpan>?>([new Mock<IDocumentHighlightSpan>().Object]);
+            });
+        var sut = fixture.CreateSut();
+
+        // Act
+        var search = () => sut.FindReferencesAsync(fixture.Target.Object, cancellation.Token);
+
+        // Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(search);
+        fixture.Target.Verify(t => t.ShowReferences(It.IsAny<IReadOnlyList<IDocumentHighlightSpan>>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GoToDefinitionAsync_Called_PassesItsTokenToTheLookups()
+    {
+        // Arrange
+        var fixture = new SymbolNavigatorFixture();
+        using var cancellation = new CancellationTokenSource();
+        var sut = fixture.CreateSut();
+
+        // Act
+        await sut.GoToDefinitionAsync(fixture.Target.Object, cancellation.Token);
+
+        // Assert
+        fixture.IntelliSense.Verify(i => i.GetImplementationsAsync("code", 4, cancellation.Token), Times.Once);
+        fixture.IntelliSense.Verify(i => i.GetDefinitionAsync("code", 4, cancellation.Token), Times.Once);
     }
 }
