@@ -707,14 +707,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     private async Task SaveTabAsCoreAsync(EditorTabItemViewModel vm, Action<string> writeToPath)
     {
         var newPath = await _windowService.ShowSaveFileDialogAsync(vm.FileName, _fileSystemService.Folder);
-        if (newPath is null) return; // cancelled
-
-        // An untitled copy of a file (a recovered draft whose file was already open) never replaces
-        // that file, nor a file another tab has open: either would overwrite the other version unasked.
-        var fullPath = Path.GetFullPath(newPath);
-        if ((vm.FilePath is null && vm.RestoredRecovery?.OriginalPath is { } original
-                && string.Equals(Path.GetFullPath(original), fullPath, FilePathComparison))
-            || (_openTabs.TryGetValue(fullPath, out var other) && other != vm))
+        var fullPath = newPath is null ? "" : Path.GetFullPath(newPath);
+        var outcome = TabFilePaths.DecideSaveAs(newPath, vm.FilePath, vm.RestoredRecovery?.OriginalPath,
+            newPath is not null && _openTabs.TryGetValue(fullPath, out var other) && other != vm, FilePathComparison);
+        if (outcome == SaveAsOutcome.Cancelled) return;
+        if (outcome == SaveAsOutcome.Rejected)
         {
             await _windowService.ShowErrorAsync("Save Failed",
                 $"'{Path.GetFileName(newPath)}' has its own version open or is the file this copy was made from. Save the copy to another file.");
@@ -723,7 +720,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
         // Choosing the tab's own file again is an in-place save: the picker's own "replace?" question
         // is about overwriting a file, not about one changed by another program meanwhile.
-        if (vm.FilePath is { } ownPath && string.Equals(Path.GetFullPath(newPath), Path.GetFullPath(ownPath), FilePathComparison))
+        if (outcome == SaveAsOutcome.InPlace)
         {
             var result = await InPlaceSave.CheckAndWriteAsync(vm, _windowService, () => SaveTabAsCoreAsync(vm, writeToPath));
             if (result.Status == InPlaceSaveStatus.Failed)
@@ -762,18 +759,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     {
         if (vm.FilePath is not { } sourcePath) return;
 
-        var dir = Path.GetDirectoryName(sourcePath)!;
-        var baseName = Path.GetFileNameWithoutExtension(sourcePath);
-        var ext = Path.GetExtension(sourcePath);
-
-        string newPath;
-        var i = 1;
-        do
-        {
-            var suffix = i == 1 ? " copy" : $" copy {i}";
-            newPath = Path.Combine(dir, $"{baseName}{suffix}{ext}");
-            i++;
-        } while (File.Exists(newPath));
+        var newPath = TabFilePaths.NextCopyPath(sourcePath, File.Exists);
 
         try
         {
