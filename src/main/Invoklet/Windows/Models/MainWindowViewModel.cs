@@ -26,6 +26,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     private readonly ILogger<MainWindowViewModel> _logger;
     private readonly IRecoveryStore? _recovery;
     private readonly ISessionSnapshotLoader _snapshotLoader;
+    private readonly IDiskOperations _disk;
     private readonly ISessionRecoveryCoordinator? _recoveryCoordinator;
     private readonly bool _recoveryMode;
     private readonly SemaphoreSlim _recoveryGate = new(1);
@@ -1028,7 +1029,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         // Directory.Exists/File.Delete are NOT interchangeable — File.Delete on a directory path
         // throws (silently swallowed below, before this fix), so a folder never actually left disk
         // even though the tree acted like it had.
-        var isDirectory = Directory.Exists(filePath);
+        var isDirectory = _disk.IsDirectory(filePath);
 
         // Affected tabs — the file itself, or (for a folder) every tab nested inside it.
         // They're flushed first (a failed write aborts the delete) and only closed once the delete
@@ -1039,10 +1040,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
         try
         {
-            if (isDirectory)
-                Directory.Delete(filePath, recursive: true);
-            else
-                File.Delete(filePath);
+            _disk.Delete(filePath, isDirectory);
         }
         catch (Exception ex)
         {
@@ -1064,7 +1062,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         // Directory.Exists/File.Move are NOT interchangeable — File.Move on a directory path throws,
         // so renaming a folder always failed before this fix.
         // A folder's own name has no extension to preserve (unlike a .inv file's).
-        var newPath = FileTreePaths.Renamed(filePath, newName, Directory.Exists(filePath));
+        var newPath = FileTreePaths.Renamed(filePath, newName, _disk.IsDirectory(filePath));
 
         return MoveOrRenameOnDisk(filePath, newPath, "Rename Failed", "rename", $"to '{Path.GetFileName(newPath)}'");
     }
@@ -1099,17 +1097,14 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     private async Task MoveOrRenameCoreAsync(
         string sourcePath, string newPath, string errorTitle, string errorVerb, string errorDestinationPhrase)
     {
-        var isDirectory = Directory.Exists(sourcePath);
+        var isDirectory = _disk.IsDirectory(sourcePath);
 
         var affectedTabs = FindAffectedTabs(sourcePath, isDirectory);
         if (!await TrySaveTabsBeforeFileOperationAsync(affectedTabs, errorTitle)) return;
 
         try
         {
-            if (isDirectory)
-                Directory.Move(sourcePath, newPath);
-            else
-                File.Move(sourcePath, newPath);
+            _disk.Move(sourcePath, newPath, isDirectory);
         }
         catch (Exception ex)
         {
@@ -1162,7 +1157,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     }
 
     private string ResolveParentDir(string? contextPath) =>
-        new FileTreePaths(_fileSystemService.Folder, FilePathComparison).ParentFolder(contextPath, contextPath is not null && Directory.Exists(contextPath));
+        new FileTreePaths(_fileSystemService.Folder, FilePathComparison).ParentFolder(contextPath, contextPath is not null && _disk.IsDirectory(contextPath));
 
     private FileTreePaths TreePaths => new(_fileSystemService.Folder, FilePathComparison);
 
@@ -1198,8 +1193,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         ILogger<MainWindowViewModel>? logger = null, IRecoveryStore? recovery = null,
         ConnectionNavigationViewModel? connectionNavigation = null,
         ISessionSnapshotLoader? snapshotLoader = null,
-        ISessionRecoveryCoordinator? recoveryCoordinator = null)
+        ISessionRecoveryCoordinator? recoveryCoordinator = null,
+        IDiskOperations? disk = null)
     {
+        _disk = disk ?? new DiskOperations();
         _fileSystemService = fileSystemService;
         _windowService = windowService;
         _prefs = prefs;
