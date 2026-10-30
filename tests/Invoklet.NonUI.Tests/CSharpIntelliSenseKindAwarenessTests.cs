@@ -2,6 +2,7 @@ using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -32,8 +33,7 @@ public class CSharpIntelliSenseKindAwarenessTests
         service.DiagnosticsChanged += (_, d) => diagnostics = d;
         service.NotifyTextChanged(code);
 
-        for (var i = 0; i < 150 && diagnostics is null; i++)
-            await Task.Delay(20, TestContext.Current.CancellationToken);
+        await TestWait.WhileAsync(() => diagnostics is null, TestContext.Current.CancellationToken);
 
         Assert.NotNull(diagnostics);
         return diagnostics!;

@@ -62,7 +62,12 @@ public class StartupWorkspaceReadyTests
         try
         {
             window.Show();
-            for (var i = 0; i < 50 && Volatile.Read(ref created) < paths.Length; i++) { Dispatcher.UIThread.RunJobs(); await Task.Delay(20); }
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+            while (Volatile.Read(ref created) < paths.Length && DateTime.UtcNow < deadline)
+            {
+                Dispatcher.UIThread.RunJobs();
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            }
             Dispatcher.UIThread.RunJobs();
             Assert.False(ready.IsCompleted);
 

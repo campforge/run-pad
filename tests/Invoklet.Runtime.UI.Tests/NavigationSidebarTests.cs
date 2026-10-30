@@ -115,18 +115,31 @@ public sealed class NavigationSidebarTests : IDisposable
         Dispatcher.UIThread.RunJobs();
     }
 
-    private static async Task<TextEditor> WaitForEditorAsync(Window window, Func<EditorsTabItemControl, bool> which)
+    // Runs the queued jobs and a frame until the condition holds. A deadline on the clock, not a count of rounds: a
+    // loaded machine (the whole suite at once) made two seconds of rounds too little.
+    private static async Task WaitSettlingAsync(Func<bool> done)
     {
-        for (var i = 0; i < 100; i++)
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+        while (DateTime.UtcNow < deadline)
         {
             Settle();
+            if (done()) return;
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+    }
+
+    private static async Task<TextEditor> WaitForEditorAsync(Window window, Func<EditorsTabItemControl, bool> which)
+    {
+        TextEditor? found = null;
+        await WaitSettlingAsync(() =>
+        {
             if (window.GetVisualDescendants().OfType<EditorsTabItemControl>().FirstOrDefault(which) is { } control
                 && control.GetVisualDescendants().OfType<TextEditor>().FirstOrDefault() is { } editor
                 && editor.Document.TextLength > 0)
-                return editor;
-            await Task.Delay(20);
-        }
-        throw new TimeoutException("The example's editor was not created.");
+                found = editor;
+            return found is not null;
+        });
+        return found ?? throw new TimeoutException("The example's editor was not created.");
     }
 
     private static T Named<T>(Window window, string name) where T : Control
@@ -182,7 +195,7 @@ public sealed class NavigationSidebarTests : IDisposable
     public async Task NavigationRows_Should_HaveLocalHover_SubduedScriptSelection_AndTransientActionSelection()
     {
         var (window, vm, _) = CreateMainWindow(installTheme: true);
-        for (var i = 0; i < 100 && vm.ConnectionNavigation!.IsLoaded is false; i++) { Settle(); await Task.Delay(10); }
+        await WaitSettlingAsync(() => !(vm.ConnectionNavigation!.IsLoaded is false));
 
         var connectionTree = Named<ConnectionNavigationView>(window, "ConnectionNavigationView").Tree;
         Named<Expander>(window, "SamplesBundle").IsExpanded = true;
@@ -309,7 +322,7 @@ public sealed class NavigationSidebarTests : IDisposable
     public async Task TheConnectionsTree_Should_BeUsableFromTheKeyboard()
     {
         var (window, vm, windowService) = CreateMainWindow();
-        for (var i = 0; i < 100 && vm.ConnectionNavigation!.IsLoaded is false; i++) { Settle(); await Task.Delay(10); }
+        await WaitSettlingAsync(() => !(vm.ConnectionNavigation!.IsLoaded is false));
         Settle();
         var view = Named<ConnectionNavigationView>(window, "ConnectionNavigationView");
         var rows = view.Tree.GetVisualDescendants().OfType<TreeViewItem>().ToList();
@@ -360,7 +373,7 @@ public sealed class NavigationSidebarTests : IDisposable
         Assert.Skip("Headless Avalonia cannot validate native macOS Control-click routing.");
         var (window, vm, _) = CreateMainWindow();
         using var controlClick = ControlClick.AttachTo(window); // the app registers it for macOS only
-        for (var i = 0; i < 100 && vm.ConnectionNavigation!.IsLoaded is false; i++) { Settle(); await Task.Delay(10); }
+        await WaitSettlingAsync(() => !(vm.ConnectionNavigation!.IsLoaded is false));
         Settle();
         var view = Named<ConnectionNavigationView>(window, "ConnectionNavigationView");
         var rows = view.Tree.GetVisualDescendants().OfType<TreeViewItem>().ToList();
@@ -388,7 +401,7 @@ public sealed class NavigationSidebarTests : IDisposable
     public async Task DroppingAConnectionOnTheEditor_Should_AddItToTheActiveScript()
     {
         var (window, vm, windowService) = CreateMainWindow();
-        for (var i = 0; i < 100 && vm.ConnectionNavigation!.IsLoaded is false; i++) { Settle(); await Task.Delay(10); }
+        await WaitSettlingAsync(() => !(vm.ConnectionNavigation!.IsLoaded is false));
         vm.OpenExample(ExampleScripts.All[0]);
         await WaitForEditorAsync(window, c => c.DataContext is EditorTabItemViewModel { Example: not null });
         var frontMatter = vm.ActiveTab!.FrontMatter!;
@@ -404,7 +417,7 @@ public sealed class NavigationSidebarTests : IDisposable
         window.DragDrop(point, RawDragEventType.DragEnter, data, allowed, RawInputModifiers.None);
         window.DragDrop(point, RawDragEventType.DragOver, data, allowed, RawInputModifiers.None);
         window.DragDrop(point, RawDragEventType.Drop, data, allowed, RawInputModifiers.None);
-        for (var i = 0; i < 100 && !frontMatter.Connections.Any(c => c.Name == "billing"); i++) { Settle(); await Task.Delay(10); }
+        await WaitSettlingAsync(() => !(!frontMatter.Connections.Any(c => c.Name == "billing")));
 
         Assert.Contains(frontMatter.Connections, c => c.Name == "billing");
         Assert.True(vm.ConnectionNavigation!.Find("billing", isConnection: true)!.IsAttached);
@@ -463,7 +476,7 @@ public sealed class NavigationSidebarTests : IDisposable
         windowService.Setup(w => w.ShowSaveFileDialogAsync("Quick start", _folder)).ReturnsAsync(target);
         editor.Document.Insert(editor.Document.TextLength, "\n// edited");
         tab.SaveAsCommand.Execute().Subscribe();
-        for (var i = 0; i < 100 && !File.Exists(target); i++) { Settle(); await Task.Delay(20); }
+        await WaitSettlingAsync(() => !(!File.Exists(target)));
 
         var saved = await File.ReadAllTextAsync(target, TestContext.Current.CancellationToken);
         Assert.Contains("# Quick start", saved);
