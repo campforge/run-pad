@@ -11,6 +11,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
+using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
 using Invoklet.Avalonia.CodeTextEditor;
@@ -1208,6 +1209,46 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }, DispatcherPriority.Background);
     }
 
+    // The rows of the completion window; they are controls, so they stay with the tab.
+    private sealed class CompletionRowFactory(EditorsTabItemControl tab, CodeTextEditor editor) : ICompletionItemFactory
+    {
+        public ICompletionData Create(ICompletionItem item)
+        {
+            var isDark = tab._themeService.CurrentTheme.Editor.IsDark;
+            // An override-member stub carries a multi-line snippet
+            // template instead of a plain name to insert; reuse the exact same
+            // SnippetCompletionData/ExpandSnippet machinery the hand-authored Snippets dictionary
+            // already uses (reindent-to-current-line + ${0} cursor placement), rather than
+            // inventing a second insertion mechanism.
+            if (item.InsertTemplate is { } template)
+            {
+                return new SnippetCompletionData(
+                    item.DisplayText, template, CompletionIcons.GetIcon(item.Kind),
+                    segment => editor.ExpandSnippet(segment.Offset, segment.Length, template));
+            }
+
+            return new EditorCompletionData(
+                item.DisplayText,
+                () => DisplaySegmentRenderer.BuildWithSummary(item.Signature, item.Summary, isDark),
+                item.Priority,
+                CompletionIcons.GetIcon(item.Kind),
+                // Auto-import: non-empty only for a type from an added
+                // NuGet package that isn't imported yet — accepting it adds the using the same
+                // way the lightbulb already does (AddGlobalUsings), just without that extra step.
+                tags: item.UsingsToAdd,
+                onCommit: tab.AddGlobalUsings,
+                // The list row itself gets a dimmed
+                // "(in Namespace)"/"(+N overloads)" annotation for a not-yet-imported type or a
+                // name collapsing several overloads, and renders bold when the member is declared
+                // directly on the type being completed rather than inherited; all default to
+                // "no annotation, normal weight" for everything else, so BuildListRow just wraps
+                // the plain name (same TextBlock AvaloniaEdit's own default template would've
+                // produced for a bare string Content anyway).
+                content: DisplaySegmentRenderer.BuildListRow(
+                    item.DisplayText, item.Detail, item.OverloadCount, item.IsOwnMember));
+        }
+    }
+
     // The editor as SymbolNavigator sees it; the menus stay here because they are controls.
     private sealed class EditorNavigationTarget(CodeTextEditor editor) : INavigationTarget
     {
@@ -1895,77 +1936,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             }
         };
 
-        editor.AsyncCompletionProvider = async e =>
-        {
-            // A genuine Ctrl+Space press (as opposed to the 24/7 auto-invoke/generics/
-            // "new "-word triggers, which also set IsExplicitInvoke but pass the real typed character
-            // as Trigger, never '\0' — see CodeTextEditor.ShowCompletion's call sites) right in a
-            // fresh, not-yet-typed call argument is really asking for parameter info, not a
-            // completion list — matching Rider/VS. Gated on the literal hotkey (not the 24/7 paths)
-            // so this extra signature-help probe never runs on the hot per-keystroke typing path.
-            if (e.IsExplicitInvoke && e.Trigger == '\0')
-            {
-                var signatureHelp = await intelliSense.GetSignatureHelpAsync(
-                    State.Editor.Text, e.CaretOffset, cancellationToken: e.CancellationToken);
-                if (signatureHelp is { IsArgumentSlotEmpty: true })
-                {
-                    e.RedirectToOverloads = true;
-                    return;
-                }
-            }
-
-            var trigger = e.IsExplicitInvoke ? CompletionTrigger.Invoked : CompletionTrigger.Insertion(e.Trigger);
-            var list = await intelliSense.GetCompletionsAsync(State.Editor.Text, e.CaretOffset, trigger,
-                e.CancellationToken);
-            if (list is null)
-            {
-                // Null here (outside member access, already excluded separately) means the language
-                // service found this position not worth completing at all — e.g. inside a comment or
-                // string literal (see CSharpIntelliSenseService.IsInsideComment/
-                // IsInsideStringOrCharLiteral) — so snippets shouldn't fall back to filling the list
-                // either; see CompletionRequestedEventArgs.SuppressSnippets.
-                e.SuppressSnippets = true;
-                return;
-            }
-
-            var isDark = _themeService.CurrentTheme.Editor.IsDark;
-            foreach (var item in list.Items)
-            {
-                // An override-member stub carries a multi-line snippet
-                // template instead of a plain name to insert; reuse the exact same
-                // SnippetCompletionData/ExpandSnippet machinery the hand-authored Snippets dictionary
-                // already uses (reindent-to-current-line + ${0} cursor placement), rather than
-                // inventing a second insertion mechanism.
-                if (item.InsertTemplate is { } template)
-                {
-                    e.Items.Add(new SnippetCompletionData(
-                        item.DisplayText, template, CompletionIcons.GetIcon(item.Kind),
-                        segment => editor.ExpandSnippet(segment.Offset, segment.Length, template)));
-                    continue;
-                }
-
-                e.Items.Add(new EditorCompletionData(
-                    item.DisplayText,
-                    () => DisplaySegmentRenderer.BuildWithSummary(item.Signature, item.Summary, isDark),
-                    item.Priority,
-                    CompletionIcons.GetIcon(item.Kind),
-                    // Auto-import: non-empty only for a type from an added
-                    // NuGet package that isn't imported yet — accepting it adds the using the same
-                    // way the lightbulb already does (AddGlobalUsings), just without that extra step.
-                    tags: item.UsingsToAdd,
-                    onCommit: AddGlobalUsings,
-                    // The list row itself gets a dimmed
-                    // "(in Namespace)"/"(+N overloads)" annotation for a not-yet-imported type or a
-                    // name collapsing several overloads, and renders bold when the member is declared
-                    // directly on the type being completed rather than inherited; all default to
-                    // "no annotation, normal weight" for everything else, so BuildListRow just wraps
-                    // the plain name (same TextBlock AvaloniaEdit's own default template would've
-                    // produced for a bare string Content anyway).
-                    content: DisplaySegmentRenderer.BuildListRow(
-                        item.DisplayText, item.Detail, item.OverloadCount, item.IsOwnMember)
-                ));
-            }
-        };
+        editor.AsyncCompletionProvider = new EditorCompletionProvider(
+            intelliSense, () => State.Editor.Text, new CompletionRowFactory(this, editor)).ProvideAsync;
 
         editor.AsyncOverloadProvider = async e =>
         {
