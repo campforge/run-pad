@@ -3,6 +3,13 @@
 Notable changes in each Invoklet release. Downloads are on the
 [releases page](https://github.com/tervforge/invoklet/releases).
 
+## [Unreleased]
+
+### Fixed
+
+- The icon of the window and the taskbar on Windows is larger where it was hardest to read: the small sizes of the icon
+  show the hammer and the grid closer, and the icon in the title bar of the window is 20 pixels instead of 16.
+
 ## [0.10.4] — 2026-10-30
 
 ### Fixed
