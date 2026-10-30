@@ -88,8 +88,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private IDisposable? _selectedKindSub;
     private IDisposable? _filePathSub;
     private ActiveTheme? _pendingTheme;
-    // A Run/Debug waiting for its save (possibly for the user's answer): another one doesn't start.
-    private bool _savingBeforeRun;
     private string? _filePath;
     // The last file WriteFile wrote an .inv document to, and the document ID written there.
     private (string Path, Guid Id)? _writtenId;
@@ -97,7 +95,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private IDisposable? _selectedArgumentSetSub;
     private bool _syncingArgumentSet;
     private bool _disposed;
-    private bool _runInProgress;
     private readonly DebugHoverController _debugHover = new();
 
     // The stage the current (or last) run reached, -1 before the first: names the stage that failed.
@@ -106,11 +103,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private int _runStageValue = -1;
 
     private RunStage? RunStageReached => _runStageValue < 0 ? null : (RunStage)Volatile.Read(ref _runStageValue);
-    private Task? _activeRun;
-    private bool _restarting;
-    private bool _restartRequested;
-    private int _runGeneration;
-    private int _stopGeneration;
+    // Which run may start, the restart protocol and the generations that make late callbacks of an earlier run
+    // harmless; the host, its cancellation and the clean-up of a run stay here.
+    private readonly RunLifecycle _run = new();
     private readonly ILogger<EditorsTabItemControl> _runLogger;
 
     // Front matter as of the last point it was accounted for (loaded, or already flagged dirty) —
@@ -505,9 +500,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     internal void Cancel()
     {
-        _restartRequested = false;
-        _stopGeneration++;
-        _runGeneration++;
+        _run.Stop();
         CancelAllWatchEvaluations();
         HideInputPrompt();
         try
@@ -532,7 +525,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             // Cancellation must not depend on debugger Resume succeeding. A host can already be
             // tearing down and throw ObjectDisposedException here; that is expected stop cleanup.
             State.RunCts?.Cancel();
-            if (!_disposed && !_restarting)
+            if (!_disposed && !_run.Restarting)
             {
                 SetStatus("Cancelled", "Invoklet.Status.CancelledBrush");
                 UpdateOutputUi();
@@ -559,13 +552,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // All UI entry points await this boundary, including errors before execution and in cleanup.
     internal Task RunAsync(bool debug, DotnetSdk platform)
     {
-        if (_activeRun is { IsCompleted: false }) return Task.CompletedTask;
-        return _activeRun = RunSafeAsync(debug, platform, null);
+        return _run.Start(() => RunSafeAsync(debug, platform, null));
     }
 
     internal Task RunSelectionAsync(DotnetSdk platform)
     {
-        if (_disposed || _restarting || _activeRun is { IsCompleted: false }) return Task.CompletedTask;
+        if (_disposed || !_run.CanStartSelection) return Task.CompletedTask;
         var editor = State.Editor;
         if (string.IsNullOrWhiteSpace(editor.SelectedText)) return Task.CompletedTask;
         // Statements and Program scripts run the selected statements on their own, as Statements:
@@ -587,29 +579,20 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             editor.Text.CopyTo(segment.StartOffset, selected, segment.StartOffset, segment.Length);
         var script = new string(selected);
         if (string.IsNullOrWhiteSpace(script)) return Task.CompletedTask;
-        return _activeRun = RunSafeAsync(false, platform, script);
+        return _run.Start(() => RunSafeAsync(false, platform, script));
     }
 
     internal async Task RestartAsync(DotnetSdk platform)
     {
-        if (_disposed || _restarting) return;
-        _restarting = true;
-        try
-        {
-            var previous = _activeRun;
-            if (previous is { IsCompleted: false })
+        if (_disposed) return;
+        await _run.RestartAsync(
+            Cancel,
+            () =>
             {
-                Cancel();
-                _restartRequested = true;
                 SetStatus("Restarting…", "Invoklet.Status.RunningBrush");
                 UpdateOutputUi();
-                await previous;
-                if (!_restartRequested) return;
-            }
-            _restartRequested = false;
-            if (!_disposed) await RunAsync(_vm.DebugModeEnabled, platform);
-        }
-        finally { _restarting = false; _restartRequested = false; }
+            },
+            () => _disposed ? Task.CompletedTask : RunAsync(_vm.DebugModeEnabled, platform));
     }
 
     private async Task RunSafeAsync(bool debug, DotnetSdk platform, string? selection)
@@ -630,10 +613,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private async Task RunCoreAsync(bool debug, DotnetSdk platform, string? selection)
     {
         var s = State;
-        if (_disposed || _runInProgress || _savingBeforeRun) return;
+        if (_disposed || !_run.CanBegin) return;
         // A script that is still being read back from disk must not run as an empty one.
         if (_contentReleased && !await TryRestoreContentAsync()) return;
-        var stopGeneration = _stopGeneration;
+        var stopGeneration = _run.StopGeneration;
 
         // Never run an invalid .inv as raw code — the editor holds the whole file
         // (front matter + Markdown) there, not a script.
@@ -653,16 +636,16 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (selection is null && _vm.FilePath is { } path)
         {
             InPlaceSaveResult saved;
-            _savingBeforeRun = true;
+            _run.BeginSaving();
             try
             {
                 saved = await SaveWithResultAsync();
             }
             finally
             {
-                _savingBeforeRun = false;
+                _run.EndSaving();
             }
-            if (_disposed || _restartRequested || stopGeneration != _stopGeneration) return;
+            if (_disposed || _run.RestartRequested || _run.IsStoppedSince(stopGeneration)) return;
             if (saved.Status == InPlaceSaveStatus.Failed)
             {
                 s.Output.Clear();
@@ -686,7 +669,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         // Stop can be requested while the pre-run checks are completing. Do not create or expose
         // a fresh CTS after that stop generation has already been invalidated.
-        if (_disposed || stopGeneration != _stopGeneration) return;
+        if (_disposed || _run.IsStoppedSince(stopGeneration)) return;
 
         _vm.RunState = debug ? RunState.RunDebug : RunState.Run;
         s.Output.Clear();
@@ -706,10 +689,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         s.RunCts?.Dispose();
         var runCts = new CancellationTokenSource();
-        if (_disposed || stopGeneration != _stopGeneration)
+        if (_disposed || _run.IsStoppedSince(stopGeneration))
         {
             runCts.Dispose();
-            if (!_disposed && !_restarting)
+            if (!_disposed && !_run.Restarting)
             {
                 _vm.RunState = RunState.Idle;
                 SetStatus("Cancelled", "Invoklet.Status.CancelledBrush");
@@ -718,8 +701,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             return;
         }
         s.RunCts = runCts;
-        _runInProgress = true;
-        var generation = ++_runGeneration;
+        var generation = _run.Begin();
         void PostRun(Action action, ILanguageHost? expectedHost = null)
         {
             // Capture events while their host is still the active host. The dispatcher callback may
@@ -728,7 +710,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             if (expectedHost is not null && !ReferenceEquals(expectedHost, s.RunningHost)) return;
             Dispatcher.Post(() =>
             {
-                if (!_disposed && generation == _runGeneration) action();
+                if (!_disposed && _run.IsCurrent(generation)) action();
             });
         }
 
@@ -789,7 +771,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                             // Keep failure-stage selection synchronous, but only while this host
                             // still owns the active generation; a late callback must not mutate the
                             // next run's diagnostic context.
-                            if (generation == _runGeneration && ReferenceEquals(s.RunningHost, host))
+                            if (_run.IsCurrent(generation) && ReferenceEquals(s.RunningHost, host))
                                 Volatile.Write(ref _runStageValue, (int)stage.Value);
                             PostRun(() =>
                             {
@@ -825,7 +807,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     {
                         if (@event is HostExecutionEvent.Stage stage)
                         {
-                            if (generation == _runGeneration && ReferenceEquals(s.RunningHost, host))
+                            if (_run.IsCurrent(generation) && ReferenceEquals(s.RunningHost, host))
                                 Volatile.Write(ref _runStageValue, (int)stage.Value);
                             PostRun(() =>
                             {
@@ -922,7 +904,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 if (ReferenceEquals(s.RunCts, runCts)) s.RunCts = null;
                 runCts.Dispose();
-                _runInProgress = false;
+                _run.End();
                 SaveRunOutput();
             }
         }
@@ -992,7 +974,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         CancelAllWatchEvaluations();
         _debugHover.Dispose();
         // The run owns its CTS until its asynchronous cleanup has finished.
-        if (!_runInProgress) State.RunCts?.Dispose();
+        if (!_run.InProgress) State.RunCts?.Dispose();
         _breakpointDialog?.Close();
         _intelliSenseEventSubscriptions?.Dispose();
         _intelliSenseEventSubscriptions = null;
@@ -1557,7 +1539,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // output, so it lands after the last lines the script wrote.
     private void ReportRunFailure(RunResult result, bool selection, int generation)
     {
-        if (_disposed || generation != _runGeneration) return;
+        if (_disposed || !_run.IsCurrent(generation)) return;
         State.HadRunError = true;
         var (message, status) = result.Outcome switch
         {
@@ -1578,7 +1560,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         SetStatus(status, "Invoklet.Status.ErrorBrush");
         Dispatcher.Post(() =>
         {
-            if (_disposed || generation != _runGeneration) return;
+            if (_disposed || !_run.IsCurrent(generation)) return;
             if (message is not null)
                 State.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(message)}</div>");
             UpdateOutputUi();
@@ -1653,7 +1635,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         document.SetOwnerThread(null);
         Dispatcher.Post(() =>
         {
-            if (!_disposed && generation == _runGeneration)
+            if (!_disposed && _run.IsCurrent(generation))
             {
                 document.SetOwnerThread(Thread.CurrentThread);
                 IlOutput.Document = document;
@@ -1694,7 +1676,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     internal string? IlGrammarScope => _ilHighlighting?.GrammarScope;
     internal IlHighlighting? IlHighlightingForTests => _ilHighlighting;
-    internal int RunGenerationForTests => _runGeneration;
+    internal int RunGenerationForTests => _run.RunGeneration;
 
     // ILanguageHost.InputRequested (Util.ReadLine/
     // GetSecret). Always called on the UI thread (see the Dispatcher.Post at the
@@ -1705,7 +1687,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         if (_disposed) return;
         ++_inputPromptRevision;
-        _inputPromptGeneration = _runGeneration;
+        _inputPromptGeneration = _run.RunGeneration;
         InputPromptLabel.Text = string.IsNullOrEmpty(prompt) ? "Input:" : prompt;
         InputPromptBox.PasswordChar = isPassword ? '●' : default;
         InputPromptBox.Text = "";
@@ -1767,7 +1749,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
 
         bool IsCurrentSubmission() => !_disposed && !cancellation.IsCancellationRequested
-            && generation == _runGeneration && revision == _inputPromptRevision
+            && _run.IsCurrent(generation) && revision == _inputPromptRevision
             && ReferenceEquals(host, State.RunningHost);
     }
 
@@ -2579,7 +2561,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // A script of this tab is running or being debugged: its control, its host and its debug session
     // must stay alive until it ends.
-    internal bool HasRunningProcess => _runInProgress || State.RunningHost is not null || State.CurrentDebugCtx is not null;
+    internal bool HasRunningProcess => _run.InProgress || State.RunningHost is not null || State.CurrentDebugCtx is not null;
 
     internal RecoveryTab CaptureRecovery()
     {
