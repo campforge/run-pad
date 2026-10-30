@@ -87,7 +87,7 @@ public sealed partial class CSharpIntelliSenseService
             var typed = beforeCaret[(start + Root.Length)..];
             if (!typed.All(char.IsLetterOrDigit)) return null;
 
-            var items = service._argumentContract
+            var items = service._context.ArgumentContract
                 .Where(m => m.PropertyName.StartsWith(typed, StringComparison.OrdinalIgnoreCase))
                 .Select(m => (ICompletionItem)new SimpleCompletionItem(
                     m.PropertyName, CompletionItemKind.Property,

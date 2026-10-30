@@ -159,6 +159,8 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     private readonly ScriptDocumentLayout _layout = new();
     // The workspace of the analysis, its document and the baseline the sync diffs against.
     private readonly ScriptDocumentSession _session;
+    // What the project is compiled against besides the script's text.
+    private readonly ScriptContext _context;
 
     // Test-only visibility (InternalsVisibleTo) — confirms the FormattingOptions.NewLine override
     // below actually takes effect on the workspace's live option set. Environment.NewLine can't be
@@ -166,23 +168,6 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // fix without a real Windows run.
     internal string FormattingNewLineOptionForTests
         => _session.Workspace.CurrentSolution.Options.GetOption(FormattingOptions.NewLine, LanguageNames.CSharp);
-    // The references the service was created with (the framework's, Invoklet.Runtime): package updates
-    // select from these again, so a framework assembly a package displaced comes back with it. The
-    // framework part — the assemblies in System.Runtime.dll's directory — is replaced by the script
-    // target's reference assemblies when its targeting pack is found, as the build compiles against it.
-    // The additional references are never part of it, wherever they are: a self-contained Invoklet ships
-    // Invoklet.Runtime.dll in the very folder its runtime's System.Runtime.dll is in.
-    private readonly List<string> _baseReferencePaths = [];
-    private readonly List<string> _defaultFrameworkPaths = [];
-    private readonly List<string> _otherBaseReferencePaths = [];
-    private IReadOnlyList<string> _frameworkPaths = [];
-    // The target pack's source generators ([GeneratedRegex], System.Text.Json, [LibraryImport]), which
-    // the build runs too. The workspace runs them while compiling for analysis, off the UI thread.
-    private IReadOnlyList<string> _generatorPaths = [];
-    // The script's own .dll references with the same-folder dependencies the build adds.
-    private IReadOnlyList<string> _userReferencePaths = [];
-    private readonly List<MetadataReference> _nugetRefs = [];
-    private IReadOnlyList<string> _nugetPaths = [];
     private readonly RoslynCodeFixEngine _codeFixEngine;
     private readonly RoslynAnalyzerEngine _analyzerEngine;
 
@@ -190,7 +175,6 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     private volatile bool _InvokletAnalyzersEnabled;
 
     public void UpdateInvokletAnalyzers(bool enabled) => _InvokletAnalyzersEnabled = enabled;
-    private IReadOnlyList<MdRunArgumentContractMember> _argumentContract = [];
     // Test-only observability (InternalsVisibleTo): confirms that the sync took the incremental WithChanges path (the lineage of the
     // SourceText kept across calls) and did not fall back to SourceText.From every time.
     internal SourceText? LastSyncedSourceTextForTests => _session.LastSyncedSourceText;
@@ -200,24 +184,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     internal Action? AnalysisSnapshotTakenForTests { get; set; }
     // Test-only: called by a completion once it holds its document snapshot, before it reads it.
     internal Action? CompletionSnapshotTakenForTests { get; set; }
-    // Test-only: called when an execution context request has done its slow lookups and is about to
-    // be applied, so a test can hold an older request there while a newer one overtakes it.
-    internal Action<ExecutionRequest>? ExecutionContextResolvedForTests { get; set; }
-    private List<KeyValuePair<string, (DocumentId Id, string Text)>> _connectionFiles = [];
 
-    // Shared across every CSharpIntelliSenseService instance (one per tab, see EditorTabsControl.
-    // CreateIntelliSenseAsync) — MetadataReferences are immutable and safe to share across unrelated
-    // workspaces/compilations, so without this every new tab redid the PE-header + XML-doc parsing
-    // for the same ~167 default BCL reference assemblies from scratch.
-    internal static readonly ConcurrentDictionary<string, MetadataReference> ReferenceCache =
-        new(StringComparer.OrdinalIgnoreCase);
-
-    // See ReferenceDocumentation — without this, GetDocumentationCommentXml() comes back empty for
-    // every metadata symbol (BCL, NuGet), so the doc-comment Summary was silently null for every
-    // completion/signature-help/quick-info item except symbols the script itself defines.
-    private static MetadataReference CreateReference(string path) =>
-        ReferenceCache.GetOrAdd(path,
-            static p => MetadataReference.CreateFromFile(p, documentation: ReferenceDocumentation.Find(p)));
 
     /// <param name="referencePaths">The framework's assemblies, and others outside their folder.</param>
     /// <param name="additionalReferencePaths">Assemblies kept whatever the script's target framework,
@@ -232,25 +199,9 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             ex => _logger.LogWarning(ex, "Background analysis failed"),
             _backgroundAnalysisDisposeTimeout);
 
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var additional = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var path in referencePaths)
-            if (File.Exists(path) && seen.Add(path))
-                _baseReferencePaths.Add(path);
-        foreach (var path in additionalReferencePaths ?? [])
-            if (File.Exists(path) && additional.Add(path) && seen.Add(path))
-                _baseReferencePaths.Add(path);
-        var refs = _baseReferencePaths.Select(p => (MetadataReference)CreateReference(p)).ToList();
-        var frameworkDirectory = _baseReferencePaths
-            .Where(p => !additional.Contains(p)
-                        && string.Equals(Path.GetFileName(p), "System.Runtime.dll", StringComparison.OrdinalIgnoreCase))
-            .Select(Path.GetDirectoryName).FirstOrDefault();
-        foreach (var path in _baseReferencePaths)
-            (frameworkDirectory is not null && !additional.Contains(path) && Path.GetDirectoryName(path) == frameworkDirectory
-                ? _defaultFrameworkPaths : _otherBaseReferencePaths).Add(path);
-        _frameworkPaths = _defaultFrameworkPaths;
-
-        _session = new ScriptDocumentSession(_layout, refs);
+        var references = ReferenceSet.Classify(referencePaths, additionalReferencePaths);
+        _session = new ScriptDocumentSession(_layout, references.All.Select(p => (MetadataReference)ScriptContext.CreateReference(p)).ToList());
+        _context = new ScriptContext(_session, _layout, references, logger);
 
         _codeFixEngine = new RoslynCodeFixEngine(InvokletRoslynHost.CompositionHost, logger);
         _analyzerEngine = new RoslynAnalyzerEngine(logger);
@@ -264,36 +215,6 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         // changed underneath it, so diffing against it would compute a TextChange against text the
         // workspace no longer holds.
         _session.InvalidateBaseline();
-    }
-
-    /// <summary>Updates the typed <c>Arguments</c> members offered by completion.</summary>
-    private (DocumentId Id, string Text)? _argumentSource;
-
-    public void UpdateArgumentContract(MdRunArgumentContract? contract)
-    {
-        var members = contract?.Members ?? [];
-        lock (_session.SyncLock)
-        {
-            var source = contract is { Members.Count: > 0 } ? contract.GenerateCSharpFacade() : "";
-            if (_argumentContract.SequenceEqual(members) && _argumentSource?.Text == source) return;
-
-            var project = _session.Workspace.CurrentSolution.GetProject(_session.DocumentId.ProjectId);
-            if (project is null) return;
-            var solution = project.Solution;
-            if (_argumentSource is { } old) solution = solution.RemoveDocument(old.Id);
-            (DocumentId Id, string Text)? next = null;
-            if (source.Length > 0)
-            {
-                var id = DocumentId.CreateNewId(_session.DocumentId.ProjectId, "Arguments.g.cs");
-                solution = solution.AddDocument(id, "Arguments.g.cs", SourceText.From(GeneratedHeader + source, Encoding.UTF8));
-                next = (id, source);
-            }
-            if (!_session.Workspace.TryApplyChanges(solution)) return;
-            _argumentContract = members;
-            _argumentSource = next;
-            _session.InvalidateBaseline();
-            _session.ContextChanged();
-        }
     }
 
     public void UpdateKind(MdRunKind kind)
@@ -310,12 +231,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     {
         lock (_session.SyncLock)
         {
-            var sourceRequired = ConnectionContractAssemblyCache.RequiresSourceCompilation(code);
-            if (sourceRequired != _contractSourcesNeeded)
-            {
-                _contractSourcesNeeded = sourceRequired;
-                ApplyConnectionRepresentation();
-            }
+            _context.RequireContractSources(ConnectionContractAssemblyCache.RequiresSourceCompilation(code));
             return _session.Sync(code);
         }
     }
@@ -712,7 +628,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var reference in compilation.References)
         {
-            if (prefix.Length < MinFrameworkImportPrefix && !IsAddedReference(reference)) continue;
+            if (prefix.Length < MinFrameworkImportPrefix && !_context.IsAddedReference(reference)) continue;
             if (compilation.GetAssemblyOrModuleSymbol(reference) is not IAssemblySymbol assembly) continue;
 
             foreach (var entry in GetImportableTypeIndex(assembly, reference))
@@ -730,11 +646,6 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     }
 
     private const int MinFrameworkImportPrefix = 3;
-
-    private bool IsAddedReference(MetadataReference reference) =>
-        _nugetRefs.Contains(reference)
-        || (reference is PortableExecutableReference { FilePath: { } path }
-            && _userReferencePaths.Contains(path, StringComparer.OrdinalIgnoreCase));
 
     // [EditorBrowsable(Never)]: public for technical reasons, not meant to be written by hand.
     private static bool IsHiddenFromEditor(ISymbol symbol) =>
@@ -1161,7 +1072,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             // framework symbol (e.g. "WriteLine" in Console.WriteLine) has no source location to
             // rename AT; renaming its call sites in the script without renaming the framework
             // method itself would just turn correct code into a compile error.
-            if (!result.Symbol.Locations.Any(IsInScript)) return null;
+            if (!result.Symbol.Locations.Any(_context.IsInScript)) return null;
 
             return new SimpleRenameInfo(result.Symbol.Name, result.Spans);
         }
@@ -1194,7 +1105,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             var symbol = ResolveTokenSymbol(model, token);
             if (symbol == null) return null;
 
-            if (symbol.Locations.FirstOrDefault(IsInScript) is { } sourceLocation)
+            if (symbol.Locations.FirstOrDefault(_context.IsInScript) is { } sourceLocation)
             {
                 var offset = _layout.ToUserOffset(code, sourceLocation.SourceSpan.Start);
                 if (offset < 0) return null; // declared inside the prepended preamble, not user code
@@ -1204,7 +1115,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
                     ParameterTypeNames: [], DisplayName: symbol.Name);
             }
 
-            if (GeneratedDocumentFor(symbol) is { } generated)
+            if (_context.GeneratedDocumentFor(symbol) is { } generated)
                 return new SimpleDefinitionResult(
                     IsInSource: false, Offset: 0,
                     AssemblyPath: null, ContainingTypeFullName: null, MemberName: null,
@@ -1301,7 +1212,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             var results = new List<IImplementationLocation>();
             foreach (var impl in implementations)
             {
-                if (impl.Locations.FirstOrDefault(IsInScript) is not { } location) continue;
+                if (impl.Locations.FirstOrDefault(_context.IsInScript) is not { } location) continue;
                 var offset = _layout.ToUserOffset(code, location.SourceSpan.Start);
                 if (offset < 0) continue; // inside the prepended usings preamble, not user code
                 results.Add(new SimpleImplementationLocation(offset, impl.ToDisplayString()));
@@ -1814,7 +1725,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             // The analyzers see the whole compilation, the generated Connections documents included;
             // offsets there mean nothing in the script, so neither the squiggles nor the code fixes
             // (which map every offset onto the user's text) may take them.
-            if (!IsInScript(d.Location)) continue;
+            if (!_context.IsInScript(d.Location)) continue;
 
             // Unlike compiler diagnostics (never actually Hidden in practice), most of the analyzer
             // diagnostics above fire at Hidden severity BY DESIGN — no squiggle, only a CodeFixProvider
@@ -1926,265 +1837,31 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         _ => SemanticTokenKind.None,
     };
 
-    // ── Package references ────────────────────────────────────────────────────
+    /// <summary>Updates the typed <c>Arguments</c> members offered by completion.</summary>
+    public void UpdateArgumentContract(MdRunArgumentContract? contract) => _context.UpdateArgumentContract(contract);
 
-    // The build's own reading of the request (see DotnetPackageReferenceContext). Without an SDK
-    // yet, the runtime IntelliSense itself runs on.
-    private string? _connectionContractReference;
-    private GeneratedConnections? _requestedConnections;
-    private string? _requestedContractAssembly;
-    private bool _contractSourcesNeeded;
-    private int _contextRequests;
-    private int _appliedContextRequest; // under _session.SyncLock
+    public void UpdateExecutionContext(ExecutionRequest request) => _context.UpdateExecutionContext(request);
 
-    private void ApplyConnectionRepresentation()
-    {
-        var contract = _contractSourcesNeeded ? null : _requestedContractAssembly;
-        UpdateConnections(_requestedConnections is { Source.Length: > 0 } connections
-            ? [new GeneratedSourceFile("Connections.g.cs", connections.Source), .. contract is null ? connections.Files : []]
-            : [], contract);
-    }
-
-    public void UpdateExecutionContext(ExecutionRequest request) => ApplyExecutionContext(request, CancellationToken.None);
-
-    // A request cancelled before it is applied changes nothing: the slow parts (reading the NuGet
-    // assets, the targeting pack, the contract assembly lookup) run without the workspace lock, and
-    // a caller that has since asked again must not have its newer context overwritten when this one
-    // finally finishes.
-    //
-    // Requests also supersede each other by the order they were made in: one that finishes after a
-    // later request has been applied is dropped, whether or not its caller cancelled it.
     public void ApplyExecutionContext(ExecutionRequest request, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var sequence = Interlocked.Increment(ref _contextRequests);
-        var packages = request.Packages.ToDictionary(p => p.Key, p => new Package(p.Value));
-        var context = DotnetPackageReferenceContext.For(request);
-        if (context is not null) ApplyPackageReferences(packages, context, cancellationToken);
-        else ApplyPackageReferences(packages, new PackageReferenceContext($"net{Environment.Version.Major}.{Environment.Version.Minor}", null, null), cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        string? contract = null;
-        if (request.Connections is { Files.Count: > 0 } generated && context?.OutputDirectory is { } output)
-        {
-            var (framework, packagePaths) = RoslynScriptCompiler.ResolveConflicts(_frameworkPaths, _nugetPaths);
-            try
-            {
-                contract = ConnectionContractAssemblyCache.Find(RoslynScriptCompiler.ObjDirectory(output), generated.Files,
-                    framework.Concat(packagePaths), context.TargetFramework + ";" + (request.AllowUnsafe ? "unsafe" : ""));
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                _logger.LogDebug(ex, "No cached connection contract available");
-            }
-        }
-        ExecutionContextResolvedForTests?.Invoke(request);
-        lock (_session.SyncLock)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (sequence < _appliedContextRequest) return;
-            _appliedContextRequest = sequence;
-            UpdateAllowUnsafe(request.AllowUnsafe);
-            _requestedConnections = request.Connections;
-            _requestedContractAssembly = contract;
-            ApplyConnectionRepresentation();
-        }
-    }
-
-    // A source location in the script's own document, not in the generated Connections document,
-    // whose offsets mean nothing in the editor.
-    private bool IsInScript(Location location) =>
-        location.IsInSource && location.SourceTree is { } tree && _session.Workspace.CurrentSolution.GetDocumentId(tree) == _session.DocumentId;
-
-    // A symbol declared in one of the generated connection documents (UpdateConnections) rather
-    // than the script itself or a compiled metadata assembly -- the state every gRPC/HTTP-contract
-    // message and client class is in until the first successful build produces a cached contract
-    // assembly (ConnectionContractAssemblyCache). Neither IsInScript nor a metadata reference
-    // matches a symbol there, so without this, TryGetDefinitionAsync falls through and F12 is a
-    // silent no-op (see handoffs/g03-navigation-cold-start-gap.md for how this was found).
-    private (string Text, int Line)? GeneratedDocumentFor(ISymbol symbol)
-    {
-        foreach (var location in symbol.Locations)
-        {
-            if (!location.IsInSource || location.SourceTree is not { } tree) continue;
-            var id = _session.Workspace.CurrentSolution.GetDocumentId(tree);
-            if (id is null) continue;
-            foreach (var (_, (docId, text)) in _connectionFiles)
-                if (docId == id)
-                    return (text, location.GetLineSpan().StartLinePosition.Line + 1);
-        }
-        return null;
-    }
-
-    private const string GeneratedHeader = "// <auto-generated/>\n";
-
-    // The small Connections wrapper stays source. Schema types use the build's cached assembly
-    // when available; before the first build (or for partial extensions) they remain source documents.
-    private void UpdateConnections(IReadOnlyList<GeneratedSourceFile> files, string? contract)
-    {
-        lock (_session.SyncLock)
-        {
-            var project = _session.Workspace.CurrentSolution.GetProject(_session.DocumentId.ProjectId)!;
-            var filesChanged = !files.Select(f => (f.Name, f.Text)).SequenceEqual(_connectionFiles.Select(f => (f.Key, f.Value.Text)));
-            var referencesChanged = contract != _connectionContractReference
-                || contract is not null && !project.MetadataReferences.Any(r => r.Display == contract);
-            if (!filesChanged && !referencesChanged) return;
-            var solution = project.Solution;
-            if (referencesChanged)
-            {
-                var references = project.MetadataReferences.Where(r => r.Display != _connectionContractReference).ToList();
-                if (contract is not null) references.Add(CreateReference(contract));
-                solution = project.WithMetadataReferences(references).Solution;
-            }
-            var added = _connectionFiles;
-            if (filesChanged)
-            {
-                foreach (var id in _connectionFiles.Select(f => f.Value.Id)) solution = solution.RemoveDocument(id);
-                added = [];
-                foreach (var file in files)
-                {
-                    var id = DocumentId.CreateNewId(_session.DocumentId.ProjectId, file.Name);
-                    solution = solution.AddDocument(id, file.Name, SourceText.From(GeneratedHeader + file.Text, Encoding.UTF8));
-                    added.Add(KeyValuePair.Create(file.Name, (id, file.Text)));
-                }
-            }
-            // A single solution change: analysis must never see both source and metadata definitions.
-            if (!_session.Workspace.TryApplyChanges(solution)) return;
-            _connectionFiles = added;
-            _connectionContractReference = contract;
-            _session.ContextChanged();
-        }
-    }
-
-    // The same /unsafe setting the build uses, so the editor neither flags allowed unsafe code (CS0227)
-    // nor hides that a script without the setting won't compile.
-    private void UpdateAllowUnsafe(bool allowUnsafe)
-    {
-        lock (_session.SyncLock)
-        {
-            var project = _session.Workspace.CurrentSolution.GetProject(_session.DocumentId.ProjectId)!;
-            var options = (CSharpCompilationOptions)project.CompilationOptions!;
-            if (options.AllowUnsafe == allowUnsafe) return;
-            if (!_session.Workspace.TryApplyChanges(project.WithCompilationOptions(options.WithAllowUnsafe(allowUnsafe)).Solution)) return;
-            _session.ContextChanged(); // force re-sync on next analysis pass
-        }
-    }
+        => _context.ApplyExecutionContext(request, cancellationToken);
 
     // Without a build context: the runtime IntelliSense itself runs on, the user's NuGet settings.
-    public void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages)
-        => UpdatePackageReferences(packages,
-            new PackageReferenceContext($"net{Environment.Version.Major}.{Environment.Version.Minor}", null, null));
+    public void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages) => _context.UpdatePackageReferences(packages);
 
-    // The same assemblies a build compiles against: the target framework's reference assemblies, and the
-    // last restore's selection while it still matches the packages (resolved versions, transitive
-    // packages, the target framework's compile assets), else the best local match by NuGet's version
-    // rules — never a restore or a targeting pack download, which would need the network.
     public void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages, PackageReferenceContext context)
-        => ApplyPackageReferences(packages, context, CancellationToken.None);
+        => _context.UpdatePackageReferences(packages, context);
 
-    private void ApplyPackageReferences(IReadOnlyDictionary<string, Package> packages, PackageReferenceContext context,
-        CancellationToken cancellationToken)
+    internal Action<ExecutionRequest>? ExecutionContextResolvedForTests
     {
-        var (frameworkPaths, generatorPaths) = TargetFrameworkReferences(context);
-        var userReferencePaths = RoslynScriptCompiler.WithSameFolderDependencies(context.AssemblyReferences ?? []);
-        var parseOptions = TargetFramework.TryParse(context.TargetFramework, out var major, out var minor)
-            ? CSharpScriptCompiler.ParseOptions(major, minor)
-            : CSharpScriptCompiler.ParseOptions(Environment.Version.Major, Environment.Version.Minor);
-        var newPaths = NuGetRestorer.CompileReferencesWithoutRestore(
-                packages.ToDictionary(p => p.Key, p => p.Value.Version, StringComparer.OrdinalIgnoreCase),
-                context.TargetFramework,
-                context.OutputDirectory is { } output ? RoslynScriptCompiler.ObjDirectory(output) : null,
-                context.NuGetConfigFile)
-            .Where(File.Exists)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        // The same workspace lock as SyncDocument: a background analysis pass applies its own changes
-        // under it, and both sides must see one consistent "current" solution.
-        lock (_session.SyncLock)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (newPaths.SequenceEqual(_nugetPaths, StringComparer.OrdinalIgnoreCase)
-                && frameworkPaths.SequenceEqual(_frameworkPaths, StringComparer.OrdinalIgnoreCase)
-                && parseOptions.Equals(_layout.ParseOptions)
-                && generatorPaths.SequenceEqual(_generatorPaths, StringComparer.OrdinalIgnoreCase)
-                && userReferencePaths.SequenceEqual(_userReferencePaths, StringComparer.OrdinalIgnoreCase)) return;
-
-            // Rebuilt from the base references every time, so stale package ones (a removed package, an
-            // older resolved version) go away. A package assembly the framework also has is resolved as
-            // the build resolves it: referencing both would make every one of its types ambiguous
-            // (CS0433) in the editor while the build compiles.
-            var (basePaths, packagePaths) = RoslynScriptCompiler.ResolveConflicts(
-                frameworkPaths.Concat(_otherBaseReferencePaths), newPaths);
-            // In the build's order: the framework (and Invoklet.Runtime), the script's own assemblies, packages.
-            var baseRefs = basePaths.Concat(userReferencePaths).Select(p => (MetadataReference)CreateReference(p)).ToList();
-            var newRefs = packagePaths.Select(p => (MetadataReference)CreateReference(p)).ToList();
-
-            // Replaced as a whole: another target's generators never linger next to the new ones.
-            var generatorRefs = generatorPaths.Select(p => (AnalyzerReference)new GeneratorReference(p, _logger)).ToList();
-
-            var project = _session.Workspace.CurrentSolution.GetProject(_session.DocumentId.ProjectId)!;
-
-            if (!_session.Workspace.TryApplyChanges(project.WithMetadataReferences(baseRefs.Concat(newRefs).ToList())
-                    .WithParseOptions(parseOptions).WithAnalyzerReferences(generatorRefs).Solution))
-                return; // the next update tries again: _nugetPaths still describes the workspace
-
-            _nugetRefs.Clear();
-            _nugetRefs.AddRange(newRefs);
-            _nugetPaths = newPaths;
-            _frameworkPaths = frameworkPaths;
-            _layout.ParseOptions = parseOptions;
-            _generatorPaths = generatorPaths;
-            _userReferencePaths = userReferencePaths;
-            // force re-sync on next analysis pass
-            _session.ContextChanged();
-        }
-    }
-
-    // The targeting pack the build would use for the target, among the installed and already downloaded
-    // ones: its reference assemblies and C# source generators. Without one (or with a malformed NuGet
-    // configuration), the references the service was created with and no generators, as before.
-    private (IReadOnlyList<string> References, IReadOnlyList<string> Generators) TargetFrameworkReferences(PackageReferenceContext context)
-    {
-        try
-        {
-            var settings = NuGetRestorer.LoadSettings(context.NuGetConfigFile,
-                context.OutputDirectory is { } output ? RoslynScriptCompiler.ObjDirectory(output) : Path.GetTempPath());
-            var pack = TargetingPack.Find(context.TargetFramework, context.DotnetExecutable,
-                SettingsUtility.GetGlobalPackagesFolder(settings));
-            if (pack is not null)
-                return (pack.ReferenceAssemblies.Order(StringComparer.OrdinalIgnoreCase).ToList(),
-                    pack.GeneratorAssemblies("cs").Order(StringComparer.OrdinalIgnoreCase).ToList());
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NuGetConfigurationException)
-        {
-            _logger.LogDebug(ex, "No targeting pack for {TargetFramework}", context.TargetFramework);
-        }
-        return (_defaultFrameworkPaths, []);
-    }
-
-    // Exposes only the source generators of an assembly: the analyzers and code fixes that ship next to
-    // them are not part of the build's diagnostics either. Loaded when the workspace first asks, while
-    // compiling for analysis — not on the thread that changes the target. The path is the identity, so
-    // an unchanged generator is recognized by the workspace across updates.
-    private sealed class GeneratorReference(string path, ILogger logger) : AnalyzerReference
-    {
-        public override string FullPath => path;
-        public override string Display => Path.GetFileNameWithoutExtension(path);
-        public override object Id => path;
-        public override ImmutableArray<DiagnosticAnalyzer> GetAnalyzers(string language) => [];
-        public override ImmutableArray<DiagnosticAnalyzer> GetAnalyzersForAllLanguages() => [];
-        public override ImmutableArray<ISourceGenerator> GetGenerators(string language) =>
-            language == LanguageNames.CSharp ? GetGeneratorsForAllLanguages() : [];
-        public override ImmutableArray<ISourceGenerator> GetGeneratorsForAllLanguages() =>
-            RoslynScriptCompiler.LoadGenerators(path, LanguageNames.CSharp, logger);
+        get => _context.ExecutionContextResolvedForTests;
+        set => _context.ExecutionContextResolvedForTests = value;
     }
 
     // Test-only (InternalsVisibleTo): the package assemblies resolved for the packages — the workspace
     // references them unless the framework provides the same assembly at a higher version.
     internal IReadOnlyList<string> PackageReferencePathsForTests
     {
-        get { lock (_session.SyncLock) return _nugetPaths; }
+        get => _context.PackageReferencePaths;
     }
 
     // Test-only (InternalsVisibleTo): the source generator assemblies the workspace runs.

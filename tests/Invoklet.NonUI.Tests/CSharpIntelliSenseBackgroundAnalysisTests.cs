@@ -300,10 +300,10 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
         var path = referenceService.GetDefault().First();
 
         using var service1 = new CSharpIntelliSenseService([path], NullLogger<CSharpIntelliSenseService>.Instance);
-        Assert.True(CSharpIntelliSenseService.ReferenceCache.TryGetValue(path, out var afterFirst));
+        Assert.True(ScriptContext.ReferenceCache.TryGetValue(path, out var afterFirst));
 
         using var service2 = new CSharpIntelliSenseService([path], NullLogger<CSharpIntelliSenseService>.Instance);
-        Assert.True(CSharpIntelliSenseService.ReferenceCache.TryGetValue(path, out var afterSecond));
+        Assert.True(ScriptContext.ReferenceCache.TryGetValue(path, out var afterSecond));
 
         Assert.Same(afterFirst, afterSecond);
     }
