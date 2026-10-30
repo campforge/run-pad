@@ -20,10 +20,11 @@ using ReactiveUI;
 
 namespace Invoklet.UserControls;
 
-public partial class EditorTabsControl : UserControl, IDisposable
+public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost
 {
     private readonly Dictionary<EditorTabItemViewModel, (TabItem Tab, EditorsTabItemControl Control)> _tabs = new();
     private readonly TabLifecycleManager? _lifecycle;
+    private readonly TabDiskSync? _diskSync;
     // Tabs whose editor services are still being created: closing one cancels its creation.
     private readonly Dictionary<EditorTabItemViewModel, CancellationTokenSource> _creating = new();
     private IDisposable? _activeTabSub;
@@ -62,6 +63,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
     {
         InitializeComponent();
         _lifecycle = lifecycle;
+        _diskSync = new TabDiskSync(windowService);
         _connectionDrivers = connectionDrivers;
         _connectionSchemas = connectionSchemas;
         _themeService = themeService;
@@ -375,8 +377,8 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
     internal async Task RevertActiveAsync()
     {
-        if (_vm?.ActiveTab is not { FilePath: { } path } vm || GetActiveControl() is null || _windowService is null) return;
-        if (!CanReload(vm, path, vm.DiskState)) return;
+        if (_vm?.ActiveTab is not { FilePath: { } path } vm || GetActiveControl() is null || _windowService is null || _diskSync is null) return;
+        if (!TabDiskSync.CanReload(this, vm, path, vm.DiskState)) return;
         var known = vm.DiskState;
         if (!File.Exists(path))
         {
@@ -384,106 +386,17 @@ public partial class EditorTabsControl : UserControl, IDisposable
             return;
         }
         if (vm.IsDirty && !await _windowService.ShowRevertFileDialogAsync(Path.GetFileName(path))) return;
-        if (_vm.ActiveTab != vm || !CanReload(vm, path, known)) return;
-        await ReloadAsync(vm, "Revert Failed");
+        if (_vm.ActiveTab != vm || !TabDiskSync.CanReload(this, vm, path, known)) return;
+        await _diskSync.ReloadAsync(this, vm, "Revert Failed");
     }
 
     // ── Files changed by other programs ───────────────────────────────────────
 
-    private bool _checkingDisk;
-    private bool _checkAgain;
-
     /// <summary>
-    /// Brings open tabs up to date with files another program changed: a tab without unsaved
-    /// changes reloads quietly, one with unsaved changes asks first. A tab that is running, saving
-    /// or whose file is gone is left alone; so is a version of the file the user already chose to
-    /// keep their changes over. Runs when Invoklet's window is activated and when the scripts folder
-    /// reports a change.
+    /// Brings open tabs up to date with files another program changed (see <see cref="TabDiskSync"/>).
+    /// Runs when Invoklet's window is activated and when the scripts folder reports a change.
     /// </summary>
-    public async Task CheckFilesChangedOnDiskAsync()
-    {
-        if (_checkingDisk)
-        {
-            // A dialog of the running check is open: look again once it is done.
-            _checkAgain = true;
-            return;
-        }
-        _checkingDisk = true;
-        try
-        {
-            do
-            {
-                _checkAgain = false;
-                await CheckFilesChangedOnDiskOnceAsync();
-            } while (_checkAgain && !_disposed);
-        }
-        finally
-        {
-            _checkingDisk = false;
-        }
-    }
-
-    private async Task CheckFilesChangedOnDiskOnceAsync()
-    {
-        if (_vm is null || _windowService is null) return;
-        var candidates = _vm.Tabs
-            .Where(vm => HasControl(vm) && vm.FilePath is not null && vm.DiskState is not null)
-            .Select(vm => (Vm: vm, Path: vm.FilePath!, Known: vm.DiskState!))
-            .ToList();
-        if (candidates.Count == 0) return;
-
-        // Reading and hashing the files stays off the UI thread: a script folder can be on a slow drive.
-        var states = await Task.Run(() => candidates.Select(c =>
-        {
-            try { return ScriptFileState.Read(c.Path); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
-        }).ToList());
-
-        for (var i = 0; i < candidates.Count; i++)
-        {
-            var (vm, path, known) = candidates[i];
-            if (_disposed) return;
-            if (states[i] is not { Hash: not null } onDisk) continue;
-            // Saved or reloaded meanwhile: what was read may be that very write, half done.
-            if (!HasControl(vm) || vm.FilePath != path || !ReferenceEquals(vm.DiskState, known)) continue;
-            if (known.SameAs(onDisk) || vm.DeclinedDiskState?.SameAs(onDisk) == true) continue;
-            if (vm.RunState != RunState.Idle || vm.PendingSave is { IsCompleted: false }) continue;
-
-            if (vm.IsDirty)
-            {
-                var reload = await _windowService.ShowReloadChangedFileDialogAsync(Path.GetFileName(path));
-                if (!CanReload(vm, path, known)) continue;
-                if (!reload)
-                {
-                    vm.DeclinedDiskState = onDisk;
-                    continue;
-                }
-
-            }
-            await ReloadAsync(vm, "Reload Failed");
-        }
-    }
-
-    // A dialog yields to saves, runs and tab removal; its decision belongs to the old baseline.
-    private bool CanReload(EditorTabItemViewModel vm, string path, ScriptFileState? known)
-        => !_disposed && HasControl(vm) && vm.FilePath == path
-            && ReferenceEquals(vm.DiskState, known) && vm.RunState == RunState.Idle
-            && vm.PendingSave is not { IsCompleted: false };
-
-    private async Task ReloadAsync(EditorTabItemViewModel vm, string errorTitle)
-    {
-        if (_vm is null || !_tabs.TryGetValue(vm, out var entry)) return;
-        switch (entry.Control.ReloadFromDisk())
-        {
-            case DiskReload.OtherLanguage:
-                // Its editor services are another language's: the script opens in a new tab in its place.
-                _vm.ReopenTab(vm);
-                break;
-            case DiskReload.Unavailable when _windowService is not null:
-                await _windowService.ShowErrorAsync(errorTitle, $"Could not read '{Path.GetFileName(vm.FilePath)}'.");
-                break;
-        }
-    }
+    public Task CheckFilesChangedOnDiskAsync() => _diskSync?.CheckAsync(this) ?? Task.CompletedTask;
 
     public void FormatActive()
         => _ = GetActiveControl()?.FormatAsync();
