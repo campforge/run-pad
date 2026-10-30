@@ -251,10 +251,16 @@ jobs:
         if: github.event_name == 'push'
         run: tar -czf Invoklet-linux-x64.tar.gz -C publish/linux-x64 .
 
+      # A fixed release with its checksum, so a release can be rebuilt with the tool it was built with: the
+      # "continuous" build moves, and a change in it (stricter checks, 2026-10-29) failed a release build.
       - name: ⬇️ Download appimagetool
         if: github.event_name == 'push'
+        env:
+          APPIMAGETOOL_VERSION: 1.9.1
+          APPIMAGETOOL_SHA256: ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
         run: |
-          curl -fsSL "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" -o /tmp/appimagetool
+          curl -fsSL "https://github.com/AppImage/appimagetool/releases/download/${APPIMAGETOOL_VERSION}/appimagetool-x86_64.AppImage" -o /tmp/appimagetool
+          echo "${APPIMAGETOOL_SHA256}  /tmp/appimagetool" | sha256sum -c -
           chmod +x /tmp/appimagetool
 
       - name: 🧳 Bundle AppImage (linux-x64)

@@ -17,6 +17,13 @@ mkdir -p "$APPDIR/usr/bin"
 cp -R "$PUBLISH_DIR"/* "$APPDIR/usr/bin/"
 chmod +x "$APPDIR/usr/bin/Invoklet"
 
+# NuGet extracts packages with the executable bit for the owner only (mode 0744), and publish copies the
+# modes as they are. An AppImage is run by other users, and newer appimagetool builds refuse to pack an
+# AppDir whose files are not readable, and executable where the owner can execute them, for everyone. Only
+# the published files are changed (directories get the search bit, files that are executable for someone
+# the bit for all); what this script puts next to them gets its mode below.
+chmod -R a+rX "$APPDIR/usr/bin"
+
 cp src/main/Invoklet/Assets/invoklet.desktop "$APPDIR/Invoklet.desktop"
 cp src/main/Invoklet/Assets/invoklet.png "$APPDIR/invoklet.png"
 
@@ -25,13 +32,8 @@ cat > "$APPDIR/AppRun" <<'APPRUN'
 HERE="$(dirname "$(readlink -f "${0}")")"
 exec "$HERE/usr/bin/Invoklet" "$@"
 APPRUN
-chmod +x "$APPDIR/AppRun"
-
-# NuGet extracts packages with the executable bit for the owner only (mode 0744), and publish copies the
-# modes as they are. An AppImage is run by other users, and appimagetool refuses to pack an AppDir whose
-# files are not readable, and executable where the owner can execute them, for everyone. Directories get
-# the search bit and files that are already executable for someone the bit for all.
-chmod -R a+rX "$APPDIR"
+chmod 0755 "$APPDIR/AppRun" "$APPDIR" "$APPDIR/usr" "$APPDIR/usr/bin"
+chmod 0644 "$APPDIR/Invoklet.desktop" "$APPDIR/invoklet.png"
 
 mkdir -p "$OUTPUT_DIR"
 ARCH=x86_64 "$APPIMAGETOOL" "$APPDIR" "$OUTPUT_DIR/Invoklet-x86_64.AppImage"
