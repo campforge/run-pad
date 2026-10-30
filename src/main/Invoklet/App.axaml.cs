@@ -240,6 +240,7 @@ public class App : Application
         services.AddSingleton<IWindowService, WindowService>();
         services.AddSingleton<IBuildCacheService, BuildCacheService>();
         services.AddSingleton<IResidencyPolicy, RecentTabsResidencyPolicy>();
+        services.AddSingleton<ITabSpillStore>(_ => TempFileTabSpillStore.ForThisProcess());
         services.AddSingleton<TabLifecycleManager>();
         services.AddSingleton<IPrerequisiteService, PrerequisiteService>();
         services.AddSingleton<ISetupDownloader, SetupDownloader>();

@@ -1,7 +1,6 @@
 using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
-using Invoklet.Services.Recovery;
 using Invoklet.Services.Tabs;
 using Invoklet.UserControls.Models;
 using Moq;
@@ -9,53 +8,61 @@ using Xunit;
 
 namespace Invoklet.NonUI.Tests;
 
-// The tab lifecycle on fakes: no window, no editor, no language services.
+// The tab lifecycle on fakes: no window, no editor, no files.
 public class TabLifecycleManagerTests
 {
-    private sealed class FakeView(string name) : ITabView
+    private sealed class FakeView : ITabView
     {
         public bool Running { get; set; }
-        public bool Dirty { get; set; }
-        public bool Disposed { get; private set; }
+        public bool CanRelease { get; set; } = true;
+        public bool CanRestore { get; set; } = true;
+        public bool IsContentReleased { get; private set; }
         public bool? HighlightingActive { get; private set; }
-        public EditorViewState? Restored { get; private set; }
-        public EditorViewState State { get; set; } = new(0, 0, 0, 0, []);
+        public int Released { get; private set; }
+        public int Restored { get; private set; }
         public bool HasRunningProcess => Running;
-        public RecoveryTab CaptureRecovery() => new() { EditorText = name, IsDirty = Dirty };
-        public EditorViewState CaptureViewState() => State;
-        public void RestoreViewState(EditorViewState state) => Restored = state;
-        public void SetHighlightingActive(bool active) => HighlightingActive = active;
-        public void Dispose() => Disposed = true;
-    }
 
-    private sealed class FakeSurface : ITabSurface
-    {
-        public List<string> Log { get; } = [];
-        public List<Exception> Failures { get; } = [];
-        public void ShowView(EditorTabItemViewModel tab, ITabView view) => Log.Add("view " + tab.FileName);
-        public void ShowPlaceholder(EditorTabItemViewModel tab) => Log.Add("placeholder " + tab.FileName);
-        public Task ReportLoadFailureAsync(EditorTabItemViewModel tab, Exception error)
+        public bool TryReleaseContent()
         {
-            Failures.Add(error);
-            return Task.CompletedTask;
+            if (!CanRelease || Running) return false;
+            IsContentReleased = true;
+            Released++;
+            return true;
         }
+
+        public bool TryRestoreContent()
+        {
+            if (!CanRestore) return false;
+            IsContentReleased = false;
+            Restored++;
+            return true;
+        }
+
+        public void SetHighlightingActive(bool active) => HighlightingActive = active;
     }
 
-    private sealed class FakeFactory : ITabViewFactory
+    private sealed class FakeSpill : ITabSpillStore
     {
-        public Func<EditorTabItemViewModel, Task<ITabView>> Create { get; set; } = _ => Task.FromResult<ITabView>(new FakeView("new"));
-        public Task<ITabView> CreateAsync(EditorTabItemViewModel tab, CancellationToken cancellationToken) => Create(tab);
+        public bool DeletedAll { get; private set; }
+        public bool TryWrite(Guid tab, ReleasedContent content) => true;
+        public ReleasedContent? TryRead(Guid tab) => null;
+        public void Delete(Guid tab) { }
+        public void DeleteAll() => DeletedAll = true;
     }
 
     private sealed class Harness
     {
-        public TabLifecycleManager Manager { get; } = new(new RecentTabsResidencyPolicy());
-        public FakeSurface Surface { get; } = new();
-        public FakeFactory Factory { get; } = new();
+        public FakeSpill Spill { get; } = new();
+        public TabLifecycleManager Manager { get; }
         public EditorTabItemViewModel? Active { get; set; }
+        public List<EditorTabItemViewModel> NotRestored { get; } = [];
         public Dictionary<EditorTabItemViewModel, FakeView> Views { get; } = new();
 
-        public Harness() => Manager.Attach(Surface, Factory, () => Active);
+        public Harness()
+        {
+            Manager = new(new RecentTabsResidencyPolicy(), Spill);
+            Manager.Attach(() => Active, NotRestored.Add);
+        }
 
         public EditorTabItemViewModel Open(string name)
         {
@@ -67,7 +74,7 @@ public class TabLifecycleManagerTests
             prefs.Setup(p => p.Session).Returns(new SessionSettings());
             var tab = new EditorTabItemViewModel(null, [], prefs.Object, new Mock<IEditorTabActions>().Object,
                 MdRunLanguage.CSharp, MdRunKind.Statements, name);
-            var view = new FakeView(name);
+            var view = new FakeView();
             Views[tab] = view;
             Manager.Register(tab, view);
             Active = tab;
@@ -84,67 +91,58 @@ public class TabLifecycleManagerTests
     }
 
     [Fact]
-    public void Rebalance_Should_UnloadTheTabsBeyondTheLastThree_AndShowPlaceholders()
+    public void Rebalance_Should_ReleaseTheContentOfTheTabsBeyondTheLastThree()
     {
         var (harness, tabs) = FiveTabs();
-        harness.Views[tabs[0]].State = new(5, 1, 2, 7, [new(3, "x > 1", null, true)]);
 
         harness.Manager.Rebalance();
 
-        Assert.Equal(["placeholder tab1", "placeholder tab2"], harness.Surface.Log.Order());
-        Assert.True(harness.Views[tabs[0]].Disposed);
-        Assert.True(harness.Views[tabs[1]].Disposed);
-        Assert.False(harness.Manager.IsLoaded(tabs[0]));
-        Assert.All(tabs.Skip(2), tab => Assert.True(harness.Manager.IsLoaded(tab)));
+        Assert.True(harness.Views[tabs[0]].IsContentReleased);
+        Assert.True(harness.Views[tabs[1]].IsContentReleased);
+        Assert.All(tabs.Skip(2), tab => Assert.True(harness.Manager.IsContentLoaded(tab)));
+        Assert.False(harness.Manager.IsContentLoaded(tabs[0]));
     }
 
     [Fact]
-    public async Task SelectingAnUnloadedTab_Should_BuildItsViewAgain_WithTheStateItHad()
+    public void SelectingATabWhoseContentIsReleased_Should_BringItBack_AndReleaseTheOldestLoadedOne()
     {
         var (harness, tabs) = FiveTabs();
-        var state = new EditorViewState(5, 1, 2, 7, [new(3, "x > 1", null, true)]);
-        harness.Views[tabs[0]].State = state;
         harness.Manager.Rebalance();
-        var rebuilt = new FakeView("rebuilt");
-        harness.Factory.Create = _ => Task.FromResult<ITabView>(rebuilt);
-        harness.Surface.Log.Clear();
 
         harness.Active = tabs[0];
         harness.Manager.Activated(tabs[0]);
-        await Task.Yield();
 
-        Assert.Equal(state, rebuilt.Restored);
-        Assert.True(harness.Manager.IsLoaded(tabs[0]));
-        Assert.Equal("view tab1", harness.Surface.Log[0]);
-        Assert.Equal(3, tabs.Count(harness.Manager.IsLoaded)); // the oldest loaded one made room
+        Assert.Equal(1, harness.Views[tabs[0]].Restored);
+        Assert.True(harness.Manager.IsContentLoaded(tabs[0]));
+        Assert.Equal(3, tabs.Count(harness.Manager.IsContentLoaded)); // the oldest loaded one made room
+        Assert.True(harness.Views[tabs[2]].IsContentReleased);
     }
 
     [Fact]
-    public void ATabThatIsRunning_Should_NotBeUnloaded()
+    public async Task WhatNeedsTheText_Should_BringItBackWithoutSelectingTheTab()
+    {
+        var (harness, tabs) = FiveTabs();
+        harness.Manager.Rebalance();
+
+        await tabs[0].EnsureContent();
+
+        Assert.False(harness.Views[tabs[0]].IsContentReleased);
+    }
+
+    [Fact]
+    public void ATabThatIsRunning_Should_NotBeReleased()
     {
         var (harness, tabs) = FiveTabs();
         harness.Views[tabs[0]].Running = true;
 
         harness.Manager.Rebalance();
 
-        Assert.True(harness.Manager.IsLoaded(tabs[0]));
-        Assert.False(harness.Manager.IsLoaded(tabs[1]));
+        Assert.True(harness.Manager.IsContentLoaded(tabs[0]));
+        Assert.False(harness.Manager.IsContentLoaded(tabs[1]));
     }
 
     [Fact]
-    public void ATabWithUnsavedWork_Should_NotBeUnloaded()
-    {
-        var (harness, tabs) = FiveTabs();
-        harness.Views[tabs[0]].Dirty = true;
-
-        harness.Manager.Rebalance();
-
-        Assert.True(harness.Manager.IsLoaded(tabs[0]));
-        Assert.False(harness.Views[tabs[0]].Disposed);
-    }
-
-    [Fact]
-    public void ARunThatEndedOutOfSight_Should_KeepTheTabLoadedUntilItIsSelected()
+    public void ARunThatEndedOutOfSight_Should_KeepTheContentUntilTheTabIsSelected()
     {
         var harness = new Harness();
         var first = harness.Open("tab1");
@@ -153,62 +151,56 @@ public class TabLifecycleManagerTests
 
         first.RunState = RunState.Idle; // ended while another tab was shown
         harness.Manager.Rebalance();
-        Assert.True(harness.Manager.IsLoaded(first));
+        Assert.True(harness.Manager.IsContentLoaded(first));
 
         harness.Active = first;
         harness.Manager.Activated(first); // the user looks at it
         harness.Active = others[3];
         foreach (var tab in others.Skip(1)) harness.Manager.Activated(tab);
 
-        Assert.False(harness.Manager.IsLoaded(first));
+        Assert.False(harness.Manager.IsContentLoaded(first));
     }
 
     [Fact]
-    public async Task AViewThatCannotBeBuilt_Should_BeReported_AndTheTabStayUnloadedForTheNextTry()
+    public void AViewThatCannotReleaseItsContent_Should_StayLoaded()
     {
         var (harness, tabs) = FiveTabs();
+        harness.Views[tabs[0]].CanRelease = false;
+
         harness.Manager.Rebalance();
-        harness.Factory.Create = _ => throw new InvalidOperationException("no editor");
 
-        harness.Manager.Activated(tabs[0]);
-        await Task.Yield();
-
-        Assert.Equal("no editor", Assert.Single(harness.Surface.Failures).Message);
-        Assert.False(harness.Manager.IsLoaded(tabs[0]));
-
-        var rebuilt = new FakeView("rebuilt");
-        harness.Factory.Create = _ => Task.FromResult<ITabView>(rebuilt);
-        harness.Manager.Activated(tabs[0]);
-        await Task.Yield();
-        Assert.True(harness.Manager.IsLoaded(tabs[0]));
+        Assert.True(harness.Manager.IsContentLoaded(tabs[0]));
     }
 
     [Fact]
-    public async Task ATabClosedWhileItsViewIsBeingBuilt_Should_HaveThatViewDisposed()
+    public void ContentThatCannotBeRead_Should_BeReported_AndTheTabStayReleasedForTheNextTry()
     {
         var (harness, tabs) = FiveTabs();
         harness.Manager.Rebalance();
-        var gate = new TaskCompletionSource<ITabView>();
-        harness.Factory.Create = _ => gate.Task;
+        harness.Views[tabs[0]].CanRestore = false;
+
+        harness.Active = tabs[0];
         harness.Manager.Activated(tabs[0]);
+
+        Assert.Equal([tabs[0]], harness.NotRestored);
+        Assert.False(harness.Manager.IsContentLoaded(tabs[0]));
+
+        harness.Views[tabs[0]].CanRestore = true;
+        harness.Manager.Activated(tabs[0]);
+        Assert.True(harness.Manager.IsContentLoaded(tabs[0]));
+    }
+
+    [Fact]
+    public async Task AClosedTab_Should_NoLongerBeKnown()
+    {
+        var (harness, tabs) = FiveTabs();
+        harness.Manager.Rebalance();
 
         harness.Manager.Unregister(tabs[0]);
-        var late = new FakeView("late");
-        gate.SetResult(late);
-        await Task.Yield();
+        await tabs[0].EnsureContent();
 
-        Assert.True(late.Disposed);
-        Assert.False(harness.Manager.IsLoaded(tabs[0]));
-    }
-
-    [Fact]
-    public void ClosingALoadedTab_Should_DisposeItsView()
-    {
-        var (harness, tabs) = FiveTabs();
-
-        harness.Manager.Unregister(tabs[4]);
-
-        Assert.True(harness.Views[tabs[4]].Disposed);
+        Assert.Equal(0, harness.Views[tabs[0]].Restored);
+        Assert.False(harness.Manager.IsContentLoaded(tabs[0]));
     }
 
     [Fact]
@@ -220,6 +212,16 @@ public class TabLifecycleManagerTests
 
         Assert.True(harness.Views[tabs[4]].HighlightingActive);
         Assert.False(harness.Views[tabs[3]].HighlightingActive);
-        Assert.False(harness.Views[tabs[2]].HighlightingActive);
+        Assert.False(harness.Views[tabs[0]].HighlightingActive);
+    }
+
+    [Fact]
+    public void DetachingTheStrip_Should_RemoveWhatWasKept()
+    {
+        var (harness, _) = FiveTabs();
+
+        harness.Manager.Detach();
+
+        Assert.True(harness.Spill.DeletedAll);
     }
 }
