@@ -167,6 +167,9 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // unbounded.
     private static readonly TimeSpan _backgroundAnalysisDisposeTimeout = TimeSpan.FromSeconds(5);
 
+    // Debounce, supersede and stale re-run of the background analysis.
+    private readonly AnalysisScheduler _scheduler;
+
     private readonly ILogger<CSharpIntelliSenseService> _logger;
     private readonly AdhocWorkspace _workspace;
     private readonly DocumentId _documentId;
@@ -254,11 +257,6 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // be applied, so a test can hold an older request there while a newer one overtakes it.
     internal Action<ExecutionRequest>? ExecutionContextResolvedForTests { get; set; }
     private List<KeyValuePair<string, (DocumentId Id, string Text)>> _connectionFiles = [];
-    private CancellationTokenSource? _diagnosticsCts;
-
-    // Tracks NotifyTextChanged's own fire-and-forget Task.Run so Dispose can actually wait for it —
-    // see Dispose's own comment for why this matters beyond just "clean shutdown".
-    private Task? _backgroundAnalysisTask;
 
     // Shared across every CSharpIntelliSenseService instance (one per tab, see EditorTabsControl.
     // CreateIntelliSenseAsync) — MetadataReferences are immutable and safe to share across unrelated
@@ -281,6 +279,11 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         IEnumerable<string>? additionalReferencePaths = null)
     {
         _logger = logger;
+        _scheduler = new AnalysisScheduler(
+            () => BackgroundAnalysisDebounce,
+            work => RoslynMessageCulture.RunAsync(work, CancellationToken.None),
+            ex => _logger.LogWarning(ex, "Background analysis failed"),
+            _backgroundAnalysisDisposeTimeout);
         RebuildPreamble();
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1915,46 +1918,26 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // The code is materialized only here, after the debounce and off the caller's thread — a
     // notification superseded within BackgroundAnalysisDebounce (the next keystroke) never builds its
     // string at all.
-    public void NotifyTextChanged(Func<string> getCode)
-    {
-        // Not disposed here — a superseded background analysis pass (Task.Run below) can still be
-        // mid-flight past this point (e.g. inside RoslynCodeFixEngine, which doesn't poll the token
-        // between individual CodeFixProviders — see Dispose's own comment), and registering/reading
-        // against an already-disposed CancellationTokenSource throws ObjectDisposedException
-        //. A CancellationTokenSource whose WaitHandle is never touched holds no
-        // unmanaged resources, so leaving the superseded one for the GC is safe; Dispose() below
-        // (this instance's own teardown, after _backgroundAnalysisTask is awaited/timed out) still
-        // disposes the final one.
-        _diagnosticsCts?.Cancel();
-        _diagnosticsCts = new CancellationTokenSource();
-        var ct = _diagnosticsCts.Token;
+    public void NotifyTextChanged(Func<string> getCode) => _scheduler.Notify(getCode, AnalyzeAsync);
 
-        _backgroundAnalysisTask = RoslynMessageCulture.RunAsync(async () =>
+    // One background pass over the text; false when the project context changed meanwhile, which makes what it found describe the
+    // old references or generated classes (it was not published): the scheduler runs it again on the new solution, unless a newer
+    // notification has taken over already.
+    private async Task<bool> AnalyzeAsync(string code, CancellationToken ct)
+    {
+        Document document;
+        int version;
+        lock (_syncLock)
         {
-            try
-            {
-                await Task.Delay(BackgroundAnalysisDebounce, ct);
-                var code = getCode();
-                Document document;
-                int version;
-                lock (_syncLock)
-                {
-                    document = SyncDocument(code);
-                    version = _contextVersion;
-                }
-                AnalysisSnapshotTakenForTests?.Invoke();
-                await Task.WhenAll(
-                    ComputeDiagnosticsAndCodeFixesAsync(code, document, version, ct),
-                    ComputeSemanticTokensAsync(code, document, version, ct),
-                    ComputeInlayHintsAsync(code, document, version, ct));
-                // The references or generated classes changed while this pass ran: what it found
-                // describes the old ones and was not published. Run again on the new solution,
-                // unless a newer notification has taken over already.
-                if (!IsCurrent(version) && !ct.IsCancellationRequested) NotifyTextChanged(code);
-            }
-            catch (OperationCanceledException) { }
-            catch (Exception ex) { _logger.LogWarning(ex, "Background analysis failed"); }
-        }, CancellationToken.None);
+            document = SyncDocument(code);
+            version = _contextVersion;
+        }
+        AnalysisSnapshotTakenForTests?.Invoke();
+        await Task.WhenAll(
+            ComputeDiagnosticsAndCodeFixesAsync(code, document, version, ct),
+            ComputeSemanticTokensAsync(code, document, version, ct),
+            ComputeInlayHintsAsync(code, document, version, ct));
+        return IsCurrent(version);
     }
 
     private bool IsCurrent(int version)
@@ -2504,10 +2487,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // checks its token shouldn't be able to hang Dispose (or, in production, a tab close) forever.
     public void Dispose()
     {
-        _diagnosticsCts?.Cancel();
-        try { _backgroundAnalysisTask?.Wait(_backgroundAnalysisDisposeTimeout); }
-        catch { /* already logged from inside the task itself */ }
-        _diagnosticsCts?.Dispose();
+        _scheduler.Stop();
         _workspace.Dispose();
     }
 
