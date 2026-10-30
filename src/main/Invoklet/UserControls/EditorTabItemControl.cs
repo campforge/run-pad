@@ -1010,7 +1010,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     }
 
     // Play/Continue is a single toolbar button — same logic as the Run/Continue hotkey
-    // (EditorTabsControl.RunOrContinueActive).
+    // (ActiveTabCommands.RunOrContinue).
     private void RunOrContinueButton_Click(object? sender, RoutedEventArgs e)
     {
         if (_vm.EnableRunButton) RunButton_Click(sender, e);

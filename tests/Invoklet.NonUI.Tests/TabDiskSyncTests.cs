@@ -29,6 +29,7 @@ public class TabDiskSyncTests
     private sealed class FakeHost : ITabDiskHost
     {
         public bool IsClosed { get; set; }
+        public EditorTabItemViewModel? ActiveTab { get; set; }
         public List<EditorTabItemViewModel> Tabs { get; } = [];
         IReadOnlyList<EditorTabItemViewModel> ITabDiskHost.Tabs => Tabs;
         public HashSet<EditorTabItemViewModel> WithoutContent { get; } = [];
@@ -271,6 +272,88 @@ public class TabDiskSyncTests
     {
         var deadline = DateTime.UtcNow.AddSeconds(5);
         while (stillWaiting() && DateTime.UtcNow < deadline) await Task.Delay(10, TestContext.Current.CancellationToken);
+    }
+
+    private static string RealFile(Harness h, EditorTabItemViewModel tab)
+    {
+        // Revert asks whether the file exists, which the fakes cannot answer.
+        var path = Path.Combine(Path.GetTempPath(), "Invoklet-revert-" + Guid.NewGuid().ToString("N") + ".inv");
+        File.WriteAllText(path, "x");
+        tab.FilePath = path;
+        return path;
+    }
+
+    [Fact]
+    public async Task Revert_Should_ReloadACleanTabWithoutAsking()
+    {
+        var h = new Harness();
+        var tab = h.Open("a");
+        h.Host.ActiveTab = tab;
+        var path = RealFile(h, tab);
+        try
+        {
+            await h.Sync.RevertAsync(h.Host, tab);
+
+            Assert.Equal([tab], h.Host.Reloaded);
+            h.Windows.Verify(w => w.ShowRevertFileDialogAsync(It.IsAny<string>()), Times.Never);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public async Task Revert_Should_AskBeforeDroppingUnsavedChanges_AndDoNothingOnNo()
+    {
+        var h = new Harness();
+        var tab = h.Open("a", dirty: true);
+        h.Host.ActiveTab = tab;
+        var path = RealFile(h, tab);
+        h.Windows.Setup(w => w.ShowRevertFileDialogAsync(It.IsAny<string>())).ReturnsAsync(false);
+        try
+        {
+            await h.Sync.RevertAsync(h.Host, tab);
+            Assert.Empty(h.Host.Reloaded);
+
+            h.Windows.Setup(w => w.ShowRevertFileDialogAsync(It.IsAny<string>())).ReturnsAsync(true);
+            await h.Sync.RevertAsync(h.Host, tab);
+            Assert.Equal([tab], h.Host.Reloaded);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public async Task Revert_Should_SayWhenTheFileIsGone()
+    {
+        var h = new Harness();
+        var tab = h.Open("a"); // its file does not exist
+        h.Host.ActiveTab = tab;
+
+        await h.Sync.RevertAsync(h.Host, tab);
+
+        Assert.Empty(h.Host.Reloaded);
+        h.Windows.Verify(w => w.ShowErrorAsync("Revert Failed", "'a.inv' no longer exists on disk."), Times.Once);
+    }
+
+    [Fact]
+    public async Task Revert_Should_NotReload_WhenAnotherTabWasSelectedWhileAsking()
+    {
+        var h = new Harness();
+        var tab = h.Open("a", dirty: true);
+        var other = h.Open("b");
+        h.Host.ActiveTab = tab;
+        var path = RealFile(h, tab);
+        h.Windows.Setup(w => w.ShowRevertFileDialogAsync(It.IsAny<string>()))
+            .Returns(() =>
+            {
+                h.Host.ActiveTab = other;
+                return Task.FromResult(true);
+            });
+        try
+        {
+            await h.Sync.RevertAsync(h.Host, tab);
+
+            Assert.Empty(h.Host.Reloaded);
+        }
+        finally { File.Delete(path); }
     }
 
     [Fact]

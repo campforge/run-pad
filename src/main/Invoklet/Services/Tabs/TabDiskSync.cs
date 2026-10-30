@@ -11,6 +11,9 @@ internal interface ITabDiskHost
 
     IReadOnlyList<EditorTabItemViewModel> Tabs { get; }
 
+    /// <summary>The tab being looked at.</summary>
+    EditorTabItemViewModel? ActiveTab { get; }
+
     /// <summary>The tab is open and holds its text, so it can be reloaded; a tab whose text waits on disk reads its file when selected.</summary>
     bool HasContent(EditorTabItemViewModel tab);
 
@@ -76,6 +79,22 @@ internal sealed class TabDiskSync(IWindowService windows, IScriptFileReader? rea
         => !host.IsClosed && host.HasContent(tab) && tab.FilePath == path
             && ReferenceEquals(tab.DiskState, known) && tab.RunState == RunState.Idle
             && tab.PendingSave is not { IsCompleted: false };
+
+    /// <summary>File → Revert to Saved: the tab goes back to its file as it is on disk, asking first when that drops unsaved changes.</summary>
+    internal async Task RevertAsync(ITabDiskHost host, EditorTabItemViewModel tab)
+    {
+        if (tab.FilePath is not { } path || !CanReload(host, tab, path, tab.DiskState)) return;
+        var known = tab.DiskState;
+        if (!File.Exists(path))
+        {
+            await windows.ShowErrorAsync("Revert Failed", $"'{Path.GetFileName(path)}' no longer exists on disk.");
+            return;
+        }
+
+        if (tab.IsDirty && !await windows.ShowRevertFileDialogAsync(Path.GetFileName(path))) return;
+        if (!ReferenceEquals(host.ActiveTab, tab) || !CanReload(host, tab, path, known)) return;
+        await ReloadAsync(host, tab, "Revert Failed");
+    }
 
     internal async Task ReloadAsync(ITabDiskHost host, EditorTabItemViewModel tab, string errorTitle)
     {
