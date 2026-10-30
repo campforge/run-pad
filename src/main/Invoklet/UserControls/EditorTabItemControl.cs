@@ -1134,23 +1134,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
     }
 
-    // Shift+F12 (CodeTextEditor.FindReferencesRequested). Reuses
-    // GetDocumentHighlightsAsync (same "every occurrence of the symbol under the caret" data the
-    // highlight-occurrences feature already computes) rather than a separate service call — a
-    // single-file scratchpad's "references" list and "highlights" list are the same set, they just
-    // get shown differently (a clickable menu here vs. inline highlighting there).
-    private async Task ShowFindReferencesAsync(CodeTextEditor editor, IIntelliSenseService intelliSense)
-    {
-        var caretOffset = editor.TextArea.Caret.Offset;
-        var highlights = await intelliSense.GetDocumentHighlightsAsync(
-            State.Editor.Text, caretOffset, CancellationToken.None);
-        if (highlights is null || highlights.Count == 0) return; // nothing to list
-
-        if (BuildFindReferencesMenu(highlights, editor) is not { } menu) return;
-        editor.ContextMenu = menu;
-        menu.Open(editor);
-    }
-
+    // Shift+F12 (CodeTextEditor.FindReferencesRequested): see SymbolNavigator.FindReferencesAsync.
     // internal (not private): same rationale as EditorTabsControl.BuildAllTabsMenu — lets tests
     // inspect the built menu's items/click-wiring directly, since headless Avalonia has no reliable
     // way to drive an actual popup open/click interaction.
@@ -1222,62 +1206,32 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }, DispatcherPriority.Background);
     }
 
-    private async Task ShowGoToDefinitionAsync(CodeTextEditor editor, IIntelliSenseService intelliSense)
+    // The editor as SymbolNavigator sees it; the menus stay here because they are controls.
+    private sealed class EditorNavigationTarget(CodeTextEditor editor) : INavigationTarget
     {
-        var caretOffset = editor.TextArea.Caret.Offset;
+        public string Text => editor.Text;
 
-        var implementations = await intelliSense.GetImplementationsAsync(
-            State.Editor.Text, caretOffset, CancellationToken.None);
-        if (implementations is { Count: > 0 })
+        public int CaretOffset => editor.TextArea.Caret.Offset;
+
+        public void JumpTo(int offset)
         {
-            if (implementations.Count == 1)
-            {
-                editor.TextArea.Caret.Offset = implementations[0].Offset;
-                editor.ScrollToLine(editor.TextArea.Caret.Line);
-                editor.Focus();
-            }
-            else if (BuildGoToImplementationMenu(implementations, editor) is { } menu)
-            {
-                editor.ContextMenu = menu;
-                menu.Open(editor);
-            }
-
-            return;
-        }
-
-        var definition = await intelliSense.GetDefinitionAsync(State.Editor.Text, caretOffset, CancellationToken.None);
-        if (definition is null) return;
-
-        if (definition.IsInSource)
-        {
-            editor.TextArea.Caret.Offset = definition.Offset;
+            editor.TextArea.Caret.Offset = offset;
             editor.ScrollToLine(editor.TextArea.Caret.Line);
             editor.Focus();
-            return;
         }
 
-        // A connection's generated message/client class, before any build has cached a compiled
-        // contract assembly for it to decompile from (see handoffs/g03-navigation-cold-start-gap.md):
-        // its source is already in hand, so show it directly instead of decompiling.
-        if (definition.GeneratedDocument is { } generated)
-        {
-            await _windowService.ShowDefinitionInAssemblyExplorerAsync(
-                new DecompiledMemberResult(generated.Text, generated.Line, definition.DisplayName), definition);
-            return;
-        }
+        public void ShowImplementations(IReadOnlyList<IImplementationLocation> implementations)
+            => Show(BuildGoToImplementationMenu(implementations, editor));
 
-        DecompiledMemberResult decompiled;
-        try
-        {
-            decompiled = await Task.Run(() => CSharpDecompilerService.Decompile(definition));
-        }
-        catch (Exception ex)
-        {
-            decompiled = new DecompiledMemberResult($"// Failed to decompile: {ex.Message}", 1, definition.DisplayName);
-        }
+        public void ShowReferences(IReadOnlyList<IDocumentHighlightSpan> references)
+            => Show(BuildFindReferencesMenu(references, editor));
 
-        // a new tab of the open explorer, or a new explorer (one per app — WindowService)
-        await _windowService.ShowDefinitionInAssemblyExplorerAsync(decompiled, definition);
+        private void Show(ContextMenu? menu)
+        {
+            if (menu is null) return;
+            editor.ContextMenu = menu;
+            menu.Open(editor);
+        }
     }
 
     // internal (not private): same rationale as BuildFindReferencesMenu — lets tests inspect the
@@ -1306,6 +1260,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // ── Private ───────────────────────────────────────────────────────────────
 
+    private SymbolNavigator Navigator(IIntelliSenseService intelliSense)
+        => new(intelliSense, _windowService, CSharpDecompilerService.Decompile);
+
     private async void OnRenameSymbolRequested(object? sender, EventArgs e)
     {
         if (_disposed || _intelliSense is null) return;
@@ -1315,13 +1272,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private async void OnFindReferencesRequested(object? sender, EventArgs e)
     {
         if (_disposed || _intelliSense is null) return;
-        await RunUiActionAsync(() => ShowFindReferencesAsync(State.Editor, _intelliSense), "Find references");
+        await RunUiActionAsync(() => Navigator(_intelliSense).FindReferencesAsync(new EditorNavigationTarget(State.Editor)), "Find references");
     }
 
     private async void OnGoToDefinitionRequested(object? sender, EventArgs e)
     {
         if (_disposed || _intelliSense is null) return;
-        await RunUiActionAsync(() => ShowGoToDefinitionAsync(State.Editor, _intelliSense), "Go to definition");
+        await RunUiActionAsync(() => Navigator(_intelliSense).GoToDefinitionAsync(new EditorNavigationTarget(State.Editor)), "Go to definition");
     }
 
     private async Task RunUiActionAsync(Func<Task> action, string operation)
@@ -2225,7 +2182,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     {
                         var context = State.CurrentDebugCtx;
                         return (new HoverRequest(editor.Text, editor.GetOffsetFromPoint(pos), editor.IdentifierChars, context,
-                            DebugHoverController.Capture(context), squiggleRenderer.Diagnostics,
+                            DebugHoverController.Capture(context),
+                            squiggleRenderer.Diagnostics.Select(HoverDiagnostic.Of).ToArray(),
                             () => ReferenceEquals(context, State.CurrentDebugCtx)), context);
                     });
                     if (request.Offset < 0 || ct.IsCancellationRequested) return;

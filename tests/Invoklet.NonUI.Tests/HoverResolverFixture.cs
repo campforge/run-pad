@@ -26,13 +26,17 @@ internal sealed class HoverResolverFixture
         return variable.Object;
     }
 
-    public static IDiagnosticInfo CreateDiagnostic(int start, int end, string message)
+    public static HoverDiagnostic CreateDiagnostic(int start, int end, string message) => new(start, end, message);
+
+    /// <summary>A diagnostic of the editor, whose offsets move as the text is edited.</summary>
+    public static (IDiagnosticInfo Segment, Action Shift) CreateMovingDiagnostic(int start, int end, string message)
     {
-        var diagnostic = new Mock<IDiagnosticInfo>();
-        diagnostic.SetupGet(d => d.StartOffset).Returns(start);
-        diagnostic.SetupGet(d => d.EndOffset).Returns(end);
-        diagnostic.SetupGet(d => d.Message).Returns(message);
-        return diagnostic.Object;
+        var offsets = (Start: start, End: end);
+        var segment = new Mock<IDiagnosticInfo>();
+        segment.SetupGet(d => d.StartOffset).Returns(() => offsets.Start);
+        segment.SetupGet(d => d.EndOffset).Returns(() => offsets.End);
+        segment.SetupGet(d => d.Message).Returns(message);
+        return (segment.Object, () => offsets = (offsets.Start + 10, offsets.End + 10));
     }
 
     public IQuickInfoResult SetupQuickInfo()
@@ -43,7 +47,7 @@ internal sealed class HoverResolverFixture
     }
 
     public HoverRequest CreateRequest(int offset, IBreakpointHitContext? context = null,
-        IReadOnlyList<IVariableInfo>? locals = null, params IDiagnosticInfo[] diagnostics)
+        IReadOnlyList<IVariableInfo>? locals = null, params HoverDiagnostic[] diagnostics)
         => new(Text, offset, null, context, locals, diagnostics, () => ContextIsCurrent);
 
     public HoverResolver CreateSut() => new(Debug.Object, IntelliSense.Object);

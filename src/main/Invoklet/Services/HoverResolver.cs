@@ -10,14 +10,23 @@ internal interface IDebugHoverSource
     Task<IVariableInfo?> EvaluateHoverAsync(IBreakpointHitContext context, string expression, CancellationToken cancellationToken);
 }
 
-/// <summary>What is under the pointer. Taken on the UI thread, so the resolver can work on any thread.</summary>
+/// <summary>A diagnostic as it stood when the pointer was taken: the editor's own segments move with every edit.</summary>
+internal sealed record HoverDiagnostic(int Start, int End, string Message)
+{
+    public static HoverDiagnostic Of(IDiagnosticInfo diagnostic) => new(diagnostic.StartOffset, diagnostic.EndOffset, diagnostic.Message);
+}
+
+/// <summary>
+/// What is under the pointer, all of it copied on the UI thread, so the resolver can work on any thread while the
+/// user keeps typing: the text, the offset and the diagnostics belong to the same moment.
+/// </summary>
 internal sealed record HoverRequest(
     string Text,
     int Offset,
     IReadOnlySet<char>? IdentifierChars,
     IBreakpointHitContext? DebugContext,
     IReadOnlyList<IVariableInfo>? DebugLocals,
-    IReadOnlyList<IDiagnosticInfo> Diagnostics,
+    IReadOnlyList<HoverDiagnostic> Diagnostics,
     Func<bool> IsDebugContextCurrent);
 
 internal abstract record HoverResult;
@@ -48,7 +57,7 @@ internal sealed class HoverResolver(IDebugHoverSource debug, IIntelliSenseServic
             return symbol is null ? null : new DebugValueHover(symbol, symbolStart, debugValue);
 
         // A diagnostic takes priority over Quick Info: why a squiggle is there matters more than the signature.
-        var diagnostic = request.Diagnostics.FirstOrDefault(d => request.Offset >= d.StartOffset && request.Offset < d.EndOffset);
+        var diagnostic = request.Diagnostics.FirstOrDefault(d => request.Offset >= d.Start && request.Offset < d.End);
         if (diagnostic is not null) return new DiagnosticHover(diagnostic.Message);
 
         return await intelliSense.GetQuickInfoAsync(request.Text, request.Offset, cancellationToken) is { } info

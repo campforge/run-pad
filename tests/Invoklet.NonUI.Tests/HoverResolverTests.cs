@@ -117,6 +117,24 @@ public sealed class HoverResolverTests
     }
 
     [Fact]
+    public async Task ResolveAsync_UserTypedAfterTheRequestWasTaken_StillUsesThePositionsOfThatMoment()
+    {
+        // Arrange
+        var fixture = new HoverResolverFixture();
+        var offset = HoverResolverFixture.Inside("count");
+        var (segment, typeSomething) = HoverResolverFixture.CreateMovingDiagnostic(offset - 1, offset + 5, "about count");
+        var request = fixture.CreateRequest(offset, diagnostics: HoverDiagnostic.Of(segment));
+        var sut = fixture.CreateSut();
+
+        // Act
+        typeSomething(); // the segment of the editor moves on; the request keeps its copy
+        var hover = await sut.ResolveAsync(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal("about count", Assert.IsType<DiagnosticHover>(hover).Message);
+    }
+
+    [Fact]
     public async Task ResolveAsync_NothingToSay_ReturnsNull()
     {
         // Arrange
