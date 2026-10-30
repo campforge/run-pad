@@ -21,6 +21,8 @@ public class TabLifecycleManagerTests
         public int Released { get; private set; }
         public int Restored { get; private set; }
         public bool HasRunningProcess => Running;
+        public Task<bool>? RestoreGate { get; set; }
+        public int RestoreCalls { get; private set; }
 
         public bool TryReleaseContent()
         {
@@ -30,12 +32,24 @@ public class TabLifecycleManagerTests
             return true;
         }
 
-        public bool TryRestoreContent()
+        public Task<bool> TryRestoreContentAsync()
         {
-            if (!CanRestore) return false;
-            IsContentReleased = false;
-            Restored++;
-            return true;
+            RestoreCalls++;
+            if (!CanRestore) return Task.FromResult(false);
+            return RestoreGate is null ? Done() : Wait(RestoreGate);
+
+            Task<bool> Done()
+            {
+                IsContentReleased = false;
+                Restored++;
+                return Task.FromResult(true);
+            }
+
+            async Task<bool> Wait(Task<bool> gate)
+            {
+                await gate;
+                return await Done();
+            }
         }
 
         public void SetHighlightingActive(bool active) => HighlightingActive = active;
@@ -127,6 +141,36 @@ public class TabLifecycleManagerTests
         await tabs[0].EnsureContent();
 
         Assert.False(harness.Views[tabs[0]].IsContentReleased);
+    }
+
+    [Fact]
+    public async Task ATabWhoseTextWasNeeded_Should_NotBeReleasedAgainAtOnce()
+    {
+        var (harness, tabs) = FiveTabs();
+        harness.Manager.Rebalance();
+
+        await tabs[0].EnsureContent(); // saving it, say, while another tab is the one shown
+        harness.Manager.Rebalance();
+
+        Assert.True(harness.Manager.IsContentLoaded(tabs[0]));
+        Assert.Equal(1, harness.Views[tabs[0]].Restored);
+    }
+
+    [Fact]
+    public async Task ARestoreAskedForWhileOneRuns_Should_BeTheSameRestore()
+    {
+        var (harness, tabs) = FiveTabs();
+        harness.Manager.Rebalance();
+        var gate = new TaskCompletionSource<bool>();
+        harness.Views[tabs[0]].RestoreGate = gate.Task;
+
+        harness.Active = tabs[0];
+        harness.Manager.Activated(tabs[0]); // selecting it
+        var saving = tabs[0].EnsureContent(); // and saving it before the text is back
+        gate.SetResult(true);
+        await saving;
+
+        Assert.Equal(1, harness.Views[tabs[0]].RestoreCalls);
     }
 
     [Fact]

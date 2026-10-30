@@ -630,6 +630,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         var s = State;
         if (_disposed || _runInProgress || _savingBeforeRun) return;
+        // A script that is still being read back from disk must not run as an empty one.
+        if (_contentReleased && !await TryRestoreContentAsync()) return;
         var stopGeneration = _stopGeneration;
 
         // Never run an invalid .inv as raw code — the editor holds the whole file
@@ -920,6 +922,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 if (ReferenceEquals(s.RunCts, runCts)) s.RunCts = null;
                 runCts.Dispose();
                 _runInProgress = false;
+                SaveRunOutput();
             }
         }
     }
@@ -2681,6 +2684,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             editor.Document = new TextDocument(text);
             if (caret > 0) editor.CaretOffset = caret;
         }
+
+        // The output of the last run of this script, kept beside its library.
+        LoadRunOutput();
 
         // Shows which kind/target framework the script actually runs as —
         // helps tell the two compile paths apart and diagnose compile/run discrepancies without

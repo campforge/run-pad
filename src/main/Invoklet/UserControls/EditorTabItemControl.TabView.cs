@@ -11,7 +11,7 @@ public partial class EditorsTabItemControl : ITabView
 
     bool ITabView.TryReleaseContent() => TryReleaseContent();
 
-    bool ITabView.TryRestoreContent() => TryRestoreContent();
+    Task<bool> ITabView.TryRestoreContentAsync() => TryRestoreContentAsync();
 
     void ITabView.SetHighlightingActive(bool active) => SetHighlightingActive(active);
 }
