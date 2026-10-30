@@ -27,11 +27,15 @@ internal interface ITabDiskHost
 internal interface IScriptFileReader
 {
     ScriptFileState Read(string path);
+
+    bool Exists(string path);
 }
 
 internal sealed class DiskScriptFileReader : IScriptFileReader
 {
     public ScriptFileState Read(string path) => ScriptFileState.Read(path);
+
+    public bool Exists(string path) => File.Exists(path);
 }
 
 /// <summary>
@@ -85,7 +89,7 @@ internal sealed class TabDiskSync(IWindowService windows, IScriptFileReader? rea
     {
         if (tab.FilePath is not { } path || !CanReload(host, tab, path, tab.DiskState)) return;
         var known = tab.DiskState;
-        if (!File.Exists(path))
+        if (!_reader.Exists(path))
         {
             await windows.ShowErrorAsync("Revert Failed", $"'{Path.GetFileName(path)}' no longer exists on disk.");
             return;

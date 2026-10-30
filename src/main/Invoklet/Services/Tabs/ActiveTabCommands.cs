@@ -1,6 +1,5 @@
 using Invoklet.Contracts.Models;
 using Invoklet.Services.Preferences;
-using Invoklet.Services.Scaling;
 using Invoklet.UserControls.Models;
 using ReactiveUI;
 
@@ -14,16 +13,12 @@ namespace Invoklet.Services.Tabs;
 internal sealed class ActiveTabCommands
 {
     private readonly IActiveTabSource _active;
-    private readonly Func<ViewScale?> _codeZoom;
-    private readonly Func<EditorTabItemViewModel, Task> _revert;
+    private readonly ITabReverter _reverter;
 
-    /// <param name="codeZoom">The one code zoom every editor shares; null before preferences exist.</param>
-    /// <param name="revert">Takes a tab back to its file as it is on disk (asking first).</param>
-    internal ActiveTabCommands(IActiveTabSource active, Func<ViewScale?> codeZoom, Func<EditorTabItemViewModel, Task> revert)
+    internal ActiveTabCommands(IActiveTabSource active, ITabReverter reverter)
     {
         _active = active;
-        _codeZoom = codeZoom;
-        _revert = revert;
+        _reverter = reverter;
         Bindings = new Dictionary<KeyCommand, Action>
         {
             [KeyCommands.Save] = Save,
@@ -33,9 +28,9 @@ internal sealed class ActiveTabCommands
             [KeyCommands.ToggleOutputPanel] = ToggleOutputPanel,
             [KeyCommands.TogglePreview] = TogglePreview,
             [KeyCommands.TogglePreviewToSide] = TogglePreviewToSide,
-            [KeyCommands.ZoomIn] = () => _codeZoom()?.ZoomIn(),
-            [KeyCommands.ZoomOut] = () => _codeZoom()?.ZoomOut(),
-            [KeyCommands.ResetZoom] = () => _codeZoom()?.ResetCodeZoom(),
+            [KeyCommands.ZoomIn] = () => _active.CodeZoom?.ZoomIn(),
+            [KeyCommands.ZoomOut] = () => _active.CodeZoom?.ZoomOut(),
+            [KeyCommands.ResetZoom] = () => _active.CodeZoom?.ResetCodeZoom(),
             [KeyCommands.RunOrContinue] = RunOrContinue,
             [KeyCommands.Stop] = Cancel,
             [KeyCommands.ExecuteSelection] = ExecuteSelection,
@@ -133,5 +128,5 @@ internal sealed class ActiveTabCommands
 
     /// <summary>The active tab goes back to its file as it is on disk, asking first when that drops unsaved changes.</summary>
     internal Task RevertAsync()
-        => _active.ViewModel is { FilePath: not null } tab && _active.Target is not null ? _revert(tab) : Task.CompletedTask;
+        => _active.ViewModel is { FilePath: not null } tab && _active.Target is not null ? _reverter.RevertAsync(tab) : Task.CompletedTask;
 }
