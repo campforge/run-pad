@@ -1,0 +1,299 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:conv="clr-namespace:Invoklet.Converters"
+        xmlns:uc="clr-namespace:Invoklet.UserControls">
+
+    <!-- Self-contained: the window includes this file (MainWindow.axaml), so nothing here may rely on
+         the app's resources (Resources/Icons.axaml), which a window shown elsewhere, such as in the
+         UI tests, doesn't have. The chevron's geometry is written out (Material Design chevron-right)
+         rather than taken from there. Brushes stay dynamic, so they follow the theme where there is one. -->
+
+    <!-- The sidebar's sections (MainWindow): flat 24 px headers in the sidebar's own colours,
+         full width with no minimum height, a hairline between sections. The chevron turns down when open. -->
+    <Style Selector="Expander.bundle">
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalAlignment" Value="Stretch"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0,1,0,0"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Separator.BackgroundBrush}"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <!-- Fluent's Expander theme asks for 48 px, which left a gap under every folded header. -->
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="CornerRadius" Value="0"/>
+        <Setter Property="Template">
+            <ControlTemplate TargetType="Expander">
+                <Border Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}">
+                    <DockPanel>
+                        <!-- Not named ExpanderHeader: Fluent styles that part by name in each state
+                             (borders, corners, padding), and this header looks the same open or folded. -->
+                        <ToggleButton x:Name="PART_BundleHeader" DockPanel.Dock="Top" Classes="bundle-header"
+                                      IsChecked="{TemplateBinding IsExpanded, Mode=TwoWay}"
+                                      Content="{TemplateBinding Header}"
+                                      ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                      AutomationProperties.Name="{TemplateBinding (AutomationProperties.Name)}"/>
+                        <ContentPresenter x:Name="PART_ContentPresenter"
+                                          IsVisible="{TemplateBinding IsExpanded}"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalContentAlignment="Stretch"
+                                          VerticalContentAlignment="Stretch"
+                                          Background="Transparent" BorderThickness="0"
+                                          Padding="0,0,0,6"/>
+                    </DockPanel>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="Expander.bundle:nth-child(1)">
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+
+    <Style Selector="ToggleButton.bundle-header">
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="Height" Value="24"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="Padding" Value="8,0,8,0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="0"/>
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+        <Setter Property="FontSize" Value="{DynamicResource Invoklet.Type.Caption}"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <ControlTemplate TargetType="ToggleButton">
+                <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                    <DockPanel>
+                        <Panel DockPanel.Dock="Right" Width="14" Height="16" Margin="6,0,0,0"
+                               VerticalAlignment="Center">
+                            <!-- Section headers use a plus/minus marker rather than the tree chevron,
+                                 making the accordion boundary clear at a glance. -->
+                            <TextBlock x:Name="ExpandGlyph" Text="+" FontSize="13"
+                                       Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="CollapseGlyph" Text="−" FontSize="13"
+                                       Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"
+                                       IsVisible="False"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Panel>
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          VerticalAlignment="Center"
+                                          HorizontalAlignment="Stretch"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          Foreground="{TemplateBinding Foreground}"/>
+                    </DockPanel>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="ToggleButton.bundle-header:pointerover">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <!-- Open or folded, pressed or not: only the chevron turns. -->
+    <Style Selector="ToggleButton.bundle-header:checked, ToggleButton.bundle-header:pressed">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+    </Style>
+    <Style Selector="ToggleButton.bundle-header:checked:pointerover">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <Style Selector="ToggleButton.bundle-header:checked /template/ TextBlock#ExpandGlyph">
+        <Setter Property="IsVisible" Value="False"/>
+    </Style>
+    <Style Selector="ToggleButton.bundle-header:checked /template/ TextBlock#CollapseGlyph">
+        <Setter Property="IsVisible" Value="True"/>
+    </Style>
+    <!-- TreeActionButton: an 18 px icon button with a hairline border, for section-header and row
+         actions. Quiet until hovered; the border turns to the focus colour for the keyboard. -->
+    <Style Selector="uc|TreeActionButton">
+        <Setter Property="Width" Value="18"/>
+        <Setter Property="Height" Value="18"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource Invoklet.Radius.Control}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <ControlTemplate TargetType="uc:TreeActionButton">
+                <Border x:Name="PART_Border" Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="{TemplateBinding CornerRadius}">
+                    <PathIcon Data="{TemplateBinding Icon}" Width="10" Height="10"
+                              Foreground="{TemplateBinding Foreground}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="uc|TreeActionButton:pointerover">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+    </Style>
+    <Style Selector="uc|TreeActionButton:pressed">
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+    </Style>
+    <Style Selector="uc|TreeActionButton:focus-visible">
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Focus.BorderBrush}"/>
+    </Style>
+
+    <!-- Header icons: as tall as the 12 pt label, an outline in the secondary text colour. Stretching
+         scales the geometry, not the pen, so the line stays 1.2 px at any size. -->
+    <Style Selector="ToggleButton.bundle-header Path.bundle-icon">
+        <Setter Property="Width" Value="12"/>
+        <Setter Property="Height" Value="12"/>
+        <Setter Property="Stretch" Value="Uniform"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Fill" Value="{x:Null}"/>
+        <Setter Property="Stroke" Value="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+        <Setter Property="StrokeThickness" Value="1.2"/>
+        <Setter Property="StrokeLineCap" Value="Round"/>
+        <Setter Property="StrokeJoin" Value="Round"/>
+    </Style>
+
+    <!-- Rows of the sidebar's trees (files and connections): a 16 px column for the disclosure
+         chevron and a 12 px step per level, so a tree starts close to the section's edge. Parts keep
+         Fluent's names, so the trees' own hover and selection styles still apply. -->
+    <Style Selector="TreeView.navigation TreeViewItem">
+        <Setter Property="Template">
+            <ControlTemplate TargetType="TreeViewItem">
+                <StackPanel>
+                    <Border x:Name="PART_LayoutRoot"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{DynamicResource Invoklet.Radius.Selection}"
+                            Margin="{TemplateBinding Level, Converter={x:Static conv:TreeRowConverters.SelectionIndent}}"
+                            MinHeight="{TemplateBinding MinHeight}"
+                            Focusable="False">
+                        <Grid x:Name="PART_Header" ColumnDefinitions="16,*">
+                            <ToggleButton x:Name="PART_ExpandCollapseChevron" Classes="tree-chevron"
+                                          IsVisible="{TemplateBinding ItemCount, Converter={x:Static conv:TreeRowConverters.HasItems}}"
+                                          IsChecked="{TemplateBinding IsExpanded, Mode=TwoWay}"
+                                          Focusable="False"/>
+                            <ContentPresenter x:Name="PART_HeaderPresenter" Grid.Column="1"
+                                              Content="{TemplateBinding Header}"
+                                              ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                              Padding="{TemplateBinding Padding}"
+                                              VerticalAlignment="Center"
+                                              HorizontalContentAlignment="Stretch"/>
+                        </Grid>
+                    </Border>
+                    <Grid IsVisible="{TemplateBinding IsExpanded}">
+                        <!-- VS Code-style indentation guide: it belongs only to an expanded branch,
+                             stays subtle, and does not compete with hover or selection. -->
+                        <Path x:Name="PART_BranchGuide"
+                              IsVisible="{TemplateBinding ItemCount, Converter={x:Static conv:TreeRowConverters.HasItems}}"
+                              Data="M0,0 L0,1" Stretch="Fill" Width="1"
+                              HorizontalAlignment="Left"
+                              Margin="{TemplateBinding Level, Converter={x:Static conv:TreeRowConverters.GuideIndent}}"
+                              Stroke="{DynamicResource Invoklet.Separator.BackgroundBrush}"
+                              StrokeThickness="1" StrokeDashArray="1,2" Opacity="0.8"
+                              IsHitTestVisible="False"/>
+                        <ItemsPresenter x:Name="PART_ItemsPresenter"
+                                        ItemsPanel="{TemplateBinding ItemsPanel}"/>
+                    </Grid>
+                </StackPanel>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <!-- Virtualise the top-level items so large trees don't realise every row at once. -->
+    <Style Selector="TreeView.navigation">
+        <Setter Property="ItemsPanel">
+            <ItemsPanelTemplate>
+                <VirtualizingStackPanel/>
+            </ItemsPanelTemplate>
+        </Setter>
+    </Style>
+
+    <!-- The rows' look, shared by every sidebar tree: 27 px rows, 13 pt text, the same hover and
+         selection brushes and corner radius. Items accept drops (each tree decides what it takes). -->
+    <Style Selector="TreeView.navigation TreeViewItem">
+        <Setter Property="Padding" Value="6,0,6,0"/>
+        <Setter Property="MinHeight" Value="27"/>
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="(DragDrop.AllowDrop)" Value="True"/>
+        <Setter Property="ItemsPanel">
+            <ItemsPanelTemplate>
+                <VirtualizingStackPanel/>
+            </ItemsPanelTemplate>
+        </Setter>
+    </Style>
+    <!-- Neutralize the application-wide TreeViewItem:pointerover rule for this custom template.
+         Match the row border itself instead: a parent TreeViewItem remains
+         :pointerover while the pointer is over one of its descendants, which used to highlight an
+         entire branch when a nested row was hovered. -->
+    <Style Selector="TreeView.navigation TreeViewItem:pointerover /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="TreeView.navigation TreeViewItem /template/ Border#PART_LayoutRoot:pointerover">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <Style Selector="TreeView.navigation TreeViewItem:selected /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.ToolTab.SelectedBackgroundBrush}"/>
+    </Style>
+    <!-- The text colour is set on each item's own header, not on "TreeViewItem:selected TextBlock":
+         that would also turn the selected item's children white on the light background. -->
+    <Style Selector="TreeView.navigation TreeViewItem /template/ ContentPresenter#PART_HeaderPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+    </Style>
+    <Style Selector="TreeView.navigation TreeViewItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.ToolTab.SelectedForegroundBrush}"/>
+    </Style>
+    <!-- Connections and Samples perform an action rather than represent the active document.
+         TreeView still tracks a current item for keyboard navigation, but only hover and keyboard
+         focus are drawn; selection does not leave a persistent colored row behind. -->
+    <Style Selector="TreeView.navigation.transient-selection TreeViewItem:selected /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="TreeView.navigation.transient-selection TreeViewItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+    </Style>
+    <Style Selector="TreeView.navigation.transient-selection TreeViewItem:focus-visible /template/ Border#PART_LayoutRoot">
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.ToolTab.SelectedBorderBrush}"/>
+    </Style>
+    <Style Selector="TreeView.navigation.transient-selection TreeViewItem /template/ Border#PART_LayoutRoot:pointerover">
+        <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <Style Selector="TreeView.navigation TreeViewItem TextBlock">
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="ToggleButton.tree-chevron">
+        <Setter Property="Width" Value="16"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <ControlTemplate TargetType="ToggleButton">
+                <Border Background="{TemplateBinding Background}">
+                    <Path x:Name="Chevron" Width="8" Height="8" Stretch="Uniform"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                          Data="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"
+                          Fill="{DynamicResource Invoklet.Text.SecondaryBrush}"
+                          RenderTransformOrigin="50%,50%"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="ToggleButton.tree-chevron:checked /template/ Path#Chevron">
+        <Setter Property="RenderTransform" Value="rotate(90deg)"/>
+    </Style>
+</Styles>

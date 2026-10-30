@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Wraps a `dotnet publish -r osx-x64/osx-arm64 --self-contained true` output folder into a real
-# RunPad.app bundle (Contents/MacOS + Contents/Resources + Info.plist), so it's double-clickable and
+# Invoklet.app bundle (Contents/MacOS + Contents/Resources + Info.plist), so it's double-clickable and
 # shows up properly in Finder/Dock instead of being a flat folder of files. Run from the repo root.
 #
 # The finished bundle is ad-hoc signed (`codesign --sign -`, no Developer ID) as the very last step:
-# the SDK apphost copied in as Contents/MacOS/RunPad only carries the linker's ad-hoc signature for a
+# the SDK apphost copied in as Contents/MacOS/Invoklet only carries the linker's ad-hoc signature for a
 # bare "apphost" binary (no Info.plist bound, no sealed resources), which macOS reports as a damaged
 # app once the bundle is downloaded. Ad-hoc signing seals the bundle's contents; it is NOT a Developer
 # ID signature or notarization, so Gatekeeper may still ask the user to allow the first launch.
@@ -15,14 +15,14 @@ set -euo pipefail
 
 PUBLISH_DIR="$1"
 OUTPUT_DIR="$2"
-APP="$OUTPUT_DIR/RunPad.app"
+APP="$OUTPUT_DIR/Invoklet.app"
 
 if ! command -v codesign > /dev/null; then
     echo "error: codesign not found — the bundle must be built on macOS with the Xcode command line tools" >&2
     exit 1
 fi
 
-CSPROJ=src/main/RunPad/RunPad.csproj
+CSPROJ=src/main/Invoklet/Invoklet.csproj
 # Stock awk (not GNU grep -P) so this runs on macOS runners; takes the first <Version> element.
 VERSION=$(awk -F'</?Version>' 'NF > 2 { print $2; exit }' "$CSPROJ")
 if [[ -z "$VERSION" ]]; then
@@ -34,7 +34,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 cp -R "$PUBLISH_DIR"/* "$APP/Contents/MacOS/"
-cp src/main/RunPad/Assets/RunPad.icns "$APP/Contents/Resources/RunPad.icns"
+cp src/main/Invoklet/Assets/Invoklet.icns "$APP/Contents/Resources/Invoklet.icns"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -42,11 +42,11 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>RunPad</string>
+    <string>Invoklet</string>
     <key>CFBundleDisplayName</key>
-    <string>RunPad</string>
+    <string>Invoklet</string>
     <key>CFBundleIdentifier</key>
-    <string>com.coddwrench.runpad</string>
+    <string>com.coddwrench.invoklet</string>
     <key>CFBundleVersion</key>
     <string>$VERSION</string>
     <key>CFBundleShortVersionString</key>
@@ -54,9 +54,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleExecutable</key>
-    <string>RunPad</string>
+    <string>Invoklet</string>
     <key>CFBundleIconFile</key>
-    <string>RunPad.icns</string>
+    <string>Invoklet.icns</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>LSMinimumSystemVersion</key>
@@ -65,10 +65,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-chmod +x "$APP/Contents/MacOS/RunPad"
+chmod +x "$APP/Contents/MacOS/Invoklet"
 
 # codesign treats every file under Contents/MacOS as nested code, so strict verification rejects the
-# publish output's managed assemblies and data files (System.*.dll, RunPad.deps.json, …) and its
+# publish output's managed assemblies and data files (System.*.dll, Invoklet.deps.json, …) and its
 # satellite folders (de/, zh-Hans/, … holding *.resources.dll) as "code object is not signed at all".
 # Only Mach-O binaries stay in Contents/MacOS; every other top-level file and each culture folder is
 # moved to Contents/Resources and replaced by a relative symlink, which is sealed as-is, so
@@ -99,10 +99,10 @@ for ENTRY in "$APP/Contents/MacOS"/*; do
         relocate_to_resources "$NAME"
     fi
 done
-[[ -f "$APP/Contents/MacOS/RunPad" && ! -L "$APP/Contents/MacOS/RunPad" ]] \
-    || { echo "error: Contents/MacOS/RunPad is not a Mach-O executable" >&2; exit 1; }
+[[ -f "$APP/Contents/MacOS/Invoklet" && ! -L "$APP/Contents/MacOS/Invoklet" ]] \
+    || { echo "error: Contents/MacOS/Invoklet is not a Mach-O executable" >&2; exit 1; }
 
-# The .NET host resolves Contents/MacOS/RunPad.dll through its symlink, so it takes
+# The .NET host resolves Contents/MacOS/Invoklet.dll through its symlink, so it takes
 # Contents/Resources as the application directory: that is where it looks for libhostfxr (to run
 # self-contained at all — otherwise it falls back to a globally installed .NET, or fails), then
 # libhostpolicy, libcoreclr and every native library the app loads (libSkiaSharp, …). So each Mach-O
@@ -110,7 +110,7 @@ done
 # Contents/Resources: both folders then list the complete application.
 for ENTRY in "$APP/Contents/MacOS"/*; do
     NAME="$(basename "$ENTRY")"
-    [[ -L "$ENTRY" || ! -f "$ENTRY" || "$NAME" == RunPad ]] && continue
+    [[ -L "$ENTRY" || ! -f "$ENTRY" || "$NAME" == Invoklet ]] && continue
     if [[ -e "$APP/Contents/Resources/$NAME" || -L "$APP/Contents/Resources/$NAME" ]]; then
         echo "error: cannot link Contents/Resources/$NAME: it already exists" >&2
         exit 1
@@ -119,11 +119,11 @@ for ENTRY in "$APP/Contents/MacOS"/*; do
 done
 
 # Sign inside-out, no --deep: first every nested Mach-O (the runtime/native .dylibs, createdump, …)
-# next to the main executable, then the bundle itself, which signs Contents/MacOS/RunPad with the
+# next to the main executable, then the bundle itself, which signs Contents/MacOS/Invoklet with the
 # Info.plist bound and seals Contents/Resources (managed .dlls, data, satellites, icon) and the
 # symlinks as resources.
 while IFS= read -r -d '' FILE; do
-    [[ "$FILE" == "$APP/Contents/MacOS/RunPad" ]] && continue
+    [[ "$FILE" == "$APP/Contents/MacOS/Invoklet" ]] && continue
     if [[ "$(file -b "$FILE")" == *Mach-O* ]]; then
         codesign --force --sign - "$FILE"
     fi

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- Local fork of the MarkView.Avalonia 12.3.0 NuGet package, referenced as a project so RunPad
+    <!-- Local fork of the MarkView.Avalonia 12.3.0 NuGet package, referenced as a project so Invoklet
          can change the control itself (for example, mapping rendered blocks back to source lines).
          Origin and license: README.md and LICENSE.md in this folder. -->
     <RootNamespace>MarkView.Avalonia</RootNamespace>

@@ -1,0 +1,7 @@
+Package: invoklet
+Version: __VERSION__
+Architecture: amd64
+Maintainer: hobobyte
+Description: C# scratchpad/scripting IDE
+ Invoklet edits and runs .inv files: self-documenting Markdown documents
+ with a YAML front matter header and one executable C# code block.

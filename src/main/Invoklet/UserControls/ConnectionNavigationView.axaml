@@ -1,0 +1,97 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:models="clr-namespace:Invoklet.UserControls.Models"
+             xmlns:conv="clr-namespace:Invoklet.Converters"
+             x:Class="Invoklet.UserControls.ConnectionNavigationView"
+             x:DataType="models:ConnectionNavigationViewModel">
+
+    <!-- The Connections section of the sidebar. Rows use the shared sidebar tree style
+         (TreeView.navigation, Resources/NavigationStyles.axaml), as the Scripts and Samples trees do. -->
+    <DockPanel>
+        <TextBlock x:Name="ErrorText" DockPanel.Dock="Top" Text="{Binding Error}" IsVisible="{Binding HasError}"
+                   TextWrapping="Wrap" Margin="12,4,8,4" FontSize="12"
+                   Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+
+        <Border x:Name="NoticeBar" DockPanel.Dock="Top" IsVisible="{Binding HasNotice}" Margin="8,2,8,4" Padding="6,4"
+                CornerRadius="{DynamicResource Invoklet.Radius.Selection}" Background="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" x:Name="DismissNoticeButton" Padding="4,0" MinHeight="0"
+                        Background="Transparent" BorderThickness="0" VerticalAlignment="Top"
+                        AutomationProperties.Name="Dismiss" ToolTip.Tip="Dismiss" Click="DismissNotice_Click">
+                    <PathIcon Data="{StaticResource Icon.Close}" Width="10" Height="10"/>
+                </Button>
+                <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" FontSize="12"/>
+            </DockPanel>
+        </Border>
+
+        <TreeView x:Name="ConnectionTree"
+                  Classes="navigation transient-selection"
+                  ItemsSource="{Binding Nodes}"
+                  IsVisible="{Binding !IsEmpty}"
+                  Background="Transparent"
+                  BorderThickness="0"
+                  Padding="4,0,4,0"
+                  SelectionMode="Single"
+                  AutomationProperties.Name="Connections"
+                  KeyDown="ConnectionTree_KeyDown"
+                  DoubleTapped="ConnectionTree_DoubleTapped">
+
+            <TreeView.Styles>
+                <Style Selector="TreeViewItem" x:DataType="models:ConnectionNavigationNode">
+                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                    <Setter Property="(AutomationProperties.Name)" Value="{Binding AccessibleName}"/>
+                    <Setter Property="(ToolTip.Tip)" Value="{Binding ToolTip}"/>
+                </Style>
+                <Style Selector="TreeViewItem TextBlock.count">
+                    <Setter Property="FontSize" Value="11"/>
+                    <Setter Property="Opacity" Value="0.6"/>
+                </Style>
+            </TreeView.Styles>
+
+            <TreeView.ItemTemplate>
+                <TreeDataTemplate DataType="models:ConnectionNavigationNode" ItemsSource="{Binding Children}">
+                    <Panel VerticalAlignment="Center" Margin="0,1">
+                        <Border IsVisible="{Binding IsDropTarget}"
+                                Background="{DynamicResource Invoklet.Accent.BackgroundBrush}"
+                                CornerRadius="{DynamicResource Invoklet.Radius.Selection}" Margin="-6,-3"/>
+
+                        <DockPanel IsVisible="{Binding !IsRenaming}" VerticalAlignment="Center">
+                            <!-- Badges: an icon plus the tooltip and the row's accessible name, never color alone. -->
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4" Margin="6,0,0,0">
+                                <PathIcon x:Name="AttachedBadge" Data="{StaticResource Icon.ConnectionAttached}"
+                                          Width="12" Height="12" IsVisible="{Binding IsAttached}"
+                                          ToolTip.Tip="Used by this script"
+                                          Foreground="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+                                <PathIcon x:Name="LoadingBadge" Data="{StaticResource Icon.Sync}" Width="12" Height="12"
+                                          IsVisible="{Binding IsLoading}"
+                                          Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+                                <PathIcon x:Name="StaleBadge" Data="{StaticResource Icon.Warning}" Width="12" Height="12"
+                                          IsVisible="{Binding IsStale}"
+                                          Foreground="{DynamicResource Invoklet.Margin.CodeFixWarningBrush}"/>
+                                <PathIcon x:Name="ProblemBadge" Data="{StaticResource Icon.Warning}" Width="12" Height="12"
+                                          IsVisible="{Binding ShowsProblem}"
+                                          Foreground="{DynamicResource Invoklet.Status.ErrorBrush}"/>
+                                <TextBlock Classes="count" Text="{Binding ConnectionCount}" IsVisible="{Binding HasChildrenCount}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                                <Path Width="14" Height="14" Stretch="Uniform" Opacity="0.55"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"
+                                      Data="{Binding IconKey, Converter={x:Static conv:ResourceKeyToGeometryConverter.Instance}}"
+                                      Fill="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </DockPanel>
+
+                        <TextBox Text="{Binding EditingName, Mode=TwoWay}"
+                                 IsVisible="{Binding IsRenaming}"
+                                 FontSize="13" Padding="3,1" MinHeight="0" BorderThickness="1"
+                                 VerticalAlignment="Center"
+                                 AutomationProperties.Name="Group name"
+                                 KeyDown="RenameBox_KeyDown"
+                                 LostFocus="RenameBox_LostFocus"/>
+                    </Panel>
+                </TreeDataTemplate>
+            </TreeView.ItemTemplate>
+        </TreeView>
+    </DockPanel>
+</UserControl>

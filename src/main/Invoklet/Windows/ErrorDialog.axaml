@@ -1,0 +1,50 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Invoklet.Windows.ErrorDialog"
+        Icon="/Assets/icon.ico"
+        Width="440"
+        MinWidth="320" MinHeight="140"
+        CanResize="False"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Invoklet.Panel.BackgroundBrush}"
+        Foreground="{DynamicResource Invoklet.Text.PrimaryBrush}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://Invoklet.Avalonia.Themes/Metrics.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+
+    <Grid RowDefinitions="Auto,Auto,Auto" Margin="16">
+
+        <!-- What failed, in words (the window title is easy to miss), then the details in body text:
+             a whole paragraph in the error colour was hard to read in light themes. -->
+        <SelectableTextBlock x:Name="TitleBlock"
+                             Grid.Row="0"
+                             FontSize="{DynamicResource Invoklet.Type.Body}"
+                             FontWeight="SemiBold"
+                             TextWrapping="Wrap"
+                             Margin="0,0,0,6"/>
+
+        <SelectableTextBlock x:Name="MessageBlock"
+                             Grid.Row="1"
+                             FontSize="{DynamicResource Invoklet.Type.Body}"
+                             TextWrapping="Wrap"
+                             Margin="0,0,0,16"/>
+
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button Content="OK"
+                    Width="80"
+                    Click="OkButton_Click"
+                    IsDefault="True"
+                    IsCancel="True"/>
+        </StackPanel>
+
+    </Grid>
+
+</Window>

@@ -1,0 +1,805 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:cte="using:Invoklet.Avalonia.CodeTextEditor"
+        xmlns:tc="clr-namespace:Invoklet.TemplatedControls"
+        xmlns:viewModels="clr-namespace:Invoklet.Windows.Models"
+        xmlns:rpad="clr-namespace:Invoklet.Format.MdRun;assembly=Invoklet.Format.MdRun"
+        x:Class="Invoklet.Windows.DependenciesWindow"
+        x:DataType="viewModels:DependenciesWindowViewModel"
+        Title="Dependencies"
+        Icon="/Assets/icon.ico"
+        Width="1000" Height="640"
+        MinWidth="760" MinHeight="480"
+        CanResize="True"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Invoklet.Panel.BackgroundBrush}"
+        Foreground="{DynamicResource Invoklet.Text.PrimaryBrush}">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.error">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Foreground" Value="{DynamicResource Invoklet.Status.ErrorBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.state">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+        </Style>
+        <Style Selector="Border.pane">
+            <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Separator.BackgroundBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource Invoklet.Radius.Control}"/>
+        </Style>
+        <Style Selector="ListBox.entries ListBoxItem">
+            <Setter Property="Padding" Value="8,4"/>
+        </Style>
+        <Style Selector="TabControl > TabItem">
+            <Setter Property="FontSize"  Value="13"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="Height"    Value="28"/>
+            <Setter Property="Padding"   Value="12,0"/>
+        </Style>
+        <Style Selector="ListBox.packages">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+        </Style>
+        <Style Selector="ListBox.packages ListBoxItem">
+            <Setter Property="Padding" Value="8,5"/>
+        </Style>
+        <!-- Compact per-row action buttons (LINQPad's "Add to Query"/"Update"). -->
+        <Style Selector="Button.link">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="Foreground" Value="{DynamicResource Invoklet.Status.RunningBrush}"/>
+        </Style>
+        <Style Selector="Button.link > TextBlock">
+            <Setter Property="TextDecorations" Value="Underline"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <!-- A list row's actions: small icon buttons. -->
+        <Style Selector="tc|IconButton.row">
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="Margin" Value="4,0,0,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <!-- Icon buttons beside a field (paging, add, remove): as tall as the field. -->
+        <Style Selector="tc|IconButton.field">
+            <Setter Property="Width" Value="{DynamicResource Invoklet.Size.Control}"/>
+            <Setter Property="Height" Value="{DynamicResource Invoklet.Size.Control}"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TextBlock.in-script-mark">
+            <Setter Property="Text" Value="✓"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{DynamicResource Invoklet.Status.SuccessBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.package-description">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="0,2,0,0"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="MaxLines" Value="2"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+        </Style>
+    </Window.Styles>
+
+    <Window.Resources>
+        <!-- Online result row: ✓ when already in the script, Add / Update with the feed's latest version. -->
+        <DataTemplate x:Key="OnlinePackageRowTemplate" DataType="viewModels:PackageListItemViewModel">
+            <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Classes="in-script-mark"
+                           IsVisible="{Binding IsInScript}"
+                           ToolTip.Tip="{Binding InScriptLabel}"/>
+                <TextBlock Grid.Row="0" Grid.Column="1"
+                           Text="{Binding Id}"
+                           ToolTip.Tip="{Binding Version, StringFormat='Latest version: {0}'}"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"/>
+                <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal">
+                    <tc:IconButton Classes="row" IconData="{StaticResource Icon.Plus}"
+                            Command="{Binding $parent[ListBox].((viewModels:DependenciesWindowViewModel)DataContext).AddRowCommand}"
+                            CommandParameter="{Binding}"
+                            IsVisible="{Binding CanAdd}"
+                            ToolTip.Tip="{Binding Version, StringFormat='Add version {0} to the script'}"
+                            AutomationProperties.Name="{Binding Version, StringFormat='Add version {0} to the script'}"/>
+                    <tc:IconButton Classes="row" IconData="{StaticResource Icon.Sync}"
+                            Command="{Binding $parent[ListBox].((viewModels:DependenciesWindowViewModel)DataContext).UpdateRowCommand}"
+                            CommandParameter="{Binding}"
+                            IsVisible="{Binding CanUpdate}"
+                            ToolTip.Tip="{Binding UpdateLabel}"
+                            AutomationProperties.Name="{Binding UpdateLabel}"/>
+                </StackPanel>
+                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
+                           Classes="package-description"
+                           Text="{Binding Description}"
+                           IsVisible="{Binding HasDescription}"/>
+            </Grid>
+        </DataTemplate>
+
+        <!-- Local row: the script's packages (✓, Remove) and cached packages (Add the cached version). -->
+        <DataTemplate x:Key="LocalPackageRowTemplate" DataType="viewModels:PackageListItemViewModel">
+            <!-- The column is narrow: name + action on the first line, version (and description) below. -->
+            <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Classes="in-script-mark"
+                           IsVisible="{Binding IsInScript}"
+                           ToolTip.Tip="In this script"/>
+                <TextBlock Grid.Row="0" Grid.Column="1"
+                           Text="{Binding Id}"
+                           ToolTip.Tip="{Binding Id}"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"/>
+                <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal">
+                    <tc:IconButton Classes="row" IconData="{StaticResource Icon.Plus}"
+                            Command="{Binding $parent[ListBox].((viewModels:DependenciesWindowViewModel)DataContext).AddRowCommand}"
+                            CommandParameter="{Binding}"
+                            IsVisible="{Binding CanAdd}"
+                            ToolTip.Tip="{Binding Version, StringFormat='Add version {0} to the script'}"
+                            AutomationProperties.Name="{Binding Version, StringFormat='Add version {0} to the script'}"/>
+                    <tc:IconButton Classes="row" IconData="{StaticResource Icon.Delete}"
+                            Command="{Binding $parent[ListBox].((viewModels:DependenciesWindowViewModel)DataContext).RemoveRowCommand}"
+                            CommandParameter="{Binding}"
+                            IsVisible="{Binding CanRemove}"
+                            ToolTip.Tip="Remove this package from the script"
+                            AutomationProperties.Name="Remove this package from the script"/>
+                </StackPanel>
+                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
+                           Text="{Binding Version}"
+                           ToolTip.Tip="{Binding Version}"
+                           FontSize="12"
+                           TextTrimming="CharacterEllipsis"
+                           Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+                <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3"
+                           Classes="package-description"
+                           Text="{Binding Description}"
+                           IsVisible="{Binding HasDescription}"/>
+            </Grid>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="16">
+        <!-- Header -->
+        <TabControl Grid.Row="1">
+            <!-- ─── Packages (LINQPad NuGet Manager layout) ─────────────────────
+                 Left: the script's packages + local cache. Middle: online search in the
+                 selected source. Right: Include Prerelease + details of the selection. -->
+            <TabItem Header="Packages">
+                <!-- Row 1 has a fixed height: the search progress bar shows and hides inside it, so the
+                     three columns never shift while a search starts or ends. -->
+                <Grid ColumnDefinitions="2*,8,3*,8,2*" RowDefinitions="Auto,6,*,Auto" Margin="0,8,0,0">
+
+                    <TextBox x:Name="LocalFilterBox"
+                             Grid.Row="0" Grid.Column="0"
+                             Text="{Binding LocalFilter}"
+                             PlaceholderText="Search local package cache"
+                             AutomationProperties.Name="Filter local packages"/>
+
+                    <!-- Online search, paging and package source on one line (as in LINQPad's header). -->
+                    <Grid Grid.Row="0" Grid.Column="2" ColumnDefinitions="*,Auto,Auto,Auto">
+                        <TextBox x:Name="SearchBox"
+                                 Grid.Column="0"
+                                 Text="{Binding SearchText}"
+                                 PlaceholderText="Search online"
+                                 AutomationProperties.Name="Search packages online"
+                                 KeyDown="SearchBox_KeyDown">
+                            <TextBox.InnerRightContent>
+                                <Button x:Name="ClearSearchButton"
+                                        Content="✕"
+                                        Command="{Binding ClearSearchCommand}"
+                                        IsVisible="{Binding HasSearchText}"
+                                        ToolTip.Tip="Clear search"
+                                        AutomationProperties.Name="Clear search"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Padding="8,2"/>
+                            </TextBox.InnerRightContent>
+                        </TextBox>
+                        <!-- Always shown; disabled when there is no page in that direction. -->
+                        <tc:IconButton x:Name="PreviousPageButton"
+                                Grid.Column="1"
+                                Classes="field"
+                                IconData="{StaticResource Icon.ChevronLeft}"
+                                Margin="6,0,0,0"
+                                Command="{Binding PreviousPageCommand}"
+                                ToolTip.Tip="Previous page"
+                                AutomationProperties.Name="Previous page"/>
+                        <tc:IconButton x:Name="NextPageButton"
+                                Grid.Column="2"
+                                Classes="field"
+                                IconData="{StaticResource Icon.ChevronRight}"
+                                Margin="2,0,0,0"
+                                Command="{Binding NextPageCommand}"
+                                ToolTip.Tip="Next page"
+                                AutomationProperties.Name="Next page"/>
+                        <ComboBox x:Name="SourceBox"
+                                  Grid.Column="3"
+                                  Margin="6,0,0,0"
+                                  MinWidth="120" MaxWidth="200"
+                                  VerticalAlignment="Stretch"
+                                  ItemsSource="{Binding SourceOptions}"
+                                  SelectedItem="{Binding SelectedSourceOption}"
+                                  SelectionChanged="SourceBox_SelectionChanged"
+                                  ToolTip.Tip="Package source to search"
+                                  AutomationProperties.Name="Package source"/>
+                    </Grid>
+
+                    <CheckBox x:Name="PrereleaseBox"
+                              Grid.Row="0" Grid.Column="4"
+                              Content="Include Prerelease"
+                              IsChecked="{Binding IncludePrerelease}"
+                              VerticalAlignment="Center"/>
+
+                    <ProgressBar Grid.Row="1" Grid.Column="2"
+                                 IsIndeterminate="True"
+                                 IsVisible="{Binding ShowSearchProgress}"
+                                 Height="2" MinHeight="2"
+                                 VerticalAlignment="Center"/>
+
+                    <!-- Local: the script's packages first, then the local package cache. -->
+                    <Border Grid.Row="2" Grid.Column="0" Classes="pane">
+                        <Panel>
+                            <ListBox x:Name="LocalPackageList"
+                                     Classes="packages"
+                                     ItemsSource="{Binding LocalPackages}"
+                                     SelectedItem="{Binding SelectedLocalPackage}"
+                                     IsVisible="{Binding HasLocalPackages}"
+                                     ItemTemplate="{StaticResource LocalPackageRowTemplate}"
+                                     AutomationProperties.Name="Local packages"/>
+
+                            <TextBlock Classes="state"
+                                       Text="{Binding LocalMessage}"
+                                       IsVisible="{Binding ShowLocalMessage}"
+                                       MaxWidth="260" Margin="12"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                            <StackPanel IsVisible="{Binding HasLocalError}"
+                                        Spacing="8" MaxWidth="260" Margin="12"
+                                        HorizontalAlignment="Center" VerticalAlignment="Bottom">
+                                <TextBlock Classes="error" Text="{Binding LocalError}" TextAlignment="Center"/>
+                                <Button Classes="secondary" Content="Retry"
+                                        Command="{Binding RetryLocalCommand}"
+                                        HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Panel>
+                    </Border>
+
+                    <!-- Online search results. -->
+                    <Border Grid.Row="2" Grid.Column="2" Classes="pane">
+                        <Panel>
+                            <ListBox x:Name="OnlinePackageList"
+                                     Classes="packages"
+                                     ItemsSource="{Binding OnlinePackages}"
+                                     SelectedItem="{Binding SelectedOnlinePackage}"
+                                     IsVisible="{Binding HasOnlinePackages}"
+                                     ItemTemplate="{StaticResource OnlinePackageRowTemplate}"
+                                     AutomationProperties.Name="Online packages"/>
+
+                            <StackPanel x:Name="OnlineLoader"
+                                        IsVisible="{Binding ShowOnlineLoader}"
+                                        Spacing="8" Width="160"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <ProgressBar IsIndeterminate="True" Height="4" MinHeight="4"/>
+                                <TextBlock Classes="state" Text="Loading packages…"/>
+                            </StackPanel>
+
+                            <TextBlock Classes="state"
+                                       Text="{Binding OnlineMessage}"
+                                       IsVisible="{Binding ShowOnlineMessage}"
+                                       MaxWidth="320" Margin="16"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                            <StackPanel IsVisible="{Binding HasSearchError}"
+                                        Spacing="8" MaxWidth="320" Margin="16"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Classes="error" Text="{Binding SearchError}" TextAlignment="Center"/>
+                                <Button Classes="secondary" Content="Retry"
+                                        Command="{Binding RetrySearchCommand}"
+                                        HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Panel>
+                    </Border>
+
+                    <!-- Details of the package selected in either list. -->
+                    <Border Grid.Row="2" Grid.Column="4" Classes="pane">
+                        <Panel>
+                            <TextBlock Classes="state"
+                                       Text="Select a package to see its details and versions."
+                                       IsVisible="{Binding !HasSelection}"
+                                       Margin="12"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                            <ScrollViewer x:Name="DetailsScroll"
+                                          IsVisible="{Binding HasSelection}"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Spacing="8" Margin="12">
+                                    <TextBlock Text="{Binding DetailsTitle}"
+                                               FontSize="15" FontWeight="SemiBold"
+                                               TextWrapping="Wrap"/>
+                                    <TextBlock Classes="hint"
+                                               Text="{Binding DetailsDownloads}"
+                                               IsVisible="{Binding HasDetailsDownloads}"/>
+                                    <TextBlock Text="{Binding PackageStatusText}" FontSize="13"/>
+                                    <TextBlock Classes="hint" Text="{Binding DetailsDescription}"/>
+
+                                    <TextBlock Text="Version" FontSize="12" Margin="0,4,0,0"/>
+                                    <ComboBox x:Name="VersionBox"
+                                              ItemsSource="{Binding AvailableVersions}"
+                                              SelectedItem="{Binding SelectedVersion}"
+                                              HorizontalAlignment="Stretch"
+                                              AutomationProperties.Name="Version"/>
+                                    <TextBlock Classes="hint"
+                                               Text="Loading versions…"
+                                               IsVisible="{Binding IsLoadingVersions}"/>
+                                    <StackPanel IsVisible="{Binding HasVersionsError}" Spacing="6">
+                                        <TextBlock Classes="error" Text="{Binding VersionsError}"/>
+                                        <Button Classes="secondary" Content="Retry"
+                                                Command="{Binding RetryVersionsCommand}"
+                                                AutomationProperties.Name="Retry loading versions"/>
+                                    </StackPanel>
+
+                                    <WrapPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                        <Button Classes="secondary" x:Name="AddPackageButton"
+                                                Content="Add"
+                                                Command="{Binding AddPackageCommand}"
+                                                MinWidth="72" Margin="0,0,8,8"
+                                                ToolTip.Tip="Add the selected version to the script"/>
+                                        <Button Classes="secondary" x:Name="UpdatePackageButton"
+                                                Content="Update"
+                                                Command="{Binding UpdatePackageCommand}"
+                                                MinWidth="72" Margin="0,0,8,8"
+                                                ToolTip.Tip="Use the selected version in the script"/>
+                                        <Button Classes="secondary" x:Name="RemovePackageButton"
+                                                Content="Remove"
+                                                Command="{Binding RemovePackageCommand}"
+                                                MinWidth="72" Margin="0,0,8,8"
+                                                ToolTip.Tip="Remove this package from the script"/>
+                                    </WrapPanel>
+
+                                    <!-- What the sources say about the package at the selected version; each part appears only when supplied. -->
+                                    <TextBlock Classes="hint" Text="Loading package details…" IsVisible="{Binding IsLoadingDetails}"/>
+                                    <TextBlock Classes="error" Text="{Binding DetailsError}" IsVisible="{Binding HasDetailsError}" TextWrapping="Wrap"/>
+                                    <StackPanel x:Name="DetailsLicensePanel" IsVisible="{Binding HasDetailsLicense}" Spacing="2">
+                                        <TextBlock Text="License" FontSize="12"/>
+                                        <TextBlock Text="{Binding DetailsLicense}" TextWrapping="Wrap" FontSize="13"
+                                                   IsVisible="{Binding !HasDetailsLicenseLink}"/>
+                                        <Button x:Name="LicenseLinkButton" Classes="link" Command="{Binding OpenLinkCommand}"
+                                                CommandParameter="{Binding DetailsLicenseUrl}" IsVisible="{Binding HasDetailsLicenseLink}"
+                                                AutomationProperties.Name="Open the license"
+                                                ToolTip.Tip="{Binding DetailsLicenseUrl}">
+                                            <TextBlock Text="{Binding DetailsLicense}"/>
+                                        </Button>
+                                    </StackPanel>
+                                    <StackPanel x:Name="DetailsProjectPanel" IsVisible="{Binding HasDetailsProjectUrl}" Spacing="2">
+                                        <TextBlock Text="Project page" FontSize="12"/>
+                                        <Button x:Name="ProjectLinkButton" Classes="link" Command="{Binding OpenLinkCommand}"
+                                                CommandParameter="{Binding DetailsProjectUrl}"
+                                                AutomationProperties.Name="Open the project page"
+                                                ToolTip.Tip="{Binding DetailsProjectUrl}">
+                                            <TextBlock Text="{Binding DetailsProjectUrl}"/>
+                                        </Button>
+                                    </StackPanel>
+                                    <StackPanel x:Name="DetailsDependenciesPanel" Spacing="2">
+                                        <TextBlock Text="Dependencies" FontSize="12"
+                                                   IsVisible="{Binding HasDetailsDependencies}"/>
+                                        <ItemsControl x:Name="DetailsDependencyList" ItemsSource="{Binding DetailsDependencies}"
+                                                      IsVisible="{Binding HasDetailsDependencies}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="viewModels:PackageDetailLine">
+                                                    <Panel>
+                                                        <TextBlock Text="{Binding Text}" IsVisible="{Binding IsHeader}"
+                                                                   FontSize="12" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                                                        <TextBlock Text="{Binding Text}" IsVisible="{Binding !IsHeader}"
+                                                                   TextWrapping="Wrap" FontSize="13" Margin="12,0,0,0"/>
+                                                    </Panel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock x:Name="NoDependenciesText" Classes="hint" Text="No dependencies."
+                                                   IsVisible="{Binding DetailsHaveNoDependencies}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Panel>
+                    </Border>
+
+                    <TextBlock Grid.Row="3" Grid.Column="2"
+                               Classes="error"
+                               Text="{Binding SourcesError}"
+                               IsVisible="{Binding HasSourcesError}"
+                               Margin="0,6,0,0"/>
+                </Grid>
+            </TabItem>
+
+            <!-- ─── References ────────────────────────────────────────────────── -->
+            <TabItem Header="References">
+                <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="0,12,0,0">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0"
+                          IsEnabled="{Binding HasFrontMatter}">
+                        <TextBox x:Name="ReferenceBox"
+                                 Grid.Column="0"
+                                 Text="{Binding NewReference}"
+                                 PlaceholderText="Path to a .dll"
+                                 AutomationProperties.Name="Reference path"
+                                 KeyDown="ReferenceBox_KeyDown"/>
+                        <Button Classes="secondary" Grid.Column="1"
+                                Content="Browse…"
+                                Margin="8,0,0,0"
+                                Click="BrowseReference_Click"
+                                ToolTip.Tip="Choose an assembly"/>
+                        <tc:IconButton Classes="field" Grid.Column="2"
+                                IconData="{StaticResource Icon.Plus}"
+                                Margin="8,0,0,0"
+                                Command="{Binding AddReferenceCommand}"
+                                ToolTip.Tip="Add the reference"
+                                AutomationProperties.Name="Add the reference"/>
+                    </Grid>
+                    <TextBlock Grid.Row="1" Classes="error"
+                               Text="{Binding ReferenceError}"
+                               IsVisible="{Binding HasReferenceError}"
+                               Margin="0,6,0,0"/>
+                    <Border Grid.Row="2" Classes="pane" Margin="0,8,0,0">
+                        <Panel>
+                            <TextBlock Classes="state"
+                                       Text="No references. Add a path above."
+                                       IsVisible="{Binding ShowNoReferencesHint}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <ListBox Classes="entries"
+                                     ItemsSource="{Binding References}"
+                                     SelectedItem="{Binding SelectedReference}"
+                                     IsVisible="{Binding HasReferences}"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     AutomationProperties.Name="References"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     KeyDown="EntryList_KeyDown">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate DataType="viewModels:DependencyEntryViewModel">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Grid.Column="0"
+                                                       Text="{Binding Value}"
+                                                       ToolTip.Tip="{Binding Value}"
+                                                       FontFamily="{x:Static cte:MonospaceFont.Default}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center"/>
+                                            <tc:IconButton Classes="row" Grid.Column="1"
+                                                    IconData="{StaticResource Icon.Delete}"
+                                                    Command="{Binding RemoveCommand}"
+                                                    Margin="8,0,0,0"
+                                                    ToolTip.Tip="{Binding RemoveLabel}"
+                                                    AutomationProperties.Name="{Binding RemoveLabel}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Panel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ─── Namespace Imports ─────────────────────────────────────────── -->
+            <TabItem Header="Namespace Imports">
+                <Grid RowDefinitions="*,Auto" Margin="0,12,0,0">
+                    <TextBox x:Name="NamespacesBox"
+                             Grid.Row="0"
+                             Text="{Binding NamespacesText}"
+                             IsEnabled="{Binding HasFrontMatter}"
+                             AcceptsReturn="True"
+                             TextWrapping="NoWrap"
+                             VerticalContentAlignment="Top"
+                             PlaceholderText="System.Text.Json&#x0a;System.Net.Http"
+                             FontFamily="{x:Static cte:MonospaceFont.Default}"
+                             AutomationProperties.Name="Namespace imports"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+
+                    <TextBlock Grid.Row="1" Classes="error"
+                               Text="{Binding NamespaceError}"
+                               IsVisible="{Binding HasNamespaceError}"
+                               Margin="0,6,0,0"/>
+                </Grid>
+            </TabItem>
+
+            <!-- ─── Arguments: declared arguments, sets of their values, the set runs use ── -->
+            <TabItem x:Name="ArgumentsTab" Header="Arguments">
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="0,12,0,0" Spacing="14"
+                                DataContext="{Binding Arguments}" x:DataType="viewModels:ScriptArgumentsViewModel"
+                                IsEnabled="{Binding $parent[Window].((viewModels:DependenciesWindowViewModel)DataContext).HasFrontMatter}">
+                        <!-- The declared arguments -->
+                        <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Declared arguments" FontWeight="SemiBold"/>
+                                <TextBlock Classes="hint" Text="Typed values exposed as Arguments.Name at runtime."/>
+                            </StackPanel>
+                            <tc:IconButton Classes="field" x:Name="AddArgumentButton" Grid.Column="1" IconData="{StaticResource Icon.Plus}" Command="{Binding AddArgumentCommand}"
+                                           ToolTip.Tip="Add an argument" AutomationProperties.Name="Add an argument"/>
+                        </Grid>
+                        <Border Classes="pane" Padding="8,6">
+                          <StackPanel Spacing="6">
+                            <Grid ColumnDefinitions="160,110,*,Auto" ColumnSpacing="8">
+                                <TextBlock Grid.Column="0" Classes="hint" Text="Name"/>
+                                <TextBlock Grid.Column="1" Classes="hint" Text="Type"/>
+                                <TextBlock Grid.Column="2" Classes="hint" Text="Value"/>
+                            </Grid>
+                            <ItemsControl x:Name="ArgumentRows" ItemsSource="{Binding Arguments}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="6"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="viewModels:ArgumentRowViewModel">
+                                    <Grid ColumnDefinitions="160,110,*,Auto" ColumnSpacing="8">
+                                        <TextBox Grid.Column="0" Text="{Binding Name}" AutomationProperties.Name="Argument name"/>
+                                        <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                                                  ItemsSource="{x:Static viewModels:ArgumentRowViewModel.Types}"
+                                                  SelectedItem="{Binding Type}"
+                                                  AutomationProperties.Name="Argument type">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="viewModels:ArgumentTypeOption">
+                                                    <TextBlock Text="{Binding Label}"/>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                        <!-- The value starts at the column's edge for every type: an enum splits the
+                                             column into its values and a default picked from them. -->
+                                        <Grid Grid.Column="2" ColumnDefinitions="*,*" ColumnSpacing="8">
+                                            <ComboBox Grid.ColumnSpan="2" HorizontalAlignment="Stretch" IsVisible="{Binding IsBool}"
+                                                      ItemsSource="{x:Static viewModels:ArgumentRowViewModel.BoolChoices}" SelectedItem="{Binding BoolDefault}"
+                                                      AutomationProperties.Name="Default value"/>
+                                            <TextBox Grid.ColumnSpan="2" Text="{Binding DefaultText}" IsVisible="{Binding IsText}"
+                                                     AcceptsReturn="{Binding IsList}" TextWrapping="NoWrap"
+                                                     PlaceholderText="none"
+                                                     AutomationProperties.Name="Default value"/>
+                                            <TextBox Grid.Column="0" Text="{Binding ValuesText}" IsVisible="{Binding IsEnum}"
+                                                     PlaceholderText="dev, test, prod"
+                                                     AutomationProperties.Name="Enum values"/>
+                                            <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" IsVisible="{Binding IsEnum}"
+                                                      ItemsSource="{Binding EnumValues}" SelectedItem="{Binding EnumDefault}"
+                                                      PlaceholderText="none"
+                                                      AutomationProperties.Name="Default value"/>
+                                        </Grid>
+                                        <tc:IconButton Classes="field" Grid.Column="3" IconData="{StaticResource Icon.Delete}" Command="{Binding RemoveCommand}"
+                                                       ToolTip.Tip="Remove the argument" AutomationProperties.Name="Remove argument"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                          </StackPanel>
+                        </Border>
+
+                        <!-- Sets of values, and the one runs use -->
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" VerticalAlignment="Center">
+                            <TextBlock Classes="hint" VerticalAlignment="Center" Text="Next run uses:"/>
+                            <ComboBox x:Name="ArgumentRunChoiceBox" Grid.Column="1" MinWidth="240"
+                                      ItemsSource="{Binding RunChoices}" SelectedItem="{Binding RunChoice}"
+                                      AutomationProperties.Name="Argument set runs use">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="viewModels:ArgumentRunChoice">
+                                        <TextBlock Text="{Binding Label}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+                        <Grid ColumnDefinitions="200,*" ColumnSpacing="12" MinHeight="190">
+                            <Grid RowDefinitions="Auto,*,Auto" RowSpacing="6">
+                                <TextBlock Text="Argument sets" FontWeight="SemiBold"/>
+                                <Border Grid.Row="1" Classes="pane">
+                                    <ListBox x:Name="ArgumentSetList" ItemsSource="{Binding Sets}" SelectedItem="{Binding SelectedSet}"
+                                             Background="Transparent" BorderThickness="0"
+                                             AutomationProperties.Name="Argument sets">
+                                        <ListBox.Styles>
+                                            <Style Selector="ListBoxItem:selected">
+                                                <Setter Property="Background" Value="{DynamicResource Invoklet.ToolTab.SelectedBackgroundBrush}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
+                                            </Style>
+                                        </ListBox.Styles>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate x:DataType="viewModels:ArgumentSetItemViewModel">
+                                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Border>
+                                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="4">
+                                    <tc:IconButton Classes="field" x:Name="AddArgumentSetButton" IconData="{StaticResource Icon.Plus}" Command="{Binding AddSetCommand}"
+                                                   ToolTip.Tip="Add a set" AutomationProperties.Name="Add a set"/>
+                                    <tc:IconButton Classes="field" x:Name="RemoveArgumentSetButton" IconData="{StaticResource Icon.Minus}" Command="{Binding RemoveSetCommand}"
+                                                   ToolTip.Tip="Remove the set" AutomationProperties.Name="Remove the set"/>
+                                </StackPanel>
+                            </Grid>
+                            <StackPanel Grid.Column="1" Spacing="6"
+                                        DataContext="{Binding SelectedSet}" x:DataType="viewModels:ArgumentSetItemViewModel"
+                                        IsVisible="{Binding Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <TextBlock Text="Set name"/>
+                                <TextBox x:Name="ArgumentSetNameBox" Text="{Binding Name}" AutomationProperties.Name="Argument set name"/>
+                                <ItemsControl x:Name="ArgumentSetValues" ItemsSource="{Binding Values}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Spacing="6"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="viewModels:ArgumentSetValueViewModel">
+                                            <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="200,*" ColumnSpacing="8" RowSpacing="3">
+                                                <TextBlock Grid.Row="0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+                                                    <Run Text="{Binding Argument.Name}"/>
+                                                    <Run Text="{Binding Argument.Type.Label}" Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+                                                </TextBlock>
+                                                <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding Argument.EnumValues}"
+                                                          SelectedItem="{Binding Text}"
+                                                          IsVisible="{Binding Argument.IsEnum}"
+                                                          ToolTip.Tip="{Binding ValueError}"
+                                                          AutomationProperties.Name="{Binding Argument.Name}"/>
+                                                <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
+                                                          ItemsSource="{x:Static viewModels:ArgumentRowViewModel.BoolChoices}"
+                                                          SelectedItem="{Binding BoolText}"
+                                                          IsVisible="{Binding Argument.IsBool}"
+                                                          ToolTip.Tip="{Binding Hint}"
+                                                          AutomationProperties.Name="{Binding Argument.Name}"/>
+                                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Text}" PlaceholderText="{Binding Hint}"
+                                                         IsVisible="{Binding Argument.IsText}"
+                                                         AcceptsReturn="{Binding Argument.IsList}" TextWrapping="NoWrap"
+                                                         ToolTip.Tip="{Binding ValueError}"
+                                                         AutomationProperties.Name="{Binding Argument.Name}"/>
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Classes="error"
+                                                           Text="{Binding ValueError}" IsVisible="{Binding HasError}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Grid>
+
+                        <ItemsControl x:Name="ArgumentProblems" ItemsSource="{Binding Problems}" IsVisible="{Binding HasProblems}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <TextBlock Classes="error" Text="{Binding}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock x:Name="ArgumentsError" Classes="error" Text="{Binding BlockingError}" IsVisible="{Binding HasError}"/>
+                        <Expander Header="How arguments are passed" HorizontalAlignment="Stretch">
+                            <TextBlock Classes="hint" TextWrapping="Wrap"
+                                       Text="A run passes each argument as --name value (a list as --name once per item), with the values of the set it uses or else the defaults; an argument with neither is left out. On the command line, --args-set NAME picks a set, and arguments after the script replace them all."/>
+                        </Expander>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ─── Compilation (C# only) ──────────────────────────────────────── -->
+            <TabItem x:Name="CompilationTab" Header="Compilation" IsVisible="{Binding HasUnsafeOption}">
+                <StackPanel Margin="0,12,0,0" Spacing="6">
+                    <CheckBox x:Name="AllowUnsafeBox"
+                              Content="Allow unsafe code"
+                              IsChecked="{Binding AllowUnsafe}"
+                              IsEnabled="{Binding HasFrontMatter}"
+                              AutomationProperties.Name="Allow unsafe code"/>
+                    <Expander Header="About unsafe code" HorizontalAlignment="Stretch">
+                        <TextBlock x:Name="AllowUnsafeHint" TextWrapping="Wrap" Classes="hint"
+                                   Text="Compiles this script with C#'s /unsafe option, which pointers, fixed buffers and sizeof of your own structs need. It is a compiler setting, not a sandbox: a script always runs with your full permissions, with or without it."/>
+                    </Expander>
+                </StackPanel>
+            </TabItem>
+
+            <!-- ─── Connections: the script's connections: list ───────────────── -->
+            <TabItem x:Name="ConnectionsTab" Header="Connections">
+                <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto" Margin="0,12,0,0" RowSpacing="8"
+                      DataContext="{Binding Connections}" x:DataType="viewModels:ScriptConnectionsViewModel"
+                      IsEnabled="{Binding $parent[Window].((viewModels:DependenciesWindowViewModel)DataContext).HasFrontMatter}">
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Your connections:"/>
+                        <ComboBox x:Name="AvailableConnectionsBox" Grid.Column="1" HorizontalAlignment="Stretch"
+                                  ItemsSource="{Binding Available}" SelectedItem="{Binding SelectedAvailable}"
+                                  PlaceholderText="{Binding AvailableHint}"
+                                  AutomationProperties.Name="Your connections">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="rpad:MdRunConnection">
+                                    <TextBlock>
+                                        <Run Text="{Binding Name}" FontWeight="SemiBold"/>
+                                        <Run Text="{Binding Driver}" Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Button Classes="secondary" x:Name="AddConnectionButton" Grid.Column="2" Content="Add to Script" Command="{Binding AddCommand}"/>
+                    </Grid>
+                    <StackPanel Grid.Row="1" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Classes="secondary" x:Name="NewConnectionButton" Content="New Connection…" IsEnabled="{Binding CanEditConnections}"
+                                    AutomationProperties.Name="New connection"
+                                    ToolTip.Tip="Creates a connection of the chosen type in Tools → Connections, then offers it to this script"/>
+                            <Button Classes="secondary" x:Name="ManageConnectionsButton" Content="Manage Connections…" Command="{Binding ManageCommand}"
+                                    ToolTip.Tip="Opens Tools → Connections to edit your saved connections; this script doesn't change"/>
+                        </StackPanel>
+                        <TextBlock x:Name="CreateMessage" Text="{Binding CreateMessage}" TextWrapping="Wrap"
+                                   IsVisible="{Binding CreateMessage, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    </StackPanel>
+                    <Border Grid.Row="3"
+                            BorderBrush="{DynamicResource Invoklet.Separator.BackgroundBrush}"
+                            BorderThickness="1" CornerRadius="{DynamicResource Invoklet.Radius.Control}">
+                        <ListBox x:Name="ScriptConnectionList" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}"
+                                 Background="Transparent" BorderThickness="0"
+                                 AutomationProperties.Name="The script's connections"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.Styles>
+                                <Style Selector="ListBoxItem" x:DataType="viewModels:ScriptConnectionItemViewModel">
+                                    <Setter Property="AutomationProperties.Name" Value="{Binding AccessibleName}"/>
+                                </Style>
+                            </ListBox.Styles>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="viewModels:ScriptConnectionItemViewModel">
+                                    <StackPanel Spacing="2">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding DriverName}" Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+                                        </Grid>
+                                        <SelectableTextBlock Text="{Binding CodeName}" TextWrapping="Wrap" AutomationProperties.Name="Client in script"/>
+                                        <TextBlock Text="{Binding Status}" FontSize="12" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+                                        <TextBlock Text="{Binding Problem}" IsVisible="{Binding HasProblem}" FontSize="12" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource Invoklet.Status.ErrorBrush}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                    <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="8">
+                        <Button Classes="secondary" x:Name="RemoveConnectionButton" Content="Remove from Script" Command="{Binding RemoveCommand}"/>
+                        <Button Classes="secondary" x:Name="ImportConnectionButton" Content="Import to Your Connections" Command="{Binding ImportCommand}"
+                                ToolTip.Tip="Keeps this connection in Tools → Connections, replacing one of the same name; the script doesn't change"/>
+                        <Button Classes="secondary" x:Name="RefreshConnectionButton" Content="Refresh" Command="{Binding RefreshCommand}"
+                                IsVisible="{Binding CanRefreshSelected}"
+                                ToolTip.Tip="Reads this connection's description (such as a gRPC server's services) again, for a contract that changed"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="5" Spacing="6">
+                        <Expander Header="How connections work" HorizontalAlignment="Stretch">
+                            <StackPanel Spacing="6">
+                                <TextBlock Classes="hint" TextWrapping="Wrap"
+                                           Text="Add a connection to use its client in this script. Its secrets stay out of the script: the script reads them when it runs."/>
+                                <TextBlock Classes="hint" TextWrapping="Wrap"
+                                           Text="Import to Your Connections saves right away in Tools → Connections. Add to Script and Remove from Script change this script only when you press Save below."/>
+                            </StackPanel>
+                        </Expander>
+                        <TextBlock x:Name="RefreshMessage" Text="{Binding RefreshMessage}" TextWrapping="Wrap"
+                                   IsVisible="{Binding RefreshMessage, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                        <TextBlock x:Name="ImportMessage" Text="{Binding ImportMessage}" TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsImportConfirmationPending}">
+                            <Button Classes="secondary" x:Name="CancelImportButton" Content="Keep Existing" Command="{Binding CancelImportCommand}"/>
+                            <Button Classes="secondary" x:Name="ConfirmImportButton" Content="Replace Saved Connection" Command="{Binding ConfirmImportCommand}"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <TextBlock Grid.Row="6" Classes="hint" Foreground="{DynamicResource Invoklet.Status.ErrorBrush}" TextWrapping="Wrap"
+                               Text="{Binding StoreError}" IsVisible="{Binding HasStoreError}"/>
+                </Grid>
+            </TabItem>
+
+        </TabControl>
+
+        <!-- Footer: Save applies the draft and is enabled only when something changed. Cancel, Escape
+             and the window's close button ask whether to save pending changes. Save is deliberately
+             not IsDefault so Enter in a field never applies the dialog. -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+                        <Button x:Name="CancelButton" Classes="secondary" Content="Cancel" Width="80" Click="Cancel_Click" IsCancel="True"/>
+            <Button x:Name="OkButton" Classes="primary" Content="Save" Width="80" Click="Ok_Click"
+                    IsEnabled="{Binding CanApply}"/>
+        </StackPanel>
+    </Grid>
+</Window>

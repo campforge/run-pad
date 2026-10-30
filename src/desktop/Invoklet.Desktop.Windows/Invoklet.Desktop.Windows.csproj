@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Windows desktop integration: system title bars that follow Invoklet's theme. Invoklet
+       references this project only in Windows builds. -->
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Invoklet.Desktop\Invoklet.Desktop.csproj" />
+  </ItemGroup>
+</Project>

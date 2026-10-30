@@ -1,0 +1,32 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:templatedControls="clr-namespace:Invoklet.TemplatedControls">
+    <Styles.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://Invoklet.Avalonia.Themes/Metrics.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Styles.Resources>
+    <Style Selector="StackPanel.Toolbar ComboBox">
+        <Setter Property="FontSize"        Value="{DynamicResource Invoklet.Type.Caption}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Background"      Value="Transparent"/>
+        <Setter Property="CornerRadius"    Value="{DynamicResource Invoklet.Radius.Control}"/>
+
+        <Style Selector="^/template/ Border#Background">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="^:pointerover /template/ Border#Background">
+            <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
+        </Style>
+        <Style Selector="^:focus /template/ Border#Background">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="^[IsDropDownOpen=true] /template/ Border#Background">
+            <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
+        </Style>
+    </Style>
+</Styles>

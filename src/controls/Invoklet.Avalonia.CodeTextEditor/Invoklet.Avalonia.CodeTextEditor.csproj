@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Local fork — was Avalonia.AvaloniaEdit/AvaloniaEdit.TextMate NuGet packages. -->
+    <ProjectReference Include="..\AvaloniaEdit\AvaloniaEdit.csproj" />
+    <ProjectReference Include="..\AvaloniaEdit.TextMate\AvaloniaEdit.TextMate.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Highlighting\il.tmLanguage.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Invoklet.Runtime.UI.Tests" />
+    <InternalsVisibleTo Include="Invoklet.IntegrationTests" />
+    <InternalsVisibleTo Include="Invoklet.NonUI.Tests" />
+  </ItemGroup>
+
+</Project>

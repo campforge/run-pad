@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Upstream's own xunit v3 suite, kept as it is. Like RunPad.Runtime.UI.Tests, it runs on
+    <!-- Upstream's own xunit v3 suite, kept as it is. Like Invoklet.Runtime.UI.Tests, it runs on
          xunit.v3 with the 3.x VSTest adapter instead of upstream's Microsoft.Testing.Platform runner. -->
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" VersionOverride="3.1.5">

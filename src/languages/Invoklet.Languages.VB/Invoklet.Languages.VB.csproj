@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\core\Invoklet.Build.Core\Invoklet.Build.Core.csproj" />
+    <ProjectReference Include="..\..\core\Invoklet.Contracts\Invoklet.Contracts.csproj" />
+    <ProjectReference Include="..\..\core\Invoklet.Debug\Invoklet.Debug.csproj" />
+    <ProjectReference Include="..\..\core\Invoklet.Format.MdRun\Invoklet.Format.MdRun.csproj" />
+    <ProjectReference Include="..\Invoklet.Languages.DotnetCommon\Invoklet.Languages.DotnetCommon.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Invoklet.Runtime.UI.Tests" />
+    <InternalsVisibleTo Include="Invoklet.IntegrationTests" />
+    <InternalsVisibleTo Include="Invoklet.NonUI.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,112 @@
+// "Therefore those skilled at the unorthodox
+// are infinite as heaven and earth,
+// inexhaustible as the great rivers.
+// When they come to an end,
+// they begin again,
+// like the days and months;
+// they die and are reborn,
+// like the four seasons."
+// 
+// - Sun Tsu,
+// "The Art of War"
+
+using Avalonia.Controls;
+using Avalonia.Input;
+using Invoklet.Avalonia.HtmlRenderer.External.Adapters;
+using Invoklet.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using Invoklet.Avalonia.HtmlRenderer.External.Core.Utils;
+using Invoklet.Avalonia.HtmlRenderer.Utilities;
+
+namespace Invoklet.Avalonia.HtmlRenderer.Adapters;
+
+/// <summary>
+/// Adapter for Avalonia Control for core.
+/// </summary>
+internal sealed class ControlAdapter : RControl
+{
+    private readonly AvaloniaAdapter _avaloniaAdapter;
+
+    /// <summary>
+    /// the underline Avalonia control.
+    /// </summary>
+    private readonly Control _control;
+
+    /// <summary>
+    /// Init.
+    /// </summary>
+    public ControlAdapter(AvaloniaAdapter avaloniaAdapter, Control control)
+        : base(avaloniaAdapter)
+    {
+        ArgChecker.AssertArgNotNull(control, "control");
+
+        _avaloniaAdapter = avaloniaAdapter;
+        _control = control;
+    }
+
+    /// <summary>
+    /// Get the underline Avalonia control
+    /// </summary>
+    public Control Control
+    {
+        get { return _control; }
+    }
+
+    public override RPoint MouseLocation
+    {
+        get { return Utils.Convert((_control as HtmlControl)?.LastPointerArgs?.GetPosition(null) ?? default); }
+    }
+
+    public override bool LeftMouseButton
+    {
+        get { return (_control as HtmlControl)?.LastPointerArgs?.GetCurrentPoint(null).Properties.IsLeftButtonPressed ?? false; }
+    }
+
+    public override bool RightMouseButton
+    {
+        get { return (_control as HtmlControl)?.LastPointerArgs?.GetCurrentPoint(null).Properties.IsRightButtonPressed ?? false; }
+    }
+
+    public override void SetCursorDefault()
+    {
+        _control.Cursor = new Cursor(StandardCursorType.Arrow);
+    }
+
+    public override void SetCursorHand()
+    {
+        _control.Cursor = new Cursor(StandardCursorType.Hand);
+    }
+
+    public override void SetCursorIBeam()
+    {
+        _control.Cursor = new Cursor(StandardCursorType.Ibeam);
+    }
+
+    public override void DoDragDropCopy(object dragDropData)
+    {
+        var args = (_control as HtmlControl)?.LastPointerArgs as PointerPressedEventArgs;
+        if (args != null)
+            _ = DragDrop.DoDragDropAsync(args, (DataTransfer)dragDropData, DragDropEffects.Copy);
+    }
+
+    public override void MeasureString(string str, RFont font, double maxWidth, out int charFit, out double charFitWidth)
+    {
+        using (var g = new GraphicsAdapter(_avaloniaAdapter))
+        {
+            g.MeasureString(str, font, maxWidth, out charFit, out charFitWidth);
+        }
+    }
+
+    // Routes through HtmlControl.InvalidateContent() (rather than a bare
+    // InvalidateVisual()) whenever the underlying control actually is one — SelectionHandler calls
+    // this on every mid-drag selection change, and HtmlControl.Render blits an offscreen cache unless
+    // told the content is actually stale (LazyRenderCache/InvalidateContent's own doc comment). A
+    // plain InvalidateVisual() here left the cache thinking nothing changed, so newly (de)selected
+    // text never actually redrew until something unrelated forced a real repaint.
+    public override void Invalidate()
+    {
+        if (_control is HtmlControl htmlControl)
+            htmlControl.InvalidateContent();
+        else
+            _control.InvalidateVisual();
+    }
+}

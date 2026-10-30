@@ -16,7 +16,7 @@
     <PackageVersion Include="Avalonia.Themes.Simple" Version="12.1.4" />
     <PackageVersion Include="Avalonia.Headless" Version="12.1.4" />
     <PackageVersion Include="Avalonia.Headless.XUnit" Version="12.1.4" />
-    <!-- RunPad.Avalonia.HtmlRenderer.Tests: real Skia rasterization for render-scaling pixel tests
+    <!-- Invoklet.Avalonia.HtmlRenderer.Tests: real Skia rasterization for render-scaling pixel tests
          (Avalonia.Desktop already brings it in transitively for the app itself). -->
     <PackageVersion Include="Avalonia.Skia" Version="12.1.4" />
     <!-- AvaloniaEdit.Tests (local AvaloniaEdit fork) uses NUnit — its upstream's own
@@ -32,14 +32,14 @@
     <!-- Markdown parser of the MarkView.Avalonia fork (src/controls/MarkView.Avalonia), at the
          version its 12.3.0 release was built with. -->
     <PackageVersion Include="Markdig" Version="1.4.0" />
-    <!-- gRPC connections: server reflection (RunPad.Connectors.Grpc) and the test server. -->
+    <!-- gRPC connections: server reflection (Invoklet.Connectors.Grpc) and the test server. -->
     <PackageVersion Include="Grpc.Net.Client" Version="2.84.0" />
     <PackageVersion Include="Grpc.Reflection" Version="2.84.0" />
     <PackageVersion Include="Google.Protobuf" Version="3.36.2" />
     <PackageVersion Include="Grpc.AspNetCore" Version="2.84.0" />
     <PackageVersion Include="Grpc.AspNetCore.Server.Reflection" Version="2.84.0" />
     <PackageVersion Include="Grpc.Tools" Version="2.84.0" />
-    <!-- SQLite connections: RunPad reads the schema (RunPad.Connectors.Sqlite); scripts get EF Core. -->
+    <!-- SQLite connections: Invoklet reads the schema (Invoklet.Connectors.Sqlite); scripts get EF Core. -->
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.13" />
     <!-- Roslyn / Build (versions pinned to real preview/stable releases) -->
     <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="5.9.0" />
@@ -62,7 +62,7 @@
     <PackageVersion Include="NuGet.Versioning" Version="7.9.0" />
     <!-- Not used directly: NuGet.Packaging 7.9.0 asks for 8.0.1, which has known denial-of-service
          vulnerabilities (CVE-2026-84008, CVE-2026-70162); 8.0.2 is the fixed release of the same line.
-         Referenced by RunPad.Languages.DotnetCommon, which brings in NuGet. -->
+         Referenced by Invoklet.Languages.DotnetCommon, which brings in NuGet. -->
     <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="8.0.2" />
     <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
     <!-- System -->
@@ -79,7 +79,7 @@
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
     <!-- Avalonia.Headless.XUnit 12.0.5 depends on xunit v3 (a different package family from
-         classic "xunit" 2.x above), so RunPad.Runtime.UI.Tests uses these instead — see its
+         classic "xunit" 2.x above), so Invoklet.Runtime.UI.Tests uses these instead — see its
          csproj comment. -->
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <PackageVersion Include="Moq" Version="4.21.0" />
