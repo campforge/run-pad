@@ -77,8 +77,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // Raw (unfiltered) lightbulb candidate lists — see UpdateLightbulb's own doc comment for why
     // filtering happens at render time instead of once when each list is produced.
-    private List<CodeFixEntry> _diagnosticFixEntries = [];
-    private List<CodeFixEntry> _refactoringFixEntries = [];
+    private readonly LightbulbEntries _lightbulb = new();
     private long _inputPromptRevision;
     private int _inputPromptGeneration;
     private readonly WatchEvaluator _watchEvaluator;
@@ -1858,21 +1857,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // fixes, and stable IDs are worth the tradeoff of not covering the smaller, less noisy set of
     // pure refactorings too.
     private void UpdateLightbulb()
-    {
-        var merged = (IEnumerable<CodeFixEntry>)[.. _diagnosticFixEntries, .. _refactoringFixEntries];
-        if (!_prefs.CSharp.CodeFixesEnabled)
-        {
-            State.Editor.UpdateCodeFixes([]);
-            return;
-        }
-
-        var excluded = _prefs.CSharp.ExcludedDiagnosticIds;
-        if (excluded.Count > 0)
-            merged = merged.Where(f =>
-                f.DiagnosticId is null || !excluded.Contains(f.DiagnosticId, StringComparer.OrdinalIgnoreCase));
-
-        State.Editor.UpdateCodeFixes([.. merged]);
-    }
+        => State.Editor.UpdateCodeFixes([.. _lightbulb.Visible(_prefs.CSharp.CodeFixesEnabled, _prefs.CSharp.ExcludedDiagnosticIds)]);
 
     private static void ApplySelectionColor(CodeTextEditor editor)
     {
@@ -2025,21 +2010,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // preference, not only on the next keystroke/caret-move) and remerges on every update from
         // either one.
 
-        // Just Line/Title/
-        // Severity/Key now, no NewCode/UsingsToAdd to fold in here: materializing those got deferred
-        // to ApplyCodeFixAsync below, run only for the one entry actually clicked, not eagerly for
-        // every candidate on every keystroke/caret-move (see ICodeFixInfo's own doc comment for why
-        // that used to dominate the whole IntelliSense pipeline's cost).
-        static List<CodeFixEntry> ToEntries(IReadOnlyList<ICodeFixInfo> fixes) =>
-            fixes.Select(f => new CodeFixEntry(f.Line, f.Title, ToMarginSeverity(f.Severity), f.Key, f.DiagnosticId))
-                .ToList();
-
         codeFixesChanged = (code, fixes) =>
             Dispatcher.Post(() =>
             {
                 if (_disposed) return;
                 if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
-                _diagnosticFixEntries = ToEntries(fixes);
+                _lightbulb.SetDiagnosticFixes(fixes);
                 UpdateLightbulb();
             });
 
@@ -2067,7 +2043,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             // filtered out for display.
             if (!_prefs.CSharp.CodeFixesEnabled)
             {
-                _refactoringFixEntries = [];
+                _lightbulb.SetRefactorings(null);
                 UpdateLightbulb();
                 refactoringCts.Dispose();
                 Interlocked.CompareExchange(ref _refactoringCts, null, refactoringCts);
@@ -2093,7 +2069,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     {
                         if (_disposed || ct.IsCancellationRequested) return;
                         if (!ReferenceEquals(editor.Text, text) && editor.Text != text) return;
-                        _refactoringFixEntries = refactorings is null ? [] : ToEntries(refactorings);
+                        _lightbulb.SetRefactorings(refactorings);
                         UpdateLightbulb();
                     });
                 }
@@ -2983,17 +2959,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private static string PrependUsings(IReadOnlyList<string> usings, string code) =>
         usings.Count == 0 ? code : string.Concat(usings.Select(u => $"using {u};\n")) + code;
-
-    // Invoklet.Avalonia.CodeTextEditor.CodeFixSeverity duplicates
-    // Invoklet.Contracts.IntelliSense.DiagnosticSeverity rather than referencing it (the control stays
-    // dependency-free from Invoklet.Contracts — see CodeFixEntry's doc comment), so this is the one
-    // place the two enums need mapping between them.
-    private static CodeFixSeverity ToMarginSeverity(ContractSeverity severity) => severity switch
-    {
-        ContractSeverity.Error => CodeFixSeverity.Error,
-        ContractSeverity.Warning => CodeFixSeverity.Warning,
-        _ => CodeFixSeverity.Info,
-    };
 
     // Defaults to C# for untitled tabs (no MdRunDocument yet — see SetDocumentContent).
     private string ResolveLanguageId()
