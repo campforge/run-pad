@@ -32,6 +32,7 @@ public static class KeyCommands
     public static readonly KeyCommand Save = new("file.save", General, "Save", "Ctrl+S", "Cmd+S");
     public static readonly KeyCommand SaveAs = new("file.saveAs", General, "Save As", "Ctrl+Shift+S", "Cmd+Shift+S");
     public static readonly KeyCommand ExportResults = new("file.exportResults", General, "Export Results as HTML", "");
+    public static readonly KeyCommand ClearResults = new("run.clearResults", Run, "Clear Results", "Ctrl+Shift+L", "Cmd+Shift+L");
     public static readonly KeyCommand RevertFile = new("file.revert", General, "Revert to Saved", "");
     public static readonly KeyCommand CloseTab = new("file.closeTab", General, "Close Tab", "Ctrl+W", "Cmd+W");
     // Windows and Linux close the window with the system's Alt+F4; macOS has no such key, Cmd+Q is the convention.
@@ -96,7 +97,7 @@ public static class KeyCommands
     [
         NewFile, OpenFile, QuickOpen, Save, SaveAs, ExportResults, RevertFile, CloseTab, Exit, OpenDependencies, OpenAssemblyExplorer, OpenPreferences,
         ToggleFileTree, ToggleOutputPanel, TogglePreview, TogglePreviewToSide, ZoomIn, ZoomOut, ResetZoom,
-        RunOrContinue, ExecuteSelection, Restart, Stop, ToggleDebugMode, StepOver, StepInto, StepOut, Pause, RunToCursor,
+        RunOrContinue, ExecuteSelection, Restart, Stop, ToggleDebugMode, StepOver, StepInto, StepOut, Pause, RunToCursor, ClearResults,
         FindText, ReplaceText, FindNext, FindPrevious, ReplaceNext, ReplaceAll,
         TriggerCompletion, SignatureHelp, GoToDefinition, FindReferences, RenameSymbol, JumpToBracket, ToggleLineComment,
         Format, FormatSelection, GoToLine, ResolveAllUsings,

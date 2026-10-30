@@ -41,6 +41,7 @@ internal sealed class ActiveTabCommands
             [KeyCommands.Pause] = () => _active.Target?.Pause(),
             [KeyCommands.RunToCursor] = RunToCursor,
             [KeyCommands.Format] = () => _ = _active.Target?.FormatAsync(),
+            [KeyCommands.ClearResults] = () => _active.Target?.ClearResults(),
             [KeyCommands.ExportResults] = () => _ = _active.Target?.ExportResultsAsync(),
             [KeyCommands.FormatSelection] = () => _ = _active.Target?.FormatSelectionAsync(),
             [KeyCommands.GoToLine] = () => _active.Target?.ShowGoToLine(),

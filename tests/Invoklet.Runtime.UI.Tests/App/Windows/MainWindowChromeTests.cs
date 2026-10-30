@@ -174,6 +174,7 @@ public class MainWindowChromeTests
         "Run/Run / Continue",
         "Run/Stop",
         "Run/Execute Selection",
+        "Run/Clear Results",
         "Run/Stop and Run Again",
         "Run/---",
         "Run/Debug Mode",

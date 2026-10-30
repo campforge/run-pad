@@ -414,6 +414,7 @@ public sealed partial class MainWindow : Window, IDisposable, IStartupWindow
                 Item("_Run / Continue", KeyCommands.RunOrContinue),
                 Item("_Stop", KeyCommands.Stop),
                 Item("E_xecute Selection", KeyCommands.ExecuteSelection),
+                Item("C_lear Results", KeyCommands.ClearResults),
                 Item("Stop and Run _Again", KeyCommands.Restart),
                 new MainMenuSeparator(),
                 Item("_Debug Mode", KeyCommands.ToggleDebugMode),

@@ -18,7 +18,7 @@ public sealed class ActiveTabCommandsTests
         var sut = new ActiveTabCommandsFixture().CreateSut();
         KeyCommand[] expected =
         [
-            KeyCommands.Save, KeyCommands.SaveAs, KeyCommands.ExportResults, KeyCommands.RevertFile, KeyCommands.CloseTab, KeyCommands.ToggleOutputPanel,
+            KeyCommands.Save, KeyCommands.SaveAs, KeyCommands.ExportResults, KeyCommands.ClearResults, KeyCommands.RevertFile, KeyCommands.CloseTab, KeyCommands.ToggleOutputPanel,
             KeyCommands.TogglePreview, KeyCommands.TogglePreviewToSide, KeyCommands.ZoomIn, KeyCommands.ZoomOut,
             KeyCommands.ResetZoom, KeyCommands.RunOrContinue, KeyCommands.Stop, KeyCommands.ExecuteSelection,
             KeyCommands.Restart, KeyCommands.ToggleDebugMode, KeyCommands.StepOver, KeyCommands.StepInto,
@@ -203,6 +203,7 @@ public sealed class ActiveTabCommandsTests
         sut.Bindings[KeyCommands.Format]();
         sut.Bindings[KeyCommands.FormatSelection]();
         sut.Bindings[KeyCommands.ExportResults]();
+        sut.Bindings[KeyCommands.ClearResults]();
         sut.Bindings[KeyCommands.GoToLine]();
         sut.Bindings[KeyCommands.ResolveAllUsings]();
         sut.Bindings[KeyCommands.Pause]();
@@ -214,6 +215,7 @@ public sealed class ActiveTabCommandsTests
         fixture.Target.Verify(t => t.FormatAsync(), Times.Once);
         fixture.Target.Verify(t => t.FormatSelectionAsync(), Times.Once);
         fixture.Target.Verify(t => t.ExportResultsAsync(), Times.Once);
+        fixture.Target.Verify(t => t.ClearResults(), Times.Once);
         fixture.Target.Verify(t => t.ShowGoToLine(), Times.Once);
         fixture.Target.Verify(t => t.ResolveAllUsingsAsync(), Times.Once);
         fixture.Target.Verify(t => t.Pause(), Times.Once);

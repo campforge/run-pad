@@ -24,6 +24,13 @@ public partial class EditorsTabItemControl : ITabCommandTarget
 
     Task ITabCommandTarget.FormatAsync() => FormatAsync();
 
+    void ITabCommandTarget.ClearResults()
+    {
+        State.Output.Clear();
+        State.DumpContainerBlocks.Clear();
+        UpdateOutputUi();
+    }
+
     Task ITabCommandTarget.ExportResultsAsync() => ExportResultsAsync();
 
     Task ITabCommandTarget.FormatSelectionAsync() => _formatting?.FormatSelectionAsync() ?? Task.CompletedTask;
