@@ -9,5 +9,8 @@ public sealed class RunLifecycleFixture
     /// <summary>A run that ends when <see cref="TaskCompletionSource.SetResult()"/> is called.</summary>
     public TaskCompletionSource NewRun() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+    /// <summary>Starts a thread of its own, as a host reports its events on one.</summary>
+    public static Task RunOnAnotherThread(Action work) => Task.Factory.StartNew(work, TaskCreationOptions.LongRunning);
+
     internal RunLifecycle CreateSut() => new();
 }

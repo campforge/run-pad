@@ -168,6 +168,64 @@ public sealed class RunLifecycleTests
     }
 
     [Fact]
+    public async Task IsCurrent_StoppedOnTheUiThreadWhileAHostThreadSpins_BecomesFalseForIt()
+    {
+        // Arrange
+        var sut = new RunLifecycleFixture().CreateSut();
+        var generation = sut.Begin();
+        var spinning = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reader = RunLifecycleFixture.RunOnAnotherThread(() =>
+        {
+            spinning.SetResult();
+            while (sut.IsCurrent(generation)) { } // as a host callback asking whether its run still counts
+        });
+        await spinning.Task.WaitAsync(Limit, TestContext.Current.CancellationToken);
+
+        // Act
+        sut.Stop();
+
+        // Assert
+        await reader.WaitAsync(Limit, TestContext.Current.CancellationToken); // it saw the stop, however it was compiled
+        Assert.False(sut.IsCurrent(generation));
+    }
+
+    [Fact]
+    public async Task RunGeneration_RunsBeginAndStopWhileAnotherThreadReads_NeverGoesBackwards()
+    {
+        // Arrange
+        var sut = new RunLifecycleFixture().CreateSut();
+        var done = false;
+        var wentBackwards = false;
+        var reading = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reader = RunLifecycleFixture.RunOnAnotherThread(() =>
+        {
+            var last = sut.RunGeneration;
+            reading.SetResult();
+            while (!Volatile.Read(ref done))
+            {
+                var now = sut.RunGeneration;
+                if (now < last) wentBackwards = true;
+                last = now;
+            }
+        });
+        await reading.Task.WaitAsync(Limit, TestContext.Current.CancellationToken);
+
+        // Act
+        for (var i = 0; i < 20_000; i++)
+        {
+            sut.Begin();
+            sut.Stop();
+            sut.End();
+        }
+        Volatile.Write(ref done, true);
+        await reader.WaitAsync(Limit, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.False(wentBackwards);
+        Assert.Equal(40_000, sut.RunGeneration); // every Begin and every Stop counted once
+    }
+
+    [Fact]
     public void IsStoppedSince_NoStopSinceThen_IsFalse()
     {
         // Arrange
