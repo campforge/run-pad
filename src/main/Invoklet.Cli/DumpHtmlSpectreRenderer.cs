@@ -38,6 +38,9 @@ internal static class DumpHtmlSpectreRenderer
                 return el.Descendants().Any(d => d.Name.LocalName is "table" or "div" or "details")
                     ? Combine(el.Nodes().Select(RenderNode))
                     : new Markup($"[black on yellow]{Markup.Escape(el.Value)}[/]");
+            // Util.HtmlHead.AddStyles: rules for a browser, not text for a terminal.
+            case "style":
+                return null;
             // Util.WithHeading: the heading as a label, then the value.
             case "div" when cls.Contains("dp-heading"):
                 return new Markup($"[bold underline]{Markup.Escape(el.Value)}[/]");

@@ -12,6 +12,8 @@ Notable changes in each Invoklet release. Downloads are on the
 - `Util.Highlight`, `Util.HighlightIf`, `Util.WithStyle` and `Util.WithHeading` (LINQPad-compatible) dress a value in the output of
   `.Dump()`: a highlight, CSS declarations, or a heading above it. They work on their own and inside what is dumped, such as a
   column of a table.
+- `Util.WithCssClass` (LINQPad-compatible) dumps a value inside an element with a CSS class of your own, and `Util.HtmlHead.AddStyles` adds the
+  rules for it to the output.
 - Format Selection (Edit → Format Selection, Ctrl+Shift+F, or Cmd+Shift+F on macOS) reformats the lines of the selection, or the
   line of the caret, and leaves the rest of the script alone. Invoklet also formats as you type: after a `;` the statement, after a
   `}` the block with its header. Preferences → Editor → "Format the statement after ; and the block after } as you type" turns it off.

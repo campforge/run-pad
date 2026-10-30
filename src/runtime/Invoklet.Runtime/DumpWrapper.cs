@@ -33,6 +33,14 @@ internal sealed class DumpWrapper
         Style = string.IsNullOrWhiteSpace(css) ? null : css!.Trim(),
     };
 
+    /// <summary>A class of the script's own (see <c>Util.HtmlHead.AddStyles</c>); only letters, digits, '-' and '_' are kept, in classes split by spaces.</summary>
+    public static DumpWrapper WithCssClass(object? value, string? cssClass) => new(value)
+    {
+        CssClass = string.Join(" ", (cssClass ?? "").Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(c => new string(c.Where(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_').ToArray()))
+            .Where(c => c.Length > 0)) is { Length: > 0 } classes ? classes : "dp-styled",
+    };
+
     public static DumpWrapper WithHeading(object? value, object? heading) => new(value) { HasHeading = true, Heading = heading };
 
     public override string? ToString() => Value?.ToString();

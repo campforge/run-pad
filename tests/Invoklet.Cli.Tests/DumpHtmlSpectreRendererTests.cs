@@ -232,4 +232,13 @@ public class DumpHtmlSpectreRendererTests
 
         Assert.Contains("hi", output);
     }
+
+    [Fact]
+    public void Render_Should_NotPrintTheRulesOfAStyleElement()
+    {
+        var output = RenderToText("<style>.late { color: red }</style><span class=\"late\">hi</span>");
+
+        Assert.Contains("hi", output);
+        Assert.DoesNotContain("color", output);
+    }
 }

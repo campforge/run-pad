@@ -46,7 +46,7 @@ internal static class DumpRenderer
             return;
         }
 
-        // Util.Highlight, WithStyle and WithHeading: the value is rendered as it would be alone, at the same depth.
+        // Util.Highlight, WithStyle, WithCssClass and WithHeading: the value is rendered as it would be alone, at the same depth.
         if (value is DumpWrapper wrapper)
         {
             RenderWrapper(sb, wrapper, depth, options);
@@ -116,7 +116,7 @@ internal static class DumpRenderer
         var html = inner.ToString();
         var block = html.Contains("<table") || html.Contains("<div") || html.Contains("<details");
         var tag = block ? "div" : "span";
-        sb.Append('<').Append(tag).Append(" class=\"").Append(wrapper.CssClass).Append('"');
+        sb.Append('<').Append(tag).Append(" class=\"").Append(Encode(wrapper.CssClass!)).Append('"');
         if (wrapper.Style is { } style) sb.Append(" style=\"").Append(Encode(style)).Append('"');
         sb.Append('>').Append(html).Append("</").Append(tag).Append('>');
     }

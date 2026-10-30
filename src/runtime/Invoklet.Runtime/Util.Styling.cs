@@ -23,6 +23,25 @@ public static partial class Util
     /// <summary>Wraps a value so that it is dumped with the given CSS declarations (<c>"color:red; font-weight:bold"</c>) — LINQPad-compatible <c>Util.WithStyle</c>.</summary>
     public static object WithStyle<T>(T data, string css) => DumpWrapper.Styled(data, css);
 
+    /// <summary>
+    /// Wraps a value so that it is dumped inside an element with the given CSS class (several, separated by spaces) — LINQPad-compatible
+    /// <c>Util.WithCssClass</c>. The class gets its look from <see cref="HtmlHead.AddStyles"/>.
+    /// </summary>
+    public static object WithCssClass<T>(T data, string cssClass) => DumpWrapper.WithCssClass(data, cssClass);
+
+    /// <summary>What a script adds to the head of its output — LINQPad-compatible <c>Util.HtmlHead</c>.</summary>
+    public static class HtmlHead
+    {
+        /// <summary>Adds CSS rules to the output from this point on, for classes given by <see cref="Util.WithCssClass{T}"/>.</summary>
+        public static void AddStyles(string css)
+        {
+            if (css is null) throw new ArgumentNullException(nameof(css));
+            // "</style" would end the element early and let the rest be read as markup.
+            var safe = css.Replace("</", "<\\/");
+            System.Console.WriteLine(ObjectExtensions.DumpLinePrefixChar + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("<style>" + safe + "</style>")));
+        }
+    }
+
     /// <summary>Wraps a value so that it is dumped under a heading — LINQPad-compatible <c>Util.WithHeading</c>.</summary>
     public static object WithHeading<T>(T data, object? heading) => DumpWrapper.WithHeading(data, heading);
 }

@@ -130,4 +130,46 @@ public class UtilStylingTests
         Assert.Equal("42", Util.Highlight(42).ToString());
         Assert.Equal("x", Util.WithHeading("x", "h").ToString());
     }
+
+    [Fact]
+    public void WithCssClass_AClassOfTheScript_IsTheClassOfTheElementAroundTheValue()
+    {
+        var html = Html(Util.WithCssClass("x", "my-class other_1"));
+
+        Assert.StartsWith("<span class=\"my-class other_1\">", html);
+    }
+
+    [Theory]
+    [InlineData("a\" onload=\"x")]
+    [InlineData("")]
+    [InlineData("  ")]
+    public void WithCssClass_AClassThatCouldBreakTheAttribute_KeepsOnlyNameCharacters(string cssClass)
+    {
+        var html = Html(Util.WithCssClass("x", cssClass));
+
+        Assert.DoesNotContain("\"", html.Split('>')[0].Replace("class=\"", "").TrimEnd('"'));
+        Assert.DoesNotContain("onload=", html);
+    }
+
+    [Fact]
+    public void AddStyles_Rules_AreWrittenAsADumpLineWithAStyleElementThatCannotCloseItself()
+    {
+        var original = Console.Out;
+        var writer = new StringWriter();
+        Console.SetOut(writer);
+        try
+        {
+            Util.HtmlHead.AddStyles(".a { color: red } </style><b>");
+        }
+        finally
+        {
+            Console.SetOut(original);
+        }
+
+        var line = writer.ToString().TrimEnd();
+        Assert.Equal(ObjectExtensions.DumpLinePrefixChar, line[0]);
+        var html = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(line[1..]));
+        Assert.StartsWith("<style>.a { color: red }", html);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(html, "</style"));
+    }
 }
