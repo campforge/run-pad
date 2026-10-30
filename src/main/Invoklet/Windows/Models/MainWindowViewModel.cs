@@ -1038,16 +1038,20 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // The tabs and the tree as the file operations see them.
     private sealed class FileOperationTabs(MainWindowViewModel owner) : IFileOperationTabs
     {
-        public IReadOnlyList<string> OpenPaths => [.. owner._openTabs.Keys];
+        public IReadOnlyList<FileOperationTab> OpenTabs
+            => [.. owner._openTabs.Select(kv => new FileOperationTab(kv.Value, kv.Key))];
 
-        public Task<bool> SaveAsync(IReadOnlyList<string> paths, string errorTitle)
-            => owner.TrySaveTabsBeforeFileOperationAsync(paths.Select(p => owner._openTabs[p]).ToList(), errorTitle);
+        public string? CurrentPath(FileOperationTab tab)
+            => owner.Tabs.Contains((EditorTabItemViewModel)tab.Handle) ? ((EditorTabItemViewModel)tab.Handle).FilePath : null;
 
-        public void Close(IReadOnlyList<string> paths)
+        public Task<bool> SaveAsync(IReadOnlyList<FileOperationTab> tabs, string errorTitle)
+            => owner.TrySaveTabsBeforeFileOperationAsync(tabs.Select(t => (EditorTabItemViewModel)t.Handle).ToList(), errorTitle);
+
+        public void Close(IReadOnlyList<FileOperationTab> tabs)
         {
             // A tab the user closed while a save was being decided is already gone.
-            foreach (var path in paths)
-                if (owner._openTabs.TryGetValue(path, out var tab)) owner.CloseTab(tab);
+            foreach (var tab in tabs.Select(t => (EditorTabItemViewModel)t.Handle))
+                if (owner.Tabs.Contains(tab)) owner.CloseTab(tab);
         }
 
         public void Open(string path) => owner.OpenTab(path);
