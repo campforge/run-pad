@@ -1,3 +1,4 @@
+using Spectre.Console;
 using Spectre.Console.Testing;
 using Xunit;
 
@@ -165,12 +166,45 @@ public class DumpHtmlSpectreRendererTests
         Assert.Contains("70%", output);
     }
 
-    [Fact]
-    public void Render_Should_KeepTheTextOfAHighlight()
+    // The console as a terminal with colours: the output holds the escape sequences, so a marker can be told from plain text.
+    private static string RenderToColouredText(string html)
     {
-        var output = RenderToText("<span class=\"dp-highlight\"><span class=\"dp-number\">42</span></span>");
+        var console = new TestConsole().EmitAnsiSequences();
+        console.Profile.Capabilities.ColorSystem = ColorSystem.Standard;
+        console.Write(DumpHtmlSpectreRenderer.Render(html));
+        return console.Output;
+    }
 
-        Assert.Contains("42", output);
+    [Fact]
+    public void Render_Should_MarkAHighlightedValueBlackOnYellow_EvenWhenItsTypeHasAColour()
+    {
+        var marked = RenderToColouredText("<span class=\"dp-highlight\"><span class=\"dp-number\">42</span></span>");
+        var plain = RenderToColouredText("<span class=\"dp-number\">42</span>");
+
+        Assert.Contains("42", marked);
+        Assert.NotEqual(plain, marked);
+        Assert.Contains("30;103", marked); // black text on a bright yellow background
+    }
+
+    [Fact]
+    public void Render_Should_MarkAHighlightedCellOfATable()
+    {
+        var html = "<table class=\"dp-table\"><thead><tr><th>Qty</th></tr></thead><tbody><tr><td><span class=\"dp-highlight\"><span class=\"dp-number\">2</span></span></td></tr></tbody></table>";
+
+        var output = RenderToColouredText(html);
+
+        Assert.Contains("30;103", output);
+    }
+
+    [Fact]
+    public void Render_Should_ShowTheContentOfAHighlightedTableWithoutAMarker()
+    {
+        var html = "<div class=\"dp-highlight\"><table class=\"dp-table\"><thead><tr><th>N</th></tr></thead><tbody><tr><td>1</td></tr></tbody></table></div>";
+
+        var output = RenderToText(html);
+
+        Assert.Contains("N", output);
+        Assert.Contains("1", output);
     }
 
     [Fact]

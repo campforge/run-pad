@@ -32,9 +32,10 @@ internal static class DumpHtmlSpectreRenderer
 
         switch (el.Name.LocalName)
         {
-            // Util.Highlight: marked text keeps its marker; around anything with structure only the content is shown.
+            // Util.Highlight: a value that is text, even one wrapped in a colour span, is shown black on yellow (the colour of its type gives
+            // way to the marker); around a table or another block only the content is shown, as a terminal cannot mark a region.
             case "span" or "div" when cls.Contains("dp-highlight"):
-                return el.Elements().Any()
+                return el.Descendants().Any(d => d.Name.LocalName is "table" or "div" or "details")
                     ? Combine(el.Nodes().Select(RenderNode))
                     : new Markup($"[black on yellow]{Markup.Escape(el.Value)}[/]");
             // Util.WithHeading: the heading as a label, then the value.
