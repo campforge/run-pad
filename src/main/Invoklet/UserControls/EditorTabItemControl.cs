@@ -2052,7 +2052,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
                     await Dispatcher.InvokeAsync(() =>
                     {
-                        if (_disposed || result.Request.IsCancellationRequested) return;
+                        if (_disposed || !refactoringRequests.IsCurrent(result)) return;
                         if (!ReferenceEquals(editor.Text, text) && editor.Text != text) return;
                         _lightbulb.SetRefactorings(result.Refactorings);
                         UpdateLightbulb();
