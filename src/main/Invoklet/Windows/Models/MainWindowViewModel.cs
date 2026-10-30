@@ -214,25 +214,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
                 case ExitUnsavedChoice.KeepInStash:
                     return await CheckpointRecoveryCoreAsync();
                 case ExitUnsavedChoice.SaveAll:
-                    foreach (var tab in unsaved)
-                    {
-                        if (!tab.IsDirty || !Tabs.Contains(tab)) continue;
-                        if (tab.FilePath is not null)
-                        {
-                            var result = await SaveInPlaceAsync(tab);
-                            if (result.Status == InPlaceSaveStatus.Cancelled) return false;
-                            if (result.Status == InPlaceSaveStatus.Failed)
-                            {
-                                await _windowService.ShowErrorAsync("Save Failed", result.Error);
-                                return false;
-                            }
-                        }
-                        else
-                        {
-                            await ((IEditorTabActions)this).SaveAsAsync(tab);
-                            if (tab.IsDirty) return false; // Save As was cancelled or failed
-                        }
-                    }
+                    if (!await Unsaved.SaveAllAsync(unsaved, Tabs.Contains)) return false;
                     // The session (which files are open, the active tab) is still kept for the next start.
                     return await CheckpointRecoveryCoreAsync();
                 default:
@@ -834,26 +816,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     //   - untitled tab: Save/Don't Save/Cancel, Save opening Save As.
     // Save As only clears IsDirty on success — still dirty means its dialog was cancelled or the
     // write failed, so that's "changed my mind about closing", not closing with the content lost.
-    internal async Task<bool> ResolveUnsavedChangesBeforeCloseAsync(EditorTabItemViewModel vm)
-    {
-        if (!vm.IsDirty) return true;
+    internal Task<bool> ResolveUnsavedChangesBeforeCloseAsync(EditorTabItemViewModel vm)
+        => Unsaved.ResolveBeforeCloseAsync(vm);
 
-        if (vm.FilePath is not null)
-        {
-            // A declined save (the file changed on disk and the user cancelled) stops the close too.
-            var result = await SaveInPlaceAsync(vm);
-            if (result.Status == InPlaceSaveStatus.Saved) return true;
-            if (result.Status == InPlaceSaveStatus.Cancelled) return false;
-            await _windowService.ShowErrorAsync("Save Failed", result.Error);
-        }
-
-        var choice = await ConfirmDiscardUnsavedChangesAsync(vm.FileName);
-        if (choice == UnsavedChangesResult.Cancel) return false;
-        if (choice == UnsavedChangesResult.DontSave) return true;
-
-        await ((IEditorTabActions)this).SaveAsAsync(vm);
-        return !vm.IsDirty;
-    }
+    private UnsavedChangesFlow Unsaved => new(_windowService, SaveInPlaceAsync, ((IEditorTabActions)this).SaveAsAsync);
 
     // Writes a dirty named tab to its own path (the same serializer explicit Save uses, via
     // vm.WriteToFile), asking first if the file changed on disk (InPlaceSave). A clean or untitled tab
@@ -870,19 +836,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // Rename/move/delete flush every affected dirty tab first and abort the whole
     // operation (nothing closed, nothing touched on disk) if any of them can't be written or the
     // user declines to replace a file changed on disk.
-    private async Task<bool> TrySaveTabsBeforeFileOperationAsync(IEnumerable<EditorTabItemViewModel> tabs, string errorTitle)
-    {
-        foreach (var tab in tabs)
-        {
-            var result = await SaveInPlaceAsync(tab);
-            if (result.Status == InPlaceSaveStatus.Saved) continue;
-            if (result.Status == InPlaceSaveStatus.Failed)
-                _ = _windowService.ShowErrorAsync(errorTitle, result.Error);
-            return false;
-        }
-
-        return true;
-    }
+    private Task<bool> TrySaveTabsBeforeFileOperationAsync(IEnumerable<EditorTabItemViewModel> tabs, string errorTitle)
+        => Unsaved.SaveBeforeFileOperationAsync(tabs, errorTitle);
 
     // "File → Import LINQPad Query..." — converts a .linq file (picked via a native
     // Open dialog, so it can live anywhere on disk, not just inside the current workspace folder) to
