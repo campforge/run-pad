@@ -22,7 +22,7 @@ public sealed partial class CSharpIntelliSenseService
         {
             switch (node)
             {
-                case ArgumentListSyntax list when IsInsideArgumentList(list, pos):
+                case ArgumentListSyntax list when SourcePositions.IsInsideArgumentList(list, pos):
                     return ForArgument(model, list, token, pos);
                 case AssignmentExpressionSyntax
                 {
@@ -39,9 +39,6 @@ public sealed partial class CSharpIntelliSenseService
         return null;
     }
 
-    private static bool IsInsideArgumentList(ArgumentListSyntax list, int pos) =>
-        pos >= list.OpenParenToken.Span.End && (list.CloseParenToken.IsMissing || pos <= list.CloseParenToken.SpanStart);
-
     private static ExpectedTypeContext? ForArgument(SemanticModel model, ArgumentListSyntax list, SyntaxToken token, int pos)
     {
         if (list.Parent is not (InvocationExpressionSyntax or BaseObjectCreationExpressionSyntax)) return null;
@@ -54,10 +51,10 @@ public sealed partial class CSharpIntelliSenseService
             if (!argument.RefKindKeyword.IsKind(SyntaxKind.None) || !IsSimpleSlot(argument.Expression, pos, out afterNew)) return null;
         }
 
-        var index = CountArgumentsBefore(list, pos);
+        var index = SourcePositions.CountArgumentsBefore(list, pos);
         var name = argument?.NameColon?.Name.Identifier.ValueText;
         var types = new List<ITypeSymbol>();
-        foreach (var method in GetCandidateMethods(model, list.Parent!))
+        foreach (var method in SourcePositions.GetCandidateMethods(model, list.Parent!))
         {
             if (!AcceptsTypedArguments(method, list, index, model)) continue;
             var parameter = name is null ? ParameterAt(method, index) : method.Parameters.FirstOrDefault(p => p.Name == name);
@@ -264,7 +261,7 @@ public sealed partial class CSharpIntelliSenseService
     {
         if (pos <= 0) return [];
         var token = root.FindToken(pos - 1);
-        var list = token.Parent?.AncestorsAndSelf().OfType<ArgumentListSyntax>().FirstOrDefault(l => IsInsideArgumentList(l, pos));
+        var list = token.Parent?.AncestorsAndSelf().OfType<ArgumentListSyntax>().FirstOrDefault(l => SourcePositions.IsInsideArgumentList(l, pos));
         if (list?.Parent is not (InvocationExpressionSyntax or BaseObjectCreationExpressionSyntax)) return [];
 
         var argument = token.Parent?.AncestorsAndSelf().OfType<ArgumentSyntax>().FirstOrDefault(a => a.Parent == list);
@@ -273,14 +270,14 @@ public sealed partial class CSharpIntelliSenseService
         // The caret has to be in the argument's name, not past it (`(x |`).
         if (argument is { Expression: IdentifierNameSyntax name } && !name.IsMissing && pos > name.Span.End) return [];
 
-        var index = CountArgumentsBefore(list, pos);
+        var index = SourcePositions.CountArgumentsBefore(list, pos);
         var positional = list.Arguments.Take(index).TakeWhile(a => a.NameColon is null).Count();
         var named = new HashSet<string>(
             list.Arguments.Where(a => a != argument).Select(a => a.NameColon?.Name.Identifier.ValueText).OfType<string>(),
             StringComparer.Ordinal);
 
         var items = new Dictionary<string, ICompletionItem>(StringComparer.Ordinal);
-        foreach (var method in GetCandidateMethods(model, list.Parent))
+        foreach (var method in SourcePositions.GetCandidateMethods(model, list.Parent))
         {
             if (!AcceptsTypedArguments(method, list, index, model)) continue;
             for (var i = positional; i < method.Parameters.Length; i++)
@@ -306,33 +303,4 @@ public sealed partial class CSharpIntelliSenseService
             or SpecialType.System_Single or SpecialType.System_Double or SpecialType.System_Decimal => ("0", null),
         _ => null,
     };
-
-    // The methods or constructors a call can mean. Roslyn fills CandidateSymbols only when binding is
-    // ambiguous, so a valid call would show just the one overload it resolved to: the whole member or
-    // constructor group is read instead, and only a call with no group (through a delegate) keeps what
-    // binding found. Shared by signature help and the expected-type completion.
-    private static List<IMethodSymbol> GetCandidateMethods(SemanticModel model, SyntaxNode callLike)
-    {
-        var symbolInfo = model.GetSymbolInfo(callLike);
-        var methods = (symbolInfo.Symbol is IMethodSymbol s ? [s] : Array.Empty<IMethodSymbol>())
-            .Concat(symbolInfo.CandidateSymbols.OfType<IMethodSymbol>())
-            .ToList();
-
-        if (callLike is InvocationExpressionSyntax { Expression: { } target })
-        {
-            var group = model.GetMemberGroup(target).OfType<IMethodSymbol>().ToList();
-            if (group.Count > 0) methods = group;
-        }
-        else if (callLike is BaseObjectCreationExpressionSyntax objectCreation)
-        {
-            // GetTypeInfo of the creation expression itself: its Type child has no type for a class
-            // declared in the document being analysed.
-            if (model.GetTypeInfo(objectCreation).Type is INamedTypeSymbol namedType)
-            {
-                var constructors = namedType.Constructors.Where(c => !c.IsImplicitlyDeclared).ToList();
-                if (constructors.Count > 0) methods = constructors;
-            }
-        }
-        return methods;
-    }
 }

@@ -21,5 +21,7 @@ internal sealed class DocumentFormatterFixture : IDisposable
 
     public BreakpointConditionAnalyzer CreateAnalyzer() => new(Session.Sync, Layout);
 
+    public SignatureHelp CreateSignatureHelp() => new(Session.Sync, Layout, NullLogger.Instance);
+
     public void Dispose() => Session.Dispose();
 }

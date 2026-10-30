@@ -108,15 +108,15 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
             return _typeArgumentKeywords.Contains(keyword.DisplayText);
 
         if (_queryContinuationKeywords.Contains(keyword.DisplayText))
-            return IsInsideQueryExpression(root, position);
+            return SourcePositions.IsInsideQueryExpression(root, position);
 
         if (keyword.DisplayText == "value")
-            return HasAncestorMatching(root, position, n =>
+            return SourcePositions.HasAncestorMatching(root, position, n =>
                 n is AccessorDeclarationSyntax a && a.Kind() is SyntaxKind.SetAccessorDeclaration
                     or SyntaxKind.AddAccessorDeclaration or SyntaxKind.RemoveAccessorDeclaration);
 
         if (_accessorKeywords.Contains(keyword.DisplayText))
-            return IsInsideAccessorContext(root, position);
+            return SourcePositions.IsInsideAccessorContext(root, position);
 
         return true;
     }
@@ -128,7 +128,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // IsInsideQueryExpression/IsInsideAccessorContext above) since the caret while typing sits at a
     // token's end, not inside it.
     private static bool IsInsideTypeArgumentList(SyntaxNode root, int position) =>
-        HasAncestorMatching(root, position, n => n is TypeArgumentListSyntax);
+        SourcePositions.HasAncestorMatching(root, position, n => n is TypeArgumentListSyntax);
 
     // Debounce for NotifyTextChanged's background diagnostics/semantic-tokens pass — long enough
     // that fast typing doesn't re-run the full Roslyn analysis on every keystroke, short enough to
@@ -153,6 +153,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     // What the project is compiled against besides the script's text.
     private readonly ScriptContext _context;
     private readonly SymbolNavigation _navigation;
+    private readonly SignatureHelp _signatureHelp;
     private readonly BreakpointConditionAnalyzer _breakpointConditions;
     private readonly DocumentFormatter _formatter;
 
@@ -197,6 +198,7 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         _session = new ScriptDocumentSession(_layout, references.All.Select(p => (MetadataReference)ScriptContext.CreateReference(p)).ToList());
         _context = new ScriptContext(_session, _layout, references, logger);
         _navigation = new SymbolNavigation(SyncDocument, _layout, _context, logger);
+        _signatureHelp = new SignatureHelp(SyncDocument, _layout, logger);
         _breakpointConditions = new BreakpointConditionAnalyzer(SyncDocument, _layout);
         _formatter = new DocumentFormatter(_session, _layout, logger);
 
@@ -767,185 +769,9 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         _ => 0.4,  // namespaces
     };
 
-    // ── Signature Help ─────────────────────────────────────────────────────────
-
     public Task<ISignatureHelpResult?> GetSignatureHelpAsync(
         string code, int position, char? triggerCharacter = null, CancellationToken ct = default)
-        => RoslynMessageCulture.RunAsync(async () => (ISignatureHelpResult?)await TryGetSignatureHelpAsync(code, position, ct), ct);
-
-    private async Task<ISignatureHelpResult?> TryGetSignatureHelpAsync(string code, int position, CancellationToken ct)
-    {
-        try
-        {
-            var document = SyncDocument(code);
-            var model = await document.GetSemanticModelAsync(ct);
-            if (model == null) return null;
-
-            var root = await document.GetSyntaxRootAsync(ct);
-            if (root == null) return null;
-
-            var pos = _layout.ToDocumentOffset(code, position);
-            if (SourcePositions.IsInsideComment(root, pos) || SourcePositions.IsInsideStringOrCharLiteral(root, pos)) return null;
-
-            var node = root.FindNode(new TextSpan(Math.Max(0, pos - 1), 1), getInnermostNodeForTie: true);
-
-            // The innermost call whose parentheses the caret is between: in `Outer(new Inner(|` that
-            // is Inner, and once Inner's `)` is typed, Outer again. "new Foo(" (and the target-typed
-            // `new(`) behaves like a method call.
-            var (callLike, argumentList) = node.AncestorsAndSelf()
-                .Select(n => (Call: n, List: n switch
-                {
-                    InvocationExpressionSyntax inv => inv.ArgumentList,
-                    BaseObjectCreationExpressionSyntax oce => oce.ArgumentList,
-                    _ => null,
-                }))
-                .FirstOrDefault(c => c.List is not null && IsInsideArgumentList(c.List, pos));
-            if (callLike == null || argumentList == null) return null;
-
-            var argIndex = CountArgumentsBefore(argumentList, pos);
-            var argCount = argumentList.Arguments.Count;
-            var isArgumentSlotEmpty = IsArgumentSlotEmpty(argumentList, argIndex, pos);
-            var argumentName = argIndex < argCount ? argumentList.Arguments[argIndex].NameColon?.Name.Identifier.ValueText : null;
-
-            var methods = GetCandidateMethods(model, callLike);
-
-            if (methods.Count == 0) return null;
-
-            var items = methods
-                .Select(m => (ISignatureHelpItem)new SimpleSignatureHelpItem(m, ActiveParameter(m, argIndex, argumentName)))
-                .ToList();
-            var selectedIndex = SelectBestOverloadIndex(methods, argumentList, argCount, argumentName, model);
-
-            return new SimpleSignatureHelpResult(items, selectedIndex, argIndex, isArgumentSlotEmpty);
-        }
-        catch (OperationCanceledException) { throw; } // see the Completions catch above
-        catch (Exception ex) { _logger.LogWarning(ex, "Signature help failed"); return null; }
-    }
-
-    // Picking the highlighted overload by argument COUNT alone means e.g.
-    // Foo(1, "x") highlights Foo(int, int) over Foo(int, string) whenever the int-int overload sorts
-    // first — the arg count matches either way, but only one of them actually type-checks. This is a
-    // lightweight approximation of real overload resolution, not a reimplementation of it: it prefers
-    // the first candidate where every already-typed argument has an implicit (or identity) conversion
-    // to the corresponding parameter, and falls back to the pre-existing count-only match — unchanged
-    // — for anything that approximation can't confidently call (params/named/optional arguments,
-    // nothing typed yet, or no candidate type-checks perfectly).
-    // A named argument is checked against the parameter of its name, and an overload without that
-    // name doesn't fit.
-    private static int SelectBestOverloadIndex(
-        List<IMethodSymbol> methods, ArgumentListSyntax argumentList, int argCount, string? argumentName, SemanticModel model)
-    {
-        var typeAware = methods.FindIndex(m =>
-        {
-            if (m.Parameters.Length < argCount) return false;
-            if (argumentName is not null && m.Parameters.All(p => p.Name != argumentName)) return false;
-            for (var i = 0; i < argCount; i++)
-            {
-                var argument = argumentList.Arguments[i];
-                var parameter = argument.NameColon is { } nameColon
-                    ? m.Parameters.FirstOrDefault(p => p.Name == nameColon.Name.Identifier.ValueText)
-                    : m.Parameters[i];
-                if (parameter == null) return false;
-                var argType = model.GetTypeInfo(argument.Expression).ConvertedType;
-                if (argType == null) continue; // couldn't infer (e.g. still typing) — don't penalize
-                if (!model.Compilation.ClassifyConversion(argType, parameter.Type).IsImplicit)
-                    return false;
-            }
-            return true;
-        });
-        if (typeAware >= 0) return typeAware;
-
-        var arityOnly = methods.FindIndex(m => m.Parameters.Length >= argCount
-            && (argumentName is null || m.Parameters.Any(p => p.Name == argumentName)));
-        return arityOnly >= 0 ? arityOnly : methods.Count - 1;
-    }
-
-    // The parameter the argument at the caret goes to: the one it names, the one at its position,
-    // or a `params` tail past the last.
-    private static IParameterSymbol? ActiveParameter(IMethodSymbol method, int argumentIndex, string? argumentName)
-    {
-        if (argumentName is not null) return method.Parameters.FirstOrDefault(p => p.Name == argumentName);
-        if (method.Parameters.Length == 0) return null;
-        if (argumentIndex < method.Parameters.Length) return method.Parameters[argumentIndex];
-        var last = method.Parameters[^1];
-        return last.IsParams ? last : null;
-    }
-
-    // The caret sitting inside the NAME of a fresh declaration (a method/class/
-    // property/variable/parameter the user is currently naming, e.g. "void Mai|" or "private |") isn't
-    // an expression position — LookupSymbols/GetSymbolInfo don't distinguish "referencing an existing
-    // symbol" from "declaring a brand-new one", so without this guard the editor would happily offer
-    // (and auto-commit on the very next keystroke) some unrelated in-scope symbol that merely shares a
-    // prefix with the name being typed, clobbering it. Returning null here means IsCommitCharacter is
-    // safe by construction — there's simply no completion window to close over the declared name.
-    private static bool IsDeclarationNamePosition(SyntaxNode root, int position)
-    {
-        return IsDeclarationIdentifierToken(root.FindToken(position))
-            || (position > 0 && IsDeclarationIdentifierToken(root.FindToken(position - 1)));
-    }
-
-    // Every syntax kind below carries its own declared name as a plain Identifier token (not a
-    // qualified/dotted NameSyntax, unlike e.g. namespace declarations — deliberately not covered here,
-    // out of scope for the reported symptom) — checking `== token` (not just "is this kind of node")
-    // rules out completion inside some OTHER part of the same declaration (a method's return type, a
-    // parameter's type, an attribute, ...), where the caret is legitimately in expression/type position.
-    private static bool IsDeclarationIdentifierToken(SyntaxToken token) => token.Parent switch
-    {
-        MethodDeclarationSyntax n => n.Identifier == token,
-        LocalFunctionStatementSyntax n => n.Identifier == token,
-        ClassDeclarationSyntax n => n.Identifier == token,
-        StructDeclarationSyntax n => n.Identifier == token,
-        InterfaceDeclarationSyntax n => n.Identifier == token,
-        RecordDeclarationSyntax n => n.Identifier == token,
-        EnumDeclarationSyntax n => n.Identifier == token,
-        EnumMemberDeclarationSyntax n => n.Identifier == token,
-        PropertyDeclarationSyntax n => n.Identifier == token,
-        VariableDeclaratorSyntax n => n.Identifier == token,
-        ParameterSyntax n => n.Identifier == token,
-        TypeParameterSyntax n => n.Identifier == token,
-        _ => false,
-    };
-
-    // See _queryContinuationKeywords — true when the caret sits anywhere inside a LINQ query
-    // expression (from ... to the final select/group-by clause) or a query continuation
-    // (`into` ... onward), the only place from/join/into/let/orderby/select/group/on/equals/
-    // ascending/descending/by mean anything.
-    private static bool IsInsideQueryExpression(SyntaxNode root, int position) =>
-        HasAncestorMatching(root, position, n => n is QueryExpressionSyntax or QueryContinuationSyntax);
-
-    // See _accessorKeywords — true when the caret sits inside a property/indexer/event's accessor
-    // list (covers the empty "{ }" case, where the closing brace token itself belongs to the
-    // AccessorListSyntax) or inside an already-parsed accessor's own body.
-    private static bool IsInsideAccessorContext(SyntaxNode root, int position) =>
-        HasAncestorMatching(root, position, n => n is AccessorListSyntax or AccessorDeclarationSyntax);
-
-    // Same half-open-span boundary concern as IsInsideComment/IsInsideStringOrCharLiteral above: the
-    // caret while still typing sits at a token's end (exclusive), so also check position - 1.
-    private static bool HasAncestorMatching(SyntaxNode root, int position, Func<SyntaxNode, bool> predicate)
-    {
-        return Check(position) || (position > 0 && Check(position - 1));
-
-        bool Check(int pos) => root.FindToken(pos).Parent?.AncestorsAndSelf().Any(predicate) == true;
-    }
-
-    private static int CountArgumentsBefore(ArgumentListSyntax argList, int position)
-    {
-        var count = 0;
-        foreach (var comma in argList.Arguments.GetSeparators())
-        {
-            if (comma.SpanStart < position) count++;
-            else break;
-        }
-        return count;
-    }
-
-    // No argument has been parsed at argIndex at all (right after `(`, or right after a
-    // trailing `,` with nothing typed since — Roslyn's error recovery doesn't produce an Arguments
-    // entry for either), or one has but position sits at or before its own start (caret placed back
-    // at the very start of an already-typed argument, e.g. via Home/click) — either way, nothing has
-    // been typed for this slot yet.
-    private static bool IsArgumentSlotEmpty(ArgumentListSyntax argList, int argIndex, int position)
-        => argIndex >= argList.Arguments.Count || position <= argList.Arguments[argIndex].SpanStart;
+        => _signatureHelp.GetSignatureHelpAsync(code, position, triggerCharacter, ct);
 
     // ── Quick Info, highlights, rename, go to definition and implementation ─────────────
 
@@ -1503,49 +1329,6 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
     }
 
     // ── Private model types ────────────────────────────────────────────────────
-
-    private sealed class SimpleSignatureHelpResult(
-        IReadOnlyList<ISignatureHelpItem> items, int selectedIndex, int argumentIndex, bool isArgumentSlotEmpty)
-        : ISignatureHelpResult
-    {
-        public IReadOnlyList<ISignatureHelpItem> Items => items;
-        public int SelectedItemIndex => selectedIndex;
-        public int ArgumentIndex => argumentIndex;
-        public bool IsArgumentSlotEmpty => isArgumentSlotEmpty;
-    }
-
-    private sealed class SimpleSignatureHelpItem : ISignatureHelpItem
-    {
-        // activeParameter is bolded in the header, the way LINQPad/VS Code do.
-        public SimpleSignatureHelpItem(IMethodSymbol method, IParameterSymbol? activeParameter)
-        {
-            Signature = method.ToDisplayParts(SymbolFormats.Brief).ToSegments(activeParameter);
-            Summary = XmlDocSummary.GetSummary(method);
-            Parameters = method.Parameters
-                .Select(p => (ISignatureHelpParameter)new SimpleSignatureHelpParameter(method, p))
-                .ToList();
-            ActiveParameterIndex = activeParameter is null ? -1 : method.Parameters.IndexOf(activeParameter);
-        }
-
-        public IReadOnlyList<DisplayTextSegment> Signature { get; }
-        public string? Summary { get; }
-        public IReadOnlyList<ISignatureHelpParameter> Parameters { get; }
-        public int ActiveParameterIndex { get; }
-    }
-
-    private sealed class SimpleSignatureHelpParameter : ISignatureHelpParameter
-    {
-        public SimpleSignatureHelpParameter(IMethodSymbol method, IParameterSymbol parameter)
-        {
-            Name = parameter.Name;
-            Signature = parameter.ToDisplayParts(SymbolFormats.Brief).ToSegments();
-            Summary = XmlDocSummary.GetParameterSummary(method, parameter.Name);
-        }
-
-        public string Name { get; }
-        public IReadOnlyList<DisplayTextSegment> Signature { get; }
-        public string? Summary { get; }
-    }
 
     private sealed record SimpleDiagnostic(
         int StartOffset, int EndOffset, string Message,

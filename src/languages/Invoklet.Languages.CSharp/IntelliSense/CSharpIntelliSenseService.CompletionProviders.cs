@@ -127,7 +127,7 @@ public sealed partial class CSharpIntelliSenseService
         {
             var root = request.Root;
             var pos = request.Offset;
-            return SourcePositions.IsInsideComment(root, pos) || SourcePositions.IsInsideStringOrCharLiteral(root, pos) || IsDeclarationNamePosition(root, pos)
+            return SourcePositions.IsInsideComment(root, pos) || SourcePositions.IsInsideStringOrCharLiteral(root, pos) || SourcePositions.IsDeclarationNamePosition(root, pos)
                 ? new SimpleCompletionList([], CompletionContextKind.None)
                 : null;
         }
