@@ -26,6 +26,9 @@ public sealed class DiskRecoveryStore : IRecoveryStore
     private readonly List<RecoveryImportRecord> _inherited = [];
     public string? Warning { get; private set; }
 
+    /// <summary>This instance's own session folder, once <see cref="LoadAsync"/> has opened it.</summary>
+    internal string? SessionFolder => Volatile.Read(ref _folder);
+
     public DiskRecoveryStore(string root) => _root = root;
     internal DiskRecoveryStore(string root, Action<string> fault) : this(root) => _fault = fault;
 
@@ -42,6 +45,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
     {
         Directory.CreateDirectory(_root);
         RestrictDirectory(_root);
+        DiscardStaleSpills();
         // Lock every session nobody else owns before reading any of it: a live instance's session is
         // never read as abandoned. Sessions another one imported (with an import marker) are read
         // too: the marker alone doesn't prove the importing checkpoint is still there (see below).
@@ -287,10 +291,39 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         return true;
     }
 
-    private static void RestrictDirectory(string path)
+    internal static void RestrictDirectory(string path)
     {
         if (!OperatingSystem.IsWindows())
             File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+    }
+
+    // What an instance keeps of the tabs it released is its own and ends with it. The folder of a session
+    // that is not locked by anyone belongs to an instance that is gone (it may even be adopted by this one
+    // as its own), so whatever it left in its spill is old, whoever's it was.
+    private void DiscardStaleSpills()
+    {
+        foreach (var folder in Directory.GetDirectories(_root).Where(p => Guid.TryParseExact(Path.GetFileName(p), "N", out _)))
+        {
+            var spill = Path.Combine(folder, SessionSpillStore.FolderName);
+            if (!Directory.Exists(spill)) continue;
+            FileStream owner;
+            try { owner = Lock(folder); }
+            catch (IOException) { continue; } // A live instance owns this session.
+            catch (UnauthorizedAccessException) { continue; }
+            using (owner) TryDeleteDirectory(spill);
+        }
+    }
+
+    internal static void TryDeleteDirectory(string path)
+    {
+        try
+        {
+            Directory.Delete(path, recursive: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Only data that is cached elsewhere is left behind.
+        }
     }
 
     private static FileStream Lock(string folder) => new(Path.Combine(folder, "owner.lock"),

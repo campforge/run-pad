@@ -3,16 +3,20 @@
 Notable changes in each Invoklet release. Downloads are on the
 [releases page](https://github.com/tervforge/invoklet/releases).
 
-## [Unreleased]
+## [0.10.2] — 2026-10-30
 
 ### Changed
 
 - Refine the application icon with a raised hammer, three sparks and shaded surfaces across
   windows, desktop packages and documentation.
-- Keep only the three most recently used tabs loaded in memory. The other tabs show just their
-  header and are built again when selected, with their caret, scroll position and breakpoints. A
-  tab that is running, was running while you were elsewhere, or has unsaved changes stays loaded.
-  A closed Markdown preview is released instead of kept hidden.
+- Keep the text and output of only the three most recently used tabs in memory. The other tabs
+  keep their window, but their text, output and syntax colouring wait on disk and come back, with
+  unsaved changes, caret and scroll position, when you select the tab or save it. A tab that is
+  running, or whose run ended while you were on another tab, keeps its content. A closed Markdown
+  preview is released instead of kept hidden.
+- Keep the output of a script's last run in the script's build folder, next to its library, and
+  show it again when the script is opened. A script that is not saved yet has no such folder, so its
+  output is kept only while Invoklet runs.
 
 ### Fixed
 
@@ -882,4 +886,5 @@ better choice. RunPad began as DotPad two days after the last commit to the fork
 
 [0.10.0]: https://github.com/tervforge/invoklet/releases/tag/v0.10.0
 [0.10.1]: https://github.com/tervforge/invoklet/releases/tag/v0.10.1
+[0.10.2]: https://github.com/tervforge/invoklet/releases/tag/v0.10.2
 [0.9.5]: https://github.com/tervforge/invoklet/releases/tag/v0.9.5
