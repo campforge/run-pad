@@ -81,12 +81,14 @@ public class KeyboardFocusTests
         return window;
     }
 
+    // Runs what the dispatcher has queued (layout, focus), a few rounds because a job can queue the next one;
+    // no waiting on the clock.
     private static async Task SettleAsync()
     {
-        for (var i = 0; i < 100; i++)
+        for (var i = 0; i < 5; i++)
         {
             Dispatcher.UIThread.RunJobs();
-            await Task.Delay(10, TestContext.Current.CancellationToken);
+            await Task.Yield();
         }
     }
 
