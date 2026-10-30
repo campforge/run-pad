@@ -3,7 +3,7 @@
 Notable changes in each Invoklet release. Downloads are on the
 [releases page](https://github.com/tervforge/invoklet/releases).
 
-## [Unreleased]
+## [0.10.5] — 2026-10-30
 
 ### Fixed
 
@@ -928,5 +928,6 @@ better choice. RunPad began as DotPad two days after the last commit to the fork
 [0.10.1]: https://github.com/tervforge/invoklet/releases/tag/v0.10.1
 [0.10.2]: https://github.com/tervforge/invoklet/releases/tag/v0.10.2
 [0.10.3]: https://github.com/tervforge/invoklet/releases/tag/v0.10.3
+[0.10.5]: https://github.com/tervforge/invoklet/releases/tag/v0.10.5
 [0.10.4]: https://github.com/tervforge/invoklet/releases/tag/v0.10.4
 [0.9.5]: https://github.com/tervforge/invoklet/releases/tag/v0.9.5
