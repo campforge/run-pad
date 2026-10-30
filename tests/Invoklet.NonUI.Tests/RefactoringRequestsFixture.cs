@@ -15,17 +15,21 @@ internal sealed class RefactoringRequestsFixture
         return refactorings;
     }
 
-    /// <summary>Makes the language service wait until the returned source is completed, and records the tokens it got.</summary>
-    public TaskCompletionSource<IReadOnlyList<ICodeFixInfo>?> SetupPendingAnswer(List<CancellationToken> tokens)
+    /// <summary>
+    /// Makes the language service wait until the answer is completed. Received is completed with the token of
+    /// each call as the service gets it, so a test waits for that instead of guessing when the request got there.
+    /// </summary>
+    public (TaskCompletionSource<IReadOnlyList<ICodeFixInfo>?> Answer, Task<CancellationToken> Received) SetupPendingAnswer()
     {
         var answer = new TaskCompletionSource<IReadOnlyList<ICodeFixInfo>?>();
+        var received = new TaskCompletionSource<CancellationToken>(TaskCreationOptions.RunContinuationsAsynchronously);
         IntelliSense.Setup(i => i.GetRefactoringsAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .Returns((string _, int _, CancellationToken token) =>
             {
-                tokens.Add(token);
+                received.TrySetResult(token);
                 return answer.Task;
             });
-        return answer;
+        return (answer, received.Task);
     }
 
     public RefactoringRequests CreateSut(TimeSpan? debounce = null) => new(IntelliSense.Object, debounce ?? TimeSpan.Zero);

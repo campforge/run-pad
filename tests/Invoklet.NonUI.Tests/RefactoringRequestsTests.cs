@@ -21,7 +21,7 @@ public sealed class RefactoringRequestsTests
 
         // Assert
         Assert.Same(expected, result.Refactorings);
-        Assert.False(result.Request.IsCancellationRequested);
+        Assert.True(sut.IsCurrent(result));
     }
 
     [Fact]
@@ -65,10 +65,10 @@ public sealed class RefactoringRequestsTests
     {
         // Arrange
         var fixture = new RefactoringRequestsFixture();
-        var tokens = new List<CancellationToken>();
-        var answer = fixture.SetupPendingAnswer(tokens);
+        var (answer, received) = fixture.SetupPendingAnswer();
         var sut = fixture.CreateSut();
         var first = sut.RequestAsync(() => "code", 3);
+        var token = await received.WaitAsync(Limit, TestContext.Current.CancellationToken);
 
         // Act
         _ = sut.RequestAsync(() => "code", 4);
@@ -76,29 +76,47 @@ public sealed class RefactoringRequestsTests
         var finished = () => first.WaitAsync(Limit, TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.True(tokens[0].IsCancellationRequested);
+        Assert.True(token.IsCancellationRequested);
         await Assert.ThrowsAnyAsync<OperationCanceledException>(finished);
     }
 
     [Fact]
-    public void Cancel_RequestInFlight_CancelsItsToken()
+    public async Task Cancel_RequestInFlight_CancelsItsToken()
     {
         // Arrange
         var fixture = new RefactoringRequestsFixture();
-        var tokens = new List<CancellationToken>();
-        fixture.SetupPendingAnswer(tokens);
+        var (_, received) = fixture.SetupPendingAnswer();
         var sut = fixture.CreateSut();
         _ = sut.RequestAsync(() => "code", 3);
+        var token = await received.WaitAsync(Limit, TestContext.Current.CancellationToken);
 
         // Act
         sut.Cancel();
 
         // Assert
-        Assert.True(tokens[0].IsCancellationRequested);
+        Assert.True(token.IsCancellationRequested);
     }
 
     [Fact]
-    public async Task RequestAsync_AnswerAlreadyReturned_TheTokenOfTheResultTurnsCancelledOnceANewerRequestStarts()
+    public async Task Cancel_RequestAlreadyFinished_DoesNothingAndMakesItsResultStale()
+    {
+        // Arrange
+        var fixture = new RefactoringRequestsFixture();
+        fixture.SetupRefactorings("code", 3);
+        var sut = fixture.CreateSut();
+        var result = await sut.RequestAsync(() => "code", 3);
+        var currentBefore = sut.IsCurrent(result);
+
+        // Act
+        sut.Cancel(); // must not touch the source of the finished request, which it has released
+
+        // Assert
+        Assert.True(currentBefore);
+        Assert.False(sut.IsCurrent(result));
+    }
+
+    [Fact]
+    public async Task IsCurrent_ANewerRequestStarted_IsFalseForTheOlderResult()
     {
         // Arrange
         var fixture = new RefactoringRequestsFixture();
@@ -110,6 +128,6 @@ public sealed class RefactoringRequestsTests
         _ = sut.RequestAsync(() => "code", 4);
 
         // Assert
-        Assert.True(result.Request.IsCancellationRequested);
+        Assert.False(sut.IsCurrent(result));
     }
 }
