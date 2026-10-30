@@ -2,7 +2,7 @@ using Avalonia;
 using Avalonia.Media;
 using AvaloniaEdit.Editing;
 
-namespace Invoklet.Avalonia.CodeTextEditor;
+namespace Invoklet.Avalonia.CodeTextEditor.Margins;
 
 // The thin line between the gutter and the code: one logical pixel at the code side of the gutter,
 // in the theme's separator color, the full height of the editor (so it stays continuous while

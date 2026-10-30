@@ -1,4 +1,4 @@
-namespace Invoklet.Avalonia.CodeTextEditor;
+namespace Invoklet.Avalonia.CodeTextEditor.Breakpoints;
 
 /// <summary>The editor's own gutter breakpoint list — one per open tab, backing the breakpoint margin.</summary>
 public interface IBreakpointStore : IEnumerable<IBreakpoint>

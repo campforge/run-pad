@@ -1,6 +1,7 @@
-<local:InvokletDialogWindow xmlns="https://github.com/avaloniaui"
+<templatedControls:InvokletDialogWindow xmlns="https://github.com/avaloniaui"
                          xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                          xmlns:local="using:Invoklet.Windows"
+                         xmlns:templatedControls="clr-namespace:Invoklet.TemplatedControls"
                          x:Class="Invoklet.Windows.ExitUnsavedDialog"
                          Icon="/Assets/icon.ico" Title="Unsaved Changes"
                          Background="{DynamicResource Invoklet.Panel.BackgroundBrush}"
@@ -20,4 +21,4 @@
             </StackPanel>
         </local:DialogLayout.Actions>
     </local:DialogLayout>
-</local:InvokletDialogWindow>
+</templatedControls:InvokletDialogWindow>

@@ -3,6 +3,7 @@ using System.Text.Json;
 using Invoklet.Build.Core.Models;
 using Invoklet.Build.Core.ProcessRunners;
 using Invoklet.Contracts;
+using Invoklet.Contracts.Debugging;
 using Invoklet.Contracts.Models;
 using Invoklet.Debug;
 using Invoklet.Format.MdRun;
@@ -56,7 +57,10 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
     private const char CancelListeningPrefix = '\x1d';
 
     // How long a script that listens for Stop gets to finish on its own before it is ended.
-    internal static TimeSpan StopGracePeriod { get; set; } = TimeSpan.FromSeconds(3);
+    internal static readonly TimeSpan DefaultStopGracePeriod = TimeSpan.FromSeconds(3);
+
+    // Of this host only; a test shortens it.
+    internal TimeSpan StopGracePeriod { get; set; } = DefaultStopGracePeriod;
 
     private volatile bool _scriptListensForStop;
 

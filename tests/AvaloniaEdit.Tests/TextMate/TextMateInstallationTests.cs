@@ -1,4 +1,4 @@
-using AvaloniaEdit.AvaloniaMocks;
+using AvaloniaEdit.Tests.AvaloniaMocks;
 using NUnit.Framework;
 using TextMateSharp.Grammars;
 using TextMateSharp.Registry;

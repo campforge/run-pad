@@ -1,6 +1,6 @@
 using AvaloniaEdit.CodeCompletion;
 
-namespace Invoklet.Avalonia.CodeTextEditor;
+namespace Invoklet.Avalonia.CodeTextEditor.Completions;
 
 public sealed class CompletionRequestedEventArgs(
     char trigger, int caretOffset, bool isExplicitInvoke = false, CancellationToken cancellationToken = default)

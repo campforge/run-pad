@@ -5,8 +5,9 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
 using AvaloniaEdit.Editing;
+using Invoklet.Avalonia.CodeTextEditor.Breakpoints;
 
-namespace Invoklet.Avalonia.CodeTextEditor;
+namespace Invoklet.Avalonia.CodeTextEditor.Margins;
 
 // Combined line-number + breakpoint gutter: a single wide column with one click handler for both,
 // instead of AvaloniaEdit's built-in LineNumberMargin sitting as a separate narrow column next to

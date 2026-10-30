@@ -5,7 +5,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using AvaloniaEdit.Editing;
 
-namespace Invoklet.Avalonia.CodeTextEditor;
+namespace Invoklet.Avalonia.CodeTextEditor.CodeFix;
 
 // Live user request: group the lightbulb's dropdown menu by kind (using-directive
 // fixes separately from create/implement variants), and give fixes/refactorings/conversions their

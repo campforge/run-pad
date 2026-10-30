@@ -16,13 +16,18 @@ public partial class BreakpointConditionEditor : UserControl, IDisposable
     internal bool IsDisposed => _disposed;
     internal bool HasFinishedHandlers => Finished is not null;
 
+    // How long after the last keystroke the condition is validated.
+    internal static readonly TimeSpan DefaultValidationDelay = TimeSpan.FromMilliseconds(150);
+    private readonly TimeSpan _validationDelay;
+
     public BreakpointConditionEditor() : this(null, null, true, (_, _) => Task.FromResult<BreakpointConditionAnalysis?>(null)) { }
 
     public BreakpointConditionEditor(string? condition, string? hitCount, bool enabled,
-        Func<string, CancellationToken, Task<BreakpointConditionAnalysis?>> analyze)
+        Func<string, CancellationToken, Task<BreakpointConditionAnalysis?>> analyze, TimeSpan? validationDelay = null)
     {
         InitializeComponent();
         _analyze = analyze;
+        _validationDelay = validationDelay ?? DefaultValidationDelay;
         ConditionBox.Text = condition ?? "";
         _hitCondition = hitCount;
         EnabledBox.IsChecked = enabled;
@@ -49,7 +54,7 @@ public partial class BreakpointConditionEditor : UserControl, IDisposable
         DoneButton.IsEnabled = false;
         try
         {
-            await Task.Delay(150, pending.Token);
+            await Task.Delay(_validationDelay, pending.Token);
             var result = await _analyze(ConditionBox.Text ?? "", pending.Token);
             if (_disposed || pending.IsCancellationRequested) return;
             var error = result?.Error;

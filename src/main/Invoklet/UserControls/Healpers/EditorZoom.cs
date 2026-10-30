@@ -1,4 +1,4 @@
-namespace Invoklet.UserControls;
+namespace Invoklet.UserControls.Healpers;
 
 // The steps of the code zoom (EditorSettings.ZoomPercent, shared by every editor): the wheel, the
 // View menu and the status-bar menu all move through them. Pure functions so the step math is

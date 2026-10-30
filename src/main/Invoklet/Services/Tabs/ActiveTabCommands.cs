@@ -1,7 +1,6 @@
 using Invoklet.Contracts.Models;
 using Invoklet.Services.Preferences;
 using Invoklet.UserControls.Models;
-using ReactiveUI;
 
 namespace Invoklet.Services.Tabs;
 

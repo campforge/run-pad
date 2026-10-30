@@ -1,7 +1,7 @@
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Folding;
 
-namespace Invoklet.Avalonia.CodeTextEditor;
+namespace Invoklet.Avalonia.CodeTextEditor.Folding;
 
 // A language's code-folding algorithm — CodeTextEditor itself stays language-agnostic (see its own
 // XML docs on BracePairs/WordTriggers/etc.), so which strategy applies is configured externally

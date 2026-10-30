@@ -157,7 +157,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     private readonly IPackageSearchService _search;
     private readonly ILocalPackageCacheService _cache;
     private readonly INuGetSourceStore _sources;
-    private readonly TimeSpan _searchDebounce;
+    private readonly PackageSearchRunner _searchRunner;
     private readonly CompositeDisposable _disposables = new();
 
     private MdRunFrontMatter? _original;
@@ -753,7 +753,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         _search = search;
         _cache = cache;
         _sources = sources;
-        _searchDebounce = searchDebounce;
+        _searchRunner = new PackageSearchRunner(search, searchDebounce);
 
         References.CollectionChanged += (_, _) =>
         {
@@ -1193,44 +1193,18 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     private async Task SearchAsync(string query, PackageSearchOptions options, int generation, bool immediate,
         CancellationToken ct)
     {
-        if (!immediate && _searchDebounce > TimeSpan.Zero)
+        var outcome = await _searchRunner.RunAsync(query, options, immediate, () => IsCurrentSearch(generation), () =>
         {
-            try
-            {
-                await Task.Delay(_searchDebounce, ct);
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-        }
+            SearchError = null;
+            IsSearching = true;
+            UpdateOnlineState();
+        }, ct);
+        if (outcome is null) return;
 
-        if (!IsCurrentSearch(generation)) return;
-
-        SearchError = null;
-        IsSearching = true;
-        UpdateOnlineState();
-
-        PackageSearchPage page;
-        string? error = null;
-        try
-        {
-            // Off the UI thread: the NuGet client does real synchronous work before its first await
-            // (config + credentials, service index, JSON) that otherwise stalls typing in the box.
-            page = await Task.Run(() => _search.SearchAsync(query, options, ct), CancellationToken.None);
-        }
-        catch (Exception ex)
-        {
-            page = new PackageSearchPage([], HasMore: false);
-            error = $"Search failed: {ex.Message}";
-        }
-
-        if (!IsCurrentSearch(generation)) return;
-
-        _onlineResults = page.Results;
+        _onlineResults = outcome.Page.Results;
         _onlineQuery = query;
-        _hasNextPage = page.HasMore;
-        SearchError = error;
+        _hasNextPage = outcome.Page.HasMore;
+        SearchError = outcome.Error;
         IsSearching = false;
         RebuildOnline();
     }

@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Invoklet.Windows.Healpers;
 
 namespace Invoklet.Windows;
 
@@ -7,8 +8,18 @@ internal sealed partial class SplashWindow : Window
 {
     private readonly CancellationTokenSource _revealCancellation = new();
 
-    public SplashWindow()
+    // The splash appears only when startup takes longer than this, so a fast start flashes nothing.
+    internal static readonly TimeSpan DefaultRevealDelay = TimeSpan.FromMilliseconds(250);
+
+    private readonly TimeSpan _revealDelay;
+
+    public SplashWindow() : this(DefaultRevealDelay)
     {
+    }
+
+    internal SplashWindow(TimeSpan revealDelay)
+    {
+        _revealDelay = revealDelay;
         InitializeComponent();
         BorderlessWindowChrome.Attach(this, DialogSurface);
         Opacity = 0;
@@ -41,7 +52,7 @@ internal sealed partial class SplashWindow : Window
     {
         try
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(250), _revealCancellation.Token);
+            await Task.Delay(_revealDelay, _revealCancellation.Token);
             if (IsVisible) Opacity = 1;
         }
         catch (OperationCanceledException) when (_revealCancellation.IsCancellationRequested)

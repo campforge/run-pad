@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using Avalonia.Threading;
 using Invoklet.Services.Preferences;
-using Invoklet.UserControls;
+using Invoklet.UserControls.Healpers;
 
 namespace Invoklet.Services.Scaling;
 
@@ -18,23 +18,27 @@ public sealed class ViewScale : ICodeZoom
     private static readonly ConditionalWeakTable<IPreferencesService, ViewScale> Instances = new();
 
     // Wheel ticks and repeated Zoom In come in bursts; the file is written once a burst is over.
-    internal static TimeSpan SaveDelay { get; set; } = TimeSpan.FromMilliseconds(600);
+    internal static readonly TimeSpan DefaultSaveDelay = TimeSpan.FromMilliseconds(600);
 
     private readonly IPreferencesService _prefs;
+    private readonly TimeSpan _saveDelay;
     private DispatcherTimer? _saveTimer;
     private double _interfacePercent;
     private double _codeZoomPercent;
 
-    private ViewScale(IPreferencesService prefs)
+    private ViewScale(IPreferencesService prefs, TimeSpan saveDelay)
     {
         _prefs = prefs;
+        _saveDelay = saveDelay;
         _interfacePercent = ReadInterfacePercent();
         _codeZoomPercent = ReadCodeZoomPercent();
         // Preferences edited elsewhere (the Preferences window) reach every window through here.
         prefs.Changed += Sync;
     }
 
-    public static ViewScale For(IPreferencesService prefs) => Instances.GetValue(prefs, p => new ViewScale(p));
+    /// <param name="saveDelay">How long after the last change the settings are written; only the first call for a set of preferences decides it.</param>
+    public static ViewScale For(IPreferencesService prefs, TimeSpan? saveDelay = null)
+        => Instances.GetValue(prefs, p => new ViewScale(p, saveDelay ?? DefaultSaveDelay));
 
     /// <summary>Raised on the UI thread after either multiplier changed.</summary>
     public event Action? Changed;
@@ -91,7 +95,7 @@ public sealed class ViewScale : ICodeZoom
 
     private DispatcherTimer CreateSaveTimer()
     {
-        var timer = new DispatcherTimer { Interval = SaveDelay };
+        var timer = new DispatcherTimer { Interval = _saveDelay };
         timer.Tick += (_, _) =>
         {
             timer.Stop();

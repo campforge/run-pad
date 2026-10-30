@@ -5,6 +5,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Format.MdRun;
 using Invoklet.UserControls.Models;
 using MarkView.Avalonia;
+using MarkView.Avalonia.SyntaxHighlighting;
 using ReactiveUI;
 using TextMateSharp.Grammars;
 
@@ -15,9 +16,6 @@ namespace Invoklet.UserControls;
 // place (EditorTabItemViewModel.PreviewMode), following the editor's text as it changes.
 public partial class EditorsTabItemControl
 {
-    // Long enough that typing doesn't re-render the document on every key, short enough to feel live.
-    internal static readonly TimeSpan PreviewUpdateDelay = TimeSpan.FromMilliseconds(300);
-
     private MarkdownViewer? _preview;
     private ThemeName _previewTheme;
     private CancellationTokenSource? _previewUpdateCts;
@@ -104,7 +102,7 @@ public partial class EditorsTabItemControl
     {
         try
         {
-            await Task.Delay(PreviewUpdateDelay, ct);
+            await Task.Delay(_timings.PreviewUpdateDelay, ct);
         }
         catch (OperationCanceledException)
         {

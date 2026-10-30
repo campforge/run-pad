@@ -2,7 +2,7 @@ using Avalonia.Media;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
 
-namespace Invoklet.Avalonia.CodeTextEditor;
+namespace Invoklet.Avalonia.CodeTextEditor.Highlighters;
 
 // Draws a highlight rectangle over every occurrence of the
 // symbol under the caret, elsewhere in the document. Same IBackgroundRenderer approach as

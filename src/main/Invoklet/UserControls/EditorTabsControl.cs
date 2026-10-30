@@ -6,12 +6,10 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Contracts.Models;
 using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
-using Invoklet.Services.Scaling;
 using Invoklet.Services.Tabs;
 using Invoklet.UserControls.Models;
 using Invoklet.Windows.Models;
@@ -33,6 +31,7 @@ public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost,
     private readonly ILogger<EditorsTabItemControl>? _runLogger;
     private readonly ConnectionDriverRegistry? _connectionDrivers;
     private readonly ConnectionSchemas? _connectionSchemas;
+    private readonly EditorTimings? _timings;
 
     private MainWindowViewModel? _vm;
 
@@ -60,10 +59,11 @@ public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost,
         IPreferencesService prefs,
         IBuildCacheService buildCache, ILogger<EditorsTabItemControl>? runLogger = null,
         ConnectionDriverRegistry? connectionDrivers = null, ConnectionSchemas? connectionSchemas = null,
-        TabLifecycleManager? lifecycle = null)
+        TabLifecycleManager? lifecycle = null, EditorTimings? timings = null)
     {
         InitializeComponent();
         _lifecycle = lifecycle;
+        _timings = timings;
         _diskSync = new TabDiskSync(windowService);
         _connectionDrivers = connectionDrivers;
         _connectionSchemas = connectionSchemas;
@@ -450,7 +450,7 @@ public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost,
             _registry!,
             _prefs!,
             intelliSense,
-            _buildCache!, _runLogger, _connectionDrivers, _connectionSchemas
+            _buildCache!, _runLogger, _connectionDrivers, _connectionSchemas, _timings
         );
     }
 

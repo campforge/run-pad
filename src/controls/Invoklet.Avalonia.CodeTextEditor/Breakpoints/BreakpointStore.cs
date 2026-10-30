@@ -1,6 +1,6 @@
 using System.Collections;
 
-namespace Invoklet.Avalonia.CodeTextEditor;
+namespace Invoklet.Avalonia.CodeTextEditor.Breakpoints;
 
 public class BreakpointStore : IBreakpointStore
 {

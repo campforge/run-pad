@@ -1,4 +1,6 @@
-namespace Invoklet.Contracts.Models;
+using Invoklet.Contracts.Models;
+
+namespace Invoklet.Contracts.Debugging;
 
 public interface IBreakpointHitContext
 {

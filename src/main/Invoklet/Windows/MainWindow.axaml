@@ -64,7 +64,7 @@
                 <!-- Left: app icon + menu -->
                 <StackPanel x:Name="TitleBarActions" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="0" chrome:WindowDecorationProperties.ElementRole="User">
 
-                    <Image x:Name="AppIconImage" Source="/Assets/icon.ico" Width="16" Height="16" Margin="10,0,4,0" IsHitTestVisible="False" VerticalAlignment="Center"/>
+                    <Image x:Name="AppIconImage" Source="/Assets/icon.ico" Width="20" Height="20" Margin="10,0,6,0" IsHitTestVisible="False" VerticalAlignment="Center"/>
 
                     <!-- Items come from MainWindow.CreateMainMenu (shared with the macOS NativeMenu). -->
                     <Menu x:Name="MainMenu" Background="Transparent" VerticalAlignment="Center">

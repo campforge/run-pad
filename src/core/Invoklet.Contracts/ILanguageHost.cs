@@ -1,3 +1,5 @@
+using Invoklet.Contracts.Debugging;
+using Invoklet.Contracts.Debugging.Delegates;
 using Invoklet.Contracts.Models;
 
 namespace Invoklet.Contracts;

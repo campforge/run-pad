@@ -25,7 +25,6 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml.Templates;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using AvaloniaEdit.Utils;
 
 namespace AvaloniaEdit.CodeCompletion;
 

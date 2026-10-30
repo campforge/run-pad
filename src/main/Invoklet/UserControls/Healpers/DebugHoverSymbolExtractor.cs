@@ -1,4 +1,4 @@
-namespace Invoklet.UserControls;
+namespace Invoklet.UserControls.Healpers;
 
 internal static class DebugHoverSymbolExtractor
 {

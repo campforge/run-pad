@@ -1,10 +1,10 @@
 using Avalonia.Controls;
 using Avalonia.Headless.NUnit;
-using AvaloniaEdit.AvaloniaMocks;
+using AvaloniaEdit.Tests.AvaloniaMocks;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-namespace AvaloniaEdit.Search;
+namespace AvaloniaEdit.Tests.Search;
 
 [TestFixture]
 public class SearchPanelTests

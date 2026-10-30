@@ -3,6 +3,20 @@
 Notable changes in each Invoklet release. Downloads are on the
 [releases page](https://github.com/tervforge/invoklet/releases).
 
+## [0.10.5] — 2026-10-30
+
+### Fixed
+
+- The icon of the window and the taskbar on Windows is larger where it was hardest to read: the small sizes of the icon
+  show the hammer and the grid closer, and the icon in the title bar of the window is 20 pixels instead of 16.
+- The labels of the buttons of dialogs and forms sit in the middle of the button, both ways, instead of at its top left
+  corner, which made a button look taller than the text in it, the blue one above all.
+- The edge of a secondary button, and of the text boxes, drop-downs and number fields beside it, is now clearly visible in
+  every theme, so a secondary button looks as tall as the filled blue button next to it instead of smaller, as in Invoklet
+  Midnight.
+- The accent colour of the primary buttons is calmer in Invoklet Midnight, Rider Dark and VS Code Dark: less saturated, with
+  the white label still at least 4.5 times as light as the button.
+
 ## [0.10.4] — 2026-10-30
 
 ### Fixed
@@ -914,5 +928,6 @@ better choice. RunPad began as DotPad two days after the last commit to the fork
 [0.10.1]: https://github.com/tervforge/invoklet/releases/tag/v0.10.1
 [0.10.2]: https://github.com/tervforge/invoklet/releases/tag/v0.10.2
 [0.10.3]: https://github.com/tervforge/invoklet/releases/tag/v0.10.3
+[0.10.5]: https://github.com/tervforge/invoklet/releases/tag/v0.10.5
 [0.10.4]: https://github.com/tervforge/invoklet/releases/tag/v0.10.4
 [0.9.5]: https://github.com/tervforge/invoklet/releases/tag/v0.9.5

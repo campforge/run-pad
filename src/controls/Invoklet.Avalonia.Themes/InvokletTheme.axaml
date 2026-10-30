@@ -112,17 +112,25 @@
     <Style Selector=":is(Button).primary, :is(Button).secondary, Button[IsDefault=True], Button[IsCancel=True], :is(TextBox), :is(ComboBox), NumericUpDown">
         <Setter Property="MinHeight" Value="{DynamicResource Invoklet.Size.Control}"/>
     </Style>
+    <!-- The label of a form button sits in the middle of it, both ways, whatever height the button is given: the
+         button's own alignment is Stretch, which leaves a text at the top left of a taller button. -->
+    <Style Selector=":is(Button).primary, :is(Button).secondary, Button[IsDefault=True], Button[IsCancel=True]">
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
     <Style Selector=":is(Button).secondary">
         <Setter Property="Background" Value="{DynamicResource Invoklet.Editor.BackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+        <!-- Its edge is what shows how big a secondary button is next to a filled primary one: the panel's own
+             border colour is nearly the colour of the panel, which made the secondary button look smaller. -->
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Button.Secondary.BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="{DynamicResource Invoklet.Radius.Control}"/>
     </Style>
     <Style Selector="Button.secondary /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource Invoklet.Editor.BackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Button.Secondary.BorderBrush}"/>
     </Style>
     <Style Selector="Button.secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
@@ -145,7 +153,7 @@
     </Style>
     <Style Selector=":is(DropDownButton).secondary /template/ Border#RootBorder">
         <Setter Property="Background" Value="{DynamicResource Invoklet.Editor.BackgroundBrush}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Button.Secondary.BorderBrush}"/>
     </Style>
     <Style Selector=":is(DropDownButton).secondary:pointerover /template/ Border#RootBorder">
         <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
@@ -159,7 +167,7 @@
     <Style Selector=":is(TextBox), ComboBox">
         <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.BackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Button.Secondary.BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="{DynamicResource Invoklet.Radius.Control}"/>
     </Style>
@@ -168,18 +176,18 @@
     <Style Selector="NumericUpDown">
         <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.BackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Button.Secondary.BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="{DynamicResource Invoklet.Radius.Control}"/>
     </Style>
     <Style Selector="NumericUpDown /template/ ButtonSpinner">
         <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.BackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Button.Secondary.BorderBrush}"/>
     </Style>
     <Style Selector="NumericUpDown /template/ ButtonSpinner /template/ Border">
         <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.BackgroundBrush}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Button.Secondary.BorderBrush}"/>
     </Style>
     <Style Selector="NumericUpDown:pointerover /template/ ButtonSpinner /template/ Border">
         <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
@@ -187,29 +195,29 @@
     <Style Selector="NumericUpDown /template/ ButtonSpinner /template/ RepeatButton /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.BackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Button.Secondary.BorderBrush}"/>
     </Style>
     <Style Selector="NumericUpDown:pointerover /template/ ButtonSpinner /template/ RepeatButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
     </Style>
     <Style Selector=":is(TextBox):not(:error) /template/ Border#PART_BorderElement">
         <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.BackgroundBrush}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Button.Secondary.BorderBrush}"/>
     </Style>
     <!-- Fluent's ComboBox paints hover on its internal Background border, so styling only the
          control itself leaves the field turning black on pointer-over. Keep all states on our
          theme surfaces. -->
     <Style Selector="ComboBox /template/ Border#Background">
         <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.BackgroundBrush}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Button.Secondary.BorderBrush}"/>
     </Style>
     <Style Selector="ComboBox:pointerover /template/ Border#Background">
         <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.Button.HoverBrush}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Button.Secondary.BorderBrush}"/>
     </Style>
     <Style Selector="ComboBox:pressed /template/ Border#Background">
         <Setter Property="Background" Value="{DynamicResource Invoklet.Toolbar.BackgroundBrush}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Border.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Invoklet.Button.Secondary.BorderBrush}"/>
     </Style>
 
     <!-- ── Default dialog button ──────────────────────────────────────────── -->

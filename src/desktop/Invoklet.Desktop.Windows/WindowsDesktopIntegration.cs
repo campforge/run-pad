@@ -2,7 +2,6 @@ using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Styling;
-using Invoklet.Desktop;
 
 namespace Invoklet.Desktop.Windows;
 

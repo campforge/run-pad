@@ -1,5 +1,5 @@
 using AvaloniaEdit.CodeCompletion;
-using Invoklet.Avalonia.CodeTextEditor;
+using Invoklet.Avalonia.CodeTextEditor.Completions;
 using Invoklet.Contracts.IntelliSense;
 
 namespace Invoklet.Services;

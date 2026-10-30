@@ -3,7 +3,7 @@ using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Editing;
 
-namespace Invoklet.Avalonia.CodeTextEditor;
+namespace Invoklet.Avalonia.CodeTextEditor.Completions;
 
 // descriptionFactory is called lazily, only when Description is actually read (AvaloniaEdit reads it
 // once an item is highlighted in the list) — not for every item up front. Building the rich

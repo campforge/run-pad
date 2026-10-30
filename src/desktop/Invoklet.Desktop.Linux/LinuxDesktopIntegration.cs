@@ -1,6 +1,5 @@
 using Avalonia;
 using Avalonia.Media;
-using Invoklet.Desktop;
 
 namespace Invoklet.Desktop.Linux;
 

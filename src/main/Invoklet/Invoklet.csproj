@@ -6,7 +6,7 @@
     <ApplicationIcon>Assets/icon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <Product>Invoklet</Product>
-    <Version>0.10.4</Version>
+    <Version>0.10.5</Version>
     <Authors>svncore</Authors>
     <Company>svncore</Company>
     <Copyright>© 2026 Vadim S (svncore)</Copyright>

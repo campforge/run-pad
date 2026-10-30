@@ -5,7 +5,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.VisualTree;
 
-namespace Invoklet.Windows;
+namespace Invoklet.Windows.Healpers;
 
 internal static class BorderlessWindowChrome
 {

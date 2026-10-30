@@ -15,9 +15,14 @@ using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
 using Invoklet.Avalonia.CodeTextEditor;
+using Invoklet.Avalonia.CodeTextEditor.Breakpoints;
+using Invoklet.Avalonia.CodeTextEditor.Completions;
+using Invoklet.Avalonia.CodeTextEditor.Folding;
+using Invoklet.Avalonia.CodeTextEditor.Highlighting;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Connections;
+using Invoklet.Contracts.Debugging;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
 using Invoklet.Format.MdRun;
@@ -28,12 +33,13 @@ using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
 using Invoklet.Services.Recovery;
 using Invoklet.Services.Scaling;
+using Invoklet.UserControls.Healpers;
 using Invoklet.UserControls.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using ReactiveUI;
 using TextMateSharp.Grammars;
-using ContractSeverity = Invoklet.Contracts.IntelliSense.DiagnosticSeverity;
+using IBreakpoint = Invoklet.Contracts.Debugging.IBreakpoint;
 
 namespace Invoklet.UserControls;
 
@@ -117,17 +123,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // The code zoom shared by every editor of the app (and kept in the preferences).
     private readonly ViewScale _viewScale;
 
-    // Debounce before firing a Quick Info request after the pointer stops moving — long enough
-    // that just passing over a symbol doesn't spam requests, short enough to still feel responsive
-    //.
-    private static readonly TimeSpan QuickInfoHoverDelay = TimeSpan.FromMilliseconds(400);
-
-    // Same rationale as QuickInfoHoverDelay, for refactorings — caret moves far more
-    // often than the pointer stops over a symbol (every arrow key press, every click), so this needs
-    // the same debounce discipline diagnostics/inlay hints already get from NotifyTextChanged's own
-    // 500ms — refactorings just can't share that pass (see GetRefactoringsAsync's own doc comment on
-    // IIntelliSenseService: availability depends on caret position, not on what changed in the text).
-    private static readonly TimeSpan RefactoringDebounceDelay = TimeSpan.FromMilliseconds(400);
+    // The pauses before work that waits for the user to stop; a test gives zeros.
+    private readonly EditorTimings _timings;
 
     // Background callbacks (these debounces, IntelliSense events, run-host output) marshal back via
     // this control's own Dispatcher (AvaloniaObject.Dispatcher, captured at construction), never the
@@ -144,8 +141,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         IPreferencesService prefs,
         IIntelliSenseService? intelliSense,
         IBuildCacheService buildCache, ILogger<EditorsTabItemControl>? runLogger = null,
-        ConnectionDriverRegistry? connectionDrivers = null, ConnectionSchemas? connectionSchemas = null)
+        ConnectionDriverRegistry? connectionDrivers = null, ConnectionSchemas? connectionSchemas = null,
+        EditorTimings? timings = null)
     {
+        _timings = timings ?? EditorTimings.Default;
         _connectionDrivers = connectionDrivers ?? new ConnectionDriverRegistry();
         _connectionSchemas = connectionSchemas;
         if (connectionSchemas is not null) connectionSchemas.Cache.Changed += OnConnectionSchemaChanged;
@@ -175,7 +174,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         OutputSettingsButton.Flyout!.Opened += OnOutputSettingsFlyoutOpened;
 
         _viewScale = ViewScale.For(prefs);
-        ApplyEditorSettings(editor, prefs.Editor, _viewScale.CodeZoom);
+        EditorSettingsApplier.ApplyEditorSettings(editor, prefs.Editor, _viewScale.CodeZoom);
         prefs.Keyboard.ApplyTo(editor);
         prefs.Changed += OnPreferencesChanged;
 
@@ -238,7 +237,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             // tab restored at startup may only be opened after the theme changed.
             editor.TrySetLanguage(_themeService!.CurrentTheme.Editor.TextMateName,
                 _registry.GetEditorProfile(ResolveLanguageId())?.SourceFileExtension ?? "");
-            ApplySelectionColor(editor);
+            EditorSettingsApplier.ApplySelectionColor(editor);
         };
         editor.AttachedToVisualTree += _editorAttachedHandler;
 
@@ -328,7 +327,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             State.Editor.Background = editorBg;
         }
 
-        ApplySelectionColor(State.Editor);
+        EditorSettingsApplier.ApplySelectionColor(State.Editor);
         State.Output.Css = HtmlThemeStylesheet.Generate(theme.Interface.Variant, theme.Interface.IsDark, _resultsWordWrap);
         UpdateOutputUi();
         ApplyPreviewThemeNow(theme);
@@ -927,12 +926,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private Windows.BreakpointConditionDialog? _breakpointDialog;
     internal Windows.BreakpointConditionDialog? BreakpointDialog => _breakpointDialog;
 
-    private async void OnBreakpointRightClicked(int line, Invoklet.Avalonia.CodeTextEditor.IBreakpoint? bp)
+    private async void OnBreakpointRightClicked(int line, Avalonia.CodeTextEditor.Breakpoints.IBreakpoint? bp)
     {
         await RunUiActionAsync(() => EditBreakpointOptionsAsync(line, bp), "Editing breakpoint options");
     }
 
-    private async Task EditBreakpointOptionsAsync(int line, Invoklet.Avalonia.CodeTextEditor.IBreakpoint? bp)
+    private async Task EditBreakpointOptionsAsync(int line, Avalonia.CodeTextEditor.Breakpoints.IBreakpoint? bp)
     {
         if (_disposed) return;
         _breakpointDialog?.Close();
@@ -1136,35 +1135,24 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // NOT another tab — the script keeps running/editable behind it, mirroring how dnSpy/ILSpy show a
     // decompiled member without disturbing whatever else is open).
     // ── Coalesced partial redraws for background analysis results ──
-    // Semantic colors and inlay hints used to each force a full TextView.Redraw() (every visible line
-    // rebuilt and re-colorized, twice per analysis). Now each update reports only the span whose
-    // decorations changed; spans arriving before the posted redraw runs are merged, and the redraw
-    // covers just their union — nothing at all when the analysis changed nothing.
-    private (int Start, int End)? _pendingRedraw;
-    private bool _redrawPosted;
+    private RedrawCoalescer? _redraws;
+    private CodeTextEditor? _redrawsEditor;
 
-    internal int RedrawsRun { get; private set; } // test observability
+    internal int RedrawsRun => _redraws?.RedrawsRun ?? 0; // test observability
     internal SemanticHighlighter? SemanticHighlighterForTests => _semanticHighlighter;
 
     private void RequestRedraw(CodeTextEditor editor, (int Start, int End)? changed)
     {
-        if (changed is not { } range) return;
-        _pendingRedraw = _pendingRedraw is { } pending
-            ? (Math.Min(pending.Start, range.Start), Math.Max(pending.End, range.End))
-            : range;
-        if (_redrawPosted) return;
-
-        _redrawPosted = true;
-        Dispatcher.Post(() =>
+        // One coalescer per editor: spans of another editor's text mean nothing here.
+        if (!ReferenceEquals(_redrawsEditor, editor))
         {
-            _redrawPosted = false;
-            if (_disposed || _pendingRedraw is not { } union || editor.Document is not { } document) return;
-            _pendingRedraw = null;
-            var start = Math.Clamp(union.Start, 0, document.TextLength);
-            var end = Math.Clamp(union.End, start, document.TextLength);
-            editor.TextArea.TextView.Redraw(start, Math.Max(end - start, 1)); // a hint is zero-length
-            RedrawsRun++;
-        }, DispatcherPriority.Background);
+            _redrawsEditor = editor;
+            _redraws = new RedrawCoalescer(
+                work => Dispatcher.Post(work, DispatcherPriority.Background),
+                () => _disposed ? null : editor.Document?.TextLength,
+                (start, length) => editor.TextArea.TextView.Redraw(start, length));
+        }
+        _redraws!.Request(changed);
     }
 
     // The rows of the completion window; they are controls, so they stay with the tab.
@@ -1466,7 +1454,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // Maps the DAP-facing breakpoint (the ScriptBreakpoint passed to host.AddBreakpoint) back to the
     // editor-side gutter breakpoint by line, so BreakPointMargin can color it red/green/yellow.
-    private void OnBreakpointVerified(Contracts.IBreakpoint bp, bool verified, string? message)
+    private void OnBreakpointVerified(IBreakpoint bp, bool verified, string? message)
     {
         var editorBp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == bp.Line);
         if (editorBp is null) return;
@@ -1728,7 +1716,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             // Posted before the tab closed: its editor services are gone by now.
             if (_disposed) return;
-            ApplyEditorSettings(State.Editor, _prefs.Editor, _viewScale.CodeZoom);
+            EditorSettingsApplier.ApplyEditorSettings(State.Editor, _prefs.Editor, _viewScale.CodeZoom);
             ApplyResultsWordWrap(_prefs.Editor.ResultsWordWrap);
 
             _intelliSense?.UpdateIndentation(_prefs.Editor.UseTabs, _prefs.Editor.IndentationSize);
@@ -1756,13 +1744,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // ── Editor zoom ───────────────────────────────────────────────────────────
 
-    // The editor's own font size: the configured size times the code zoom. The interface scale is
-    // not part of it — the window's layout transform already applies that to everything inside.
-    internal static double CodeFontSize(EditorSettings s, double codeZoom) => Math.Max(1, s.FontSize * codeZoom);
-
     private void OnViewScaleChanged()
     {
-        State.Editor.FontSize = CodeFontSize(_prefs.Editor, _viewScale.CodeZoom);
+        State.Editor.FontSize = EditorSettingsApplier.CodeFontSize(_prefs.Editor, _viewScale.CodeZoom);
         UpdateZoomButton();
     }
 
@@ -1817,41 +1801,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // pure refactorings too.
     private void UpdateLightbulb()
         => State.Editor.UpdateCodeFixes([.. _lightbulb.Visible(_prefs.CSharp.CodeFixesEnabled, _prefs.CSharp.ExcludedDiagnosticIds)]);
-
-    private static void ApplySelectionColor(CodeTextEditor editor)
-    {
-        // TextMate may set SelectionBrush to a dark color even for light themes.
-        // Read the brush from the current theme so it's fully configurable per theme.
-        var variant = Application.Current?.ActualThemeVariant;
-        if (Application.Current?.TryGetResource("Invoklet.Editor.SelectionBrush", variant, out var res) == true
-            && res is IBrush brush)
-            editor.TextArea.SelectionBrush = brush;
-        editor.TextArea.SelectionForeground = null;
-    }
-
-    // Test-only observability (InternalsVisibleTo), same "internal test hook" pattern used elsewhere
-    // in the solution — lets a test confirm settings (notably FontFamily) actually reach
-    // the real CodeTextEditor without needing to construct a whole EditorTabItemControl.
-    internal static void ApplyEditorSettings(CodeTextEditor editor, EditorSettings s, double codeZoom = 1)
-    {
-        editor.ShowLineNumberText = s.ShowLineNumbers;
-        editor.ShowFolding = s.ShowFolding;
-        editor.FontSize = CodeFontSize(s, codeZoom);
-        editor.FontFamily = MonospaceFont.Resolve(s.FontFamily);
-        editor.WordWrap = s.WordWrap;
-        editor.Options.ConvertTabsToSpaces = !s.UseTabs;
-        editor.Options.IndentationSize = s.IndentationSize;
-        if (editor.TextArea.IndentationStrategy is AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy strategy)
-            strategy.IndentationString = editor.Options.IndentationString;
-        editor.Options.ShowTabs = s.ShowTabs;
-        editor.Options.ShowSpaces = s.ShowSpaces;
-        editor.Options.ShowEndOfLine = s.ShowEndOfLine;
-        editor.Options.ColumnRulerPositions = s.ShowColumnRuler
-            ? [s.ColumnRulerPosition]
-            : [];
-        editor.CommitCharactersEnabled = s.CommitCharactersEnabled;
-    }
-
 
     // ── Setup helpers ─────────────────────────────────────────────────────────
 
@@ -1984,7 +1933,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _intelliSenseEventSubscriptions.Attach();
 
         // ── Refactorings (lightbulb: real Roslyn CodeRefactoringProviders) ──────
-        var refactoringRequests = _refactoringRequests = new RefactoringRequests(intelliSense, RefactoringDebounceDelay);
+        var refactoringRequests = _refactoringRequests = new RefactoringRequests(intelliSense, _timings.RefactoringDebounce);
 
         _refactoringCaretHandler = (_, _) =>
         {
@@ -2077,7 +2026,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 var requestCt = linked.Token;
                 try
                 {
-                    await Task.Delay(QuickInfoHoverDelay, requestCt);
+                    await Task.Delay(_timings.QuickInfoHoverDelay, requestCt);
                     var (request, debugContext) = await Dispatcher.InvokeAsync(() =>
                     {
                         var context = State.CurrentDebugCtx;
@@ -2190,7 +2139,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         try
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(300), token);
+            await Task.Delay(_timings.DebugTooltipCloseGrace, token);
             if (_disposed || token.IsCancellationRequested) return;
             await Dispatcher.InvokeAsync(() =>
             {
@@ -2579,7 +2528,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 // Coalesce metadata/SDK/schema bursts before doing the expensive projection and
                 // Roslyn context update. Cancellation remains owned by this captured refresh.
-                await Task.Delay(50, token).ConfigureAwait(false);
+                await Task.Delay(_timings.ContextRefreshCoalesce, token).ConfigureAwait(false);
                 token.ThrowIfCancellationRequested();
                 var shouldReanalyze = Interlocked.Exchange(ref _contextRefreshReanalyzePending, 0) == 1;
                 var generated = frontMatter is null ? null
@@ -2952,7 +2901,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         int line,
         string? condition,
         string? hitCondition = null)
-        : Contracts.IBreakpoint
+        : IBreakpoint
     {
         public string FileName { get; } = fileName;
         public int Line { get; set; } = line;

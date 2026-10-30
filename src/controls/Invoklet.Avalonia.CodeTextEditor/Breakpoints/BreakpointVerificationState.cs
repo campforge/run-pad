@@ -1,4 +1,4 @@
-namespace Invoklet.Avalonia.CodeTextEditor;
+namespace Invoklet.Avalonia.CodeTextEditor.Breakpoints;
 
 /// <summary>Debugger-reported state of a breakpoint, driven by the DAP setBreakpoints response.</summary>
 public enum BreakpointVerificationState

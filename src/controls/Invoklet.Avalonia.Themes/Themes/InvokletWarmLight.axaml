@@ -83,6 +83,7 @@
                     <SolidColorBrush x:Key="Invoklet.Button.Primary.HoverBrush"          Color="#115FF5" />
                     <SolidColorBrush x:Key="Invoklet.Button.Primary.PressedBrush"        Color="#0A55E9" />
                     <SolidColorBrush x:Key="Invoklet.Button.Primary.ForegroundBrush"     Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="Invoklet.Button.Secondary.BorderBrush"     Color="#B1ADA5" />
                     <!-- Shared keyboard-focus ring; independent of selection and primary actions. -->
                     <SolidColorBrush x:Key="Invoklet.Focus.BorderBrush"                  Color="#225EC8" />
                     <SolidColorBrush x:Key="Invoklet.Focus.ContrastBrush"                Color="#FFFFFF" />

@@ -17,10 +17,11 @@
 // DEALINGS IN THE SOFTWARE.
 
 using AvaloniaEdit.Document;
+using AvaloniaEdit.Highlighting;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-namespace AvaloniaEdit.Highlighting;
+namespace AvaloniaEdit.Tests.Highlighting;
 
 [TestFixture]
 public class HighlightedLineMergeTests
