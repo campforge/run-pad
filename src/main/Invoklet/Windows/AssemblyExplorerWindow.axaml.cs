@@ -69,7 +69,10 @@ public partial class AssemblyExplorerWindow : Window
     private bool _syncingViewBoxes;
 
     // Search (ILSpy's search pane): an index per loaded assembly, built on first use.
-    internal static TimeSpan SearchDelay { get; set; } = TimeSpan.FromMilliseconds(250);
+    internal static readonly TimeSpan DefaultSearchDelay = TimeSpan.FromMilliseconds(250);
+
+    /// <summary>How long after the last keystroke the search of this window starts; a test gives zero.</summary>
+    internal TimeSpan SearchDelay { get; set; } = DefaultSearchDelay;
     internal const int SearchLimit = 200;
     private readonly Dictionary<string, Task<IReadOnlyList<AssemblySearchEntry>>> _searchIndexes =
         new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);

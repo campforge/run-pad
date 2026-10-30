@@ -144,7 +144,8 @@ public class App : Application
         Windows_SplashWindow splash,
         Func<Task<bool>> checkPrerequisites,
         Func<bool, Window> createWindow,
-        ILogger logger)
+        ILogger logger,
+        TimeSpan? readyTimeout = null)
     {
         if (splash.HasClosed) return;
         try
@@ -152,7 +153,7 @@ public class App : Application
             splash.SetStartupStatus("Checking .NET SDK and debugger…");
             var complete = await checkPrerequisites();
             if (splash.HasClosed) return;
-            ShowStartupWindow(createWindow(complete), desktop);
+            ShowStartupWindow(createWindow(complete), desktop, readyTimeout);
         }
         catch (Exception ex)
         {
@@ -177,7 +178,8 @@ public class App : Application
         return wizard;
     }
 
-    internal static void ShowStartupWindow(Window window, IClassicDesktopStyleApplicationLifetime desktop)
+    internal static void ShowStartupWindow(Window window, IClassicDesktopStyleApplicationLifetime desktop,
+        TimeSpan? readyTimeout = null)
     {
         var previous = desktop.MainWindow;
         desktop.MainWindow = window;
@@ -194,19 +196,19 @@ public class App : Application
             if (window.IsVisible) window.Close();
             throw;
         }
-        _ = RevealStartupWindowAsync(window, desktop, previous, targetOpacity);
+        _ = RevealStartupWindowAsync(window, desktop, previous, targetOpacity, readyTimeout ?? DefaultStartupReadyTimeout);
     }
 
     // At most this long behind the splash, so a stuck tab can't keep Invoklet from showing at all.
-    internal static TimeSpan StartupReadyTimeout { get; set; } = TimeSpan.FromSeconds(30);
+    internal static readonly TimeSpan DefaultStartupReadyTimeout = TimeSpan.FromSeconds(30);
 
     private static async Task RevealStartupWindowAsync(Window window,
-        IClassicDesktopStyleApplicationLifetime desktop, Window? previous, double targetOpacity)
+        IClassicDesktopStyleApplicationLifetime desktop, Window? previous, double targetOpacity, TimeSpan readyTimeout)
     {
         if (window is IStartupWindow { Ready: { IsCompleted: false } ready })
         {
             (previous as Windows_SplashWindow)?.SetStartupStatus("Opening scripts…");
-            await Task.WhenAny(ready, Task.Delay(StartupReadyTimeout));
+            await Task.WhenAny(ready, Task.Delay(readyTimeout));
         }
         // Give the destination two frames: one for the initial layout and one for bindings and
         // deferred control initialization. Only then reveal it and close the previous window.

@@ -170,6 +170,6 @@ public class ScriptMainAndStopRunTests
             """, stopAfterLine: "started");
 
         Assert.True(run.Cancelled, run.Output);
-        Assert.True(run.StopToEnd < CompiledDotnetLanguageHostBase.StopGracePeriod, $"took {run.StopToEnd} after Stop");
+        Assert.True(run.StopToEnd < CompiledDotnetLanguageHostBase.DefaultStopGracePeriod, $"took {run.StopToEnd} after Stop");
     }
 }

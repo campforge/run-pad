@@ -58,6 +58,25 @@ public class SplashWindowTests
         destination.Close();
     }
 
+    // A stuck tab must not keep Invoklet from showing at all: after the timeout the window is shown anyway.
+    [AvaloniaFact]
+    public async Task Startup_Should_RevealTheWindowAnyway_WhenTheWorkspaceDoesNotGetReadyInTime()
+    {
+        var splash = new SplashWindow();
+        var destination = new SlowStartupWindow(); // its workspace never gets ready
+        var desktop = new Mock<IClassicDesktopStyleApplicationLifetime>();
+        desktop.SetupProperty(d => d.MainWindow, splash);
+        splash.Show();
+        await App.StartDesktopAsync(desktop.Object, splash, () => Task.FromResult(true), _ => destination, Mock.Of<ILogger>(),
+            readyTimeout: TimeSpan.FromMilliseconds(20));
+
+        await TestWait.WhileAsync(() => { Dispatcher.UIThread.RunJobs(); return !splash.HasClosed; });
+
+        Assert.True(splash.HasClosed);
+        Assert.Equal(1, destination.Opacity);
+        destination.Close();
+    }
+
     private sealed class SlowStartupWindow : Window, IStartupWindow
     {
         public TaskCompletionSource Workspace { get; } = new();
