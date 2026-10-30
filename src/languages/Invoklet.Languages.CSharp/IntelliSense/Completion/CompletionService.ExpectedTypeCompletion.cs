@@ -9,7 +9,7 @@ namespace Invoklet.Languages.CSharp.IntelliSense;
 // value of a property in an object initializer. The wanted types come from the overloads that can
 // still take the arguments typed so far; what doesn't fit them is left out, and what does is added
 // (`new Type`, enum members, literals).
-public sealed partial class CSharpIntelliSenseService
+internal sealed partial class CompletionService
 {
     // Types is never empty. AfterNew: the caret is where the type of a `new` expression goes.
     private sealed record ExpectedTypeContext(IReadOnlyList<ITypeSymbol> Types, bool AfterNew);

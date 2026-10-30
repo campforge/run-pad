@@ -26,5 +26,11 @@ internal sealed class DocumentFormatterFixture : IDisposable
     public RefactoringService CreateRefactorings()
         => new(Session, Session.Sync, Layout, new RoslynCodeFixEngine(InvokletRoslynHost.CompositionHost, NullLogger.Instance), NullLogger.Instance);
 
+    public ScriptContext Context => _context ??= new ScriptContext(Session, Layout, new ReferenceSet([], [], []), NullLogger.Instance);
+
+    private ScriptContext? _context;
+
+    public CompletionService CreateCompletion() => new(Session, Session.Sync, Layout, Context, NullLogger.Instance);
+
     public void Dispose() => Session.Dispose();
 }

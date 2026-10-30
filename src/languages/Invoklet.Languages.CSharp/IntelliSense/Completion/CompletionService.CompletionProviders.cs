@@ -8,7 +8,7 @@ namespace Invoklet.Languages.CSharp.IntelliSense;
 // the first that recognizes the caret's place answers, even with nothing to offer. Each provider
 // keeps its own rules, and what a list was built for (CompletionContextKind) and where each item
 // came from (CompletionSourceKind) stay visible to the tests.
-public sealed partial class CSharpIntelliSenseService
+internal sealed partial class CompletionService
 {
     private ICompletionProvider[]? _completionProviders;
 
@@ -75,7 +75,7 @@ public sealed partial class CSharpIntelliSenseService
 
     // `Arguments.` lists the script's argument contract straight from its metadata, so it works
     // before a compile has produced the generated Arguments class.
-    private sealed class ArgumentsContractProvider(CSharpIntelliSenseService service) : ICompletionProvider
+    private sealed class ArgumentsContractProvider(CompletionService service) : ICompletionProvider
     {
         private const string Root = "Arguments.";
 
@@ -229,7 +229,7 @@ public sealed partial class CSharpIntelliSenseService
 
     // Anywhere else: the names in scope and the keywords that fit, narrowed to types inside `List<`
     // and to what fits where the code wants a type, plus types from references not imported yet.
-    private sealed class IdentifierProvider(CSharpIntelliSenseService service) : ICompletionProvider
+    private sealed class IdentifierProvider(CompletionService service) : ICompletionProvider
     {
         public SimpleCompletionList? Provide(CompletionRequest request)
         {
