@@ -33,15 +33,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     private Task? _restoreTask;
     private long _recoveryRevision;
     private bool _recoveryFailed;
-    private readonly HashSet<Task> _workspaceOperations = [];
+    private readonly WorkspaceWork _work = new();
 
-    private Task TrackWorkspaceOperation(Func<Task> operation)
-    {
-        _workspaceOperations.RemoveWhere(task => task.IsCompleted);
-        var task = operation();
-        if (!task.IsCompleted) _workspaceOperations.Add(task);
-        return task;
-    }
+    private Task TrackWorkspaceOperation(Func<Task> operation) => _work.Track(operation);
 
     public bool RestoresDrafts => _recovery is not null && _recoveryMode && !_recoveryFailed;
 
@@ -285,24 +279,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
 
     // The tabs once every editor exists and no save, Save As or workspace operation is running.
-    private async Task<List<EditorTabItemViewModel>> WaitForPendingWorkAsync(EditorTabItemViewModel? exclude)
-    {
-        var tabs = Tabs.Where(t => t != exclude).ToList();
-        // A closing window must not skip tabs whose per-language editor is still being created.
-        await Task.WhenAll(tabs.Select(t => t.RecoveryReady.Task)).WaitAsync(TimeSpan.FromSeconds(20));
-        // Save As owns path rebasing as well as the write; a snapshot must see both or neither.
-        while (true)
-        {
-            var pending = Tabs.SelectMany(t => new Task?[] { t.PendingSave, t.PendingSaveAs }).OfType<Task>()
-                .Concat(_workspaceOperations).Where(task => !task.IsCompleted).Distinct().ToArray();
-            if (pending.Length == 0) break;
-            await Task.WhenAll(pending);
-        }
-        _workspaceOperations.RemoveWhere(task => task.IsCompleted);
-        tabs = Tabs.Where(t => t != exclude).ToList();
-        await Task.WhenAll(tabs.Select(t => t.RecoveryReady.Task)).WaitAsync(TimeSpan.FromSeconds(20));
-        return tabs;
-    }
+    private Task<List<EditorTabItemViewModel>> WaitForPendingWorkAsync(EditorTabItemViewModel? exclude)
+        => _work.WaitUntilIdleAsync<EditorTabItemViewModel>(
+            () => [.. Tabs], tab => tab != exclude, tab => tab.RecoveryReady.Task, tab => [tab.PendingSave, tab.PendingSaveAs]);
 
     // Debounce for file-watcher-triggered tree refreshes — a single file save/rename can raise
     // several FileSystemWatcher events in quick succession; wait for them to settle before
