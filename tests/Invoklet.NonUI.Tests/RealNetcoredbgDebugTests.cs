@@ -1,5 +1,5 @@
 using Invoklet.Build.Core.Models;
-using Invoklet.Contracts;
+using Invoklet.Contracts.Debugging;
 using Invoklet.Contracts.Models;
 using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
@@ -8,7 +8,7 @@ using Invoklet.Languages.DotnetCommon.Sdk;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // End-to-end regression for "breakpoints never hit on macOS":
 // real script compiler (through CSharpLanguageHost) → real DapSession → real netcoredbg, with

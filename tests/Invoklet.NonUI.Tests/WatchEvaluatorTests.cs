@@ -1,5 +1,4 @@
-using Invoklet.Contracts.Models;
-using Invoklet.UserControls.Models;
+using Invoklet.Contracts.Debugging;
 using Moq;
 using Xunit;
 

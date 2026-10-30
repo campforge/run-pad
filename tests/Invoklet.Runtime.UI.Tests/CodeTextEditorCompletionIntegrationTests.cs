@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Threading;
 using AvaloniaEdit.Document;
 using Invoklet.Avalonia.CodeTextEditor;
+using Invoklet.Avalonia.CodeTextEditor.Completions;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;

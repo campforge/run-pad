@@ -1,7 +1,7 @@
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Folding;
 
-namespace Invoklet.Avalonia.CodeTextEditor;
+namespace Invoklet.Avalonia.CodeTextEditor.Folding;
 
 // Replaces the VB-specific VbFoldingStrategy that used to live here — a
 // language-agnostic control project directly hosting one particular language's folding regexes.

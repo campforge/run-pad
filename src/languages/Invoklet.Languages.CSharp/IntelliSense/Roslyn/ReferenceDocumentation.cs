@@ -1,6 +1,6 @@
 using Microsoft.CodeAnalysis;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.Roslyn;
 
 // Locates the XML documentation for a referenced assembly, so Roslyn's GetDocumentationCommentXml()
 // actually returns something for BCL/NuGet symbols — without a

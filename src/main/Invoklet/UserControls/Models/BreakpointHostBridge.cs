@@ -1,4 +1,5 @@
 using Invoklet.Contracts;
+using Invoklet.Contracts.Debugging;
 
 namespace Invoklet.UserControls.Models;
 
@@ -6,7 +7,7 @@ namespace Invoklet.UserControls.Models;
 internal static class BreakpointHostBridge
 {
     public static IReadOnlyList<(int Line, string? Condition, string? HitCondition)> Enabled(
-        IEnumerable<Invoklet.Avalonia.CodeTextEditor.IBreakpoint> breakpoints) =>
+        IEnumerable<Avalonia.CodeTextEditor.Breakpoints.IBreakpoint> breakpoints) =>
         breakpoints.Where(static breakpoint => breakpoint.IsEnabled)
             .Select(static breakpoint => (breakpoint.Line, breakpoint.Condition, breakpoint.HitCondition))
             .ToArray();

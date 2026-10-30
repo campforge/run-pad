@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using MetadataReference = Microsoft.CodeAnalysis.MetadataReference;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // IntelliSense sees the same package assemblies as the build: after a restore, the versions and
 // transitive packages it resolved; before one, the local package folder chosen with NuGet's version

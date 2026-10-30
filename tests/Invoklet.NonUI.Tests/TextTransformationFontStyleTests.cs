@@ -3,7 +3,7 @@ using TextMateSharp.Themes;
 using Xunit;
 using AM = Avalonia.Media;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Live user report: comments rendered in italic ("color alone is enough for them to
 // stand out"). Bundled TextMateSharp themes (ThemeService.cs's ThemeName.* set,

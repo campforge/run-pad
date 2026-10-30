@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 using Invoklet.Services.Setup;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Pure mapping logic (OS/arch -> asset name/URL, OS -> dotnet-install default install dir) taken as
 // parameters specifically so every branch is testable regardless of which OS actually runs this suite.

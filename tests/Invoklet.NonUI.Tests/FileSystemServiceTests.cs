@@ -3,7 +3,7 @@ using Invoklet.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // GetFilesTreeInternal used to filter out any folder whose subtree
 // contained zero .inv files ("if (children.Count > 0)") — meant to declutter folders with no scripts

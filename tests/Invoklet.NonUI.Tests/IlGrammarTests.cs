@@ -1,5 +1,5 @@
 using System.Reflection.Emit;
-using Invoklet.Avalonia.CodeTextEditor;
+using Invoklet.Avalonia.CodeTextEditor.Highlighting;
 using TextMateSharp.Grammars;
 using TextMateSharp.Registry;
 using Xunit;

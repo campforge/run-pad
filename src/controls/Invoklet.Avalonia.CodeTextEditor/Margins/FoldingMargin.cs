@@ -6,7 +6,7 @@ using AvaloniaEdit.Editing;
 using AvaloniaEdit.Folding;
 using AvaloniaEdit.Rendering;
 
-namespace Invoklet.Avalonia.CodeTextEditor;
+namespace Invoklet.Avalonia.CodeTextEditor.Margins;
 
 // Folding chevrons, Rider-style: a collapsed block's chevron is always shown; an expanded block's
 // only while the pointer is over this column — anywhere in it, revealing all of them at once — so

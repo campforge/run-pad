@@ -1,5 +1,4 @@
 using Invoklet.Format.MdRun;
-using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.Services.Tabs;
 using Invoklet.UserControls.Models;

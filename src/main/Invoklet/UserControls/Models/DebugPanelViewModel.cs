@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Linq;
+using Invoklet.Contracts.Debugging;
 using Invoklet.Contracts.Models;
 using Invoklet.Shared;
 using ReactiveUI;

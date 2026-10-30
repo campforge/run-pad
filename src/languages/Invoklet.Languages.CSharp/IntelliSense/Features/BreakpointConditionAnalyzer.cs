@@ -1,15 +1,16 @@
 using Invoklet.Contracts.IntelliSense;
+using Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.Features;
 
 /// <summary>Checks the condition of a breakpoint against the code at its line, without running it or touching the editor's workspace,
 /// and suggests what could be typed next.</summary>
-internal sealed class BreakpointConditionAnalyzer(Func<string, Document> syncDocument, ScriptDocumentLayout layout)
+internal sealed class BreakpointConditionAnalyzer(Func<string, Microsoft.CodeAnalysis.Document> syncDocument, ScriptDocumentLayout layout)
 {
-    private readonly Func<string, Document> _syncDocument = syncDocument;
+    private readonly Func<string, Microsoft.CodeAnalysis.Document> _syncDocument = syncDocument;
     private readonly ScriptDocumentLayout _layout = layout;
 
     internal async Task<BreakpointConditionAnalysis?> AnalyzeBreakpointConditionAsync(string code, int position,

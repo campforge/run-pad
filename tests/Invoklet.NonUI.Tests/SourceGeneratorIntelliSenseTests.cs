@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using DiagnosticSeverity = Invoklet.Contracts.IntelliSense.DiagnosticSeverity;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // The build runs the source generators of the target's targeting pack ([GeneratedRegex],
 // System.Text.Json contexts, [LibraryImport]); the editor has to see what they generate too, or it

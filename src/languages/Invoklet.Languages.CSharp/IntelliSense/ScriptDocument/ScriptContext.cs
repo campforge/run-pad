@@ -5,6 +5,7 @@ using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp.Compiler;
+using Invoklet.Languages.CSharp.IntelliSense.Roslyn;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Compiler;
 using Microsoft.CodeAnalysis;
@@ -15,7 +16,7 @@ using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
 using ExecutionRequest = Invoklet.Contracts.Models.ExecutionRequest;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
 
 /// <summary>The assemblies the service was created with: all of them, the framework's, and the rest.</summary>
 internal sealed record ReferenceSet(IReadOnlyList<string> All, IReadOnlyList<string> DefaultFramework, IReadOnlyList<string> Other)

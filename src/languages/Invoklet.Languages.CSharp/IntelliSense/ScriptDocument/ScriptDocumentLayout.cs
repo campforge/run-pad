@@ -1,12 +1,10 @@
 using System.Text;
 using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp.Compiler;
-using Invoklet.Languages.DotnetCommon;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
 
 /// <summary>
 /// How the text of the editor becomes the text of the analysis document, and back: the <c>global using</c> preamble, the wrapper

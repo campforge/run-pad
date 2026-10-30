@@ -5,7 +5,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // File tree had no "create new folder" command at all. CreateFolderAsync resolves WHERE
 // the new folder actually goes (the interesting/risky part — see the three cases below) and delegates

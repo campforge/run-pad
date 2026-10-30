@@ -1,7 +1,7 @@
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Folding;
 
-namespace Invoklet.Avalonia.CodeTextEditor;
+namespace Invoklet.Avalonia.CodeTextEditor.Folding;
 
 public sealed class BraceFoldingStrategy : IFoldingStrategy
 {

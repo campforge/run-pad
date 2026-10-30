@@ -1,36 +1,20 @@
-using System.Collections.Concurrent;
-using System.Collections.Immutable;
-using System.Runtime.CompilerServices;
-using System.Text;
-using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.MdRun;
-using Invoklet.Languages.CSharp.Compiler;
+using Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
+using Invoklet.Languages.CSharp.IntelliSense.Syntax;
 using Invoklet.Languages.DotnetCommon;
-using Invoklet.Languages.DotnetCommon.Compiler;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Classification;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.FindSymbols;
-using Microsoft.CodeAnalysis.Formatting;
-using Microsoft.CodeAnalysis.Options;
-using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
-using NuGet.Configuration;
-using ContractSeverity = Invoklet.Contracts.IntelliSense.DiagnosticSeverity;
-using ExecutionRequest = Invoklet.Contracts.Models.ExecutionRequest;
-using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.Features;
 
 /// <summary>What the editor asks about the symbol under the caret: Quick Info, the occurrences to highlight and rename, and the
 /// definitions and implementations to go to. It reads the document the sync hands it and the script context; it changes neither.</summary>
 internal sealed class SymbolNavigation(
-    Func<string, Document> syncDocument, ScriptDocumentLayout layout, ScriptContext context, ILogger logger)
+    Func<string, Microsoft.CodeAnalysis.Document> syncDocument, ScriptDocumentLayout layout, ScriptContext context, ILogger logger)
 {
-    private readonly Func<string, Document> _syncDocument = syncDocument;
+    private readonly Func<string, Microsoft.CodeAnalysis.Document> _syncDocument = syncDocument;
     private readonly ScriptDocumentLayout _layout = layout;
     private readonly ScriptContext _context = context;
     private readonly ILogger _logger = logger;

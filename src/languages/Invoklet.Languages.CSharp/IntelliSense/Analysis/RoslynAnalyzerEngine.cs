@@ -1,10 +1,11 @@
 using System.Collections.Immutable;
 using System.Reflection;
+using Invoklet.Languages.CSharp.IntelliSense.Roslyn;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.Extensions.Logging;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.Analysis;
 
 // The second of the two infrastructure
 // blocks RoslynCodeFixEngine's own recursive-refactoring doc comment flagged as needed regardless.

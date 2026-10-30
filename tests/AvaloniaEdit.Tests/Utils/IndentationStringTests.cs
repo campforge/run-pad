@@ -19,7 +19,7 @@
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-namespace AvaloniaEdit.Utils;
+namespace AvaloniaEdit.Tests.Utils;
 
 [TestFixture]
 public class IndentationStringTests

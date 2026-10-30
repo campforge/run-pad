@@ -1,14 +1,7 @@
-using Invoklet.Contracts.IntelliSense;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using static Invoklet.Languages.CSharp.IntelliSense.CompletionItems;
-using static Invoklet.Languages.CSharp.IntelliSense.CompletionKeywords;
-using static Invoklet.Languages.CSharp.IntelliSense.ExpectedTypeCompletion;
-using static Invoklet.Languages.CSharp.IntelliSense.ImportableTypes;
-using static Invoklet.Languages.CSharp.IntelliSense.ObjectInitializerCompletions;
-using static Invoklet.Languages.CSharp.IntelliSense.OverrideStubs;
+using static Invoklet.Languages.CSharp.IntelliSense.Completion.CompletionItems;
+using static Invoklet.Languages.CSharp.IntelliSense.Completion.OverrideStubs;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.Completion.Providers;
 
 // "override " lists the base members still open to override, each inserted as a whole stub.
 // Checked before the syntax guards: the keyword can only be a modifier, so the incomplete

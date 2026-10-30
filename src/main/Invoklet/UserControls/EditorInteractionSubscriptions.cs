@@ -1,5 +1,6 @@
 using AvaloniaEdit.Document;
 using Invoklet.Avalonia.CodeTextEditor;
+using Invoklet.Avalonia.CodeTextEditor.Breakpoints;
 
 namespace Invoklet.UserControls;
 

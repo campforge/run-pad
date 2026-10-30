@@ -8,7 +8,7 @@ using Invoklet.Languages.DotnetCommon.Compiler;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // RunAsync/RunDebugAsync used to always ChildProcess.ForExecution(...)/
 // ForDebugger(...) directly, so exercising them meant either shelling out to a real dotnet/netcoredbg

@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml.Styling;
 
-namespace Invoklet.Windows;
+namespace Invoklet.TemplatedControls;
 
 /// <summary>Common native window behavior for compact application dialogs.</summary>
 public class InvokletDialogWindow : Window

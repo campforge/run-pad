@@ -17,10 +17,11 @@
 // DEALINGS IN THE SOFTWARE.
 
 using AvaloniaEdit.Document;
+using AvaloniaEdit.Search;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-namespace AvaloniaEdit.Search;
+namespace AvaloniaEdit.Tests.Search;
 
 [TestFixture]
 public class FindTests

@@ -1,4 +1,3 @@
-using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
 using Xunit;
 

@@ -1,10 +1,6 @@
-using Invoklet.Languages.CSharp;
-using Invoklet.Languages.CSharp.IntelliSense;
-using Invoklet.NonUI.Tests;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // A member declared directly on the type being
 // completed should render bold in the list; an inherited member (from a base class) should render

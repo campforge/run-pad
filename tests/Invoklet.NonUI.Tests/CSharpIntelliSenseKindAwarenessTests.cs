@@ -1,12 +1,9 @@
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
-using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
-using Invoklet.NonUI.Tests;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // SyncDocument built its live-analysis document as just "preamble + code",
 // with no awareness of MdRunKind at all — so for MdRunKind.Program, where the *real* compiled program

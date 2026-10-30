@@ -4,7 +4,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Invoklet.Contracts.IntelliSense;
 
-namespace Invoklet.UserControls;
+namespace Invoklet.UserControls.Healpers;
 
 // Renders a DisplayTextSegment signature (syntax-highlighted, using SemanticTokenBrushes) plus an
 // optional plain-text XML-doc summary as a real Avalonia control. AvaloniaEdit's

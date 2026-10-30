@@ -3,7 +3,7 @@ using Invoklet.Contracts.IntelliSense;
 using Invoklet.UserControls;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // EditorsTabItemControl.ApplyRenameEdits is the actual
 // edit-application logic behind F2 rename, split out specifically so it's testable against a plain

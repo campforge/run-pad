@@ -2,7 +2,7 @@ using Avalonia;
 using Avalonia.Media;
 using AvaloniaEdit.Rendering;
 
-namespace Invoklet.Avalonia.CodeTextEditor;
+namespace Invoklet.Avalonia.CodeTextEditor.Highlighters;
 
 internal sealed class DebugLineHighlighter : IBackgroundRenderer
 {

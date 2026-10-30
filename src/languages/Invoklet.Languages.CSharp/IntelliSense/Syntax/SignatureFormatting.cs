@@ -1,7 +1,7 @@
 using Invoklet.Contracts.IntelliSense;
 using Microsoft.CodeAnalysis;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.Syntax;
 
 // Converts Roslyn's classified SymbolDisplayPart stream into DisplayTextSegment, the Invoklet-Contracts
 // type completion/signature-help/quick-info use to render syntax-highlighted signatures in tooltips

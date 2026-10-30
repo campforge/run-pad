@@ -3,7 +3,7 @@ using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Editing;
 
-namespace Invoklet.Avalonia.CodeTextEditor;
+namespace Invoklet.Avalonia.CodeTextEditor.Completions;
 
 /// <summary>A Tab-expandable <see cref="CodeTextEditor.Snippets"/> entry, surfaced as a completion
 /// item too (shown on an explicit Ctrl+Space invoke — see CodeTextEditor.ShowCompletion) so snippets

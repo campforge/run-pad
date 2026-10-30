@@ -1,6 +1,7 @@
-using Invoklet.Contracts;
+using Invoklet.Contracts.Debugging;
 using Invoklet.Contracts.Models;
 using Invoklet.UserControls;
+using Invoklet.UserControls.Healpers;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;

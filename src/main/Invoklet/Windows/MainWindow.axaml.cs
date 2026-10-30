@@ -5,7 +5,6 @@ using Avalonia.Controls.Chrome;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
-using Avalonia.Media;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
 using Invoklet.Desktop;
@@ -14,6 +13,7 @@ using Invoklet.Services.Desktop;
 using Invoklet.Services.Preferences;
 using Invoklet.UserControls;
 using Invoklet.UserControls.Models;
+using Invoklet.Windows.Healpers;
 using Invoklet.Windows.Models;
 using ReactiveUI;
 

@@ -1,10 +1,6 @@
-using Invoklet.Languages.CSharp;
-using Invoklet.Languages.CSharp.IntelliSense;
-using Invoklet.NonUI.Tests;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Go to Implementation (Ctrl+F12, the counterpart of Go to Definition/F12) —
 // CSharpIntelliSenseService.GetImplementationsAsync. A single script's own

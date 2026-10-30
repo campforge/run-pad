@@ -1,14 +1,12 @@
 using Invoklet.Contracts.IntelliSense;
+using Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using static Invoklet.Languages.CSharp.IntelliSense.CompletionItems;
-using static Invoklet.Languages.CSharp.IntelliSense.CompletionKeywords;
-using static Invoklet.Languages.CSharp.IntelliSense.ExpectedTypeCompletion;
-using static Invoklet.Languages.CSharp.IntelliSense.ImportableTypes;
-using static Invoklet.Languages.CSharp.IntelliSense.ObjectInitializerCompletions;
-using static Invoklet.Languages.CSharp.IntelliSense.OverrideStubs;
+using static Invoklet.Languages.CSharp.IntelliSense.Completion.CompletionItems;
+using static Invoklet.Languages.CSharp.IntelliSense.Completion.CompletionKeywords;
+using static Invoklet.Languages.CSharp.IntelliSense.Completion.ExpectedTypeCompletion;
+using static Invoklet.Languages.CSharp.IntelliSense.Completion.ImportableTypes;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.Completion.Providers;
 
 // Anywhere else: the names in scope and the keywords that fit, narrowed to types inside `List<`
 // and to what fits where the code wants a type, plus types from references not imported yet.

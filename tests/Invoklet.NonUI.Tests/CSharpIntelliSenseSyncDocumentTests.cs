@@ -1,11 +1,8 @@
-using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
-using Invoklet.NonUI.Tests;
 using Microsoft.CodeAnalysis.Text;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // SyncDocument now diffs the
 // previous full document text against the new one (ComputeMinimalChange) instead of always handing

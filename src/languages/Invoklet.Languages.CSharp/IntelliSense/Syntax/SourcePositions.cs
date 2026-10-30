@@ -2,7 +2,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.Syntax;
 
 /// <summary>Whether a position of the analysis document is somewhere nothing can be completed or looked up: a comment or a literal.</summary>
 internal static class SourcePositions

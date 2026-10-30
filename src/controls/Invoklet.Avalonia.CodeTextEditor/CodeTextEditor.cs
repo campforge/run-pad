@@ -11,8 +11,16 @@ using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Folding;
 using AvaloniaEdit.Rendering;
 using AvaloniaEdit.TextMate;
+using Invoklet.Avalonia.CodeTextEditor.Breakpoints;
+using Invoklet.Avalonia.CodeTextEditor.CodeFix;
+using Invoklet.Avalonia.CodeTextEditor.Completions;
+using Invoklet.Avalonia.CodeTextEditor.Folding;
+using Invoklet.Avalonia.CodeTextEditor.Highlighters;
+using Invoklet.Avalonia.CodeTextEditor.Highlighting;
+using Invoklet.Avalonia.CodeTextEditor.Margins;
 using TextMateSharp.Grammars;
 using static AvaloniaEdit.TextMate.TextMate;
+using FoldingMargin = Invoklet.Avalonia.CodeTextEditor.Margins.FoldingMargin;
 
 namespace Invoklet.Avalonia.CodeTextEditor;
 

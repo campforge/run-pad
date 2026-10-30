@@ -2,13 +2,12 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
 using Invoklet.Build.Core.ProcessRunners;
-using Invoklet.Contracts;
-using Invoklet.Contracts.Models;
+using Invoklet.Contracts.Debugging;
 using Invoklet.Debug;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Live regression: every breakpoint stayed pending on macOS
 // because setBreakpoints named /var/folders/.../InvokletQuery.cs while the PDB (built with the

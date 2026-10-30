@@ -10,6 +10,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.UserControls;
 using Invoklet.Windows;
+using Invoklet.Windows.Healpers;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

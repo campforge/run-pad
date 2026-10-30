@@ -4,7 +4,7 @@ using Invoklet.Services.Setup;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Only the network (ISetupDownloader) and process-spawn (ISetupProcessRunner) boundaries are faked —
 // archive extraction, path resolution and file-system placement all run for real, same "fake only the

@@ -2,13 +2,13 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
 using Invoklet.Build.Core.ProcessRunners;
-using Invoklet.Contracts;
+using Invoklet.Contracts.Debugging;
 using Invoklet.Contracts.Models;
 using Invoklet.Debug;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Exception stops as netcoredbg 3.2 reports them for a script whose first statement is
 // int.Parse("not-a-number"): "stopped" with reason "exception" and a "text" line, the details

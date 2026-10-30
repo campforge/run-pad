@@ -1,10 +1,6 @@
-using Invoklet.Languages.CSharp;
-using Invoklet.Languages.CSharp.IntelliSense;
-using Invoklet.NonUI.Tests;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Typing "override " (like VS/Rider) lists the base type's
 // overridable members and, on accept, inserts a ready-to-edit stub — not just the bare method name.

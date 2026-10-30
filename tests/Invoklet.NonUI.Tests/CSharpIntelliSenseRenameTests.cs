@@ -1,10 +1,6 @@
-using Invoklet.Languages.CSharp;
-using Invoklet.Languages.CSharp.IntelliSense;
-using Invoklet.NonUI.Tests;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // CSharpIntelliSenseService.
 // GetRenameInfoAsync shares its "find the symbol under the caret and every occurrence" scan with

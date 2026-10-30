@@ -5,7 +5,6 @@ using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
-using Invoklet.Runtime.UI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 

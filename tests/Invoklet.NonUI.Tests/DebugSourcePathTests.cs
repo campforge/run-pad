@@ -1,7 +1,7 @@
 using Invoklet.Debug;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Breakpoints stayed pending on macOS because they were sent
 // for /var/folders/... while the PDB recorded /private/var/folders/... (/var is a symlink). The

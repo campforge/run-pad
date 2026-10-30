@@ -1,11 +1,12 @@
 using System.Text;
+using Invoklet.Languages.CSharp.IntelliSense.Roslyn;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Text;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
 
 /// <summary>
 /// The workspace of the analysis of one script: one project with the script's document, the .editorconfig that carries the editor's
@@ -131,7 +132,7 @@ internal sealed class ScriptDocumentSession : IDisposable
     }
 
     /// <summary>Brings the document to the text of this code; the current document when it was there already.</summary>
-    public Document Sync(string code)
+    public Microsoft.CodeAnalysis.Document Sync(string code)
     {
         lock (SyncLock)
         {

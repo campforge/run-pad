@@ -1,4 +1,4 @@
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.Analysis;
 
 /// <summary>
 /// Runs the background analysis that follows an edit: it waits out a debounce, asks for the text only then (a notification

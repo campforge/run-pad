@@ -7,7 +7,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // NewMdRunFile used to write a real (sample-boilerplate-filled)
 // file to disk immediately via IFileSystemService.CreateNewFile — a script only started existing on

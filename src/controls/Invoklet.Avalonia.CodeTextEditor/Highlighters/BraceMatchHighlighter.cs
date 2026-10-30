@@ -4,7 +4,7 @@ using AvaloniaEdit;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
 
-namespace Invoklet.Avalonia.CodeTextEditor;
+namespace Invoklet.Avalonia.CodeTextEditor.Highlighters;
 
 // The brace pair at the caret: a subtle background behind both braces, and — when they are on
 // different lines — the scope guide between them emphasized, as in Rider. Colors come from the theme

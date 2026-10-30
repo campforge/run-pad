@@ -1,14 +1,6 @@
-using Invoklet.Contracts.IntelliSense;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using static Invoklet.Languages.CSharp.IntelliSense.CompletionItems;
-using static Invoklet.Languages.CSharp.IntelliSense.CompletionKeywords;
-using static Invoklet.Languages.CSharp.IntelliSense.ExpectedTypeCompletion;
-using static Invoklet.Languages.CSharp.IntelliSense.ImportableTypes;
-using static Invoklet.Languages.CSharp.IntelliSense.ObjectInitializerCompletions;
-using static Invoklet.Languages.CSharp.IntelliSense.OverrideStubs;
+using Invoklet.Languages.CSharp.IntelliSense.Syntax;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.Completion.Providers;
 
 // Comments, string literals and the name of a declaration being typed take no completion.
 internal sealed class NoCompletionProvider : ICompletionProvider

@@ -1,6 +1,6 @@
 using Invoklet.Contracts.IntelliSense;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.Completion;
 
 /// <summary>The kind of place in the code a completion list was built for.</summary>
 internal enum CompletionContextKind

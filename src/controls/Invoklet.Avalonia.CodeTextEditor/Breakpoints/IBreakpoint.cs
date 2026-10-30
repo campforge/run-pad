@@ -1,4 +1,4 @@
-namespace Invoklet.Avalonia.CodeTextEditor;
+namespace Invoklet.Avalonia.CodeTextEditor.Breakpoints;
 
 public interface IBreakpoint
 {

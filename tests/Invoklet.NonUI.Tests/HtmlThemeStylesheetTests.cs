@@ -2,7 +2,7 @@ using Avalonia.Styling;
 using Invoklet.Avalonia.Themes;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 public class HtmlThemeStylesheetTests
 {

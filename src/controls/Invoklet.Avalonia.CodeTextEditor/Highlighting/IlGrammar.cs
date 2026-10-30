@@ -6,7 +6,7 @@ using TextMateSharp.Internal.Types;
 using TextMateSharp.Registry;
 using TextMateSharp.Themes;
 
-namespace Invoklet.Avalonia.CodeTextEditor;
+namespace Invoklet.Avalonia.CodeTextEditor.Highlighting;
 
 /// <summary>
 /// The TextMate grammar for common ILAsm text, as <c>ildasm</c> and the Assembly Explorer print it.

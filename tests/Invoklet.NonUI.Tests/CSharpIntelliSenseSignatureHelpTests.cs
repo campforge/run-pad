@@ -1,10 +1,6 @@
-using Invoklet.Languages.CSharp;
-using Invoklet.Languages.CSharp.IntelliSense;
-using Invoklet.NonUI.Tests;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // ObjectExtensions.Dump is deliberately many small overloads (Dump(), Dump(label), Dump(depth),
 // Dump(label, depth), Dump(DumpOptions)) instead of one method with a pile of nullable parameters —

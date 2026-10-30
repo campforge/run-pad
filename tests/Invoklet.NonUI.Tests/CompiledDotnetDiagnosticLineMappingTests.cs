@@ -9,7 +9,7 @@ using Invoklet.Languages.VB;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Roslyn reports positions in the generated script file (front-matter imports plus the kind
 // transform's wrapper come first). The host translates the ones in that file back to the user's

@@ -2,7 +2,7 @@ using System.Text;
 using Invoklet.Services.TextFiles;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // The text editor window must save a file back in the
 // encoding and with the line breaks it was read with: decoding then re-encoding an unchanged file has to

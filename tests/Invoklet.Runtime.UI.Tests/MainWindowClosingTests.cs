@@ -10,6 +10,7 @@ using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
 using Invoklet.UserControls;
 using Invoklet.Windows;
+using Invoklet.Windows.Healpers;
 using Invoklet.Windows.Models;
 using Moq;
 using Xunit;

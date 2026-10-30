@@ -1,4 +1,4 @@
-namespace Invoklet.Contracts.Models;
+namespace Invoklet.Contracts.Debugging;
 
 public interface IMemoryDump
 {

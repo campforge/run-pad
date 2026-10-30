@@ -1,5 +1,6 @@
 using Avalonia.Interactivity;
 using Invoklet.Services;
+using Invoklet.TemplatedControls;
 
 namespace Invoklet.Windows;
 

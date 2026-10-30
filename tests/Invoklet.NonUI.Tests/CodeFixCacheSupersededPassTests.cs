@@ -1,12 +1,13 @@
 using Invoklet.Languages.CSharp;
-using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.Languages.CSharp.IntelliSense.Analysis;
+using Invoklet.Languages.CSharp.IntelliSense.Roslyn;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // The lightbulb's entries carry keys into the fix engine's cache of the analysis pass that listed
 // them. A pass for older text — superseded, so cancelled, and its results already ignored by the

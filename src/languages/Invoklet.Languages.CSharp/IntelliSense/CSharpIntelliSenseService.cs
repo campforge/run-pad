@@ -1,34 +1,22 @@
-using System.Collections.Concurrent;
-using System.Collections.Immutable;
-using System.Runtime.CompilerServices;
-using System.Text;
-using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
-using Invoklet.Languages.CSharp.Compiler;
+using Invoklet.Languages.CSharp.IntelliSense.Analysis;
+using Invoklet.Languages.CSharp.IntelliSense.Completion;
+using Invoklet.Languages.CSharp.IntelliSense.Features;
+using Invoklet.Languages.CSharp.IntelliSense.Roslyn;
+using Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Compiler;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Classification;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.Formatting;
-using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
-using NuGet.Configuration;
-using ContractSeverity = Invoklet.Contracts.IntelliSense.DiagnosticSeverity;
 using ExecutionRequest = Invoklet.Contracts.Models.ExecutionRequest;
-using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
 
 namespace Invoklet.Languages.CSharp.IntelliSense;
 
-public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
+public sealed class CSharpIntelliSenseService : IIntelliSenseService
 {
-
-
     // Debounce for NotifyTextChanged's background diagnostics/semantic-tokens pass — long enough
     // that fast typing doesn't re-run the full Roslyn analysis on every keystroke, short enough to
     // still feel live. Settable only by tests (InternalsVisibleTo): a test that calls
@@ -88,7 +76,6 @@ public sealed partial class CSharpIntelliSenseService : IIntelliSenseService
         get => _completion.SnapshotTakenForTests;
         set => _completion.SnapshotTakenForTests = value;
     }
-
 
     /// <param name="referencePaths">The framework's assemblies, and others outside their folder.</param>
     /// <param name="additionalReferencePaths">Assemblies kept whatever the script's target framework,

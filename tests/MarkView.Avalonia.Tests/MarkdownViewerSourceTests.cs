@@ -7,7 +7,7 @@ using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using MarkView.Avalonia.Rendering;
-using MarkView.Avalonia.Tests.Shared;
+using MarkView.Avalonia.SyntaxHighlighting.Tests;
 using Xunit;
 
 namespace MarkView.Avalonia.Tests;

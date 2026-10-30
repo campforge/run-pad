@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using Avalonia.Threading;
 using Invoklet.Services.Preferences;
-using Invoklet.UserControls;
+using Invoklet.UserControls.Healpers;
 
 namespace Invoklet.Services.Scaling;
 

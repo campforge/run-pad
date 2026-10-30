@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using DiagnosticSeverity = Invoklet.Contracts.IntelliSense.DiagnosticSeverity;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // A package can ship an assembly the framework has too (System.Text.Json, System.Memory, ...). The build
 // keeps whichever has the higher assembly version; the editor used to reference both, so every type

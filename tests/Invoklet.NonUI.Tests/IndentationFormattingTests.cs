@@ -5,7 +5,7 @@ using Invoklet.Services.Preferences;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 public class IndentationFormattingTests
 {

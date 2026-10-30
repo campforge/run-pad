@@ -1,14 +1,7 @@
-using Invoklet.Contracts.IntelliSense;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using static Invoklet.Languages.CSharp.IntelliSense.CompletionItems;
-using static Invoklet.Languages.CSharp.IntelliSense.CompletionKeywords;
-using static Invoklet.Languages.CSharp.IntelliSense.ExpectedTypeCompletion;
-using static Invoklet.Languages.CSharp.IntelliSense.ImportableTypes;
-using static Invoklet.Languages.CSharp.IntelliSense.ObjectInitializerCompletions;
-using static Invoklet.Languages.CSharp.IntelliSense.OverrideStubs;
+using static Invoklet.Languages.CSharp.IntelliSense.Completion.ObjectInitializerCompletions;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.Completion.Providers;
 
 // `new Foo { X = 1, | }` lists Foo's settable members not assigned yet, not what is in scope.
 // Only the direct `new Foo { }` shape: a nested initializer without its own `new` and `with { }`

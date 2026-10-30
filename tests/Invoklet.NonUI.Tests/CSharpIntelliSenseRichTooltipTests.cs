@@ -1,12 +1,8 @@
 using System.Text;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Languages.CSharp;
-using Invoklet.Languages.CSharp.IntelliSense;
-using Invoklet.NonUI.Tests;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Completion/signature-help/quick-info descriptions used to be a single plain-text
 // signature string with no XML-doc summary and no syntax highlighting. Fixed by carrying a

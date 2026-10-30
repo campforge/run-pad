@@ -1,11 +1,10 @@
 using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
-using Invoklet.NonUI.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Completion now offers types from an added-but-not-yet-imported NuGet
 // package too (ReSharper-style), tagged with the namespace EditorTabItemControl should add as a

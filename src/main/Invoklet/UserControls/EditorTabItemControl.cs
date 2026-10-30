@@ -15,9 +15,14 @@ using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
 using Invoklet.Avalonia.CodeTextEditor;
+using Invoklet.Avalonia.CodeTextEditor.Breakpoints;
+using Invoklet.Avalonia.CodeTextEditor.Completions;
+using Invoklet.Avalonia.CodeTextEditor.Folding;
+using Invoklet.Avalonia.CodeTextEditor.Highlighting;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Connections;
+using Invoklet.Contracts.Debugging;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Contracts.Models;
 using Invoklet.Format.MdRun;
@@ -28,12 +33,13 @@ using Invoklet.Services.BuildCache;
 using Invoklet.Services.Preferences;
 using Invoklet.Services.Recovery;
 using Invoklet.Services.Scaling;
+using Invoklet.UserControls.Healpers;
 using Invoklet.UserControls.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using ReactiveUI;
 using TextMateSharp.Grammars;
-using ContractSeverity = Invoklet.Contracts.IntelliSense.DiagnosticSeverity;
+using IBreakpoint = Invoklet.Contracts.Debugging.IBreakpoint;
 
 namespace Invoklet.UserControls;
 
@@ -920,12 +926,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private Windows.BreakpointConditionDialog? _breakpointDialog;
     internal Windows.BreakpointConditionDialog? BreakpointDialog => _breakpointDialog;
 
-    private async void OnBreakpointRightClicked(int line, Invoklet.Avalonia.CodeTextEditor.IBreakpoint? bp)
+    private async void OnBreakpointRightClicked(int line, Avalonia.CodeTextEditor.Breakpoints.IBreakpoint? bp)
     {
         await RunUiActionAsync(() => EditBreakpointOptionsAsync(line, bp), "Editing breakpoint options");
     }
 
-    private async Task EditBreakpointOptionsAsync(int line, Invoklet.Avalonia.CodeTextEditor.IBreakpoint? bp)
+    private async Task EditBreakpointOptionsAsync(int line, Avalonia.CodeTextEditor.Breakpoints.IBreakpoint? bp)
     {
         if (_disposed) return;
         _breakpointDialog?.Close();
@@ -1459,7 +1465,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // Maps the DAP-facing breakpoint (the ScriptBreakpoint passed to host.AddBreakpoint) back to the
     // editor-side gutter breakpoint by line, so BreakPointMargin can color it red/green/yellow.
-    private void OnBreakpointVerified(Contracts.IBreakpoint bp, bool verified, string? message)
+    private void OnBreakpointVerified(IBreakpoint bp, bool verified, string? message)
     {
         var editorBp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == bp.Line);
         if (editorBp is null) return;
@@ -2945,7 +2951,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         int line,
         string? condition,
         string? hitCondition = null)
-        : Contracts.IBreakpoint
+        : IBreakpoint
     {
         public string FileName { get; } = fileName;
         public int Line { get; set; } = line;

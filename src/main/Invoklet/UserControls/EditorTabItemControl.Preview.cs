@@ -5,6 +5,7 @@ using Invoklet.Avalonia.Themes;
 using Invoklet.Format.MdRun;
 using Invoklet.UserControls.Models;
 using MarkView.Avalonia;
+using MarkView.Avalonia.SyntaxHighlighting;
 using ReactiveUI;
 using TextMateSharp.Grammars;
 

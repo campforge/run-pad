@@ -1,4 +1,4 @@
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Cleanup for RealBuild test classes whose temp folder holds DLLs a just-exited script process loaded.
 // Windows CI (release 0.3.0) threw UnauthorizedAccessException deleting them right after a run:

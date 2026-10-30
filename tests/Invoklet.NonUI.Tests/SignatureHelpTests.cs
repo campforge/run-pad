@@ -1,4 +1,4 @@
-using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.Languages.CSharp.IntelliSense.Syntax;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Xunit;

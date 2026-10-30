@@ -1,4 +1,4 @@
-using Invoklet.Contracts.Models;
+using Invoklet.Contracts.Debugging;
 using Invoklet.UserControls.Models;
 
 namespace Invoklet.Services;

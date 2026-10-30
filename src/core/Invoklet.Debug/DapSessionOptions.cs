@@ -1,4 +1,4 @@
-using Invoklet.Contracts;
+using Invoklet.Contracts.Debugging;
 
 namespace Invoklet.Debug;
 

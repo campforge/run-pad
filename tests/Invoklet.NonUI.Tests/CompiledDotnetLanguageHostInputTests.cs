@@ -9,7 +9,7 @@ using Invoklet.Languages.DotnetCommon.Compiler;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // ILanguageHost.InputRequested/SendInputAsync, the
 // host-side half of Invoklet.Runtime.Util.ReadLine/GetSecret (see UtilTests.cs for the runtime-side

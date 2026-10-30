@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // FindByPath is used right after creating a new folder to locate its freshly-merged
 // node and enter rename mode on it immediately (VS/Rider/Explorer-style) — see

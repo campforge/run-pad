@@ -26,17 +26,10 @@ using Invoklet.Services.Tabs;
 using Invoklet.UserControls;
 using Invoklet.UserControls.Models;
 using Invoklet.Windows;
+using Invoklet.Windows.Healpers;
 using Invoklet.Windows.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using ConnectionsWindow = Invoklet.Windows.ConnectionsWindow;
-using DependenciesWindow = Invoklet.Windows.DependenciesWindow;
-using MainWindow = Invoklet.Windows.MainWindow;
-using PreferencesWindow = Invoklet.Windows.PreferencesWindow;
-using SecretStoreWindow = Invoklet.Windows.SecretStoreWindow;
-using SetupWizardWindow = Invoklet.Windows.SetupWizardWindow;
-using SplashWindow = Invoklet.Windows.SplashWindow;
-
 using Windows_ConnectionsWindow = Invoklet.Windows.ConnectionsWindow;
 using Windows_DependenciesWindow = Invoklet.Windows.DependenciesWindow;
 using Windows_MainWindow = Invoklet.Windows.MainWindow;

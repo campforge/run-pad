@@ -1,4 +1,6 @@
 using System.Text;
+using Invoklet.Languages.CSharp.IntelliSense.Roslyn;
+using Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Formatting;
@@ -6,7 +8,7 @@ using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.Features;
 
 /// <summary>Formats the code in a workspace of its own, apart from the analysis document, with the editor's indentation.</summary>
 internal sealed class DocumentFormatter(ScriptDocumentSession session, ScriptDocumentLayout layout, ILogger logger)

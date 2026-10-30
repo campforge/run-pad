@@ -7,6 +7,7 @@ using Avalonia.VisualTree;
 using AvaloniaEdit;
 using AvaloniaEdit.Document;
 using Invoklet.Avalonia.CodeTextEditor;
+using Invoklet.Avalonia.CodeTextEditor.Highlighting;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Format.MdRun;

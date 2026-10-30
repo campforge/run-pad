@@ -2,7 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Invoklet.Build.Core.ProcessRunners;
-using Invoklet.Contracts;
+using Invoklet.Contracts.Debugging;
 using Invoklet.Contracts.Models;
 using Invoklet.Debug.Protocol;
 using Microsoft.Extensions.Logging;

@@ -1,6 +1,5 @@
 using Invoklet.Contracts.Models;
 using Invoklet.Format.MdRun;
-using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.Services.Scaling;
 using Invoklet.Services.Tabs;

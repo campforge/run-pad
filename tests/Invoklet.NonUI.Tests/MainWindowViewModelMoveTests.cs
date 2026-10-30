@@ -5,7 +5,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // File tree had no drag-and-drop at all. MoveFileOrFolder resolves the target directory
 // the same way CreateFolderAsync/CreateFileAsync already do (ResolveParentDir — dropping onto a folder

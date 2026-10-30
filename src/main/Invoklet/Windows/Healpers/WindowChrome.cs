@@ -5,7 +5,7 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Invoklet.Desktop;
 
-namespace Invoklet.Windows;
+namespace Invoklet.Windows.Healpers;
 
 /// <summary>
 /// One title bar design for every window on every system: each window but MainWindow, which draws

@@ -1,7 +1,7 @@
 using Invoklet.Format.MdRun;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Save As onto another Windows volume: no relative path reaches the file, so the absolute one is
 // written (with '/'), also in place of $(CurrentQueryPath). Windows path rules apply only on Windows,

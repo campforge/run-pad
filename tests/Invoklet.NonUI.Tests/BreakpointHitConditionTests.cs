@@ -1,7 +1,8 @@
 using Invoklet.Debug.Protocol;
 using Xunit;
+using Breakpoint = Invoklet.Avalonia.CodeTextEditor.Breakpoints.Breakpoint;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Condition (DAP SourceBreakpoint.condition) worked end-to-end, but HitCondition
 // (SourceBreakpoint.hitCondition — a hit-count expression like "= 5"/">= 3"/"% 2") wasn't threaded
@@ -13,7 +14,7 @@ public class BreakpointHitConditionTests
     [Fact]
     public void Breakpoint_Should_StoreHitConditionIndependentlyOfCondition()
     {
-        var bp = new Invoklet.Avalonia.CodeTextEditor.Breakpoint { Condition = "x > 5", HitCondition = "% 2" };
+        var bp = new Breakpoint { Condition = "x > 5", HitCondition = "% 2" };
 
         Assert.Equal("x > 5", bp.Condition);
         Assert.Equal("% 2", bp.HitCondition);

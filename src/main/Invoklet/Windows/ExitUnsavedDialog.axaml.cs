@@ -4,6 +4,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Invoklet.Services;
+using Invoklet.TemplatedControls;
 
 namespace Invoklet.Windows;
 

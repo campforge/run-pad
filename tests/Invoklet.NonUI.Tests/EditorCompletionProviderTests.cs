@@ -1,4 +1,4 @@
-using Invoklet.Avalonia.CodeTextEditor;
+using Invoklet.Avalonia.CodeTextEditor.Completions;
 using Invoklet.Contracts.IntelliSense;
 using Moq;
 using Xunit;

@@ -1,7 +1,7 @@
 using Invoklet.Languages.VB;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // VbFoldingRegions.Compute moved here from Invoklet.Avalonia.CodeTextEditor's
 // VbFoldingStrategy — a language-agnostic control project directly hosting VB-specific folding

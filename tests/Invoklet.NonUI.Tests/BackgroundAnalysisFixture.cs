@@ -1,5 +1,7 @@
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.Languages.CSharp.IntelliSense.Analysis;
+using Invoklet.Languages.CSharp.IntelliSense.Roslyn;
+using Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging.Abstractions;
 

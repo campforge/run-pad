@@ -3,6 +3,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
 using AvaloniaEdit.Document;
 using Invoklet.Avalonia.CodeTextEditor;
+using Invoklet.Avalonia.CodeTextEditor.Highlighters;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.IntelliSense;

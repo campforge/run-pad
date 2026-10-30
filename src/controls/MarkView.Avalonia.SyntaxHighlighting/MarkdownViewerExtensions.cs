@@ -4,7 +4,7 @@
 using MarkView.Avalonia.Extensions;
 using TextMateSharp.Grammars;
 
-namespace MarkView.Avalonia;
+namespace MarkView.Avalonia.SyntaxHighlighting;
 
 /// <summary>
 /// Convenience extensions for attaching TextMate highlighting to a <see cref="MarkdownViewer"/>.

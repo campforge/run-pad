@@ -2,11 +2,11 @@ using Avalonia;
 using Avalonia.Headless;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Themes.Simple;
-using AvaloniaEdit.AvaloniaMocks;
+using AvaloniaEdit.Tests.AvaloniaMocks;
 
 [assembly: AvaloniaTestApplication(typeof(UnitTestApplication))]
 
-namespace AvaloniaEdit.AvaloniaMocks;
+namespace AvaloniaEdit.Tests.AvaloniaMocks;
 
 public class UnitTestApplication : Application
 {

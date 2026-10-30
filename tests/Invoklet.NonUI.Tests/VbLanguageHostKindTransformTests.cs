@@ -6,7 +6,7 @@ using Invoklet.Languages.VB;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // VbLanguageHost.ApplyKindTransform/
 // CalcKindOffset had zero test coverage — unlike CSharpLanguageHost (see

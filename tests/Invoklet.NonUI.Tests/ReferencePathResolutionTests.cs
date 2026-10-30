@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using DiagnosticSeverity = Invoklet.Contracts.IntelliSense.DiagnosticSeverity;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // references: entries resolve against the script's own folder — never the process's current
 // directory — with macros expanded at that point, and the build, the CLI's options and IntelliSense

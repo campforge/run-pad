@@ -7,7 +7,7 @@ using Invoklet.Languages.DotnetCommon.Sdk;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Live user report: a Program-kind script with more than a bare Main (the LINQPad-style
 // norm for this kind — a field plus Main plus a helper method) failed to compile at all. This is a real

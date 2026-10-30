@@ -1,5 +1,5 @@
 using Invoklet.Format.MdRun;
-using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
 using Microsoft.CodeAnalysis;
 using Xunit;
 

@@ -1,4 +1,4 @@
-namespace Invoklet.Contracts;
+namespace Invoklet.Contracts.Debugging;
 
 public interface IBreakpoint
 {

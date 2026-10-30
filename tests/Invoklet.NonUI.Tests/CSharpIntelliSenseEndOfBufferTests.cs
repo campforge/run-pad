@@ -1,10 +1,6 @@
-using Invoklet.Languages.CSharp;
-using Invoklet.Languages.CSharp.IntelliSense;
-using Invoklet.NonUI.Tests;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // User-reported bug: `var a = new List<string>();` then `a` on its own line, then `.`
 // replaced `a` with `args`. Traced to a genuine Roslyn quirk, confirmed directly against

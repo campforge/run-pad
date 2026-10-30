@@ -4,7 +4,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Invoklet.Avalonia.CodeTextEditor;
-using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.Languages.CSharp.IntelliSense.Completion;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

@@ -1,13 +1,9 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Languages.CSharp;
-using Invoklet.Languages.CSharp.IntelliSense;
-using Invoklet.NonUI.Tests;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Invoklet's interface is English, but Roslyn localizes its diagnostics and code-action titles by
 // the UI culture of the thread that produces them — on a Russian macOS the lightbulb and the error

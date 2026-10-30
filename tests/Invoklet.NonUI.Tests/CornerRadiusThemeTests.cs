@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Every corner radius comes from the theme's metrics (Invoklet.Radius.* in
 // src/controls/Invoklet.Avalonia.Themes/Metrics.axaml), so windows, dialogs, popups and controls stay

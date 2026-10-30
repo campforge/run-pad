@@ -10,8 +10,6 @@ using Avalonia.Styling;
 using Markdig;
 
 using MarkView.Avalonia.Rendering;
-using MarkView.Avalonia.Tests.Shared;
-
 using TextMateSharp.Grammars;
 
 using Xunit;

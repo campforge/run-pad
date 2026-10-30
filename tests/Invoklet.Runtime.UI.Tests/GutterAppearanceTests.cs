@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Threading;
 using AvaloniaEdit.Document;
 using Invoklet.Avalonia.CodeTextEditor;
+using Invoklet.Avalonia.CodeTextEditor.Margins;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

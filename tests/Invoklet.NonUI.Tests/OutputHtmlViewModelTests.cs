@@ -2,7 +2,7 @@ using System.ComponentModel;
 using Invoklet.UserControls.Models;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // EditorTabItemControl.AppendOutput used to do `Output.Content += line` once per
 // output line — each `+=` copies the ENTIRE accumulated string so far, making total cost O(n²) for

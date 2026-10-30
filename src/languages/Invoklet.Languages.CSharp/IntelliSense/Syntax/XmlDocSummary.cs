@@ -3,7 +3,7 @@ using System.Xml;
 using System.Xml.Linq;
 using Microsoft.CodeAnalysis;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.Syntax;
 
 // Extracts plain-text <summary>/<param> content from a symbol's XML doc comment,
 // so completion/signature-help/quick-info tooltips can show it under the highlighted

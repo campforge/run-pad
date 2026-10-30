@@ -20,7 +20,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using Avalonia.Headless.NUnit;
-using AvaloniaEdit.AvaloniaMocks;
+using AvaloniaEdit.Tests.AvaloniaMocks;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Editing;
 using AvaloniaEdit.Rendering;

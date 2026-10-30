@@ -1,4 +1,4 @@
-using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.Languages.CSharp.IntelliSense.Completion;
 using Xunit;
 
 namespace Invoklet.NonUI.Tests;

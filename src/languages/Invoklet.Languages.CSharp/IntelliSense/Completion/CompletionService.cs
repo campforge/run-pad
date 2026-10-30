@@ -1,44 +1,20 @@
-using System.Collections.Concurrent;
-using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
-using System.Text;
-using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.MdRun;
-using Invoklet.Languages.CSharp.Compiler;
+using Invoklet.Languages.CSharp.IntelliSense.Completion.Providers;
+using Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
 using Invoklet.Languages.DotnetCommon;
-using Invoklet.Languages.DotnetCommon.Compiler;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Classification;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.CodeAnalysis.FindSymbols;
-using Microsoft.CodeAnalysis.Formatting;
-using Microsoft.CodeAnalysis.Options;
-using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
-using NuGet.Configuration;
-using static Invoklet.Languages.CSharp.IntelliSense.CompletionItems;
-using static Invoklet.Languages.CSharp.IntelliSense.CompletionKeywords;
-using static Invoklet.Languages.CSharp.IntelliSense.ExpectedTypeCompletion;
-using static Invoklet.Languages.CSharp.IntelliSense.ImportableTypes;
-using static Invoklet.Languages.CSharp.IntelliSense.ObjectInitializerCompletions;
-using static Invoklet.Languages.CSharp.IntelliSense.OverrideStubs;
-using ContractSeverity = Invoklet.Contracts.IntelliSense.DiagnosticSeverity;
-using ExecutionRequest = Invoklet.Contracts.Models.ExecutionRequest;
-using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.Completion;
 
 /// <summary>What the editor offers at the caret: the symbols in scope or of a receiver, keywords, the types to import, the members of an
 /// object initializer, the stubs of overrides, the typed <c>Arguments</c> and the values an argument can take. The pieces are providers
 /// asked in turn; the first that answers wins.</summary>
 internal sealed class CompletionService(
-    ScriptDocumentSession session, Func<string, Document> syncDocument, ScriptDocumentLayout layout, ScriptContext context, ILogger logger)
+    ScriptDocumentSession session, Func<string, Microsoft.CodeAnalysis.Document> syncDocument, ScriptDocumentLayout layout, ScriptContext context, ILogger logger)
 {
     private readonly ScriptDocumentSession _session = session;
-    private readonly Func<string, Document> _syncDocument = syncDocument;
+    private readonly Func<string, Microsoft.CodeAnalysis.Document> _syncDocument = syncDocument;
     private readonly ScriptDocumentLayout _layout = layout;
     private readonly ScriptContext _context = context;
     private readonly ILogger _logger = logger;
@@ -93,7 +69,7 @@ internal sealed class CompletionService(
     {
         try
         {
-            Document document;
+            Microsoft.CodeAnalysis.Document document;
             lock (_session.SyncLock)
             {
                 document = _syncDocument(code);

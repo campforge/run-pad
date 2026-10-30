@@ -2,7 +2,7 @@ using Avalonia.Headless.XUnit;
 using AvaloniaEdit;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Folding;
-using Invoklet.Avalonia.CodeTextEditor;
+using Invoklet.Avalonia.CodeTextEditor.Folding;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

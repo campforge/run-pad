@@ -1,11 +1,7 @@
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Languages.CSharp;
-using Invoklet.Languages.CSharp.IntelliSense;
-using Invoklet.NonUI.Tests;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // GroupBy(DisplayText).First() collapses every overload of a method
 // down to a single completion item (one representative per name, same as before this fix) — but gave

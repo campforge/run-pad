@@ -1,12 +1,12 @@
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
-using Invoklet.NonUI.Tests;
+using Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // ComputeDiagnosticsAsync/ComputeCodeFixesAsync used to be two independent
 // methods, each calling model.GetDiagnostics(...) itself — merged into one

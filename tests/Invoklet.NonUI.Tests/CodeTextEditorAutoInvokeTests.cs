@@ -1,7 +1,7 @@
 using Invoklet.Avalonia.CodeTextEditor;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Completion used to only show up after '.' or an explicit Ctrl+Space, never while just
 // typing an identifier (LINQPad/VS Code's "24/7 IntelliSense"). CodeTextEditor.IsStartOfNewIdentifier

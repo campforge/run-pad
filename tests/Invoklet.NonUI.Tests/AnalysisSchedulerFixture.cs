@@ -1,4 +1,4 @@
-using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.Languages.CSharp.IntelliSense.Analysis;
 
 namespace Invoklet.NonUI.Tests;
 

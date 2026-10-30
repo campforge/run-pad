@@ -1,6 +1,6 @@
 using Microsoft.CodeAnalysis;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.Syntax;
 
 internal static class SymbolFormats
 {

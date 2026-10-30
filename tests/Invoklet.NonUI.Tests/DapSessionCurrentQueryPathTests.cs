@@ -6,7 +6,7 @@ using Invoklet.Debug;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Live user report ("Util.CurrentQueryPath doesn't work while debugging, but all
 // features should work while debugging"): a debug session launches the debuggee through netcoredbg (a

@@ -3,7 +3,7 @@
 
 using Avalonia.Threading;
 
-namespace MarkView.Avalonia.Tests.Shared;
+namespace MarkView.Avalonia.SyntaxHighlighting.Tests;
 
 /// <summary>
 /// Dispatcher-pumping waits for headless tests whose code under test completes on a

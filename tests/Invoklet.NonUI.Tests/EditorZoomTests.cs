@@ -1,7 +1,7 @@
-using Invoklet.UserControls;
+using Invoklet.UserControls.Healpers;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Code zoom steps: Zoom In/Out (wheel, View menu, status-bar menu) move to the nearest browser-style
 // step, also from an in-between value a settings file may hold.

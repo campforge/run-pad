@@ -2,12 +2,12 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
 using Invoklet.Build.Core.ProcessRunners;
-using Invoklet.Contracts;
+using Invoklet.Contracts.Debugging;
 using Invoklet.Debug;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Live user report: "dynamic breakpoint set/unset doesn't work on a running
 // script" — see DapSession.RequestBreakpointResync's own comment for the root cause: the resync

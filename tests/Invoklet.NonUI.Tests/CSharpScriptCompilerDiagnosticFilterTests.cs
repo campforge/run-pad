@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // Proves CSharpScriptCompiler.IsSyntheticWrapperEntryPointWarning's structural check in isolation,
 // against a tiny in-memory compilation, so it doesn't need a real `dotnet build` of a whole script

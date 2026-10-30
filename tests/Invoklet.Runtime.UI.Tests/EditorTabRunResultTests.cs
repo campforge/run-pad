@@ -7,6 +7,7 @@ using Avalonia.VisualTree;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Connections;
+using Invoklet.Contracts.Debugging;
 using Invoklet.Contracts.Models;
 using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
@@ -120,7 +121,7 @@ public class EditorTabRunResultTests
         var ctrl = CreateControl(RunResult.Exited(0), logger: logger.Object);
         var host = new Mock<ILanguageHost>();
         host.Setup(h => h.Supports(LanguageHostCapabilities.Breakpoints)).Returns(true);
-        host.Setup(h => h.RemoveBreakpoint(It.IsAny<Invoklet.Contracts.IBreakpoint>()))
+        host.Setup(h => h.RemoveBreakpoint(It.IsAny<IBreakpoint>()))
             .Throws(new InvalidOperationException("breakpoint update failed"));
         ctrl.State.RunningHost = host.Object;
         ctrl.State.SourceFilePath = "InvokletQuery.cs";
@@ -167,16 +168,16 @@ public class EditorTabRunResultTests
         try
         {
             ctrl.ApplyBreakpointOptions(2, " count > 5 ", "% 2", true);
-            host.Verify(h => h.AddBreakpoint(It.Is<Invoklet.Contracts.IBreakpoint>(b =>
+            host.Verify(h => h.AddBreakpoint(It.Is<IBreakpoint>(b =>
                 b.Line == 2 && b.Condition == "count > 5" && b.HitCondition == "% 2")), Times.Once);
             Assert.Single(ctrl.State.Editor.Breakpoints);
             host.Invocations.Clear();
             ctrl.ApplyBreakpointOptions(2, "count == 9", null, false);
-            host.Verify(h => h.RemoveBreakpoint(It.IsAny<Invoklet.Contracts.IBreakpoint>()), Times.Once);
-            host.Verify(h => h.AddBreakpoint(It.IsAny<Invoklet.Contracts.IBreakpoint>()), Times.Never);
+            host.Verify(h => h.RemoveBreakpoint(It.IsAny<IBreakpoint>()), Times.Once);
+            host.Verify(h => h.AddBreakpoint(It.IsAny<IBreakpoint>()), Times.Never);
             Assert.False(Assert.Single(ctrl.State.Editor.Breakpoints).IsEnabled);
             ctrl.ApplyBreakpointOptions(2, " ", null, true);
-            host.Verify(h => h.AddBreakpoint(It.Is<Invoklet.Contracts.IBreakpoint>(b => b.Condition == null)), Times.Once);
+            host.Verify(h => h.AddBreakpoint(It.Is<IBreakpoint>(b => b.Condition == null)), Times.Once);
         }
         finally
         {

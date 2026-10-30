@@ -5,7 +5,7 @@ using Avalonia.Media;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
-using Invoklet.UserControls;
+using Invoklet.UserControls.Healpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 

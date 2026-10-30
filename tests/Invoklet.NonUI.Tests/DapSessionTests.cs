@@ -3,7 +3,7 @@ using Invoklet.Debug;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // DapSession used to depend on the concrete, real-Process-backed ChildProcess, so its
 // protocol logic could only ever be exercised against an actual netcoredbg process. Now that it

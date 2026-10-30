@@ -3,7 +3,7 @@ using Invoklet.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // The Queries tree is refreshed from FileSystemService.WatcherEvent. Folders created, renamed, moved
 // or deleted outside Invoklet (Finder, a terminal, Obsidian) must reach it — including folders whose

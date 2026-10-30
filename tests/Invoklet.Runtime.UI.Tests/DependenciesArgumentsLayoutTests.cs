@@ -9,7 +9,6 @@ using Avalonia.VisualTree;
 using Invoklet.Avalonia.Themes;
 using Invoklet.Contracts;
 using Invoklet.Format.MdRun;
-using Invoklet.Services;
 using Invoklet.Windows;
 using Invoklet.Windows.Models;
 using Moq;

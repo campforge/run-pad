@@ -1,40 +1,27 @@
-using System.Collections.Concurrent;
 using System.Collections.Immutable;
-using System.Runtime.CompilerServices;
-using System.Text;
-using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Format.MdRun;
-using Invoklet.Languages.CSharp.Compiler;
+using Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
 using Invoklet.Languages.DotnetCommon;
-using Invoklet.Languages.DotnetCommon.Compiler;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Classification;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.CodeAnalysis.FindSymbols;
-using Microsoft.CodeAnalysis.Formatting;
-using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Text;
-using Microsoft.Extensions.Logging;
-using NuGet.Configuration;
 using ContractSeverity = Invoklet.Contracts.IntelliSense.DiagnosticSeverity;
-using ExecutionRequest = Invoklet.Contracts.Models.ExecutionRequest;
 using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.Analysis;
 
 /// <summary>
 /// One background pass over the text of the script: the diagnostics with their code fixes, the semantic tokens and the inlay hints,
 /// published through events only while the project's context is still the one the pass began on and no newer text has cancelled it.
 /// </summary>
 internal sealed class BackgroundAnalysis(
-    ScriptDocumentSession session, Func<string, Document> syncDocument, ScriptDocumentLayout layout, ScriptContext context,
+    ScriptDocumentSession session, Func<string, Microsoft.CodeAnalysis.Document> syncDocument, ScriptDocumentLayout layout, ScriptContext context,
     RoslynCodeFixEngine codeFixEngine, RoslynAnalyzerEngine analyzerEngine, Func<bool> analyzersEnabled)
 {
     private readonly ScriptDocumentSession _session = session;
-    private readonly Func<string, Document> _syncDocument = syncDocument;
+    private readonly Func<string, Microsoft.CodeAnalysis.Document> _syncDocument = syncDocument;
     private readonly ScriptDocumentLayout _layout = layout;
     private readonly ScriptContext _context = context;
     private readonly RoslynCodeFixEngine _codeFixEngine = codeFixEngine;
@@ -77,7 +64,7 @@ internal sealed class BackgroundAnalysis(
     // notification has taken over already.
     internal async Task<bool> AnalyzeAsync(string code, CancellationToken ct)
     {
-        Document document;
+        Microsoft.CodeAnalysis.Document document;
         int version;
         lock (_session.SyncLock)
         {
@@ -104,7 +91,7 @@ internal sealed class BackgroundAnalysis(
         return IsCurrent(version);
     }
 
-    private async Task ComputeSemanticTokensAsync(string code, Document document, int version, CancellationToken ct)
+    private async Task ComputeSemanticTokensAsync(string code, Microsoft.CodeAnalysis.Document document, int version, CancellationToken ct)
     {
         var headerLength = _layout.HeaderLength(code);
         var textLen = headerLength + _layout.Projection(code).Text.Length;
@@ -135,7 +122,7 @@ internal sealed class BackgroundAnalysis(
     // declarations only (`var a = 1, b = 2;` skipped entirely) — matches Roslyn's own behavior; a
     // multi-declarator statement can only have one inferred type anyway, so hinting just the first
     // variable would misleadingly suggest it doesn't apply to the rest.
-    private async Task ComputeInlayHintsAsync(string code, Document document, int version, CancellationToken ct)
+    private async Task ComputeInlayHintsAsync(string code, Microsoft.CodeAnalysis.Document document, int version, CancellationToken ct)
     {
         var model = await document.GetSemanticModelAsync(ct);
         var root = await document.GetSyntaxRootAsync(ct);
@@ -193,7 +180,7 @@ internal sealed class BackgroundAnalysis(
     // over the document; GetSemanticModelAsync itself is cached per document version, but
     // GetDiagnostics is not, so calling it twice on the same model did the same binding work twice
     // on every 500ms background tick.
-    private async Task ComputeDiagnosticsAndCodeFixesAsync(string code, Document document, int version, CancellationToken ct)
+    private async Task ComputeDiagnosticsAndCodeFixesAsync(string code, Microsoft.CodeAnalysis.Document document, int version, CancellationToken ct)
     {
         var model = await document.GetSemanticModelAsync(ct);
         if (model == null)
@@ -288,7 +275,7 @@ internal sealed class BackgroundAnalysis(
     // document — generators report at external-file locations naming that document's path — never
     // in generated code, which isn't part of that compilation.
     private static async Task<List<(Diagnostic Diagnostic, TextSpan Span)>> GeneratorDiagnosticsAsync(
-        Document document, Compilation compilation, SyntaxTree userTree, CancellationToken ct)
+        Microsoft.CodeAnalysis.Document document, Compilation compilation, SyntaxTree userTree, CancellationToken ct)
     {
         var generators = document.Project.AnalyzerReferences
             .SelectMany(r => r.GetGenerators(LanguageNames.CSharp)).ToImmutableArray();

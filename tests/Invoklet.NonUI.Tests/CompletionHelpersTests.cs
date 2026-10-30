@@ -1,5 +1,5 @@
 using Invoklet.Contracts.IntelliSense;
-using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.Languages.CSharp.IntelliSense.Completion;
 using Microsoft.CodeAnalysis.CSharp;
 using Xunit;
 

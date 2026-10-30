@@ -6,7 +6,7 @@ using Invoklet.Windows.Models;
 using Moq;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // MainWindowViewModel.ImportLinqFileAsync, the "File →
 // Import .linq Query..." entry point around LinqConverter (see LinqConverterTests.cs in

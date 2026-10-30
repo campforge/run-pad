@@ -1,4 +1,8 @@
-using Invoklet.Languages.CSharp.IntelliSense;
+using Invoklet.Languages.CSharp.IntelliSense.Analysis;
+using Invoklet.Languages.CSharp.IntelliSense.Completion;
+using Invoklet.Languages.CSharp.IntelliSense.Features;
+using Invoklet.Languages.CSharp.IntelliSense.Roslyn;
+using Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging.Abstractions;
 

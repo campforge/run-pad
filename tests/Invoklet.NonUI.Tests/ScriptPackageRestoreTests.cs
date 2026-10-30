@@ -10,7 +10,7 @@ using Invoklet.Languages.DotnetCommon.Sdk;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // In-process NuGet restore for scripts (NuGetRestorer, no MSBuild) against a local folder feed built by
 // the test, with its own NuGet.Config whose globalPackagesFolder is a temp folder — never the network,

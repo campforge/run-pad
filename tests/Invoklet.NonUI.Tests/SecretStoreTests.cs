@@ -9,7 +9,6 @@ using Invoklet.Format.MdRun;
 using Invoklet.Languages.CSharp;
 using Invoklet.Languages.DotnetCommon;
 using Invoklet.Languages.DotnetCommon.Sdk;
-using Invoklet.Runtime.UI.Tests;
 using Invoklet.Services.Secrets;
 using Invoklet.Windows.Models;
 using Microsoft.Extensions.Logging.Abstractions;

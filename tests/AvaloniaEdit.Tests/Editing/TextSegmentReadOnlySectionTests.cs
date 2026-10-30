@@ -17,10 +17,11 @@
 // DEALINGS IN THE SOFTWARE.
 
 using AvaloniaEdit.Document;
+using AvaloniaEdit.Editing;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-namespace AvaloniaEdit.Editing;
+namespace AvaloniaEdit.Tests.Editing;
 
 [TestFixture]
 public class TextSegmentReadOnlySectionTests

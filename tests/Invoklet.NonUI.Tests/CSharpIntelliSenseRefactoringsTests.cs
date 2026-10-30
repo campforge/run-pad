@@ -1,12 +1,10 @@
-using Invoklet.Languages.CSharp;
 using Invoklet.Languages.CSharp.IntelliSense;
-using Invoklet.NonUI.Tests;
+using Invoklet.Languages.CSharp.IntelliSense.Analysis;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // GetRefactoringsAsync, the
 // position-based counterpart to CodeFixesChanged's diagnostic-driven fixes. Real dotnet-build-free
@@ -213,7 +211,7 @@ public class CSharpIntelliSenseRefactoringsTests
             new TextChange(new TextSpan(PreambleSample.Length, 0), "using System.Net.Http;\n"),
         };
 
-        var usings = RoslynCodeFixEngine.UsingsInsertedIntoPreamble(PreambleSample, changes);
+        var usings = PreambleEdits.UsingsInsertedIntoPreamble(PreambleSample, changes);
 
         Assert.Equal(["System.Diagnostics"], usings);
     }
@@ -223,7 +221,7 @@ public class CSharpIntelliSenseRefactoringsTests
     {
         var at = PreambleSample.IndexOf("using System.IO;", StringComparison.Ordinal);
 
-        var usings = RoslynCodeFixEngine.UsingsInsertedIntoPreamble(
+        var usings = PreambleEdits.UsingsInsertedIntoPreamble(
             PreambleSample, [new TextChange(new TextSpan(at, 0), "using System.Diagnostics;\n")]);
 
         Assert.Equal(["System.Diagnostics"], usings);
@@ -232,7 +230,7 @@ public class CSharpIntelliSenseRefactoringsTests
     [Fact]
     public void UsingsInsertedIntoPreamble_Should_RejectChangingAnExistingUsing()
     {
-        var usings = RoslynCodeFixEngine.UsingsInsertedIntoPreamble(
+        var usings = PreambleEdits.UsingsInsertedIntoPreamble(
             PreambleSample, [Replace(PreambleSample, "IO;", "Diagnostics;")]);
 
         Assert.Null(usings);
@@ -241,7 +239,7 @@ public class CSharpIntelliSenseRefactoringsTests
     [Fact]
     public void UsingsInsertedIntoPreamble_Should_RejectInsertingSomethingOtherThanAUsing()
     {
-        var usings = RoslynCodeFixEngine.UsingsInsertedIntoPreamble(
+        var usings = PreambleEdits.UsingsInsertedIntoPreamble(
             PreambleSample, [new TextChange(new TextSpan(0, 0), "[assembly: System.CLSCompliant(true)]\n")]);
 
         Assert.Null(usings);

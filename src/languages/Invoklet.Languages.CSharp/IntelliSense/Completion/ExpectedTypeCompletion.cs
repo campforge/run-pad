@@ -1,14 +1,11 @@
 using Invoklet.Contracts.IntelliSense;
+using Invoklet.Languages.CSharp.IntelliSense.Syntax;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using static Invoklet.Languages.CSharp.IntelliSense.CompletionItems;
-using static Invoklet.Languages.CSharp.IntelliSense.CompletionKeywords;
-using static Invoklet.Languages.CSharp.IntelliSense.ImportableTypes;
-using static Invoklet.Languages.CSharp.IntelliSense.ObjectInitializerCompletions;
-using static Invoklet.Languages.CSharp.IntelliSense.OverrideStubs;
+using static Invoklet.Languages.CSharp.IntelliSense.Completion.CompletionItems;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.Completion;
 
 // Completion where the code says what type is wanted: an argument of a call or constructor, or the
 // value of a property in an object initializer. The wanted types come from the overloads that can

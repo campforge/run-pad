@@ -3,6 +3,7 @@ using System.Text.Json;
 using Invoklet.Build.Core.Models;
 using Invoklet.Build.Core.ProcessRunners;
 using Invoklet.Contracts;
+using Invoklet.Contracts.Debugging;
 using Invoklet.Contracts.Models;
 using Invoklet.Debug;
 using Invoklet.Format.MdRun;

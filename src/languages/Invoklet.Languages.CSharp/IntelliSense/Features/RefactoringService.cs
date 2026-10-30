@@ -1,38 +1,27 @@
-using System.Collections.Concurrent;
-using System.Collections.Immutable;
-using System.Runtime.CompilerServices;
 using System.Text;
-using Invoklet.Contracts.Connections;
 using Invoklet.Contracts.IntelliSense;
 using Invoklet.Format.MdRun;
-using Invoklet.Languages.CSharp.Compiler;
+using Invoklet.Languages.CSharp.IntelliSense.Analysis;
+using Invoklet.Languages.CSharp.IntelliSense.Roslyn;
+using Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
 using Invoklet.Languages.DotnetCommon;
-using Invoklet.Languages.DotnetCommon.Compiler;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Classification;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
-using NuGet.Configuration;
-using ContractSeverity = Invoklet.Contracts.IntelliSense.DiagnosticSeverity;
-using ExecutionRequest = Invoklet.Contracts.Models.ExecutionRequest;
-using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.Features;
 
 /// <summary>The refactorings the lightbulb offers at the caret, the edit a chosen fix or refactoring makes to the user's code, and
 /// the usings that resolve every missing name at once. A fix made for the program kind is re-indented outside its hidden wrapper.</summary>
 internal sealed class RefactoringService(
-    ScriptDocumentSession session, Func<string, Document> syncDocument, ScriptDocumentLayout layout,
+    ScriptDocumentSession session, Func<string, Microsoft.CodeAnalysis.Document> syncDocument, ScriptDocumentLayout layout,
     RoslynCodeFixEngine codeFixEngine, ILogger logger)
 {
     private readonly ScriptDocumentSession _session = session;
-    private readonly Func<string, Document> _syncDocument = syncDocument;
+    private readonly Func<string, Microsoft.CodeAnalysis.Document> _syncDocument = syncDocument;
     private readonly ScriptDocumentLayout _layout = layout;
     private readonly RoslynCodeFixEngine _codeFixEngine = codeFixEngine;
     private readonly ILogger _logger = logger;

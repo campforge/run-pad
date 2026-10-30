@@ -1,6 +1,6 @@
 using Microsoft.CodeAnalysis.Text;
 
-namespace Invoklet.Languages.CSharp.IntelliSense;
+namespace Invoklet.Languages.CSharp.IntelliSense.ScriptDocument;
 
 /// <summary>
 /// Pure projection of user code into the synthetic Roslyn document.

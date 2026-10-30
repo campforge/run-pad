@@ -3,7 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Invoklet.Services.Preferences;
 
-namespace Invoklet.Windows;
+namespace Invoklet.Windows.Healpers;
 
 // The single description of MainWindow's menu. The
 // in-window Menu (Windows/Linux) and the macOS system menu bar (NativeMenu) are both projected from

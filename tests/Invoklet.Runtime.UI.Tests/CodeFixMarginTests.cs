@@ -9,6 +9,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using AvaloniaEdit.Document;
 using Invoklet.Avalonia.CodeTextEditor;
+using Invoklet.Avalonia.CodeTextEditor.CodeFix;
 using Xunit;
 
 namespace Invoklet.Runtime.UI.Tests;

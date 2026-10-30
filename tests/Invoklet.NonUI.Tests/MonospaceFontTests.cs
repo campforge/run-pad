@@ -4,7 +4,7 @@ using Invoklet.Services.Preferences;
 using Xunit;
 using Platform = Invoklet.Avalonia.CodeTextEditor.MonospaceFont.Platform;
 
-namespace Invoklet.Runtime.UI.Tests;
+namespace Invoklet.NonUI.Tests;
 
 // The default code font used to be the generic "monospace" name, which Avalonia resolves to
 // Helvetica — a proportional face — on macOS. The default is now the first installed fixed-pitch

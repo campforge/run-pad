@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Invoklet.Avalonia.CodeTextEditor;
 using Invoklet.Contracts;
+using Invoklet.Contracts.Debugging;
 using Invoklet.Contracts.Models;
 using Invoklet.Format.MdRun;
 
