@@ -88,7 +88,7 @@ public sealed class WorkspaceWorkTests
         var fixture = new WorkspaceWorkFixture();
         var gate = WorkspaceWorkFixture.NewGate();
         var sut = fixture.CreateSut();
-        sut.Track(() => gate.Task);
+        _ = sut.Track(() => gate.Task);
 
         // Act
         var idle = fixture.WaitUntilIdle(sut);
