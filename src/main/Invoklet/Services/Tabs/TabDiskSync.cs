@@ -99,12 +99,15 @@ internal sealed class TabDiskSync(IWindowService windows, IScriptFileReader? rea
         if (candidates.Count == 0) return;
 
         // Reading and hashing the files stays off the UI thread: a script folder can be on a slow drive.
-        var states = await Task.Run(() => candidates.Select(c =>
+        var reading = Task.Run(() => candidates.Select(c =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             try { return _reader.Read(c.Path); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
-        }).ToList(), cancellationToken);
+        }).ToList());
+        // A read that has started cannot be interrupted, and on a network drive it can last long: when the
+        // strip goes away the check stops waiting for it and the read ends on its own.
+        var states = await reading.WaitAsync(cancellationToken);
 
         for (var i = 0; i < candidates.Count; i++)
         {
