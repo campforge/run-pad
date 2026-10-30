@@ -499,9 +499,13 @@ public sealed class ConnectionStatusTests : IDisposable
         },
     };
 
+    // The work the rows wait for runs in the background and has nothing to await. A deadline on the clock, not a
+    // count of rounds: two seconds of rounds was not enough when the whole suite ran at once, and costs nothing when met.
     private static async Task WaitUntil(Func<bool> condition)
     {
-        for (var i = 0; i < 200 && !condition(); i++) await Task.Delay(10);
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+        while (!condition() && DateTime.UtcNow < deadline)
+            await Task.Delay(10, TestContext.Current.CancellationToken);
         Assert.True(condition());
     }
 
