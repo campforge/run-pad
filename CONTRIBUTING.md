@@ -61,7 +61,9 @@ Invoklet, under the project's license and, if the licensing ever changes, under 
   license (see [their README](src/controls/MarkView.Avalonia/README.md)). The same rules as for the
   AvaloniaEdit fork apply; its upstream suites live in `tests/MarkView.Avalonia.Tests` and
   `tests/MarkView.Avalonia.SyntaxHighlighting.Tests`.
-- **MVVM:** ReactiveUI only (no CommunityToolkit.Mvvm); register services in `App.axaml.cs`.
+- **Architecture:** follow the [MVVM guidelines](MVVM_GUIDELINES.md) and
+  [SOLID guidelines](SOLID_GUIDELINES.md) for new and changed code. Use ReactiveUI only (no
+  CommunityToolkit.Mvvm); register services in `App.axaml.cs`.
 - **Packages:** versions live in `Directory.Packages.props`; a `.csproj` references packages by name only.
   A new package must have a license compatible with GPL-3.0; after adding, removing or updating one,
   regenerate `THIRD-PARTY-NOTICES.txt` with `python scripts/make-third-party-notices.py` and commit it.
