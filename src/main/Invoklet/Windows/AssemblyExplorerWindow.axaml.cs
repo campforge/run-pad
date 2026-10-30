@@ -14,6 +14,7 @@ using Invoklet.Languages.DotnetCommon;
 using Invoklet.Services;
 using Invoklet.Services.Preferences;
 using Invoklet.Windows.Models;
+using DocumentTab = Invoklet.Services.PageTabs<Invoklet.Windows.AssemblyExplorerWindow.HistoryEntry>.Tab;
 using SyntaxTree = ICSharpCode.Decompiler.CSharp.Syntax.SyntaxTree;
 
 namespace Invoklet.Windows;
@@ -171,12 +172,8 @@ public partial class AssemblyExplorerWindow : Window
     internal async Task OpenDefinitionInNewTabAsync(
         DecompiledMemberResult page, string? assemblyPath, IDefinitionResult? definition)
     {
-        if (_tabs.Count > 1 || _activeTab.Current is not null)
-        {
-            var tab = new DocumentTab();
-            _tabs.Insert(ActiveTabIndex + 1, tab);
-            ActivateTab(tab);
-        }
+        if (_docs.Count > 1 || _activeTab.Current is not null)
+            ActivateTab(_docs.InsertAfterActive());
         Show(page, item: null, target: null, DecompilerView.Default); // F12's page is always default C#
         if (assemblyPath is not null)
             await LoadAndRevealDefinitionAsync(assemblyPath, definition, page);
@@ -217,7 +214,7 @@ public partial class AssemblyExplorerWindow : Window
             _initialPageTarget = target;
         }
 
-        foreach (var tab in _tabs)
+        foreach (var tab in _docs.All)
         {
             if (tab.Current is not { } current || !ReferenceEquals(current.Result, page)) continue;
             tab.Current = current with { Item = row, Target = target };
@@ -233,7 +230,6 @@ public partial class AssemblyExplorerWindow : Window
     {
         InitializeComponent();
         _windowService = windowService;
-        _activeTab = _tabs[0];
 
         BrowseButton.Click += async (_, _) => await BrowseAsync();
 
@@ -473,7 +469,6 @@ public partial class AssemblyExplorerWindow : Window
     {
         InitializeComponent();
         _windowService = null!;
-        _activeTab = _tabs[0];
     }
 
     // Browse adds the picked assembly to the tree (like ILSpy's assembly list) and selects it.
@@ -1383,21 +1378,17 @@ public partial class AssemblyExplorerWindow : Window
 
     // ── Back/Forward (Alt+←/→, mouse buttons 4/5, toolbar) ──
 
-    internal bool CanGoBack => _activeTab.Back.Count > 0;
-    internal bool CanGoForward => _activeTab.Forward.Count > 0;
+    internal bool CanGoBack => _docs.CanGoBack;
+    internal bool CanGoForward => _docs.CanGoForward;
 
     internal void GoBack()
     {
-        if (_activeTab.Current is null || !_activeTab.Back.TryPop(out var entry)) return;
-        _activeTab.Forward.Push(Remember(_activeTab.Current));
-        Restore(entry);
+        if (_docs.GoBack(Remember) is { } entry) Restore(entry);
     }
 
     internal void GoForward()
     {
-        if (_activeTab.Current is null || !_activeTab.Forward.TryPop(out var entry)) return;
-        _activeTab.Back.Push(Remember(_activeTab.Current));
-        Restore(entry);
+        if (_docs.GoForward(Remember) is { } entry) Restore(entry);
     }
 
     private HistoryEntry Remember(HistoryEntry entry) => entry with { CaretLine = Editor.TextArea.Caret.Line };
@@ -1405,7 +1396,6 @@ public partial class AssemblyExplorerWindow : Window
     private void Restore(HistoryEntry entry)
     {
         ++_requestVersion; // a decompile still running for the page we're leaving must not land
-        _activeTab.Current = entry;
         ApplyResult(entry.Result, entry.CaretLine, entry.View);
         SelectSilently(entry.Item);
         UpdateHistoryButtons();
@@ -1417,33 +1407,14 @@ public partial class AssemblyExplorerWindow : Window
     // `view`: the one `result` was rendered in, when it may no longer be the current one.
     private void Show(DecompiledMemberResult result, TreeViewItem? item, PageTarget? target, DecompilerView? view = null)
     {
-        if (_activeTab.Current is not null)
-        {
-            _activeTab.Back.Push(Remember(_activeTab.Current));
-            _activeTab.Forward.Clear();
-        }
-        _activeTab.Current = new HistoryEntry(result, item, result.Line, target, view ?? _view);
-        ApplyResult(result, result.Line, _activeTab.Current.View);
+        var entry = new HistoryEntry(result, item, result.Line, target, view ?? _view);
+        _docs.Show(entry, Remember);
+        ApplyResult(result, result.Line, entry.View);
         UpdateHistoryButtons();
     }
 
     // every tab's pages keep their code but stop pointing at tree rows (some may have been removed)
-    private void DetachHistoryFromTree()
-    {
-        foreach (var tab in _tabs)
-        {
-            Detach(tab.Back);
-            Detach(tab.Forward);
-            tab.Current = tab.Current is null ? null : tab.Current with { Item = null };
-        }
-
-        static void Detach(Stack<HistoryEntry> stack)
-        {
-            var entries = stack.Reverse().Select(e => e with { Item = null }).ToList();
-            stack.Clear();
-            foreach (var entry in entries) stack.Push(entry);
-        }
-    }
+    private void DetachHistoryFromTree() => _docs.Rewrite(entry => entry with { Item = null });
 
     private void UpdateHistoryButtons()
     {
@@ -1455,30 +1426,27 @@ public partial class AssemblyExplorerWindow : Window
 
     // ── Tabs: each its own page and Back/Forward history (ILSpy's document tabs) ──
 
-    private readonly List<DocumentTab> _tabs = [new DocumentTab()];
-    private DocumentTab _activeTab = null!; // _tabs[0], set by every constructor
+    private readonly Services.PageTabs<HistoryEntry> _docs = new();
+    private DocumentTab _activeTab => _docs.Active;
     private bool _syncingTabStrip;
 
-    internal int TabCount => _tabs.Count;
-    internal int ActiveTabIndex => _tabs.IndexOf(_activeTab);
-    internal IReadOnlyList<string> TabTitles => _tabs.Select(t => t.Title).ToList();
+    internal int TabCount => _docs.Count;
+    internal int ActiveTabIndex => _docs.ActiveIndex;
+    internal IReadOnlyList<string> TabTitles => _docs.All.Select(TitleOf).ToList();
+
+    private static string TitleOf(DocumentTab tab) => tab.Current?.Result.Title ?? "New Tab";
 
     // A tree row opened in a new tab (context menu, middle-click or Ctrl+click on the row).
     internal async Task OpenInNewTabAsync(AssemblyTreeNode node, TreeViewItem? item)
     {
-        var tab = new DocumentTab();
-        _tabs.Insert(ActiveTabIndex + 1, tab);
-        ActivateTab(tab);
+        ActivateTab(_docs.InsertAfterActive());
         SelectSilently(item);
         await SelectNodeAsync(node, item);
     }
 
     internal void ActivateTab(DocumentTab tab)
     {
-        if (!_tabs.Contains(tab)) return;
-        if (_activeTab.Current is { } leaving && _tabs.Contains(_activeTab))
-            _activeTab.Current = Remember(leaving); // come back to the same line
-        _activeTab = tab;
+        if (!_docs.Activate(tab, Remember)) return; // the page we leave comes back to the same line
         ++_requestVersion; // a decompile still running for the tab we're leaving must not land here
 
         if (tab.Current is { } page)
@@ -1498,49 +1466,28 @@ public partial class AssemblyExplorerWindow : Window
     // Closing the last tab empties it instead (there's always one).
     internal void CloseTab(DocumentTab tab)
     {
-        var index = _tabs.IndexOf(tab);
-        if (index < 0) return;
-        if (_tabs.Count == 1)
-        {
-            tab.Current = null;
-            tab.Back.Clear();
-            tab.Forward.Clear();
-            ActivateTab(tab);
-            return;
-        }
-
-        _tabs.RemoveAt(index);
-        if (tab == _activeTab)
-            ActivateTab(_tabs[Math.Min(index, _tabs.Count - 1)]);
-        else
-            RefreshTabStrip();
+        var (found, toActivate) = _docs.Close(tab);
+        if (!found) return;
+        if (toActivate is not null) ActivateTab(toActivate);
+        else RefreshTabStrip();
     }
 
     internal void CloseActiveTab() => CloseTab(_activeTab);
 
-    internal void ActivateNextTab(int step) =>
-        ActivateTab(_tabs[((ActiveTabIndex + step) % _tabs.Count + _tabs.Count) % _tabs.Count]);
+    internal void ActivateNextTab(int step) => ActivateTab(_docs.Next(step));
 
     private void RefreshTabStrip()
     {
         _syncingTabStrip = true;
         try
         {
-            DocumentTabs.ItemsSource = _tabs.Select(t => new TabHeader(t.Title, t)).ToList();
+            DocumentTabs.ItemsSource = _docs.All.Select(t => new TabHeader(TitleOf(t), t)).ToList();
             DocumentTabs.SelectedIndex = ActiveTabIndex;
         }
         finally
         {
             _syncingTabStrip = false;
         }
-    }
-
-    internal sealed class DocumentTab
-    {
-        public HistoryEntry? Current { get; set; }
-        public Stack<HistoryEntry> Back { get; } = new();
-        public Stack<HistoryEntry> Forward { get; } = new();
-        public string Title => Current?.Result.Title ?? "New Tab";
     }
 
     /// <summary>A tab strip item: what the tab shows, and the tab its close button closes.</summary>
