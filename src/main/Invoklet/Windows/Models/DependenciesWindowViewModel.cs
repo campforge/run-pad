@@ -178,12 +178,9 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
     // Every request carries the generation it started in; a late answer from an older generation
     // (even one from a service that ignores its CancellationToken) is dropped.
-    private CancellationTokenSource? _searchCts;
-    private int _searchGeneration;
-    private CancellationTokenSource? _versionsCts;
-    private int _versionsGeneration;
-    private CancellationTokenSource? _detailsCts;
-    private int _detailsGeneration;
+    private readonly LatestRequest _searchRequest = new();
+    private readonly LatestRequest _versionsRequest = new();
+    private readonly LatestRequest _detailsRequest = new();
     // What the sources said about a package version, so going back to one needs no new request;
     // null is also an answer (no source supplies it). Dropped when the sources change.
     private readonly Dictionary<string, PackageDetails?> _detailsCache = new(StringComparer.OrdinalIgnoreCase);
@@ -566,12 +563,11 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
     // Asks the sources about the selected package at the selected version, off the UI thread; an answer
     // for a package or version no longer selected is dropped.
+    private bool IsCurrentDetails(int generation) => !_disposed && _detailsRequest.IsCurrent(generation);
+
     private void LoadDetails()
     {
-        _detailsCts?.Cancel();
-        _detailsCts?.Dispose();
-        _detailsCts = null;
-        var generation = ++_detailsGeneration;
+        var generation = _detailsRequest.Invalidate();
 
         DetailsError = null;
         if (_detailsId is null)
@@ -593,8 +589,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         }
 
         Details = null;
-        _detailsCts = new CancellationTokenSource();
-        PendingDetails = LoadDetailsAsync(id, version, generation, _detailsCts.Token);
+        PendingDetails = LoadDetailsAsync(id, version, generation, _detailsRequest.NewToken());
     }
 
     private async Task LoadDetailsAsync(string id, string? version, int generation, CancellationToken ct)
@@ -612,13 +607,13 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             // The card still works without it; adding the package never waits for this.
-            if (generation != _detailsGeneration || _disposed) return;
+            if (!IsCurrentDetails(generation)) return;
             DetailsError = $"Couldn't load the package details: {ex.Message}";
             IsLoadingDetails = false;
             return;
         }
 
-        if (generation != _detailsGeneration || _disposed) return;
+        if (!IsCurrentDetails(generation)) return;
         _detailsCache[DetailsKey(id, version)] = details;
         Details = details;
         IsLoadingDetails = false;
@@ -1161,25 +1156,22 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         RebuildOnline();
     }
 
-    private bool IsCurrentSearch(int generation) => !_disposed && generation == _searchGeneration;
+    private bool IsCurrentSearch(int generation) => !_disposed && _searchRequest.IsCurrent(generation);
 
     // Cancels the pending search and makes any late answer from it stale, even from a service
     // that ignores the token.
-    private void InvalidateSearch()
+    private int InvalidateSearch()
     {
-        _searchCts?.Cancel();
-        _searchCts?.Dispose();
-        _searchCts = null;
-        ++_searchGeneration;
+        var generation = _searchRequest.Invalidate();
         IsSearching = false;
         PendingSearch = Task.CompletedTask;
+        return generation;
     }
 
     // A new query, source or prerelease setting starts again from the first page.
     private void TriggerSearch(bool immediate, bool resetPage = true)
     {
-        InvalidateSearch();
-        var generation = _searchGeneration;
+        var generation = InvalidateSearch();
         if (resetPage)
             _skip = 0;
 
@@ -1195,8 +1187,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         }
 
         var options = new PackageSearchOptions(SelectedSourceOption.SourceName, IncludePrerelease, _skip);
-        _searchCts = new CancellationTokenSource();
-        PendingSearch = SearchAsync(query, options, generation, immediate, _searchCts.Token);
+        PendingSearch = SearchAsync(query, options, generation, immediate, _searchRequest.NewToken());
     }
 
     private async Task SearchAsync(string query, PackageSearchOptions options, int generation, bool immediate,
@@ -1347,14 +1338,11 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         this.RaisePropertyChanged(nameof(SelectedVersion));
     }
 
-    private bool IsCurrentVersions(int generation) => !_disposed && generation == _versionsGeneration;
+    private bool IsCurrentVersions(int generation) => !_disposed && _versionsRequest.IsCurrent(generation);
 
     private void LoadVersions()
     {
-        _versionsCts?.Cancel();
-        _versionsCts?.Dispose();
-        _versionsCts = null;
-        var generation = ++_versionsGeneration;
+        var generation = _versionsRequest.Invalidate();
 
         VersionsError = null;
         if (_detailsId is null)
@@ -1364,8 +1352,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        _versionsCts = new CancellationTokenSource();
-        PendingVersions = LoadVersionsAsync(_detailsId, generation, _versionsCts.Token);
+        PendingVersions = LoadVersionsAsync(_detailsId, generation, _versionsRequest.NewToken());
     }
 
     private async Task LoadVersionsAsync(string id, int generation, CancellationToken ct)
@@ -1483,15 +1470,9 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         if (_disposed) return;
         _disposed = true;
 
-        _searchCts?.Cancel();
-        _searchCts?.Dispose();
-        _searchCts = null;
-        _versionsCts?.Cancel();
-        _versionsCts?.Dispose();
-        _versionsCts = null;
-        _detailsCts?.Cancel();
-        _detailsCts?.Dispose();
-        _detailsCts = null;
+        _searchRequest.Dispose();
+        _versionsRequest.Dispose();
+        _detailsRequest.Dispose();
 
         foreach (var entry in References)
             entry.RemoveCommand.Dispose();
