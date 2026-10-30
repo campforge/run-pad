@@ -23,5 +23,8 @@ internal sealed class DocumentFormatterFixture : IDisposable
 
     public SignatureHelp CreateSignatureHelp() => new(Session.Sync, Layout, NullLogger.Instance);
 
+    public RefactoringService CreateRefactorings()
+        => new(Session, Session.Sync, Layout, new RoslynCodeFixEngine(InvokletRoslynHost.CompositionHost, NullLogger.Instance), NullLogger.Instance);
+
     public void Dispose() => Session.Dispose();
 }
