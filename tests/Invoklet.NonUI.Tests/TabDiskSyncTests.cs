@@ -246,6 +246,34 @@ public class TabDiskSyncTests
     }
 
     [Fact]
+    public async Task ACheckCancelledDuringAReadThatHangs_Should_NotWaitForIt()
+    {
+        var h = new Harness();
+        h.Open("a");
+        using var cts = new CancellationTokenSource();
+        using var hang = new ManualResetEventSlim();
+        h.Reader.OnRead = () => hang.Wait(TimeSpan.FromSeconds(30)); // a file on a drive that does not answer
+
+        var check = h.Sync.CheckAsync(h.Host, cts.Token);
+        await TestWait(() => h.Reader.Reads.Count == 0);
+        cts.Cancel();
+
+        try
+        {
+            await check.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken); // not 30 s
+            Assert.True(check.IsCompletedSuccessfully);
+            Assert.Empty(h.Host.Reloaded);
+        }
+        finally { hang.Set(); }
+    }
+
+    private static async Task TestWait(Func<bool> stillWaiting)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (stillWaiting() && DateTime.UtcNow < deadline) await Task.Delay(10, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public async Task AClosedStrip_Should_StopTheCheck()
     {
         var h = new Harness();
