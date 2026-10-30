@@ -112,6 +112,12 @@
     <Style Selector=":is(Button).primary, :is(Button).secondary, Button[IsDefault=True], Button[IsCancel=True], :is(TextBox), :is(ComboBox), NumericUpDown">
         <Setter Property="MinHeight" Value="{DynamicResource Invoklet.Size.Control}"/>
     </Style>
+    <!-- The label of a form button sits in the middle of it, both ways, whatever height the button is given: the
+         button's own alignment is Stretch, which leaves a text at the top left of a taller button. -->
+    <Style Selector=":is(Button).primary, :is(Button).secondary, Button[IsDefault=True], Button[IsCancel=True]">
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
     <Style Selector=":is(Button).secondary">
         <Setter Property="Background" Value="{DynamicResource Invoklet.Editor.BackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource Invoklet.Text.PrimaryBrush}"/>

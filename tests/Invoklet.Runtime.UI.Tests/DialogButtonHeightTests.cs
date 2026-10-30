@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Layout;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using Invoklet.Avalonia.Themes;
@@ -48,6 +49,36 @@ public class DialogButtonHeightTests
             Assert.NotEmpty(heights);
             Assert.All(window.GetLogicalDescendants().OfType<Button>().Where(b => b.IsVisible),
                 b => Assert.True(b.Bounds.Height == (double)expected!, $"{kind}: {string.Join("; ", heights)}"));
+        }
+        finally
+        {
+            window.Close();
+            global::Avalonia.Application.Current!.Styles.Remove(theme);
+        }
+    }
+
+    // A button's own alignment is Stretch, which leaves a label at the top left of a button taller than its text: the form
+    // buttons of the theme centre it, so a label sits in the middle whatever height the dialog gives its button.
+    [AvaloniaTheory]
+    [MemberData(nameof(Dialogs))]
+    public void EveryButtonOfADialog_Should_CentreItsLabelBothWays(string kind)
+    {
+        var theme = new InvokletTheme();
+        global::Avalonia.Application.Current!.Styles.Add(theme);
+        var window = Create(kind);
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+
+            var buttons = window.GetLogicalDescendants().OfType<Button>().Where(b => b.IsVisible).ToList();
+
+            Assert.NotEmpty(buttons);
+            Assert.All(buttons, b =>
+            {
+                Assert.True(b.HorizontalContentAlignment == HorizontalAlignment.Center, $"{kind}: {b.Name ?? b.Content}: {b.HorizontalContentAlignment}");
+                Assert.True(b.VerticalContentAlignment == VerticalAlignment.Center, $"{kind}: {b.Name ?? b.Content}: {b.VerticalContentAlignment}");
+            });
         }
         finally
         {

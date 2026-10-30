@@ -9,6 +9,8 @@ Notable changes in each Invoklet release. Downloads are on the
 
 - The icon of the window and the taskbar on Windows is larger where it was hardest to read: the small sizes of the icon
   show the hammer and the grid closer, and the icon in the title bar of the window is 20 pixels instead of 16.
+- The labels of the buttons of dialogs and forms sit in the middle of the button, both ways, instead of at its top left
+  corner, which made a button look taller than the text in it, the blue one above all.
 
 ## [0.10.4] — 2026-10-30
 
