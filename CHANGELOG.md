@@ -7,6 +7,8 @@ Notable changes in each Invoklet release. Downloads are on the
 
 ### Added
 
+- Export Results as HTML (File menu, or "Save results as HTML..." in the output settings of the results panel) saves the results of a script as
+  one page that opens in any browser, with the colours of the theme they were drawn in.
 - `Util.Highlight`, `Util.HighlightIf`, `Util.WithStyle` and `Util.WithHeading` (LINQPad-compatible) dress a value in the output of
   `.Dump()`: a highlight, CSS declarations, or a heading above it. They work on their own and inside what is dumped, such as a
   column of a table.

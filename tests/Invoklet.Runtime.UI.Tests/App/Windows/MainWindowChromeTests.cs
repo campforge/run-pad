@@ -141,6 +141,7 @@ public class MainWindowChromeTests
         "File/---",
         "File/Save",
         "File/Save As...",
+        "File/Export Results as HTML...",
         "File/Revert to Saved",
         "File/---",
         "File/Close Tab",

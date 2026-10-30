@@ -268,6 +268,23 @@ public sealed class WindowService : IWindowService
         else window.Show();
     }
 
+    public async Task<string?> ShowSaveHtmlFileDialogAsync(string suggestedFileName, string startFolder)
+    {
+        var owner = MainWindow;
+        if (owner is null) return null;
+
+        var startLocation = await owner.StorageProvider.TryGetFolderFromPathAsync(startFolder);
+        var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Export Results",
+            SuggestedFileName = suggestedFileName,
+            DefaultExtension = "html",
+            SuggestedStartLocation = startLocation,
+            FileTypeChoices = [new FilePickerFileType("HTML") { Patterns = ["*.html", "*.htm"] }],
+        });
+        return file is null ? null : file.TryGetLocalPath();
+    }
+
     public async Task<string?> ShowSaveCodeFileDialogAsync(string suggestedFileName, string extension, string startFolder)
     {
         var owner = MainWindow;

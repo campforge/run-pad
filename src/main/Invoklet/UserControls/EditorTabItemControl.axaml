@@ -253,6 +253,8 @@
                                         <StackPanel x:Name="OutputSettingsPanel" Spacing="6" MaxWidth="320">
                                             <TextBlock Text="Output settings" FontWeight="SemiBold"/>
                                             <CheckBox x:Name="ResultsWrapCheckBox" Content="Wrap long lines in results"/>
+                                            <Button x:Name="ExportResultsButton" Classes="secondary" Content="Save results as HTML..." HorizontalAlignment="Left"
+                                                    Click="ExportResultsButton_Click"/>
                                             <Separator Margin="0,2"/>
                                             <TextBlock Text="When debugging" Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
                                             <CheckBox IsChecked="{Binding DebugPanel.BreakOnUncaughtExceptions, Mode=TwoWay}"

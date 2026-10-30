@@ -63,6 +63,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private RefactoringRequests? _refactoringRequests;
     private EventHandler? _refactoringCaretHandler;
     private EditorFormatting? _formatting;
+    private ResultsExporter? _resultsExporter;
     private EventHandler<TextInputEventArgs>? _textEnteredHandler;
     private EventHandler? _intelliSenseTextChangedHandler;
     private EventHandler<VisualTreeAttachmentEventArgs>? _editorAttachedHandler;
@@ -191,6 +192,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _InvokletAnalyzers = prefs.Experimental?.InvokletAnalyzers == true;
         intelliSense?.UpdateInvokletAnalyzers(_InvokletAnalyzers);
         SetupEditor(editor, intelliSense);
+
+        _resultsExporter = new ResultsExporter(_windowService, () => State.Output.Css, () => State.Output.Content, () => _vm.FilePath,
+            () => Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
 
         // Format Selection, and formatting after a ';' or a '}' as it is typed.
         _formatting = new EditorFormatting(() => _intelliSense, new EditorFormattingTarget(editor), () => _prefs.Editor.FormatOnType);
@@ -1004,6 +1008,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // ── Format / navigation ────────────────────────────────────────────────────
 
+    internal Task ExportResultsAsync() => _resultsExporter?.ExportAsync() ?? Task.CompletedTask;
+
     internal async Task FormatAsync()
     {
         if (_intelliSense is null) return;
@@ -1705,6 +1711,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // The output settings menu's check box: saved like any preference, so every open tab follows it
     // (OnPreferencesChanged); this tab's results reflow at once.
+    private async void ExportResultsButton_Click(object? sender, RoutedEventArgs e)
+    {
+        OutputSettingsButton.Flyout?.Hide();
+        await ExportResultsAsync();
+    }
+
     private void OnResultsWrapCheckBoxChanged(object? sender, RoutedEventArgs e)
     {
         var wrap = ResultsWrapCheckBox.IsChecked == true;

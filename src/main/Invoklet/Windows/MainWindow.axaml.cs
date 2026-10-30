@@ -373,6 +373,7 @@ public sealed partial class MainWindow : Window, IDisposable, IStartupWindow
                 new MainMenuSeparator(),
                 Item("_Save", KeyCommands.Save),
                 Item("Save _As...", KeyCommands.SaveAs),
+                Item("Export _Results as HTML...", KeyCommands.ExportResults),
                 Item("Re_vert to Saved", KeyCommands.RevertFile),
                 new MainMenuSeparator(),
                 Item("_Close Tab", KeyCommands.CloseTab),
