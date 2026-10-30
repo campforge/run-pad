@@ -91,6 +91,9 @@ public sealed class TabLifecycleManager
         return RestoreAsync(tab, entry);
     }
 
+    /// <summary>Completes once no tab is being brought back (and the release that follows each has run).</summary>
+    internal Task WhenIdleAsync() => Task.WhenAll(_entries.Values.Select(e => e.Restoring ?? Task.CompletedTask));
+
     /// <summary>Releases the content of the tabs the policy gives up and colours only the tab being looked at.</summary>
     internal void Rebalance()
     {

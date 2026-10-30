@@ -79,7 +79,7 @@ public class EditorTabsControlResidencyTests
         var count = vm.Tabs.Count;
         vm.NewMdRunFile();
         await TestWait.WhileAsync(() => vm.Tabs.Count <= count || tabs.ControlForTests(vm.Tabs[^1]) is null);
-        await TestWait.SettleAsync(() => Loaded(tabs, vm));
+        await tabs.IdleForTests();
     }
 
     private static async Task AddTabsAsync(EditorTabsControl tabs, MainWindowViewModel vm, int count)
@@ -92,7 +92,7 @@ public class EditorTabsControlResidencyTests
     {
         vm.ActiveTab = tab;
         await TestWait.WhileAsync(() => !tabs.IsLoadedForTests(tab));
-        await TestWait.SettleAsync(() => Loaded(tabs, vm));
+        await tabs.IdleForTests();
     }
 
     private static Task<EditorTabItemViewModel> FirstTabAsync(EditorTabsControl tabs, MainWindowViewModel vm)
