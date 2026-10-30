@@ -1,6 +1,3 @@
-using Invoklet.Format.MdRun;
-using Invoklet.Services;
-using Invoklet.Services.Preferences;
 using Invoklet.Services.Tabs;
 using Invoklet.UserControls.Models;
 using Moq;
@@ -8,264 +5,307 @@ using Xunit;
 
 namespace Invoklet.NonUI.Tests;
 
-// The tab lifecycle on fakes: no window, no editor, no files.
-public class TabLifecycleManagerTests
+public sealed class TabLifecycleManagerTests
 {
-    private sealed class FakeView : ITabView
-    {
-        public bool Running { get; set; }
-        public bool CanRelease { get; set; } = true;
-        public bool CanRestore { get; set; } = true;
-        public bool IsContentReleased { get; private set; }
-        public bool? HighlightingActive { get; private set; }
-        public int Released { get; private set; }
-        public int Restored { get; private set; }
-        public bool HasRunningProcess => Running;
-        public Task<bool>? RestoreGate { get; set; }
-        public int RestoreCalls { get; private set; }
+    private static readonly TimeSpan Limit = TimeSpan.FromSeconds(5);
 
-        public bool TryReleaseContent()
+    // Opens the tabs the way the strip does: a tab is registered with its view and becomes the active one.
+    private static List<EditorTabItemViewModel> Open(TabLifecycleManagerFixture fixture, TabLifecycleManager sut, params string[] names)
+    {
+        sut.Attach(fixture.ActiveTabSource, fixture.OnNotRestored);
+        var tabs = new List<EditorTabItemViewModel>();
+        foreach (var name in names)
         {
-            if (!CanRelease || Running) return false;
-            IsContentReleased = true;
-            Released++;
-            return true;
+            var tab = fixture.CreateTab(name);
+            sut.Register(tab, fixture.Views[tab].View.Object);
+            fixture.Active = tab;
+            tabs.Add(tab);
         }
-
-        public Task<bool> TryRestoreContentAsync()
-        {
-            RestoreCalls++;
-            if (!CanRestore) return Task.FromResult(false);
-            return RestoreGate is null ? Done() : Wait(RestoreGate);
-
-            Task<bool> Done()
-            {
-                IsContentReleased = false;
-                Restored++;
-                return Task.FromResult(true);
-            }
-
-            async Task<bool> Wait(Task<bool> gate)
-            {
-                await gate;
-                return await Done();
-            }
-        }
-
-        public void SetHighlightingActive(bool active) => HighlightingActive = active;
-    }
-
-    private sealed class FakeSpill : ITabSpillStore
-    {
-        public bool DeletedAll { get; private set; }
-        public bool TryWrite(Guid tab, ReleasedContent content) => true;
-        public ReleasedContent? TryRead(Guid tab) => null;
-        public void Delete(Guid tab) { }
-        public void DeleteAll() => DeletedAll = true;
-    }
-
-    private sealed class Harness
-    {
-        public FakeSpill Spill { get; } = new();
-        public TabLifecycleManager Manager { get; }
-        public EditorTabItemViewModel? Active { get; set; }
-        public List<EditorTabItemViewModel> NotRestored { get; } = [];
-        public Dictionary<EditorTabItemViewModel, FakeView> Views { get; } = new();
-
-        public Harness()
-        {
-            Manager = new(new RecentTabsResidencyPolicy(), Spill);
-            Manager.Attach(() => Active, NotRestored.Add);
-        }
-
-        public EditorTabItemViewModel Open(string name)
-        {
-            var prefs = new Mock<IPreferencesService>();
-            prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
-            prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
-            prefs.Setup(p => p.Editor).Returns(new EditorSettings());
-            prefs.Setup(p => p.CSharp).Returns(new CSharpLanguageSettings());
-            prefs.Setup(p => p.Session).Returns(new SessionSettings());
-            var tab = new EditorTabItemViewModel(null, [], prefs.Object, new Mock<IEditorTabActions>().Object,
-                MdRunLanguage.CSharp, MdRunKind.Statements, name);
-            var view = new FakeView();
-            Views[tab] = view;
-            Manager.Register(tab, view);
-            Active = tab;
-            return tab;
-        }
-    }
-
-    // tabs[0] and tabs[1] are the two used longest ago of five; the last one is active.
-    private static (Harness Harness, List<EditorTabItemViewModel> Tabs) FiveTabs()
-    {
-        var harness = new Harness();
-        var tabs = Enumerable.Range(1, 5).Select(i => harness.Open("tab" + i)).ToList();
-        return (harness, tabs);
+        return tabs;
     }
 
     [Fact]
-    public void Rebalance_Should_ReleaseTheContentOfTheTabsBeyondTheLastThree()
+    public void Rebalance_PolicyGivesUpTabs_ReleasesTheirContent()
     {
-        var (harness, tabs) = FiveTabs();
+        // Arrange
+        var fixture = new TabLifecycleManagerFixture();
+        var sut = fixture.CreateSut();
+        var tabs = Open(fixture, sut, "a", "b", "c");
+        fixture.PolicyGivesUp(tabs[0], tabs[1]);
 
-        harness.Manager.Rebalance();
+        // Act
+        sut.Rebalance();
 
-        Assert.True(harness.Views[tabs[0]].IsContentReleased);
-        Assert.True(harness.Views[tabs[1]].IsContentReleased);
-        Assert.All(tabs.Skip(2), tab => Assert.True(harness.Manager.IsContentLoaded(tab)));
-        Assert.False(harness.Manager.IsContentLoaded(tabs[0]));
+        // Assert
+        fixture.Views[tabs[0]].View.Verify(v => v.TryReleaseContent(), Times.Once);
+        fixture.Views[tabs[1]].View.Verify(v => v.TryReleaseContent(), Times.Once);
+        fixture.Views[tabs[2]].View.Verify(v => v.TryReleaseContent(), Times.Never);
+        Assert.False(sut.IsContentLoaded(tabs[0]));
+        Assert.True(sut.IsContentLoaded(tabs[2]));
     }
 
     [Fact]
-    public void SelectingATabWhoseContentIsReleased_Should_BringItBack_AndReleaseTheOldestLoadedOne()
+    public void Rebalance_TabIsActive_IsNeverReleased()
     {
-        var (harness, tabs) = FiveTabs();
-        harness.Manager.Rebalance();
+        // Arrange
+        var fixture = new TabLifecycleManagerFixture();
+        var sut = fixture.CreateSut();
+        var tabs = Open(fixture, sut, "a", "b");
+        fixture.PolicyGivesUp(tabs[1]); // the policy would, but b is the one being looked at
 
-        harness.Active = tabs[0];
-        harness.Manager.Activated(tabs[0]);
+        // Act
+        sut.Rebalance();
 
-        Assert.Equal(1, harness.Views[tabs[0]].Restored);
-        Assert.True(harness.Manager.IsContentLoaded(tabs[0]));
-        Assert.Equal(3, tabs.Count(harness.Manager.IsContentLoaded)); // the oldest loaded one made room
-        Assert.True(harness.Views[tabs[2]].IsContentReleased);
+        // Assert
+        fixture.Views[tabs[1]].View.Verify(v => v.TryReleaseContent(), Times.Never);
     }
 
     [Fact]
-    public async Task WhatNeedsTheText_Should_BringItBackWithoutSelectingTheTab()
+    public void Rebalance_TabIsRunning_IsNotReleased()
     {
-        var (harness, tabs) = FiveTabs();
-        harness.Manager.Rebalance();
+        // Arrange
+        var fixture = new TabLifecycleManagerFixture();
+        var sut = fixture.CreateSut();
+        var tabs = Open(fixture, sut, "a", "b");
+        tabs[0].RunState = RunState.Run;
+        fixture.PolicyGivesUp(tabs[0]);
 
-        await tabs[0].EnsureContent();
+        // Act
+        sut.Rebalance();
 
-        Assert.False(harness.Views[tabs[0]].IsContentReleased);
+        // Assert
+        fixture.Views[tabs[0]].View.Verify(v => v.TryReleaseContent(), Times.Never);
     }
 
     [Fact]
-    public async Task ATabWhoseTextWasNeeded_Should_NotBeReleasedAgainAtOnce()
+    public void Rebalance_RunEndedOutOfSight_KeepsTheContentUntilTheTabIsSelected()
     {
-        var (harness, tabs) = FiveTabs();
-        harness.Manager.Rebalance();
+        // Arrange
+        var fixture = new TabLifecycleManagerFixture();
+        var sut = fixture.CreateSut();
+        var tabs = Open(fixture, sut, "a", "b");
+        tabs[0].RunState = RunState.Run;
+        tabs[0].RunState = RunState.Idle; // ended while b was shown
+        fixture.PolicyGivesUp(tabs[0]);
 
-        await tabs[0].EnsureContent(); // saving it, say, while another tab is the one shown
-        harness.Manager.Rebalance();
+        // Act
+        sut.Rebalance();
+        var releasedBeforeTheVisit = fixture.Views[tabs[0]].Released;
+        fixture.Active = tabs[0];
+        sut.Activated(tabs[0]); // the user looks at it
+        fixture.Active = tabs[1];
+        sut.Rebalance();
 
-        Assert.True(harness.Manager.IsContentLoaded(tabs[0]));
-        Assert.Equal(1, harness.Views[tabs[0]].Restored);
+        // Assert
+        Assert.False(releasedBeforeTheVisit);
+        Assert.True(fixture.Views[tabs[0]].Released);
     }
 
     [Fact]
-    public async Task ARestoreAskedForWhileOneRuns_Should_BeTheSameRestore()
+    public void Rebalance_ViewCannotReleaseItsContent_TabStaysLoaded()
     {
-        var (harness, tabs) = FiveTabs();
-        harness.Manager.Rebalance();
-        var gate = new TaskCompletionSource<bool>();
-        harness.Views[tabs[0]].RestoreGate = gate.Task;
+        // Arrange
+        var fixture = new TabLifecycleManagerFixture();
+        var sut = fixture.CreateSut();
+        var tabs = Open(fixture, sut, "a", "b");
+        fixture.Views[tabs[0]].CanRelease = false;
+        fixture.PolicyGivesUp(tabs[0]);
 
-        harness.Active = tabs[0];
-        harness.Manager.Activated(tabs[0]); // selecting it
-        var saving = tabs[0].EnsureContent(); // and saving it before the text is back
-        gate.SetResult(true);
-        await saving;
+        // Act
+        sut.Rebalance();
 
-        Assert.Equal(1, harness.Views[tabs[0]].RestoreCalls);
+        // Assert
+        Assert.True(sut.IsContentLoaded(tabs[0]));
     }
 
     [Fact]
-    public void ATabThatIsRunning_Should_NotBeReleased()
+    public void Rebalance_Called_ColoursOnlyTheActiveTab()
     {
-        var (harness, tabs) = FiveTabs();
-        harness.Views[tabs[0]].Running = true;
+        // Arrange
+        var fixture = new TabLifecycleManagerFixture();
+        var sut = fixture.CreateSut();
+        var tabs = Open(fixture, sut, "a", "b", "c");
 
-        harness.Manager.Rebalance();
+        // Act
+        sut.Rebalance();
 
-        Assert.True(harness.Manager.IsContentLoaded(tabs[0]));
-        Assert.False(harness.Manager.IsContentLoaded(tabs[1]));
+        // Assert
+        fixture.Views[tabs[2]].View.Verify(v => v.SetHighlightingActive(true), Times.Once);
+        fixture.Views[tabs[0]].View.Verify(v => v.SetHighlightingActive(false), Times.Once);
+        fixture.Views[tabs[1]].View.Verify(v => v.SetHighlightingActive(false), Times.Once);
     }
 
     [Fact]
-    public void ARunThatEndedOutOfSight_Should_KeepTheContentUntilTheTabIsSelected()
+    public void Register_Tab_TouchesItInThePolicy()
     {
-        var harness = new Harness();
-        var first = harness.Open("tab1");
-        first.RunState = RunState.Run;
-        var others = Enumerable.Range(2, 4).Select(i => harness.Open("tab" + i)).ToList();
+        // Arrange
+        var fixture = new TabLifecycleManagerFixture();
+        var sut = fixture.CreateSut();
 
-        first.RunState = RunState.Idle; // ended while another tab was shown
-        harness.Manager.Rebalance();
-        Assert.True(harness.Manager.IsContentLoaded(first));
+        // Act
+        var tabs = Open(fixture, sut, "a");
 
-        harness.Active = first;
-        harness.Manager.Activated(first); // the user looks at it
-        harness.Active = others[3];
-        foreach (var tab in others.Skip(1)) harness.Manager.Activated(tab);
-
-        Assert.False(harness.Manager.IsContentLoaded(first));
+        // Assert
+        fixture.Policy.Verify(p => p.Touch(tabs[0]), Times.Once);
     }
 
     [Fact]
-    public void AViewThatCannotReleaseItsContent_Should_StayLoaded()
+    public void Activated_ReleasedTab_RestoresItsContentAndTouchesItInThePolicy()
     {
-        var (harness, tabs) = FiveTabs();
-        harness.Views[tabs[0]].CanRelease = false;
+        // Arrange
+        var fixture = new TabLifecycleManagerFixture();
+        var sut = fixture.CreateSut();
+        var tabs = Open(fixture, sut, "a", "b");
+        fixture.Views[tabs[0]].Released = true;
+        fixture.Active = tabs[0];
 
-        harness.Manager.Rebalance();
+        // Act
+        sut.Activated(tabs[0]);
 
-        Assert.True(harness.Manager.IsContentLoaded(tabs[0]));
+        // Assert
+        fixture.Views[tabs[0]].View.Verify(v => v.TryRestoreContentAsync(), Times.Once);
+        fixture.Policy.Verify(p => p.Touch(tabs[0]), Times.Exactly(2)); // when it was opened, and now
+        Assert.True(sut.IsContentLoaded(tabs[0]));
     }
 
     [Fact]
-    public void ContentThatCannotBeRead_Should_BeReported_AndTheTabStayReleasedForTheNextTry()
+    public void Activated_LoadedTab_DoesNotRestoreAnything()
     {
-        var (harness, tabs) = FiveTabs();
-        harness.Manager.Rebalance();
-        harness.Views[tabs[0]].CanRestore = false;
+        // Arrange
+        var fixture = new TabLifecycleManagerFixture();
+        var sut = fixture.CreateSut();
+        var tabs = Open(fixture, sut, "a", "b");
 
-        harness.Active = tabs[0];
-        harness.Manager.Activated(tabs[0]);
+        // Act
+        sut.Activated(tabs[0]);
 
-        Assert.Equal([tabs[0]], harness.NotRestored);
-        Assert.False(harness.Manager.IsContentLoaded(tabs[0]));
-
-        harness.Views[tabs[0]].CanRestore = true;
-        harness.Manager.Activated(tabs[0]);
-        Assert.True(harness.Manager.IsContentLoaded(tabs[0]));
+        // Assert
+        fixture.Views[tabs[0]].View.Verify(v => v.TryRestoreContentAsync(), Times.Never);
     }
 
     [Fact]
-    public async Task AClosedTab_Should_NoLongerBeKnown()
+    public void Activated_ContentCannotBeRead_ReportsItAndTheTabStaysReleasedForTheNextTry()
     {
-        var (harness, tabs) = FiveTabs();
-        harness.Manager.Rebalance();
+        // Arrange
+        var fixture = new TabLifecycleManagerFixture();
+        var sut = fixture.CreateSut();
+        var tabs = Open(fixture, sut, "a", "b");
+        var view = fixture.Views[tabs[0]];
+        view.Released = true;
+        view.CanRestore = false;
+        fixture.Active = tabs[0];
 
-        harness.Manager.Unregister(tabs[0]);
-        await tabs[0].EnsureContent();
+        // Act
+        sut.Activated(tabs[0]);
+        var afterTheFailure = sut.IsContentLoaded(tabs[0]);
+        view.CanRestore = true;
+        sut.Activated(tabs[0]);
 
-        Assert.Equal(0, harness.Views[tabs[0]].Restored);
-        Assert.False(harness.Manager.IsContentLoaded(tabs[0]));
+        // Assert
+        Assert.Equal([tabs[0]], fixture.NotRestored);
+        Assert.False(afterTheFailure);
+        Assert.True(sut.IsContentLoaded(tabs[0]));
     }
 
     [Fact]
-    public void OnlyTheActiveTab_Should_Colour()
+    public async Task EnsureContentAsync_ReleasedTab_RestoresItAndCountsItAsUsed()
     {
-        var (harness, tabs) = FiveTabs();
+        // Arrange
+        var fixture = new TabLifecycleManagerFixture();
+        var sut = fixture.CreateSut();
+        var tabs = Open(fixture, sut, "a", "b");
+        fixture.Views[tabs[0]].Released = true;
 
-        harness.Manager.Rebalance();
+        // Act
+        await sut.EnsureContentAsync(tabs[0]).WaitAsync(Limit, TestContext.Current.CancellationToken);
 
-        Assert.True(harness.Views[tabs[4]].HighlightingActive);
-        Assert.False(harness.Views[tabs[3]].HighlightingActive);
-        Assert.False(harness.Views[tabs[0]].HighlightingActive);
+        // Assert
+        Assert.True(sut.IsContentLoaded(tabs[0]));
+        fixture.Policy.Verify(p => p.Touch(tabs[0]), Times.Exactly(2));
     }
 
     [Fact]
-    public void DetachingTheStrip_Should_RemoveWhatWasKept()
+    public async Task EnsureContentAsync_ARestoreIsUnderway_JoinsItInsteadOfStartingAnother()
     {
-        var (harness, _) = FiveTabs();
+        // Arrange
+        var fixture = new TabLifecycleManagerFixture();
+        var sut = fixture.CreateSut();
+        var tabs = Open(fixture, sut, "a", "b");
+        var view = fixture.Views[tabs[0]];
+        view.Released = true;
+        view.RestoreGate = new TaskCompletionSource<bool>();
+        fixture.Active = tabs[0];
+        sut.Activated(tabs[0]); // selecting the tab starts reading it
 
-        harness.Manager.Detach();
+        // Act
+        var saving = sut.EnsureContentAsync(tabs[0]); // and saving it asks for the text before it is back
+        view.RestoreGate.SetResult(true);
+        await saving.WaitAsync(Limit, TestContext.Current.CancellationToken);
 
-        Assert.True(harness.Spill.DeletedAll);
+        // Assert
+        view.View.Verify(v => v.TryRestoreContentAsync(), Times.Once);
+        Assert.True(sut.IsContentLoaded(tabs[0]));
+    }
+
+    [Fact]
+    public async Task EnsureContentAsync_ClosedTab_DoesNothing()
+    {
+        // Arrange
+        var fixture = new TabLifecycleManagerFixture();
+        var sut = fixture.CreateSut();
+        var tabs = Open(fixture, sut, "a", "b");
+        fixture.Views[tabs[0]].Released = true;
+        sut.Unregister(tabs[0]);
+
+        // Act
+        await sut.EnsureContentAsync(tabs[0]).WaitAsync(Limit, TestContext.Current.CancellationToken);
+
+        // Assert
+        fixture.Views[tabs[0]].View.Verify(v => v.TryRestoreContentAsync(), Times.Never);
+        Assert.False(sut.IsContentLoaded(tabs[0]));
+    }
+
+    [Fact]
+    public void Unregister_Tab_ForgetsItInThePolicy()
+    {
+        // Arrange
+        var fixture = new TabLifecycleManagerFixture();
+        var sut = fixture.CreateSut();
+        var tabs = Open(fixture, sut, "a");
+
+        // Act
+        sut.Unregister(tabs[0]);
+
+        // Assert
+        fixture.Policy.Verify(p => p.Forget(tabs[0]), Times.Once);
+    }
+
+    [Fact]
+    public void Detach_Called_DeletesWhatWasSpilled()
+    {
+        // Arrange
+        var fixture = new TabLifecycleManagerFixture();
+        var sut = fixture.CreateSut();
+        Open(fixture, sut, "a", "b");
+
+        // Act
+        sut.Detach();
+
+        // Assert
+        fixture.Spill.Verify(s => s.DeleteAll(), Times.Once);
+    }
+
+    [Fact]
+    public void IsContentLoaded_UnknownTab_IsFalse()
+    {
+        // Arrange
+        var fixture = new TabLifecycleManagerFixture();
+        var sut = fixture.CreateSut();
+
+        // Act
+        var loaded = sut.IsContentLoaded(fixture.CreateTab("never registered"));
+
+        // Assert
+        Assert.False(loaded);
     }
 }

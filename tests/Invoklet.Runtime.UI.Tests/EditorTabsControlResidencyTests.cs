@@ -25,6 +25,11 @@ namespace Invoklet.Runtime.UI.Tests;
 // in progress, or whose run ended while it was out of sight, keeps its content.
 public class EditorTabsControlResidencyTests
 {
+    private sealed class FixedSessionFolder(string folder) : ISessionFolder
+    {
+        public string? SessionFolder => folder;
+    }
+
     // Reads can be made to fail, as a deleted or damaged file would.
     private sealed class FlakySpill(ITabSpillStore inner) : ITabSpillStore
     {
@@ -54,7 +59,7 @@ public class EditorTabsControlResidencyTests
             new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
         var windows = windowService ?? new Mock<IWindowService>();
         var vm = new MainWindowViewModel([], fileSystem.Object, windows.Object, prefs.Object, new LanguageHostRegistry());
-        var spill = new FlakySpill(new SessionSpillStore(() => Path.Combine(folder, ".session")));
+        var spill = new FlakySpill(new SessionSpillStore(new FixedSessionFolder(Path.Combine(folder, ".session"))));
         var tabs = new EditorTabsControl(theme.Object, windows.Object,
             new Mock<ILanguageHostRegistry>().WithCSharpIntelliSense(() => new Mock<IIntelliSenseService>().Object),
             prefs.Object, (buildCache ?? new Mock<IBuildCacheService>()).Object,

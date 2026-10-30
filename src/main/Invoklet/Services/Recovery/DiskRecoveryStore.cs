@@ -4,7 +4,7 @@ namespace Invoklet.Services.Recovery;
 
 /// <summary>Private immutable snapshots, an atomic current pointer and one previous generation.
 /// A held OS file lock keeps independent application instances out of one another's sessions.</summary>
-public sealed class DiskRecoveryStore : IRecoveryStore
+public sealed class DiskRecoveryStore : IRecoveryStore, ISessionFolder
 {
     private sealed record Pointer(int Version, string Current, string? Previous);
     private readonly string _root;
@@ -27,7 +27,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
     public string? Warning { get; private set; }
 
     /// <summary>This instance's own session folder, once <see cref="LoadAsync"/> has opened it.</summary>
-    internal string? SessionFolder => Volatile.Read(ref _folder);
+    public string? SessionFolder => Volatile.Read(ref _folder);
 
     public DiskRecoveryStore(string root) => _root = root;
     internal DiskRecoveryStore(string root, Action<string> fault) : this(root) => _fault = fault;

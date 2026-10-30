@@ -243,8 +243,7 @@ public class App : Application
         // Released tab content waits in the session folder of the recovery store, which owns it.
         services.AddSingleton<ITabSpillStore>(sp =>
         {
-            var recovery = sp.GetRequiredService<DiskRecoveryStore>();
-            return new SessionSpillStore(() => recovery.SessionFolder);
+            return new SessionSpillStore(sp.GetRequiredService<DiskRecoveryStore>());
         });
         services.AddSingleton<TabLifecycleManager>();
         services.AddSingleton<IPrerequisiteService, PrerequisiteService>();
