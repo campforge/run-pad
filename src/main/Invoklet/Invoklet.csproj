@@ -54,6 +54,8 @@
     <InternalsVisibleTo Include="Invoklet.Runtime.UI.Tests"/>
     <InternalsVisibleTo Include="Invoklet.IntegrationTests"/>
     <InternalsVisibleTo Include="Invoklet.NonUI.Tests"/>
+    <!-- Moq builds its proxies of internal interfaces in this assembly. -->
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2"/>
   </ItemGroup>
 
   <ItemGroup>

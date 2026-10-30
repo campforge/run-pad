@@ -13,7 +13,7 @@ namespace Invoklet.Services.Scaling;
 /// comes from the window's layout transform, the code zoom from the editor's font size. The display's
 /// own pixel density is Avalonia's business and is never part of either.
 /// </summary>
-public sealed class ViewScale
+public sealed class ViewScale : ICodeZoom
 {
     private static readonly ConditionalWeakTable<IPreferencesService, ViewScale> Instances = new();
 

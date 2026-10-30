@@ -20,7 +20,7 @@ using ReactiveUI;
 
 namespace Invoklet.UserControls;
 
-public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost, IActiveTabSource
+public partial class EditorTabsControl : UserControl, IDisposable, ITabDiskHost, IActiveTabSource, ITabReverter
 {
     private readonly Dictionary<EditorTabItemViewModel, (TabItem Tab, EditorsTabItemControl Control)> _tabs = new();
     private readonly TabLifecycleManager? _lifecycle;

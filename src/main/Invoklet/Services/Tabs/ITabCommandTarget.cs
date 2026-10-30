@@ -1,4 +1,5 @@
 using Invoklet.Contracts.Models;
+using Invoklet.Services.Scaling;
 using Invoklet.UserControls.Models;
 
 namespace Invoklet.Services.Tabs;
@@ -37,4 +38,13 @@ internal interface IActiveTabSource
 
     /// <summary>The view of the active tab; null while the tab has none yet.</summary>
     ITabCommandTarget? Target { get; }
+
+    /// <summary>The code zoom, which also works with no tab; null before preferences exist.</summary>
+    ICodeZoom? CodeZoom { get; }
+}
+
+/// <summary>Takes a tab back to its file as it is on disk, asking first when that drops unsaved changes.</summary>
+internal interface ITabReverter
+{
+    Task RevertAsync(EditorTabItemViewModel tab);
 }
