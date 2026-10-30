@@ -9,11 +9,11 @@ forks retain their own conventions. This standard does not require rewriting unc
 
 ## 1. Purpose and scope
 
-A unit test verifies the **public contract of one concrete production class**, the **System Under Test (SUT)**, in isolation. The contract includes returned values, observable state changes, exceptions, and required interactions with dependencies.
+A unit test verifies the **public or internal contract of one concrete production class**, the **System Under Test (SUT)**, in isolation. The contract includes returned values, observable state changes, exceptions, and required interactions with dependencies. An internal class or method may be tested directly when the test assembly has access to it; do not make it public solely for testing.
 
-- Test public methods through a **real SUT instance** in every test.
+- Test public or internal methods through a **real SUT instance** in every test.
 - Do not mock or partially mock the SUT (`Mock<SutClass>`, `CallBase`, or interception of SUT methods).
-- Do not test private members directly or use reflection to access them. Cover their behavior through public methods.
+- Do not test private members directly or use reflection to access them. Cover their behavior through public or internal methods.
 - Do not test dependency implementations, databases, external services, compilers, operating systems, network calls, file systems, or third-party library behavior in unit tests.
 - Use **integration tests** to verify real component/infrastructure interactions and **end-to-end tests** to verify complete workflows, as needed.
 
@@ -69,7 +69,7 @@ The **fixture** owns:
 The **test** owns:
 
 - A **fresh fixture instance per test** (`new OrderServiceFixture()`).
-- Selection and execution of the public SUT method.
+- Selection and execution of the public or internal SUT method.
 - Every `Assert`, `Verify`, and `VerifyNoOtherCalls` call, directly inside the test method's Assert section.
 
 Never put assertions or verifications in the fixture or hidden assertion helpers. The fixture must not execute the method under test. Do not share mutable fixtures, mocks, or test data across tests; do not use `IClassFixture<T>` or `ICollectionFixture<T>` to share such state.
@@ -80,7 +80,7 @@ Never put assertions or verifications in the fixture or hidden assertion helpers
 - Use explicit **Arrange / Act / Assert** sections.
 - One test covers one meaningful behavior; multiple related assertions are allowed.
 - Use `[Fact]` for individual cases and `[Theory]` for variations of the same behavior.
-- Cover success, failure, and boundary scenarios according to the public contract.
+- Cover success, failure, and boundary scenarios according to the public or internal contract.
 - Place all Moq `Verify` calls in **Assert**, not in fixtures.
 - `await` async operations; avoid `.Wait()`, `.Result`, and arbitrary `Thread.Sleep`.
 - Keep tests independent, deterministic, readable, and fast.
@@ -161,7 +161,7 @@ The fixture arranges dependencies and data; the real SUT performs the action; th
 
 ## 8. Code review checklist
 
-- [ ] One concrete SUT and its public contract are tested.
+- [ ] One concrete SUT and its public or internal contract are tested.
 - [ ] Each test uses a real SUT; no partial SUT mocks or private-member access.
 - [ ] SOLID problems are corrected in production code instead of bypassed.
 - [ ] **All** injected dependencies are Moq mocks; no real infrastructure is used.
@@ -169,6 +169,6 @@ The fixture arranges dependencies and data; the real SUT performs the action; th
 - [ ] All `Assert`, `Verify`, and `VerifyNoOtherCalls` remain directly in test methods.
 - [ ] Tests follow AAA, cover meaningful cases, and are deterministic.
 - [ ] Only approved libraries are used; AutoFixture is optional and limited to fixture-based data generation.
-- [ ] Tests compile and pass, and fail when the public contract is broken.
+- [ ] Tests compile and pass, and fail when the public or internal contract is broken.
 
 **Rule of thumb:** The **fixture prepares**; the **real SUT acts**; the **test asserts and verifies**.
