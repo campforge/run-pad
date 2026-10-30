@@ -2,6 +2,11 @@ using Invoklet.Contracts.IntelliSense;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using static Invoklet.Languages.CSharp.IntelliSense.CompletionItems;
+using static Invoklet.Languages.CSharp.IntelliSense.CompletionKeywords;
+using static Invoklet.Languages.CSharp.IntelliSense.ImportableTypes;
+using static Invoklet.Languages.CSharp.IntelliSense.ObjectInitializerCompletions;
+using static Invoklet.Languages.CSharp.IntelliSense.OverrideStubs;
 
 namespace Invoklet.Languages.CSharp.IntelliSense;
 
@@ -9,12 +14,13 @@ namespace Invoklet.Languages.CSharp.IntelliSense;
 // value of a property in an object initializer. The wanted types come from the overloads that can
 // still take the arguments typed so far; what doesn't fit them is left out, and what does is added
 // (`new Type`, enum members, literals).
-internal sealed partial class CompletionService
+/// <summary>What type the code wants at the caret (the parameter of a call, the member an initializer sets) and the suggestions that fit it.</summary>
+internal static class ExpectedTypeCompletion
 {
     // Types is never empty. AfterNew: the caret is where the type of a `new` expression goes.
-    private sealed record ExpectedTypeContext(IReadOnlyList<ITypeSymbol> Types, bool AfterNew);
+    internal sealed record ExpectedTypeContext(IReadOnlyList<ITypeSymbol> Types, bool AfterNew);
 
-    private static ExpectedTypeContext? GetExpectedTypeContext(SemanticModel model, SyntaxNode root, int pos)
+    internal static ExpectedTypeContext? GetExpectedTypeContext(SemanticModel model, SyntaxNode root, int pos)
     {
         if (pos <= 0) return null;
         var token = root.FindToken(pos - 1);
@@ -39,7 +45,7 @@ internal sealed partial class CompletionService
         return null;
     }
 
-    private static ExpectedTypeContext? ForArgument(SemanticModel model, ArgumentListSyntax list, SyntaxToken token, int pos)
+    internal static ExpectedTypeContext? ForArgument(SemanticModel model, ArgumentListSyntax list, SyntaxToken token, int pos)
     {
         if (list.Parent is not (InvocationExpressionSyntax or BaseObjectCreationExpressionSyntax)) return null;
 
@@ -65,7 +71,7 @@ internal sealed partial class CompletionService
         return Create(types, afterNew);
     }
 
-    private static ExpectedTypeContext? ForInitializerValue(
+    internal static ExpectedTypeContext? ForInitializerValue(
         SemanticModel model, InitializerExpressionSyntax initializer, AssignmentExpressionSyntax assignment, int pos)
     {
         if (!IsSimpleSlot(assignment.Right, pos, out var afterNew)) return null;
@@ -83,7 +89,7 @@ internal sealed partial class CompletionService
     }
 
     // What is being typed is a bare name or `new Name` (a longer expression wants more than the slot's type).
-    private static bool IsSimpleSlot(ExpressionSyntax expression, int pos, out bool afterNew)
+    internal static bool IsSimpleSlot(ExpressionSyntax expression, int pos, out bool afterNew)
     {
         afterNew = false;
         switch (expression)
@@ -101,7 +107,7 @@ internal sealed partial class CompletionService
 
     // The overloads the arguments before the caret still fit: enough parameters, and each typed
     // argument converts to its parameter. An argument whose type isn't known yet counts as fitting.
-    private static bool AcceptsTypedArguments(IMethodSymbol method, ArgumentListSyntax list, int index, SemanticModel model)
+    internal static bool AcceptsTypedArguments(IMethodSymbol method, ArgumentListSyntax list, int index, SemanticModel model)
     {
         if (ParameterAt(method, index) is null && list.Arguments.All(a => a.NameColon is null)) return false;
         for (var i = 0; i < index && i < list.Arguments.Count; i++)
@@ -119,14 +125,14 @@ internal sealed partial class CompletionService
         return true;
     }
 
-    private static IParameterSymbol? ParameterAt(IMethodSymbol method, int index)
+    internal static IParameterSymbol? ParameterAt(IMethodSymbol method, int index)
     {
         if (index < method.Parameters.Length) return method.Parameters[index];
         return method.Parameters.Length > 0 && method.Parameters[^1].IsParams ? method.Parameters[^1] : null;
     }
 
     // Generic parameters of the overload (`T`, `List<T>`) are unknown until the arguments say what they are.
-    private static ExpectedTypeContext? Create(IEnumerable<ITypeSymbol> types, bool afterNew)
+    internal static ExpectedTypeContext? Create(IEnumerable<ITypeSymbol> types, bool afterNew)
     {
         var known = types
             .Where(t => t is not IErrorTypeSymbol && !ContainsTypeParameter(t))
@@ -135,7 +141,7 @@ internal sealed partial class CompletionService
         return known.Count > 0 ? new ExpectedTypeContext(known, afterNew) : null;
     }
 
-    private static bool ContainsTypeParameter(ITypeSymbol type) => type switch
+    internal static bool ContainsTypeParameter(ITypeSymbol type) => type switch
     {
         ITypeParameterSymbol => true,
         IArrayTypeSymbol array => ContainsTypeParameter(array.ElementType),
@@ -144,13 +150,13 @@ internal sealed partial class CompletionService
         _ => false,
     };
 
-    private static bool IsAssignable(Compilation compilation, ITypeSymbol from, ITypeSymbol to) =>
+    internal static bool IsAssignable(Compilation compilation, ITypeSymbol from, ITypeSymbol to) =>
         compilation.ClassifyConversion(from, to).IsImplicit;
 
     // The member types a value of which fits: a local, parameter, field or property is offered only
     // when its type converts to a wanted one. Everything else (methods, types, namespaces) stays: a
     // call or a member access may still produce the type.
-    private static bool FitsExpectedType(ISymbol symbol, ExpectedTypeContext expected, SemanticModel model, int pos)
+    internal static bool FitsExpectedType(ISymbol symbol, ExpectedTypeContext expected, SemanticModel model, int pos)
     {
         if (expected.AfterNew)
             return symbol switch
@@ -174,14 +180,14 @@ internal sealed partial class CompletionService
 
     // A class or struct `new` can make here. A generic type is tried against the wanted type by its
     // definition (List<T> for IList<int>), as its type arguments are not chosen yet.
-    private static bool IsCreatable(INamedTypeSymbol type, SemanticModel model, int pos)
+    internal static bool IsCreatable(INamedTypeSymbol type, SemanticModel model, int pos)
     {
         if (type.IsAbstract || type.IsStatic || type.TypeKind is not (TypeKind.Class or TypeKind.Struct)) return false;
         return (type.TypeKind == TypeKind.Struct && type.InstanceConstructors.All(c => c.IsImplicitlyDeclared))
             || type.InstanceConstructors.Any(c => model.IsAccessible(pos, c));
     }
 
-    private static bool CouldBeAssignedTo(Compilation compilation, INamedTypeSymbol candidate, ITypeSymbol expected)
+    internal static bool CouldBeAssignedTo(Compilation compilation, INamedTypeSymbol candidate, ITypeSymbol expected)
     {
         if (expected is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable)
             expected = nullable.TypeArguments[0];
@@ -194,7 +200,7 @@ internal sealed partial class CompletionService
             .Any(t => SymbolEqualityComparer.Default.Equals(t.OriginalDefinition, definition));
     }
 
-    private static IEnumerable<INamedTypeSymbol> BaseTypes(INamedTypeSymbol type)
+    internal static IEnumerable<INamedTypeSymbol> BaseTypes(INamedTypeSymbol type)
     {
         for (var baseType = type.BaseType; baseType is not null; baseType = baseType.BaseType)
             yield return baseType;
@@ -202,7 +208,7 @@ internal sealed partial class CompletionService
 
     // `null` where it can't be assigned and true/false where no bool is wanted would be wrong
     // offers; the other keywords can start any expression.
-    private static bool FitsExpectedType(string keyword, ExpectedTypeContext expected, Compilation compilation)
+    internal static bool FitsExpectedType(string keyword, ExpectedTypeContext expected, Compilation compilation)
     {
         if (expected.AfterNew) return false;
         return keyword switch
@@ -213,13 +219,13 @@ internal sealed partial class CompletionService
         };
     }
 
-    private static bool CanBeNull(ITypeSymbol type) =>
+    internal static bool CanBeNull(ITypeSymbol type) =>
         type.IsReferenceType || type.TypeKind == TypeKind.Pointer || type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T
             || type.TypeKind == TypeKind.TypeParameter;
 
     // What the wanted types suggest beyond the names in scope: `new Type`, the members of an enum
     // and a literal for the types written with one.
-    private static IEnumerable<ICompletionItem> ExpectedTypeSuggestions(ExpectedTypeContext expected, SemanticModel model, int pos)
+    internal static IEnumerable<ICompletionItem> ExpectedTypeSuggestions(ExpectedTypeContext expected, SemanticModel model, int pos)
     {
         if (expected.AfterNew) yield break;
         foreach (var type in expected.Types)
@@ -257,7 +263,7 @@ internal sealed partial class CompletionService
     // `name:` for the parameters an argument can still name: of the overloads the typed arguments
     // fit, those not given by position or by name already. Only where a new argument starts — a
     // bare name or nothing typed yet, not after `name:` or inside a longer expression.
-    private static IEnumerable<ICompletionItem> NamedArgumentSuggestions(SemanticModel model, SyntaxNode root, int pos)
+    internal static IEnumerable<ICompletionItem> NamedArgumentSuggestions(SemanticModel model, SyntaxNode root, int pos)
     {
         if (pos <= 0) return [];
         var token = root.FindToken(pos - 1);
@@ -295,7 +301,7 @@ internal sealed partial class CompletionService
     }
 
     // true/false are keywords already, and a character has no natural first value.
-    private static (string Text, string? Template)? Literal(ITypeSymbol type) => type.SpecialType switch
+    internal static (string Text, string? Template)? Literal(ITypeSymbol type) => type.SpecialType switch
     {
         SpecialType.System_String => ("\"\"", "\"${0}\""),
         SpecialType.System_SByte or SpecialType.System_Byte or SpecialType.System_Int16 or SpecialType.System_UInt16
