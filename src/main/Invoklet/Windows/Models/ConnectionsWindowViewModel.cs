@@ -240,12 +240,24 @@ public sealed class ConnectionItemViewModel : ReactiveObject
         {
             this.RaiseAndSetIfChanged(ref field, value);
             this.RaisePropertyChanged(nameof(TestSummary));
+            this.RaisePropertyChanged(nameof(IsTestRunning));
+            this.RaisePropertyChanged(nameof(TestPassed));
+            this.RaisePropertyChanged(nameof(TestFailed));
+            this.RaisePropertyChanged(nameof(TestMessage));
             this.RaisePropertyChanged(nameof(AccessibleName));
         }
     }
 
     // One line for the connection list, so a test in progress or its outcome stays visible when another
     // connection is selected. The details pane shows the full TestResult.
+    public bool IsTestRunning => TestResult == "Testing…";
+    public bool TestPassed => TestResult?.StartsWith("Success: ", StringComparison.Ordinal) == true && !TestResult.Contains("\nFailed: ", StringComparison.Ordinal);
+    public bool TestFailed => TestResult is not null && !IsTestRunning && !TestPassed;
+    public string IconKey => Invoklet.UserControls.Models.ConnectionNavigationNode.DriverIconKey(DriverId);
+
+    // The answer without its "Success: " label: a passed test shows an icon and this line.
+    public string? TestMessage => TestResult?.StartsWith("Success: ", StringComparison.Ordinal) == true ? TestResult["Success: ".Length..] : TestResult;
+
     public string? TestSummary => TestResult switch
     {
         null => null,
@@ -589,14 +601,13 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
             // A server that answers is read again, so scripts get its current classes; what it offers is shown in the browser, not in the answer.
             if (result.Succeeded && driver is IConnectionSchemaDriver && _schemas is not null)
             {
-                item.TestResult = "Success: connected. Reading its description…";
                 await _schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.All, token);
                 if (token.IsCancellationRequested || Edited()) return;
                 if (_schemas.Cache.ErrorFor(connection) is { } error)
                     item.TestResult = "Success: " + result.Message + "\nFailed: its description couldn't be read: " + error;
                 else
                 {
-                    item.TestResult = "Success: connected. Its contract is in the browser; scripts get its classes on their next build.";
+                    item.TestResult = "Success: Connected.";
                     if (ReferenceEquals(SelectedConnection, item)) RefreshResources();
                 }
             }
@@ -670,7 +681,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
                 _ = BrowseSelectedAsync();
                 return;
             }
-            BrowserStatus = "Resources are not loaded in this window. Choose Load / refresh to read the saved schema or connect.";
+            BrowserStatus = "Not loaded yet. Use the reload button to read the contract.";
             return;
         }
         try
@@ -680,7 +691,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex) when (ex is JsonException or InvalidOperationException)
         {
-            BrowserStatus = "The cached resource description is damaged. Choose Load / refresh to read it again.";
+            BrowserStatus = "The saved contract is damaged. Use the reload button to read it again.";
         }
     }
 
@@ -882,7 +893,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
             SelectedResource = null;
             BrowserStatus = selected.HasProblems
                 ? "Fix the connection settings before browsing its resources."
-                : "Connection settings changed. Load / refresh to browse the updated resources.";
+                : "Settings changed. Use the reload button to read the contract again.";
         }
     }
 }

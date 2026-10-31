@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:Invoklet.TemplatedControls"
+        xmlns:conv="clr-namespace:Invoklet.Converters"
         xmlns:viewModels="clr-namespace:Invoklet.Windows.Models"
         x:Class="Invoklet.Windows.ConnectionsWindow" x:DataType="viewModels:ConnectionsWindowViewModel"
         Title="Connections" Icon="/Assets/icon.ico"
@@ -35,15 +36,22 @@
                             </ListBox.Styles>
                             <ListBox.ItemTemplate>
                                 <DataTemplate DataType="viewModels:ConnectionItemViewModel">
-                                    <StackPanel Spacing="2">
-                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
-                                        <TextBlock Text="{Binding DriverName}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DriverName}"
-                                                   Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
-                                        <!-- A narrow list cuts the line short; the tooltip has the whole answer. -->
-                                        <TextBlock Text="{Binding TestSummary}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding TestResult}"
-                                                   IsVisible="{Binding TestSummary, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                   Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
-                                    </StackPanel>
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                        <Path Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center" Fill="{DynamicResource Invoklet.Text.SecondaryBrush}"
+                                              Data="{Binding IconKey, Converter={x:Static conv:ResourceKeyToGeometryConverter.Instance}}" ToolTip.Tip="{Binding DriverName}"/>
+                                        <StackPanel Grid.Column="1" Spacing="2">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                                            <TextBlock Text="{Binding DriverName}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DriverName}"
+                                                       Foreground="{DynamicResource Invoklet.Text.SecondaryBrush}"/>
+                                        </StackPanel>
+                                        <!-- The outcome of the last test; the tooltip has the whole answer. -->
+                                        <PathIcon Grid.Column="2" Width="14" Height="14" VerticalAlignment="Center" ToolTip.Tip="{Binding TestMessage}"
+                                                  Data="{StaticResource Icon.CheckCircle}" Foreground="{DynamicResource Invoklet.Status.SuccessBrush}" IsVisible="{Binding TestPassed}"/>
+                                        <PathIcon Grid.Column="2" Width="14" Height="14" VerticalAlignment="Center" ToolTip.Tip="{Binding TestMessage}"
+                                                  Data="{StaticResource Icon.Warning}" Foreground="{DynamicResource Invoklet.Status.ErrorBrush}" IsVisible="{Binding TestFailed}"/>
+                                        <PathIcon Grid.Column="2" Width="14" Height="14" VerticalAlignment="Center" ToolTip.Tip="Testing…"
+                                                  Data="{StaticResource Icon.Sync}" Foreground="{DynamicResource Invoklet.Status.RunningBrush}" IsVisible="{Binding IsTestRunning}"/>
+                                    </Grid>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
@@ -142,7 +150,15 @@
                     <StackPanel Spacing="6">
                         <Button Classes="secondary" x:Name="TestButton" Content="Test Connection" HorizontalAlignment="Left"
                                 Command="{Binding $parent[Window].((viewModels:ConnectionsWindowViewModel)DataContext).TestCommand}"/>
-                        <SelectableTextBlock x:Name="TestResultText" TextWrapping="Wrap" Text="{Binding TestResult}"/>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" IsVisible="{Binding TestResult, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <PathIcon Width="14" Height="14" VerticalAlignment="Top" Margin="0,2,0,0" Data="{StaticResource Icon.CheckCircle}"
+                                      Foreground="{DynamicResource Invoklet.Status.SuccessBrush}" IsVisible="{Binding TestPassed}"/>
+                            <PathIcon Width="14" Height="14" VerticalAlignment="Top" Margin="0,2,0,0" Data="{StaticResource Icon.Warning}"
+                                      Foreground="{DynamicResource Invoklet.Status.ErrorBrush}" IsVisible="{Binding TestFailed}"/>
+                            <PathIcon Width="14" Height="14" VerticalAlignment="Top" Margin="0,2,0,0" Data="{StaticResource Icon.Sync}"
+                                      Foreground="{DynamicResource Invoklet.Status.RunningBrush}" IsVisible="{Binding IsTestRunning}"/>
+                            <SelectableTextBlock x:Name="TestResultText" Grid.Column="1" TextWrapping="Wrap" Text="{Binding TestMessage}"/>
+                        </Grid>
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>
@@ -152,8 +168,8 @@
                 <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,120" RowSpacing="8">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
                         <TextBlock Text="Browse resources" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        <Button Grid.Column="1" Classes="secondary" Content="Load / refresh" ToolTip.Tip="Load or refresh this connection's resources"
-                                AutomationProperties.Name="Load or refresh connection resources"
+                        <controls:IconButton Grid.Column="1" IconData="{StaticResource Icon.Sync}" Width="26" Height="26" Padding="6"
+                                ToolTip.Tip="Reload the contract of this connection" AutomationProperties.Name="Reload connection resources"
                                 Command="{Binding BrowseCommand}" IsEnabled="{Binding CanBrowse}"/>
                     </Grid>
                     <TextBlock Grid.Row="1" Classes="hint" Text="{Binding BrowserStatus}" TextWrapping="Wrap"/>

@@ -171,15 +171,17 @@ public class WindowDesignRegressionTests
             Dispatcher.UIThread.RunJobs();
             vm.SelectedConnection!.TestResult = "Testing…";
             Dispatcher.UIThread.RunJobs();
-            var status = window.FindControl<ListBox>("ConnectionList")!.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text == "Testing…");
-            Assert.True(status.IsEffectivelyVisible);
+            var icons = window.FindControl<ListBox>("ConnectionList")!.GetVisualDescendants().OfType<PathIcon>()
+                .Where(icon => ToolTip.GetTip(icon) is string).ToList();
+            var running = Assert.Single(icons, icon => icon.IsEffectivelyVisible);
+            Assert.Equal("Testing…", ToolTip.GetTip(running));
 
-            // The list line is short and may be cut off; its tooltip carries the whole answer, and follows it.
-            Assert.Equal("Testing…", ToolTip.GetTip(status));
+            // The outcome is an icon, not a line of text; its tooltip carries the whole answer, and follows it.
             vm.SelectedConnection!.TestResult = "Success: Connected.\nFailed: its description couldn't be read: No schema is offered.";
             Dispatcher.UIThread.RunJobs();
-            Assert.Equal("Test succeeded", status.Text);
-            Assert.Equal(vm.SelectedConnection!.TestResult, ToolTip.GetTip(status));
+            var failed = Assert.Single(icons, icon => icon.IsEffectivelyVisible);
+            Assert.Equal(vm.SelectedConnection!.TestMessage, ToolTip.GetTip(failed));
+            Assert.NotSame(running, failed);
         }
         finally { window.Close(); }
     }
