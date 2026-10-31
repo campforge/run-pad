@@ -28,6 +28,12 @@ public enum ConnectionParamType
     /// <summary>A list of texts.</summary>
     List,
 
+    /// <summary>
+    /// A server's host and port, as people write them; the form asks for the protocol with a checkbox and the file keeps all of it as one text,
+    /// <c>https://host:port</c> or <c>http://host:port</c>. A text with no protocol is read as secure.
+    /// </summary>
+    Endpoint,
+
     /// <summary>The path of a file, as text with placeholders allowed; the form can browse for it.</summary>
     File,
 }

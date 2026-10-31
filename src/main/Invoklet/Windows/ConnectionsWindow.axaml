@@ -107,6 +107,11 @@
                                         <Button Grid.Column="2" Classes="secondary" Content="Browse..." IsVisible="{Binding CanBrowse}" Click="BrowseButton_Click"
                                                 AutomationProperties.Name="{Binding Param.Label, StringFormat='Browse for {0}'}"/>
                                     </Grid>
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsEndpoint}">
+                                        <TextBox Classes="field form-field" Text="{Binding EndpointHost}" PlaceholderText="{Binding Example}" AutomationProperties.Name="{Binding Param.Label}"/>
+                                        <CheckBox Grid.Column="1" Content="Use SSL" IsChecked="{Binding UseSsl}" VerticalAlignment="Center"
+                                                  AutomationProperties.Name="{Binding Param.Label, StringFormat='Use SSL for {0}'}"/>
+                                    </Grid>
                                     <CheckBox IsVisible="{Binding IsBoolean}" IsChecked="{Binding BooleanValue}" Content="{Binding Param.Label}"/>
                                     <TextBox Classes="form-field" IsVisible="{Binding IsList}" AcceptsReturn="True" MinHeight="60" Text="{Binding Text}" PlaceholderText="One per line"
                                              AutomationProperties.Name="{Binding Param.Label}"/>

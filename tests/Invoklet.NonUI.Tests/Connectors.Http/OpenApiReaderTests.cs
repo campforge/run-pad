@@ -33,7 +33,8 @@ public class OpenApiReaderTests
     public void Read_AnOpenApi3Document_ListsOperationsWithParametersBodiesAndAnswers()
     {
         // Arrange / Act
-        var operations = OpenApiReader.Read(OpenApi3);
+        var document = OpenApiReader.Read(OpenApi3);
+        var operations = document.Operations;
 
         // Assert
         Assert.Equal(["GET /pets", "POST /pets", "DELETE /pets/{id}"], operations.Select(o => $"{o.Method} {o.Path}"));
@@ -58,7 +59,7 @@ public class OpenApiReaderTests
               "responses": { "200": { "schema": { "$ref": "#/definitions/Pet" } } } } } } }
             """;
 
-        var operation = Assert.Single(OpenApiReader.Read(swagger));
+        var operation = Assert.Single(OpenApiReader.Read(swagger).Operations);
 
         Assert.Equal("body: Pet", operation.RequestBody);
         Assert.Equal(["dry"], operation.Parameters.Select(p => p.Name));

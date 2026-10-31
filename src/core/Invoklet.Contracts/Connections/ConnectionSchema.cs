@@ -49,17 +49,6 @@ public interface IConnectionSchemaDriver : IConnectionDriver
     string SchemaVersion => "";
 }
 
-/// <summary>
-/// A driver whose endpoint can be described for browsing in Tools → Connections, without scripts depending on the description: nothing is
-/// cached, built into a script or required for a run, so a connection with no description (or one that can't be read) works as it always did.
-/// </summary>
-public interface IConnectionContractDriver : IConnectionDriver
-{
-    /// <summary>Reads the endpoint's description with placeholders already replaced; <see cref="ConnectionSchema.Data"/> is what the browser shows.
-    /// Throws with a message for the user when it can't be read.</summary>
-    Task<ConnectionSchema> FetchContractAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken);
-}
-
 /// <summary>Which schemas <see cref="ConnectionSchemaCache.EnsureAsync"/> reads.</summary>
 public enum ConnectionSchemaRefresh
 {

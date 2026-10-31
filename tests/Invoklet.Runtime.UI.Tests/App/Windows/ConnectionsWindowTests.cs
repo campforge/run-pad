@@ -115,48 +115,41 @@ public class ConnectionsWindowTests
         finally { schemaRoot.Delete(true); }
     }
 
-    private sealed class ContractDriver(string contract) : IConnectionContractDriver
-    {
-        public string Id => "http";
-        public string DisplayName => "HTTP";
-        public ConnectionCategory Category => ConnectionCategory.Http;
-        public IReadOnlyList<ConnectionParam> Params => [];
-        public IReadOnlyDictionary<string, string> Packages => new Dictionary<string, string>();
-        public IReadOnlyList<string> Validate(MdRunConnection connection) => [];
-        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken) =>
-            Task.FromResult(new ConnectionTestResult(true, "The server answered 200 OK."));
-        public ConnectionClientCode CreateClient(MdRunConnection connection, ConnectionCodeContext context) => new("");
-        public Task<ConnectionSchema> FetchContractAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken) =>
-            Task.FromResult(new ConnectionSchema("1 operation.", [], contract));
-    }
-
     // The operations of an OpenAPI document are grouped by tag, each with its parameters, body and answers.
     [AvaloniaFact]
-    public async Task ForHttp_Should_ListTheOperationsOfTheOpenApiDocument()
+    public void ForOpenApi_Should_ListTheOperationsAndTheModels()
     {
-        var connection = new MdRunConnection { Name = "pets", Driver = "http" };
+        var connection = new MdRunConnection { Name = "pets", Driver = "openapi" };
         var store = new Mock<IConnectionStore>();
         store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot([connection], null));
         store.Setup(s => s.FilePath).Returns("/data/connections.json");
         var secrets = new Mock<ISecretStore>();
         secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([], null));
         var drivers = new ConnectionDriverRegistry();
-        drivers.Register(new ContractDriver(
-            "[{\"Method\":\"GET\",\"Path\":\"/pets/{id}\",\"Tag\":\"pets\",\"Summary\":\"One pet\","
-            + "\"Parameters\":[{\"Name\":\"id\",\"In\":\"path\",\"Type\":\"string\",\"Required\":true}],\"RequestBody\":null,\"Responses\":[\"200: Pet\",\"404\"]}]"));
-        using var vm = new ConnectionsWindowViewModel(store.Object, drivers, secrets.Object);
+        drivers.Register(new SchemaDriver(id: "openapi"));
+        var schemaRoot = Directory.CreateTempSubdirectory("Invoklet-connection-browser");
+        try
+        {
+            var schemas = new ConnectionSchemas(drivers, schemaRoot.FullName,
+                new ConnectionTools { GetPackageFolderAsync = (_, _, _) => Task.FromResult("") }, _ => null);
+            schemas.Cache.Put(connection, new ConnectionSchema("1 operation.", [],
+                "{\"Operations\":[{\"Method\":\"GET\",\"Path\":\"/pets/{id}\",\"Tag\":\"pets\",\"Summary\":\"One pet\","
+                + "\"Parameters\":[{\"Name\":\"id\",\"In\":\"path\",\"Type\":\"string\",\"Required\":true}],\"RequestBody\":null,\"Responses\":[\"200: Pet\",\"404\"]}],"
+                + "\"Models\":[{\"Name\":\"Pet\",\"AliasOf\":null,\"Properties\":[{\"Name\":\"id\",\"Type\":\"integer (int64)\",\"Required\":true}]}]}"));
+            using var vm = new ConnectionsWindowViewModel(store.Object, drivers, secrets.Object, schemas);
 
-        Assert.Equal("Not loaded yet. Use the reload button to read the contract.", vm.BrowserStatus);
-        await vm.BrowseCommand.Execute();
-
-        var group = Assert.Single(vm.Resources);
-        Assert.Equal("pets", group.Name);
-        var operation = Assert.Single(group.Children);
-        Assert.Equal("GET /pets/{id}", operation.Name);
-        Assert.Equal("One pet", operation.Details);
-        Assert.Equal(["id", "200", "404"], operation.Children.Select(c => c.Name));
-        Assert.Equal("path · string · required", operation.Children[0].Details);
-        Assert.Equal("Pet", operation.Children[1].Details);
+            Assert.Equal(["pets", "Models"], vm.Resources.Select(r => r.Name));
+            var operation = Assert.Single(vm.Resources[0].Children);
+            Assert.Equal("GET /pets/{id}", operation.Name);
+            Assert.Equal("One pet", operation.Details);
+            Assert.Equal(["id", "200", "404"], operation.Children.Select(c => c.Name));
+            Assert.Equal("path · string · required", operation.Children[0].Details);
+            Assert.Equal("Pet", operation.Children[1].Details);
+            var model = Assert.Single(vm.Resources[1].Children);
+            Assert.Equal("Pet", model.Name);
+            Assert.Equal("integer (int64) · required", Assert.Single(model.Children).Details);
+        }
+        finally { schemaRoot.Delete(true); }
     }
 
     [AvaloniaFact]
@@ -226,9 +219,9 @@ public class ConnectionsWindowTests
         var menu = (MenuFlyout)window.FindControl<DropDownButton>("AddButton")!.Flyout!;
         Assert.Equal(["HTTP"], menu.Items.Cast<MenuItem>().Select(i => i.Header));
 
-        // Base address, headers, OpenAPI document and timeout, each with its own editor.
+        // Base address, headers and timeout, each with its own editor.
         var fields = window.FindControl<ItemsControl>("FieldList")!;
-        Assert.Equal(4, fields.ItemCount);
+        Assert.Equal(3, fields.ItemCount);
         var addressBox = fields.GetVisualDescendants().OfType<TextBox>().First(t => t.Classes.Contains("field"));
         Assert.Equal("https://billing.local/", addressBox.Text);
         addressBox.Text = "https://billing.example/";

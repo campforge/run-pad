@@ -192,7 +192,7 @@ public sealed class ConnectionNavigationNode : ReactiveObject
 
     internal static string DriverIconKey(string driverId) => driverId.ToLowerInvariant() switch
     {
-        "http" or "https" or "rest" => "Icon.DriverHttp",
+        "http" or "https" or "rest" or "openapi" => "Icon.DriverHttp",
         "grpc" => "Icon.DriverGrpc",
         _ => "Icon.DriverDatabase",
     };

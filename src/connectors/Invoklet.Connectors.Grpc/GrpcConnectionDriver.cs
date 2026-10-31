@@ -53,8 +53,8 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
 
     public IReadOnlyList<ConnectionParam> Params { get; } =
     [
-        new(Address, "Address", Required: true, Example: "https://localhost:5001",
-            Description: "The server's http:// or https:// address. It must offer gRPC server reflection."),
+        new(Address, "Address", ConnectionParamType.Endpoint, Required: true, Example: "localhost:5001",
+            Description: "The server's host and port; tick Use SSL when it speaks TLS. It must offer gRPC server reflection."),
         new(Metadata, "Metadata", ConnectionParamType.Map,
             Description: "Sent with every call, for example authorization: Bearer ${secret:api-token}."),
         new(SkipCertificateCheck, "Skip the certificate check", ConnectionParamType.Boolean, Default: "false", Advanced: true,
@@ -74,8 +74,8 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
         var parameters = connection.Params;
         if (!parameters.TryGetValue(Address, out var address) || string.IsNullOrWhiteSpace(address.Text))
             errors.Add("The address is missing.");
-        else if (!HasPlaceholder(address.Text) && !IsHttpAddress(address.Text))
-            errors.Add($"The address '{address.Text}' is not an http:// or https:// address.");
+        else if (!HasPlaceholder(address.Text) && !IsHttpAddress(WithProtocol(address.Text)))
+            errors.Add($"The address '{address.Text}' is not a host and port, or an http:// or https:// address.");
 
         if (parameters.TryGetValue(Metadata, out var metadata) && metadata.Text is not { Length: 0 })
         {
@@ -165,6 +165,7 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
     {
         var parameters = connection.Params;
         var address = parameters[Address].Text!;
+        if (!HasPlaceholder(address)) address = WithProtocol(address);
         var clients = context.Schema is { } schema ? JsonSerializer.Deserialize<List<GrpcServiceClient>>(schema.Data) ?? [] : [];
         clients = GrpcClientParser.WithProperties(clients, context.ClassName);
         var metadata = parameters.TryGetValue(Metadata, out var m) ? m.Fields ?? [] : [];
@@ -226,8 +227,9 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
     private async Task<T> WithServerAsync<T>(IReadOnlyDictionary<string, MdRunValue> resolvedParams,
         Func<GrpcReflection, CancellationToken, Task<T>> action, CancellationToken cancellationToken)
     {
-        if (!resolvedParams.TryGetValue(Address, out var addressValue) || addressValue.Text is not { } address || !IsHttpAddress(address))
-            throw new GrpcConnectionException("The address is not an http:// or https:// address.");
+        if (!resolvedParams.TryGetValue(Address, out var addressValue) || addressValue.Text is not { } given || !IsHttpAddress(WithProtocol(given)))
+            throw new GrpcConnectionException("The address is not a host and port, or an http:// or https:// address.");
+        var address = WithProtocol(given);
         var skip = resolvedParams.TryGetValue(SkipCertificateCheck, out var s) && bool.TryParse(s.Text, out var flag) && flag;
         // Before the channel: the parameters reach here unchecked, and Metadata refuses an invalid name.
         var headers = new Metadata();
@@ -441,6 +443,9 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
     private static bool IsWellKnown(string file) => file.StartsWith("google/protobuf/", StringComparison.Ordinal);
 
     private static bool HasPlaceholder(string text) => MdRunPlaceholders.Parse(text).Parts.Any(p => p.Kind != MdRunPlaceholders.Kind.Text);
+
+    // An address written as people write them for gRPC, host and port, is secure unless it says http://.
+    private static string WithProtocol(string text) => text.Contains("://", StringComparison.Ordinal) ? text.Trim() : "https://" + text.Trim();
 
     private static bool IsHttpAddress(string text) =>
         Uri.TryCreate(text, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);

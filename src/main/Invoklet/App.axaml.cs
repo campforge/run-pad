@@ -290,6 +290,7 @@ public class App : Application
         {
             var registry = new ConnectionDriverRegistry();
             registry.Register(new HttpConnectionDriver());
+            registry.Register(new OpenApiConnectionDriver());
             registry.Register(new GrpcConnectionDriver());
             registry.Register(new SqliteConnectionDriver());
             return registry;

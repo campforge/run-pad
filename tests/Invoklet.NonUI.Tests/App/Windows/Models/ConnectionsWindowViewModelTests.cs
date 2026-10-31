@@ -144,7 +144,7 @@ public class ConnectionsWindowViewModelTests
         var (vm, _, _) = CreateVm(null, Billing, Future);
         var billing = vm.SelectedConnection!;
         Assert.Equal("HTTP", billing.DriverName);
-        Assert.Equal(["baseAddress", "headers", "openApi", "timeout"], billing.Fields.Select(f => f.Param.Key));
+        Assert.Equal(["baseAddress", "headers", "timeout"], billing.Fields.Select(f => f.Param.Key));
         Assert.Equal("https://billing.local/", billing.Fields[0].Text);
         Assert.Equal(("Authorization", "Bearer ${secret:billing}"), (billing.Fields[1].Rows[0].Name, billing.Fields[1].Rows[0].Value));
         Assert.Equal("Also kept as written: retries.", billing.KeptParamsNote);

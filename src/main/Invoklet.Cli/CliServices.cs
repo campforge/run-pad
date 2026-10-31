@@ -30,6 +30,7 @@ public sealed record CliServices(ILanguageHostRegistry Registry, ISdkProvider Sd
         registry.Register(new VbLanguageHostFactory(NullLoggerFactory.Instance, runtimeReferences));
         var connectionDrivers = new ConnectionDriverRegistry();
         connectionDrivers.Register(new HttpConnectionDriver());
+        connectionDrivers.Register(new OpenApiConnectionDriver());
         connectionDrivers.Register(new GrpcConnectionDriver());
         connectionDrivers.Register(new SqliteConnectionDriver());
         var schemas = new ConnectionSchemas(connectionDrivers, ConnectionSchemaCache.DefaultFolder,

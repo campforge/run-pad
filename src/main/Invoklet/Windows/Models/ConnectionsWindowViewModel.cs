@@ -91,18 +91,71 @@ public sealed class ConnectionFieldViewModel : ReactiveObject
     public bool HasDescription => Param.Description is not null;
     public string? Example => Param.Example ?? Param.Default;
     public bool IsTextBox => Param.Type is ConnectionParamType.Text or ConnectionParamType.Number or ConnectionParamType.File;
+    public bool IsEndpoint => Param.Type is ConnectionParamType.Endpoint;
     public bool CanBrowse => Param.Type is ConnectionParamType.File;
     public bool CanInsertSecret => Param.Type is ConnectionParamType.Text && SecretNames.Count > 0;
     public bool IsBoolean => Param.Type is ConnectionParamType.Boolean;
     public bool IsMap => Param.Type is ConnectionParamType.Map;
     public bool IsList => Param.Type is ConnectionParamType.List;
 
-    // Text and Number; for List, one item per line.
+    // Text and Number; for List, one item per line; for an Endpoint, the whole address as the file keeps it (https://host:port).
     public string Text
     {
         get;
-        set { this.RaiseAndSetIfChanged(ref field, value ?? ""); Edited?.Invoke(); }
+        set
+        {
+            this.RaiseAndSetIfChanged(ref field, value ?? "");
+            if (IsEndpoint && !_composing) ReadEndpoint(field);
+            Edited?.Invoke();
+        }
     } = "";
+
+    private bool _composing;
+
+    // The host and port the form shows, and the protocol as a checkbox; the file keeps them as one text.
+    public string EndpointHost
+    {
+        get;
+        set
+        {
+            var text = value ?? "";
+            // A pasted address with a protocol sets the checkbox and shows only the host.
+            if (text.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) { UseSsl = true; text = text[8..]; }
+            else if (text.StartsWith("http://", StringComparison.OrdinalIgnoreCase)) { UseSsl = false; text = text[7..]; }
+            this.RaiseAndSetIfChanged(ref field, text);
+            WriteEndpoint();
+        }
+    } = "";
+
+    public bool UseSsl
+    {
+        get;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref field, value);
+            WriteEndpoint();
+        }
+    } = true;
+
+    private void WriteEndpoint()
+    {
+        if (_composing || !IsEndpoint) return;
+        _composing = true;
+        try { Text = EndpointHost.Trim().Length == 0 ? "" : (UseSsl ? "https://" : "http://") + EndpointHost.Trim(); }
+        finally { _composing = false; }
+    }
+
+    private void ReadEndpoint(string text)
+    {
+        _composing = true;
+        try
+        {
+            var plain = text.StartsWith("http://", StringComparison.OrdinalIgnoreCase);
+            UseSsl = !plain;
+            EndpointHost = plain ? text[7..] : text.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ? text[8..] : text;
+        }
+        finally { _composing = false; }
+    }
 
     public bool BooleanValue
     {
@@ -319,7 +372,7 @@ public sealed class ConnectionItemViewModel : ReactiveObject
 public sealed class ConnectionResourceViewModel(string name, string kind, string details = "")
 {
     // A column or a key says what it is in the tree itself; a table or a service is only a name there.
-    public bool ShowsDetailsInTree => Kind is "Column" or "Foreign key" or "Method" or "Parameter" or "Request body" or "Response";
+    public bool ShowsDetailsInTree => Kind is "Column" or "Foreign key" or "Method" or "Parameter" or "Request body" or "Response" or "Property";
     public string Name { get; } = name;
     public string Kind { get; } = kind;
     public string Details { get; } = details;
@@ -380,13 +433,8 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public bool CanBrowse => SelectedConnection is { Driver: IConnectionContractDriver, HasProblems: false }
-        || _schemas is not null && SelectedConnection is { Driver: IConnectionSchemaDriver driver, HasProblems: false } item
+    public bool CanBrowse => _schemas is not null && SelectedConnection is { Driver: IConnectionSchemaDriver driver, HasProblems: false } item
         && (!driver.UsesScriptDirectory(item.ToConnection()) || HasBaseFolder);
-
-    // What a contract driver described, kept while the window is open: nothing is cached on disk for these.
-    private readonly Dictionary<ConnectionItemViewModel, ConnectionSchema> _contracts = [];
-
     // A relative database path is read from a folder: the one of the script it belongs to, which this window doesn't know.
     public string BaseFolder
     {
@@ -603,19 +651,6 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
             if (token.IsCancellationRequested || Edited()) return;
             item.TestResult = (result.Succeeded ? "Success: " : "Failed: ") + result.Message;
             // A server that answers is read again, so scripts get its current classes; what it offers is shown in the browser, not in the answer.
-            if (result.Succeeded && driver is IConnectionContractDriver contractDriver)
-            {
-                var (contract, contractError) = await ReadContractAsync(item, contractDriver, token);
-                if (token.IsCancellationRequested || Edited()) return;
-                if (contract is null)
-                    item.TestResult = "Success: " + result.Message + "\nFailed: its contract couldn't be read: " + contractError;
-                else
-                {
-                    _contracts[item] = contract;
-                    item.TestResult = "Success: " + result.Message;
-                    if (ReferenceEquals(SelectedConnection, item)) RefreshResources();
-                }
-            }
             if (result.Succeeded && driver is IConnectionSchemaDriver && _schemas is not null)
             {
                 await _schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.All, token);
@@ -666,13 +701,6 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
             BrowserStatus = "Select a connection to browse its resources.";
             return;
         }
-        if (item.Driver is IConnectionContractDriver)
-        {
-            if (item.HasProblems) BrowserStatus = "Fix the connection settings before browsing its contract.";
-            else if (_contracts.TryGetValue(item, out var contract)) ShowContract(item, contract);
-            else BrowserStatus = "Not loaded yet. Use the reload button to read the contract.";
-            return;
-        }
         if (item.Driver is not IConnectionSchemaDriver driver)
         {
             BrowserStatus = item.Driver is null
@@ -719,75 +747,8 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void ShowContract(ConnectionItemViewModel item, ConnectionSchema contract)
-    {
-        try
-        {
-            PopulateResources(item.DriverId, contract);
-            BrowserStatus = contract.Summary;
-        }
-        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
-        {
-            BrowserStatus = "The contract could not be shown. Use the reload button to read it again.";
-        }
-    }
-
-    // Reads what a contract driver describes, with the placeholders replaced; null and a reason when it can't.
-    private async Task<(ConnectionSchema? Contract, string? Error)> ReadContractAsync(ConnectionItemViewModel item, IConnectionContractDriver driver,
-        CancellationToken token)
-    {
-        var secrets = SecretValues();
-        var resolved = ConnectionPlaceholderResolver.Resolve(item.ToConnection().Params,
-            name => secrets.GetValueOrDefault(name), Environment.GetEnvironmentVariable);
-        if (resolved.Errors.Count > 0) return (null, string.Join(" ", resolved.Errors));
-        try
-        {
-            return (await driver.FetchContractAsync(resolved.Params, token), null);
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
-        catch (Exception ex) { return (null, ex.Message); }
-    }
-
-    private async Task BrowseContractAsync(ConnectionItemViewModel item, IConnectionContractDriver driver)
-    {
-        _browseCancellation?.Cancel();
-        var cts = new CancellationTokenSource();
-        _browseCancellation = cts;
-        IsBrowsing = true;
-        BrowserStatus = "Loading the contract…";
-        Resources.Clear();
-        ResourceDetails.Clear();
-        try
-        {
-            var (contract, error) = await ReadContractAsync(item, driver, cts.Token);
-            if (cts.IsCancellationRequested || !ReferenceEquals(SelectedConnection, item)) return;
-            if (contract is null)
-            {
-                BrowserStatus = error ?? "The connection returned no contract.";
-                return;
-            }
-            _contracts[item] = contract;
-            ShowContract(item, contract);
-        }
-        catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
-        finally
-        {
-            if (ReferenceEquals(_browseCancellation, cts))
-            {
-                _browseCancellation = null;
-                IsBrowsing = false;
-            }
-            cts.Dispose();
-        }
-    }
-
     private async Task BrowseSelectedAsync()
     {
-        if (SelectedConnection is { Driver: IConnectionContractDriver contractDriver, HasProblems: false } selected)
-        {
-            await BrowseContractAsync(selected, contractDriver);
-            return;
-        }
         if (_schemas is null || SelectedConnection is not { Driver: IConnectionSchemaDriver driver, HasProblems: false } item)
             return;
         if (driver.UsesScriptDirectory(item.ToConnection()) && !HasBaseFolder)
@@ -916,10 +877,11 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
             foreach (var file in schema.Files)
                 Resources.Add(new ConnectionResourceViewModel(file.Name, "Generated protobuf type", "Generated C# source"));
         }
-        else if (driverId.Equals("http", StringComparison.OrdinalIgnoreCase) && data.RootElement.ValueKind == JsonValueKind.Array)
+        else if (driverId.Equals("openapi", StringComparison.OrdinalIgnoreCase) && data.RootElement.ValueKind == JsonValueKind.Object
+                 && data.RootElement.TryGetProperty("Operations", out var operations) && operations.ValueKind == JsonValueKind.Array)
         {
             var groups = new Dictionary<string, ConnectionResourceViewModel>(StringComparer.Ordinal);
-            foreach (var operation in data.RootElement.EnumerateArray())
+            foreach (var operation in operations.EnumerateArray())
             {
                 var tag = ReadString(operation, "Tag") ?? "Operations";
                 if (!groups.TryGetValue(tag, out var group))
@@ -934,6 +896,20 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
                 foreach (var response in ReadStrings(operation, "Responses"))
                     node.Children.Add(new ConnectionResourceViewModel(response.Split(':')[0], "Response", response.Contains(':') ? response[(response.IndexOf(':') + 1)..].Trim() : ""));
                 (groups.TryGetValue(tag, out var owner) ? owner : Resources[^1]).Children.Add(node);
+            }
+            if (data.RootElement.TryGetProperty("Models", out var models) && models.ValueKind == JsonValueKind.Array && models.GetArrayLength() > 0)
+            {
+                var group = new ConnectionResourceViewModel("Models", "Group", "Types of the API's requests and answers");
+                foreach (var model in models.EnumerateArray())
+                {
+                    var node = new ConnectionResourceViewModel(ReadString(model, "Name") ?? "(unnamed)", "Model", ReadString(model, "AliasOf") is { } alias ? "= " + alias : "");
+                    if (model.TryGetProperty("Properties", out var properties) && properties.ValueKind == JsonValueKind.Array)
+                        foreach (var property in properties.EnumerateArray())
+                            node.Children.Add(new ConnectionResourceViewModel(ReadString(property, "Name") ?? "(unnamed)", "Property",
+                                (ReadString(property, "Type") ?? "any") + (ReadBoolean(property, "Required") ? " · required" : "")));
+                    group.Children.Add(node);
+                }
+                Resources.Add(group);
             }
         }
         else
@@ -998,7 +974,6 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
         this.RaisePropertyChanged(nameof(CanBrowse));
         if (SelectedConnection is { } selected)
         {
-            _contracts.Remove(selected);
             _browseCancellation?.Cancel();
             Resources.Clear();
             ResourceDetails.Clear();
