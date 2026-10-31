@@ -79,6 +79,12 @@ public interface IConnectionDriver
     IReadOnlyDictionary<string, string> Packages { get; }
 
     /// <summary>
+    /// The packages with the versions that fit a script's target framework (<c>net8.0</c>, <c>latest</c>); a driver whose packages work on every
+    /// framework gives <see cref="Packages"/>.
+    /// </summary>
+    IReadOnlyDictionary<string, string> PackagesFor(string? targetFramework) => Packages;
+
+    /// <summary>
     /// Problems with the connection's parameters, one message each; empty when it is fine. Text
     /// with placeholders is checked only as far as the placeholders allow (their values are
     /// unknown until the script runs).

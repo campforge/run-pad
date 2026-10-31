@@ -14,6 +14,7 @@ Notable changes in each Invoklet release. Downloads are on the
   column of a table.
 - SQLite connections: foreign keys become navigation properties (`order.Customer`, `customer.Orders`), and the connection form has a **Browse...**
   button for the database file.
+- A SQLite connection adds the Entity Framework Core release that fits the script's target framework (8.0 for net8.0, 9.0 for net9.0), not always 10.
 - Run → Clear Results (Ctrl+Shift+L, Cmd+Shift+L on macOS) empties the results panel of the tab.
 - `Util.WithCssClass` (LINQPad-compatible) dumps a value inside an element with a CSS class of your own, and `Util.HtmlHead.AddStyles` adds the
   rules for it to the output.

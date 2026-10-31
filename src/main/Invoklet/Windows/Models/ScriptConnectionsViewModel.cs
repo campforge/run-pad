@@ -70,6 +70,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
     // The script's packages as drafted in the window, and how to add or remove one there.
     private Func<IReadOnlySet<string>> _scriptPackages = () => new HashSet<string>();
     private Action<string, string> _addPackage = (_, _) => { };
+    private Func<string?> _targetFramework = () => null;
     private Action<string> _removePackage = _ => { };
     // Packages the draft gained for a connection added since Load, so removing that connection
     // again before saving takes away what adding it brought and nothing the script had.
@@ -251,8 +252,9 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
 
     // The Dependencies window's own package draft, which connections add their packages to.
     internal void UsePackages(Func<IReadOnlySet<string>> scriptPackages, Action<string, string> addPackage,
-        Action<string>? removePackage = null)
+        Action<string>? removePackage = null, Func<string?>? targetFramework = null)
     {
+        _targetFramework = targetFramework ?? (() => null);
         _scriptPackages = scriptPackages;
         _addPackage = addPackage;
         _removePackage = removePackage ?? (_ => { });
@@ -325,7 +327,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
             CreateMessage = $"'{connection.Name}' can't be added because its contract couldn't be read: {schemaError}";
             return;
         }
-        var needed = driver.Packages.Where(p => !_scriptPackages().Contains(p.Key)).ToList();
+        var needed = driver.PackagesFor(_targetFramework()).Where(p => !_scriptPackages().Contains(p.Key)).ToList();
         if (needed.Count == 0)
         {
             ApplyAdd(connection);
@@ -455,7 +457,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject, IDisposable
         if (_drivers.Find(connection.Driver) is { } driver)
         {
             var added = new List<string>();
-            foreach (var (id, version) in driver.Packages)
+            foreach (var (id, version) in driver.PackagesFor(_targetFramework()))
             {
                 if (_scriptPackages().Contains(id)) continue;
                 _addPackage(id, version);

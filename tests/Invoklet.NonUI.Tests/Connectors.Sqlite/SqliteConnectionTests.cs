@@ -63,6 +63,24 @@ public sealed class SqliteConnectionTests : IDisposable
     private static Dictionary<string, MdRunValue> Resolved(MdRunConnection connection) =>
         ConnectionPlaceholderResolver.Resolve(connection.Params, _ => null, _ => null).Params.ToDictionary();
 
+    // EF Core 10 only runs on .NET 10: a script on an older framework is given the release that runs there.
+    [Theory]
+    [InlineData("net8.0", "8.0.33")]
+    [InlineData("net9.0", "9.0.22")]
+    [InlineData("net10.0", SqliteConnectionDriver.EntityFrameworkVersion)]
+    [InlineData("net11.0", SqliteConnectionDriver.EntityFrameworkVersion)]
+    [InlineData("latest", SqliteConnectionDriver.EntityFrameworkVersion)]
+    [InlineData(null, SqliteConnectionDriver.EntityFrameworkVersion)]
+    [InlineData("net", SqliteConnectionDriver.EntityFrameworkVersion)]
+    public void PackagesFor_TheTargetFrameworkOfTheScript_PicksTheEfCoreThatRunsThere(string? framework, string expected)
+    {
+        var sut = new SqliteConnectionDriver();
+
+        var packages = sut.PackagesFor(framework);
+
+        Assert.Equal(expected, packages["Microsoft.EntityFrameworkCore.Sqlite"]);
+    }
+
     [Fact]
     public void Validate_Should_NameWhatIsWrong()
     {

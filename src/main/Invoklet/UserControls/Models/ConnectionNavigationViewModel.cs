@@ -648,7 +648,8 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject, IDisposable
         var packages = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (id, package) in frontMatter.Packages ?? []) packages[id] = package.Version;
         var script = new ScriptConnectionsViewModel(_store, _secrets, _drivers, _schemas);
-        script.UsePackages(() => packages.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase), (id, version) => packages[id] = version);
+        script.UsePackages(() => packages.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase), (id, version) => packages[id] = version,
+            targetFramework: () => frontMatter.TargetSdk.ToString());
         script.SetScriptPath(scriptPath);
         script.Load(frontMatter);
         if (script.ReadError is { } readError) { Notice = readError; return false; }

@@ -35,6 +35,19 @@ public sealed class SqliteConnectionDriver : IConnectionSchemaDriver
         ["Microsoft.EntityFrameworkCore.Sqlite"] = EntityFrameworkVersion,
     };
 
+    // EF Core 10 needs .NET 10: a script on an older framework gets the newest release that runs there.
+    public IReadOnlyDictionary<string, string> PackagesFor(string? targetFramework) => MajorVersion(targetFramework) switch
+    {
+        8 => new Dictionary<string, string> { ["Microsoft.EntityFrameworkCore.Sqlite"] = "8.0.33" },
+        9 => new Dictionary<string, string> { ["Microsoft.EntityFrameworkCore.Sqlite"] = "9.0.22" },
+        _ => Packages,
+    };
+
+    // "net8.0" is 8; "latest", a missing value or anything else is not an older framework.
+    private static int MajorVersion(string? targetFramework) =>
+        targetFramework is { Length: > 3 } tfm && tfm.StartsWith("net", StringComparison.OrdinalIgnoreCase)
+        && int.TryParse(tfm[3..].Split('.')[0], out var major) ? major : 0;
+
     public IReadOnlyList<ConnectionParam> Params { get; } =
     [
         new(File, "Database file", ConnectionParamType.File, Required: true, Example: "data/shop.db",
