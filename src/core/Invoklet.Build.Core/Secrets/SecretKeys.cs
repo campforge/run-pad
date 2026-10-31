@@ -52,6 +52,18 @@ public static class SecretKeys
             ? path
             : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Invoklet", "secrets.json");
 
+    /// <summary>
+    /// Whether a script may ask for a secret, judged by its text: it mentions <c>GetSecret</c> or <c>SetSecret</c>, in its own code or in the
+    /// code its connections add (which reads a <c>${secret:...}</c> of a connection the same way). Only such a script gets the key from the
+    /// keychain; any other never makes the system ask the user to unlock it.
+    /// </summary>
+    public static bool ScriptMayUseSecrets(string? code, string? connectionSource)
+        => Mentions(code) || Mentions(connectionSource);
+
+    private static bool Mentions(string? text)
+        => text is { Length: > 0 }
+            && (text.Contains("GetSecret", StringComparison.Ordinal) || text.Contains("SetSecret", StringComparison.Ordinal));
+
     /// <summary>Passes the key to <c>Util.GetSecret</c> in this process and in the scripts it starts.</summary>
     public static void ExportForScripts(byte[] key) => Environment.SetEnvironmentVariable(EnvVar, Convert.ToBase64String(key));
 

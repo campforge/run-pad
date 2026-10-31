@@ -26,6 +26,14 @@ internal interface ITabCommandTarget
 
     Task FormatAsync();
 
+    Task FormatSelectionAsync();
+
+    /// <summary>Saves the results panel as an HTML file.</summary>
+    Task ExportResultsAsync();
+
+    /// <summary>Empties the results panel.</summary>
+    void ClearResults();
+
     Task ResolveAllUsingsAsync();
 
     void ShowGoToLine();

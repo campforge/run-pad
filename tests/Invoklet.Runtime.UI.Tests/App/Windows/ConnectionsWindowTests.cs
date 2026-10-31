@@ -1,3 +1,4 @@
+using System.Reactive.Linq;
 using System.Reflection;
 using System.Windows.Input;
 using Avalonia.Automation;
@@ -22,9 +23,10 @@ namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 public class ConnectionsWindowTests
 {
-    private sealed class SchemaDriver : IConnectionSchemaDriver
+    private sealed class SchemaDriver(bool relative = false, string id = "sqlite") : IConnectionSchemaDriver
     {
-        public string Id => "sqlite";
+        public bool UsesScriptDirectory(MdRunConnection connection) => relative;
+        public string Id => id;
         public string DisplayName => "SQLite";
         public ConnectionCategory Category => ConnectionCategory.Database;
         public IReadOnlyList<ConnectionParam> Params => [];
@@ -54,7 +56,7 @@ public class ConnectionsWindowTests
             var schemas = new ConnectionSchemas(drivers, schemaRoot.FullName,
                 new ConnectionTools { GetPackageFolderAsync = (_, _, _) => Task.FromResult("") }, _ => null);
             schemas.Cache.Put(connection, new ConnectionSchema("1 table", [],
-                "[{\"Name\":\"Orders\",\"IsView\":false,\"Columns\":[{\"Name\":\"OrderId\",\"Type\":\"INTEGER\",\"NotNull\":true,\"PrimaryKey\":1}]}]"));
+                "[{\"Name\":\"Orders\",\"IsView\":false,\"Columns\":[{\"Name\":\"OrderId\",\"Type\":\"INTEGER\",\"NotNull\":true,\"PrimaryKey\":1}],\"ForeignKeys\":[{\"Table\":\"Customers\",\"Columns\":[\"CustomerId\"],\"ReferencedColumns\":[]}]}]"));
             var vm = new ConnectionsWindowViewModel(store.Object, drivers, secrets.Object, schemas);
             var owner = new Window();
             owner.Show();
@@ -65,12 +67,119 @@ public class ConnectionsWindowTests
             var tree = window.FindControl<TreeView>("ResourceTree")!;
             Assert.Single(vm.Resources);
             Assert.Equal("Orders", vm.Resources[0].Name);
-            Assert.Equal("OrderId", Assert.Single(vm.Resources[0].Children).Name);
+            Assert.Equal(["OrderId", "CustomerId"], vm.Resources[0].Children.Select(c => c.Name));
+            Assert.Equal("Foreign key", vm.Resources[0].Children[1].Kind);
+            Assert.Equal("→ Customers", vm.Resources[0].Children[1].Details);
+            Assert.True(vm.Resources[0].Children[0].ShowsDetailsInTree);
+            Assert.False(vm.Resources[0].ShowsDetailsInTree);
             Assert.Equal("Database table", vm.ResourceDetails[2].Value);
             Assert.Equal("INTEGER · not null · primary key", vm.Resources[0].Children[0].Details);
             Assert.NotNull(tree);
             window.Close();
             owner.Close();
+        }
+        finally { schemaRoot.Delete(true); }
+    }
+
+    // A relative path waits for the folder it is relative to, then shows the schema read for that folder.
+    // The methods of a gRPC service are in the tree with their messages and whether they stream.
+    [AvaloniaFact]
+    public void ForGrpc_Should_ListTheMethodsOfEachService()
+    {
+        var connection = new MdRunConnection { Name = "hello", Driver = "grpc" };
+        var store = new Mock<IConnectionStore>();
+        store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot([connection], null));
+        store.Setup(s => s.FilePath).Returns("/data/connections.json");
+        var secrets = new Mock<ISecretStore>();
+        secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([], null));
+        var drivers = new ConnectionDriverRegistry();
+        drivers.Register(new SchemaDriver(id: "grpc"));
+        var schemaRoot = Directory.CreateTempSubdirectory("Invoklet-connection-browser");
+        try
+        {
+            var schemas = new ConnectionSchemas(drivers, schemaRoot.FullName,
+                new ConnectionTools { GetPackageFolderAsync = (_, _, _) => Task.FromResult("") }, _ => null);
+            schemas.Cache.Put(connection, new ConnectionSchema("1 service", [],
+                "[{\"Service\":\"hello.HelloService\",\"ClientType\":\"global::Hello.HelloService.HelloServiceClient\",\"Property\":\"HelloService\",\"Methods\":["
+                + "{\"Name\":\"SayHello\",\"Input\":\"hello.HelloRequest\",\"Output\":\"hello.HelloReply\",\"ClientStreaming\":false,\"ServerStreaming\":false},"
+                + "{\"Name\":\"Chat\",\"Input\":\"hello.Msg\",\"Output\":\"hello.Msg\",\"ClientStreaming\":true,\"ServerStreaming\":true}]}]"));
+            using var vm = new ConnectionsWindowViewModel(store.Object, drivers, secrets.Object, schemas);
+
+            var service = Assert.Single(vm.Resources);
+            Assert.Equal("hello.HelloService", service.Name);
+            Assert.Equal(["SayHello", "Chat", "HelloService"], service.Children.Select(c => c.Name));
+            Assert.Equal("HelloRequest → HelloReply · unary", service.Children[0].Details);
+            Assert.Equal("Msg → Msg · bidirectional streaming", service.Children[1].Details);
+            Assert.True(service.Children[0].ShowsDetailsInTree);
+        }
+        finally { schemaRoot.Delete(true); }
+    }
+
+    // The operations of an OpenAPI document are grouped by tag, each with its parameters, body and answers.
+    [AvaloniaFact]
+    public void ForOpenApi_Should_ListTheOperationsAndTheModels()
+    {
+        var connection = new MdRunConnection { Name = "pets", Driver = "openapi" };
+        var store = new Mock<IConnectionStore>();
+        store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot([connection], null));
+        store.Setup(s => s.FilePath).Returns("/data/connections.json");
+        var secrets = new Mock<ISecretStore>();
+        secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([], null));
+        var drivers = new ConnectionDriverRegistry();
+        drivers.Register(new SchemaDriver(id: "openapi"));
+        var schemaRoot = Directory.CreateTempSubdirectory("Invoklet-connection-browser");
+        try
+        {
+            var schemas = new ConnectionSchemas(drivers, schemaRoot.FullName,
+                new ConnectionTools { GetPackageFolderAsync = (_, _, _) => Task.FromResult("") }, _ => null);
+            schemas.Cache.Put(connection, new ConnectionSchema("1 operation.", [],
+                "{\"Operations\":[{\"Method\":\"GET\",\"Path\":\"/pets/{id}\",\"Tag\":\"pets\",\"Summary\":\"One pet\","
+                + "\"Parameters\":[{\"Name\":\"id\",\"In\":\"path\",\"Type\":\"string\",\"Required\":true}],\"RequestBody\":null,\"Responses\":[\"200: Pet\",\"404\"]}],"
+                + "\"Models\":[{\"Name\":\"Pet\",\"AliasOf\":null,\"Properties\":[{\"Name\":\"id\",\"Type\":\"integer (int64)\",\"Required\":true}]}]}"));
+            using var vm = new ConnectionsWindowViewModel(store.Object, drivers, secrets.Object, schemas);
+
+            Assert.Equal(["pets", "Models"], vm.Resources.Select(r => r.Name));
+            var operation = Assert.Single(vm.Resources[0].Children);
+            Assert.Equal("GET /pets/{id}", operation.Name);
+            Assert.Equal("One pet", operation.Details);
+            Assert.Equal(["id", "200", "404"], operation.Children.Select(c => c.Name));
+            Assert.Equal("path · string · required", operation.Children[0].Details);
+            Assert.Equal("Pet", operation.Children[1].Details);
+            var model = Assert.Single(vm.Resources[1].Children);
+            Assert.Equal("Pet", model.Name);
+            Assert.Equal("integer (int64) · required", Assert.Single(model.Children).Details);
+        }
+        finally { schemaRoot.Delete(true); }
+    }
+
+    [AvaloniaFact]
+    public void ARelativePath_Should_NeedAFolderFirst_ThenShowItsSchema()
+    {
+        var connection = new MdRunConnection { Name = "warehouse", Driver = "sqlite" };
+        var store = new Mock<IConnectionStore>();
+        store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot([connection], null));
+        store.Setup(s => s.FilePath).Returns("/data/connections.json");
+        var secrets = new Mock<ISecretStore>();
+        secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([], null));
+        var drivers = new ConnectionDriverRegistry();
+        drivers.Register(new SchemaDriver(relative: true));
+        var schemaRoot = Directory.CreateTempSubdirectory("Invoklet-connection-browser");
+        try
+        {
+            var schemas = new ConnectionSchemas(drivers, schemaRoot.FullName,
+                new ConnectionTools { GetPackageFolderAsync = (_, _, _) => Task.FromResult("") }, _ => null);
+            using var vm = new ConnectionsWindowViewModel(store.Object, drivers, secrets.Object, schemas);
+
+            Assert.True(vm.NeedsBaseFolder);
+            Assert.False(vm.CanBrowse);
+            Assert.Equal("This database path is relative to a script's folder: choose that folder below.", vm.BrowserStatus);
+
+            schemas.Cache.Put(connection, new ConnectionSchema("1 table", [], "[{\"Name\":\"Orders\",\"IsView\":false,\"Columns\":[]}]"), schemaRoot.FullName);
+            vm.BaseFolder = schemaRoot.FullName;
+
+            Assert.True(vm.CanBrowse);
+            Assert.Equal("1 table", vm.BrowserStatus);
+            Assert.Equal("Orders", Assert.Single(vm.Resources).Name);
         }
         finally { schemaRoot.Delete(true); }
     }

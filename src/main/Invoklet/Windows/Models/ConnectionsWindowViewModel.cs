@@ -90,18 +90,72 @@ public sealed class ConnectionFieldViewModel : ReactiveObject
     public string? Description => Param.Description;
     public bool HasDescription => Param.Description is not null;
     public string? Example => Param.Example ?? Param.Default;
-    public bool IsTextBox => Param.Type is ConnectionParamType.Text or ConnectionParamType.Number;
+    public bool IsTextBox => Param.Type is ConnectionParamType.Text or ConnectionParamType.Number or ConnectionParamType.File;
+    public bool IsEndpoint => Param.Type is ConnectionParamType.Endpoint;
+    public bool CanBrowse => Param.Type is ConnectionParamType.File;
     public bool CanInsertSecret => Param.Type is ConnectionParamType.Text && SecretNames.Count > 0;
     public bool IsBoolean => Param.Type is ConnectionParamType.Boolean;
     public bool IsMap => Param.Type is ConnectionParamType.Map;
     public bool IsList => Param.Type is ConnectionParamType.List;
 
-    // Text and Number; for List, one item per line.
+    // Text and Number; for List, one item per line; for an Endpoint, the whole address as the file keeps it (https://host:port).
     public string Text
     {
         get;
-        set { this.RaiseAndSetIfChanged(ref field, value ?? ""); Edited?.Invoke(); }
+        set
+        {
+            this.RaiseAndSetIfChanged(ref field, value ?? "");
+            if (IsEndpoint && !_composing) ReadEndpoint(field);
+            Edited?.Invoke();
+        }
     } = "";
+
+    private bool _composing;
+
+    // The host and port the form shows, and the protocol as a checkbox; the file keeps them as one text.
+    public string EndpointHost
+    {
+        get;
+        set
+        {
+            var text = value ?? "";
+            // A pasted address with a protocol sets the checkbox and shows only the host.
+            if (text.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) { UseSsl = true; text = text[8..]; }
+            else if (text.StartsWith("http://", StringComparison.OrdinalIgnoreCase)) { UseSsl = false; text = text[7..]; }
+            this.RaiseAndSetIfChanged(ref field, text);
+            WriteEndpoint();
+        }
+    } = "";
+
+    public bool UseSsl
+    {
+        get;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref field, value);
+            WriteEndpoint();
+        }
+    } = true;
+
+    private void WriteEndpoint()
+    {
+        if (_composing || !IsEndpoint) return;
+        _composing = true;
+        try { Text = EndpointHost.Trim().Length == 0 ? "" : (UseSsl ? "https://" : "http://") + EndpointHost.Trim(); }
+        finally { _composing = false; }
+    }
+
+    private void ReadEndpoint(string text)
+    {
+        _composing = true;
+        try
+        {
+            var plain = text.StartsWith("http://", StringComparison.OrdinalIgnoreCase);
+            UseSsl = !plain;
+            EndpointHost = plain ? text[7..] : text.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ? text[8..] : text;
+        }
+        finally { _composing = false; }
+    }
 
     public bool BooleanValue
     {
@@ -239,12 +293,24 @@ public sealed class ConnectionItemViewModel : ReactiveObject
         {
             this.RaiseAndSetIfChanged(ref field, value);
             this.RaisePropertyChanged(nameof(TestSummary));
+            this.RaisePropertyChanged(nameof(IsTestRunning));
+            this.RaisePropertyChanged(nameof(TestPassed));
+            this.RaisePropertyChanged(nameof(TestFailed));
+            this.RaisePropertyChanged(nameof(TestMessage));
             this.RaisePropertyChanged(nameof(AccessibleName));
         }
     }
 
     // One line for the connection list, so a test in progress or its outcome stays visible when another
     // connection is selected. The details pane shows the full TestResult.
+    public bool IsTestRunning => TestResult == "Testing…";
+    public bool TestPassed => TestResult?.StartsWith("Success: ", StringComparison.Ordinal) == true && !TestResult.Contains("\nFailed: ", StringComparison.Ordinal);
+    public bool TestFailed => TestResult is not null && !IsTestRunning && !TestPassed;
+    public string IconKey => Invoklet.UserControls.Models.ConnectionNavigationNode.DriverIconKey(DriverId);
+
+    // The answer without its "Success: " label: a passed test shows an icon and this line.
+    public string? TestMessage => TestResult?.StartsWith("Success: ", StringComparison.Ordinal) == true ? TestResult["Success: ".Length..] : TestResult;
+
     public string? TestSummary => TestResult switch
     {
         null => null,
@@ -305,6 +371,8 @@ public sealed class ConnectionItemViewModel : ReactiveObject
 
 public sealed class ConnectionResourceViewModel(string name, string kind, string details = "")
 {
+    // A column or a key says what it is in the tree itself; a table or a service is only a name there.
+    public bool ShowsDetailsInTree => Kind is "Column" or "Foreign key" or "Method" or "Parameter" or "Request body" or "Response" or "Property";
     public string Name { get; } = name;
     public string Kind { get; } = kind;
     public string Details { get; } = details;
@@ -366,7 +434,25 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
     }
 
     public bool CanBrowse => _schemas is not null && SelectedConnection is { Driver: IConnectionSchemaDriver driver, HasProblems: false } item
-        && !driver.UsesScriptDirectory(item.ToConnection());
+        && (!driver.UsesScriptDirectory(item.ToConnection()) || HasBaseFolder);
+    // A relative database path is read from a folder: the one of the script it belongs to, which this window doesn't know.
+    public string BaseFolder
+    {
+        get;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref field, value ?? "");
+            this.RaisePropertyChanged(nameof(HasBaseFolder));
+            this.RaisePropertyChanged(nameof(CanBrowse));
+            RefreshResources();
+        }
+    } = "";
+
+    public bool HasBaseFolder => BaseFolder.Trim().Length > 0;
+
+    public bool NeedsBaseFolder => SelectedConnection is { Driver: IConnectionSchemaDriver driver } item && driver.UsesScriptDirectory(item.ToConnection());
+
+    private string? Folder => HasBaseFolder ? BaseFolder.Trim() : null;
     public bool IsBrowsing { get; private set => this.RaiseAndSetIfChanged(ref field, value); }
     public string BrowserStatus
     {
@@ -505,7 +591,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
 
     private static IReadOnlyList<string> SecretNamesOf(ISecretStore secrets)
     {
-        try { return [.. secrets.LoadSnapshot().Secrets.Select(s => s.Name).Order(StringComparer.OrdinalIgnoreCase)]; }
+        try { return [.. secrets.LoadNames().Order(StringComparer.OrdinalIgnoreCase)]; }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { return []; }
     }
 
@@ -564,15 +650,18 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
             var result = await driver.TestAsync(resolved.Params, token);
             if (token.IsCancellationRequested || Edited()) return;
             item.TestResult = (result.Succeeded ? "Success: " : "Failed: ") + result.Message;
-            // A server that answers is read again, so scripts get its current classes.
+            // A server that answers is read again, so scripts get its current classes; what it offers is shown in the browser, not in the answer.
             if (result.Succeeded && driver is IConnectionSchemaDriver && _schemas is not null)
             {
-                item.TestResult += "\nReading its description…";
                 await _schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.All, token);
                 if (token.IsCancellationRequested || Edited()) return;
-                item.TestResult = "Success: " + result.Message + "\n" + (_schemas.Cache.ErrorFor(connection) is { } error
-                    ? "Failed: its description couldn't be read: " + error
-                    : "Scripts get its classes on their next build.");
+                if (_schemas.Cache.ErrorFor(connection) is { } error)
+                    item.TestResult = "Success: " + result.Message + "\nFailed: its description couldn't be read: " + error;
+                else
+                {
+                    item.TestResult = "Success: Connected.";
+                    if (ReferenceEquals(SelectedConnection, item)) RefreshResources();
+                }
             }
         }
         // A driver is free to throw for an unreachable or misconfigured server; that is the test's
@@ -606,6 +695,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
         ResourceDetails.Clear();
         SelectedResource = null;
         this.RaisePropertyChanged(nameof(CanBrowse));
+        this.RaisePropertyChanged(nameof(NeedsBaseFolder));
         if (SelectedConnection is not { } item)
         {
             BrowserStatus = "Select a connection to browse its resources.";
@@ -623,9 +713,9 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
             BrowserStatus = "Fix the connection settings before browsing its resources.";
             return;
         }
-        if (driver.UsesScriptDirectory(item.ToConnection()))
+        if (driver.UsesScriptDirectory(item.ToConnection()) && !HasBaseFolder)
         {
-            BrowserStatus = "This database path is relative to a script. Open its Dependencies window to browse the schema in that script's folder.";
+            BrowserStatus = "This database path is relative to a script's folder: choose that folder below.";
             return;
         }
         if (_schemas is null)
@@ -633,10 +723,17 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
             BrowserStatus = "Resource browsing is unavailable because the schema service is not configured.";
             return;
         }
-        var schema = _schemas.Cache.TryGetLoaded(item.ToConnection());
+        var schema = _schemas.Cache.TryGetLoaded(item.ToConnection(), Folder);
         if (schema is null)
         {
-            BrowserStatus = "Resources are not loaded in this window. Choose Load / refresh to read the saved schema or connect.";
+            // A database is read from where it is, at no cost; a server is asked only when the user says so.
+            if (driver.Category == ConnectionCategory.Database && CanBrowse)
+            {
+                BrowserStatus = "Loading resources…";
+                _ = BrowseSelectedAsync();
+                return;
+            }
+            BrowserStatus = "Not loaded yet. Use the reload button to read the contract.";
             return;
         }
         try
@@ -646,7 +743,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex) when (ex is JsonException or InvalidOperationException)
         {
-            BrowserStatus = "The cached resource description is damaged. Choose Load / refresh to read it again.";
+            BrowserStatus = "The saved contract is damaged. Use the reload button to read it again.";
         }
     }
 
@@ -654,9 +751,9 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
     {
         if (_schemas is null || SelectedConnection is not { Driver: IConnectionSchemaDriver driver, HasProblems: false } item)
             return;
-        if (driver.UsesScriptDirectory(item.ToConnection()))
+        if (driver.UsesScriptDirectory(item.ToConnection()) && !HasBaseFolder)
         {
-            BrowserStatus = "This database path is relative to a script. Open its Dependencies window to browse the schema in that script's folder.";
+            BrowserStatus = "This database path is relative to a script's folder: choose that folder below.";
             return;
         }
 
@@ -678,13 +775,13 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
                 BrowserStatus = "A secret or environment variable used by this connection is missing or invalid.";
                 return;
             }
-            await _schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.All, cts.Token);
+            await _schemas.EnsureAsync([connection], Folder, ConnectionSchemaRefresh.All, cts.Token);
             if (cts.IsCancellationRequested || !ReferenceEquals(SelectedConnection, item)) return;
-            var schema = _schemas.Cache.Get(connection);
-            var error = _schemas.Cache.ErrorFor(connection);
+            var schema = _schemas.Cache.Get(connection, Folder);
+            var error = _schemas.Cache.ErrorFor(connection, Folder);
             if (schema is null)
             {
-                BrowserStatus = error is null ? "The connection returned no resources." : "Could not load resources. Check the connection settings and network access.";
+                BrowserStatus = error ?? "The connection returned no resources.";
                 return;
             }
             PopulateResources(item.DriverId, schema);
@@ -735,7 +832,17 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
                         var nullable = !ReadBoolean(column, "NotNull");
                         var primaryKey = ReadInt(column, "PrimaryKey") > 0;
                         node.Children.Add(new ConnectionResourceViewModel(columnName, "Column",
-                            string.Join(" · ", new[] { type, nullable ? "nullable" : "not null", primaryKey ? "primary key" : "" }.Where(s => s.Length > 0))));
+                            string.Join(" · ", new[] { type.Length == 0 ? "no type" : type, nullable ? "nullable" : "not null", primaryKey ? "primary key" : "" }.Where(s => s.Length > 0))));
+                    }
+                }
+                if (table.TryGetProperty("ForeignKeys", out var keys) && keys.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var key in keys.EnumerateArray())
+                    {
+                        var from = ReadStrings(key, "Columns");
+                        var to = ReadStrings(key, "ReferencedColumns");
+                        node.Children.Add(new ConnectionResourceViewModel(string.Join(", ", from), "Foreign key",
+                            $"→ {ReadString(key, "Table")}" + (to.Count == 0 ? "" : $" ({string.Join(", ", to)})")));
                     }
                 }
                 Resources.Add(node);
@@ -749,11 +856,61 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
                 var property = ReadString(service, "Property") ?? "";
                 var clientType = ReadString(service, "ClientType") ?? "";
                 var node = new ConnectionResourceViewModel(name, "gRPC service", "Client: Connections." + property);
+                if (service.TryGetProperty("Methods", out var methods) && methods.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var method in methods.EnumerateArray())
+                    {
+                        var kind = (ReadBoolean(method, "ClientStreaming"), ReadBoolean(method, "ServerStreaming")) switch
+                        {
+                            (false, false) => "unary",
+                            (false, true) => "server streaming",
+                            (true, false) => "client streaming",
+                            _ => "bidirectional streaming",
+                        };
+                        node.Children.Add(new ConnectionResourceViewModel(ReadString(method, "Name") ?? "(unnamed method)", "Method",
+                            $"{ShortName(ReadString(method, "Input"))} → {ShortName(ReadString(method, "Output"))} · {kind}"));
+                    }
+                }
                 node.Children.Add(new ConnectionResourceViewModel(property, "Client property", clientType));
                 Resources.Add(node);
             }
             foreach (var file in schema.Files)
                 Resources.Add(new ConnectionResourceViewModel(file.Name, "Generated protobuf type", "Generated C# source"));
+        }
+        else if (driverId.Equals("openapi", StringComparison.OrdinalIgnoreCase) && data.RootElement.ValueKind == JsonValueKind.Object
+                 && data.RootElement.TryGetProperty("Operations", out var operations) && operations.ValueKind == JsonValueKind.Array)
+        {
+            var groups = new Dictionary<string, ConnectionResourceViewModel>(StringComparer.Ordinal);
+            foreach (var operation in operations.EnumerateArray())
+            {
+                var tag = ReadString(operation, "Tag") ?? "Operations";
+                if (!groups.TryGetValue(tag, out var group))
+                    Resources.Add(groups[tag] = new ConnectionResourceViewModel(tag, "Group", "Operations with this tag"));
+                var node = new ConnectionResourceViewModel($"{ReadString(operation, "Method")} {ReadString(operation, "Path")}", "Operation",
+                    ReadString(operation, "Summary") ?? ReadString(operation, "OperationId") ?? "");
+                if (operation.TryGetProperty("Parameters", out var parameters) && parameters.ValueKind == JsonValueKind.Array)
+                    foreach (var parameter in parameters.EnumerateArray())
+                        node.Children.Add(new ConnectionResourceViewModel(ReadString(parameter, "Name") ?? "(unnamed)", "Parameter",
+                            $"{ReadString(parameter, "In")} · {ReadString(parameter, "Type")}" + (ReadBoolean(parameter, "Required") ? " · required" : "")));
+                if (ReadString(operation, "RequestBody") is { } body) node.Children.Add(new ConnectionResourceViewModel("Body", "Request body", body));
+                foreach (var response in ReadStrings(operation, "Responses"))
+                    node.Children.Add(new ConnectionResourceViewModel(response.Split(':')[0], "Response", response.Contains(':') ? response[(response.IndexOf(':') + 1)..].Trim() : ""));
+                (groups.TryGetValue(tag, out var owner) ? owner : Resources[^1]).Children.Add(node);
+            }
+            if (data.RootElement.TryGetProperty("Models", out var models) && models.ValueKind == JsonValueKind.Array && models.GetArrayLength() > 0)
+            {
+                var group = new ConnectionResourceViewModel("Models", "Group", "Types of the API's requests and answers");
+                foreach (var model in models.EnumerateArray())
+                {
+                    var node = new ConnectionResourceViewModel(ReadString(model, "Name") ?? "(unnamed)", "Model", ReadString(model, "AliasOf") is { } alias ? "= " + alias : "");
+                    if (model.TryGetProperty("Properties", out var properties) && properties.ValueKind == JsonValueKind.Array)
+                        foreach (var property in properties.EnumerateArray())
+                            node.Children.Add(new ConnectionResourceViewModel(ReadString(property, "Name") ?? "(unnamed)", "Property",
+                                (ReadString(property, "Type") ?? "any") + (ReadBoolean(property, "Required") ? " · required" : "")));
+                    group.Children.Add(node);
+                }
+                Resources.Add(group);
+            }
         }
         else
         {
@@ -777,6 +934,10 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
 
     private static string? ReadString(JsonElement element, string property) =>
         element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+    private static string ShortName(string? fullName) => fullName is null ? "?" : fullName[(fullName.LastIndexOf('.') + 1)..];
+    private static List<string> ReadStrings(JsonElement element, string property) =>
+        element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.Array
+            ? [.. value.EnumerateArray().Where(e => e.ValueKind == JsonValueKind.String).Select(e => e.GetString()!)] : [];
     private static bool ReadBoolean(JsonElement element, string property) =>
         element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.True;
     private static int ReadInt(JsonElement element, string property) =>
@@ -819,7 +980,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
             SelectedResource = null;
             BrowserStatus = selected.HasProblems
                 ? "Fix the connection settings before browsing its resources."
-                : "Connection settings changed. Load / refresh to browse the updated resources.";
+                : "Settings changed. Use the reload button to read the contract again.";
         }
     }
 }

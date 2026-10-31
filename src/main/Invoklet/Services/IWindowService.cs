@@ -31,6 +31,9 @@ public interface IWindowService
     /// </summary>
     Task<string?> ShowSaveFileDialogAsync(string suggestedFileName, string startFolder);
 
+    /// <summary>Quick Open: the box that narrows what it is given as the user types; the chosen entry, or null when closed without one.</summary>
+    Task<Invoklet.Services.QuickOpen.QuickOpenEntry?> ShowQuickOpenAsync(Invoklet.Services.QuickOpen.QuickOpenContent content);
+
     /// <summary>Native picker for a local .inv script; null on cancellation.</summary>
     Task<string?> ShowOpenScriptFileDialogAsync(string startFolder);
 
@@ -56,6 +59,9 @@ public interface IWindowService
     /// cancelled or unavailable.
     /// </summary>
     Task<string?> ShowSaveCodeFileDialogAsync(string suggestedFileName, string extension, string startFolder);
+
+    /// <summary>Native Save As dialog for the results of a script ("Export Results as HTML…"); the local file path, or null when cancelled or unavailable.</summary>
+    Task<string?> ShowSaveHtmlFileDialogAsync(string suggestedFileName, string startFolder);
 
     /// <summary>Native Open dialog for any file (the text editor window's "Open Text File..."); null if cancelled.</summary>
     Task<string?> ShowOpenTextFileDialogAsync(string startFolder);

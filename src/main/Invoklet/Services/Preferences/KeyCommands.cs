@@ -27,8 +27,12 @@ public static class KeyCommands
 
     public static readonly KeyCommand NewFile = new("file.new", General, "New File", "Ctrl+N", "Cmd+N");
     public static readonly KeyCommand OpenFile = new("file.open", General, "Open Script", "Ctrl+O", "Cmd+O");
+    // Ctrl+, on macOS too (LINQPad's key, and Cmd+, is Preferences there); a different key can be set in Preferences → Keyboard.
+    public static readonly KeyCommand QuickOpen = new("file.quickOpen", General, "Quick Open", "Ctrl+,");
     public static readonly KeyCommand Save = new("file.save", General, "Save", "Ctrl+S", "Cmd+S");
     public static readonly KeyCommand SaveAs = new("file.saveAs", General, "Save As", "Ctrl+Shift+S", "Cmd+Shift+S");
+    public static readonly KeyCommand ExportResults = new("file.exportResults", General, "Export Results as HTML", "");
+    public static readonly KeyCommand ClearResults = new("run.clearResults", Run, "Clear Results", "Ctrl+Shift+L", "Cmd+Shift+L");
     public static readonly KeyCommand RevertFile = new("file.revert", General, "Revert to Saved", "");
     public static readonly KeyCommand CloseTab = new("file.closeTab", General, "Close Tab", "Ctrl+W", "Cmd+W");
     // Windows and Linux close the window with the system's Alt+F4; macOS has no such key, Cmd+Q is the convention.
@@ -74,6 +78,7 @@ public static class KeyCommands
     public static readonly KeyCommand JumpToBracket = new("editor.jumpToBracket", Editor, "Jump to Matching Bracket", "Ctrl+]");
     public static readonly KeyCommand ToggleLineComment = new("editor.toggleLineComment", Editor, "Toggle Line Comment", "Ctrl+/", "Cmd+/");
     public static readonly KeyCommand Format = new("editor.format", Editor, "Format Document", "Shift+Alt+F");
+    public static readonly KeyCommand FormatSelection = new("editor.formatSelection", Editor, "Format Selection", "Ctrl+Shift+F", "Cmd+Shift+F");
     public static readonly KeyCommand GoToLine = new("editor.goToLine", Editor, "Go to Line", "Ctrl+G");
     public static readonly KeyCommand ResolveAllUsings = new("editor.resolveAllUsings", Editor, "Resolve All Usings", "Ctrl+Alt+U", "Cmd+Alt+U");
 
@@ -90,12 +95,12 @@ public static class KeyCommands
 
     public static IReadOnlyList<KeyCommand> All { get; } =
     [
-        NewFile, OpenFile, Save, SaveAs, RevertFile, CloseTab, Exit, OpenDependencies, OpenAssemblyExplorer, OpenPreferences,
+        NewFile, OpenFile, QuickOpen, Save, SaveAs, ExportResults, RevertFile, CloseTab, Exit, OpenDependencies, OpenAssemblyExplorer, OpenPreferences,
         ToggleFileTree, ToggleOutputPanel, TogglePreview, TogglePreviewToSide, ZoomIn, ZoomOut, ResetZoom,
-        RunOrContinue, ExecuteSelection, Restart, Stop, ToggleDebugMode, StepOver, StepInto, StepOut, Pause, RunToCursor,
+        RunOrContinue, ExecuteSelection, Restart, Stop, ToggleDebugMode, StepOver, StepInto, StepOut, Pause, RunToCursor, ClearResults,
         FindText, ReplaceText, FindNext, FindPrevious, ReplaceNext, ReplaceAll,
         TriggerCompletion, SignatureHelp, GoToDefinition, FindReferences, RenameSymbol, JumpToBracket, ToggleLineComment,
-        Format, GoToLine, ResolveAllUsings,
+        Format, FormatSelection, GoToLine, ResolveAllUsings,
         RenameFile, DeleteFile,
         ExplorerBack, ExplorerForward, ExplorerSearch, ExplorerAnalyze, ExplorerRemoveAssembly, ExplorerNextTab,
         ExplorerPreviousTab,

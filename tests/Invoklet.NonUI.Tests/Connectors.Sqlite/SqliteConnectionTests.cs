@@ -63,6 +63,24 @@ public sealed class SqliteConnectionTests : IDisposable
     private static Dictionary<string, MdRunValue> Resolved(MdRunConnection connection) =>
         ConnectionPlaceholderResolver.Resolve(connection.Params, _ => null, _ => null).Params.ToDictionary();
 
+    // EF Core 10 only runs on .NET 10: a script on an older framework is given the release that runs there.
+    [Theory]
+    [InlineData("net8.0", "8.0.33")]
+    [InlineData("net9.0", "9.0.22")]
+    [InlineData("net10.0", SqliteConnectionDriver.EntityFrameworkVersion)]
+    [InlineData("net11.0", SqliteConnectionDriver.EntityFrameworkVersion)]
+    [InlineData("latest", SqliteConnectionDriver.EntityFrameworkVersion)]
+    [InlineData(null, SqliteConnectionDriver.EntityFrameworkVersion)]
+    [InlineData("net", SqliteConnectionDriver.EntityFrameworkVersion)]
+    public void PackagesFor_TheTargetFrameworkOfTheScript_PicksTheEfCoreThatRunsThere(string? framework, string expected)
+    {
+        var sut = new SqliteConnectionDriver();
+
+        var packages = sut.PackagesFor(framework);
+
+        Assert.Equal(expected, packages["Microsoft.EntityFrameworkCore.Sqlite"]);
+    }
+
     [Fact]
     public void Validate_Should_NameWhatIsWrong()
     {
@@ -311,6 +329,52 @@ public sealed class SqliteConnectionTests : IDisposable
         Assert.Null(schemas.Cache.Get(connection));
         await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken);
         Assert.Contains("customers", schemas.Cache.Get(connection)!.Summary, StringComparison.Ordinal);
+    }
+
+    // A foreign key is walked both ways, and one EF Core can't model (a different type, a table without a key) stays a plain column.
+    [Fact]
+    public void ForeignKeys_Should_BecomeNavigationProperties_WhereEfCoreCanModelThem()
+    {
+        var id = new SqliteColumn("id", "INTEGER", true, 1);
+        var customers = new SqliteTable("customers", false, [id, new SqliteColumn("name", "TEXT", true, 0)]);
+        var orders = new SqliteTable("orders", false,
+            [new SqliteColumn("id", "INTEGER", true, 1), new SqliteColumn("customer_id", "INTEGER", false, 0), new SqliteColumn("note", "TEXT", false, 0)])
+        {
+            ForeignKeys = [new SqliteForeignKey("Customers", ["customer_id"], [])],
+        };
+        var mismatched = new SqliteTable("notes", false, [new SqliteColumn("id", "INTEGER", true, 1), new SqliteColumn("order_ref", "TEXT", false, 0)])
+        {
+            ForeignKeys = [new SqliteForeignKey("orders", ["order_ref"], ["id"])],
+        };
+
+        var model = SqliteModel.Build([customers, orders, mismatched], "ShopClient");
+
+        var relation = Assert.Single(model[1].Relations);
+        Assert.Equal("Customer", relation.ReferenceName);
+        Assert.Equal("Orders", relation.CollectionName);
+        Assert.Same(model[0], relation.Principal);
+        Assert.Equal(["Id"], relation.PrincipalKey.Select(p => p.PropertyName));
+        Assert.Empty(model[2].Relations);
+    }
+
+    [Fact]
+    [Trait("Category", "RealBuild")]
+    public async Task ForeignKeys_Should_BeWalkedFromEitherSideOfAScript()
+    {
+        await RunSchemaScriptAsync("""
+            CREATE TABLE shippers (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+            CREATE TABLE parcels (id INTEGER PRIMARY KEY, shipper_id INTEGER REFERENCES shippers, receiver_id INTEGER REFERENCES shippers(id), weight INT);
+            INSERT INTO shippers VALUES (1, 'Fast'), (2, 'Slow');
+            INSERT INTO parcels VALUES (1, 1, 2, 5), (2, 1, 1, 7), (3, 2, NULL, 9);
+            """,
+            """
+            using Microsoft.EntityFrameworkCore;
+            var shop = Connections.Shop;
+            Console.WriteLine(shop.Parcels.Include(p => p.Shipper).Where(p => p.Id == 3).Single().Shipper!.Name);
+            var fast = shop.Shippers.Include(s => s.Parcels).Single(s => s.Name == "Fast");
+            Console.WriteLine(fast.Parcels.Count + " " + fast.Parcels.Sum(p => p.Weight));
+            Console.WriteLine(shop.Parcels.Count(p => p.Receiver == null));
+            """, ["Slow", "2 12", "1"]);
     }
 
     private async Task RunSchemaScriptAsync(string sql, string script, string[] expected)

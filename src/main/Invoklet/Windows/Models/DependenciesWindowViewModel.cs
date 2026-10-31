@@ -162,6 +162,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
     private MdRunFrontMatter? _original;
     private readonly DependencyDraft _draft = new();
+    private string? _targetSdk;
     private bool _applied;
     private bool _disposed;
 
@@ -742,7 +743,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         Connections.UsePackages(
             () => new HashSet<string>(_draft.Packages.Select(p => p.Id), StringComparer.OrdinalIgnoreCase),
             (id, version) => AddPackage(id, version),
-            RemovePackage);
+            RemovePackage, () => _targetSdk);
         Connections.Edited += UpdateHasChanges;
         Arguments.Edited += () =>
         {
@@ -812,6 +813,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         _applied = false;
 
         _draft.Load(fm);
+        _targetSdk = fm?.TargetSdk.ToString();
 
         ResetEntries(References, fm?.References, RemoveReference);
         _namespacesText = fm?.Namespaces is { Count: > 0 } namespaces

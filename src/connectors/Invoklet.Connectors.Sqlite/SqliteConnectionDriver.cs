@@ -24,7 +24,7 @@ public sealed class SqliteConnectionDriver : IConnectionSchemaDriver
 
     public string Id => DriverId;
 
-    public string SchemaVersion => "2";
+    public string SchemaVersion => "3";
 
     public string DisplayName => "SQLite";
 
@@ -35,9 +35,22 @@ public sealed class SqliteConnectionDriver : IConnectionSchemaDriver
         ["Microsoft.EntityFrameworkCore.Sqlite"] = EntityFrameworkVersion,
     };
 
+    // EF Core 10 needs .NET 10: a script on an older framework gets the newest release that runs there.
+    public IReadOnlyDictionary<string, string> PackagesFor(string? targetFramework) => MajorVersion(targetFramework) switch
+    {
+        8 => new Dictionary<string, string> { ["Microsoft.EntityFrameworkCore.Sqlite"] = "8.0.33" },
+        9 => new Dictionary<string, string> { ["Microsoft.EntityFrameworkCore.Sqlite"] = "9.0.22" },
+        _ => Packages,
+    };
+
+    // "net8.0" is 8; "latest", a missing value or anything else is not an older framework.
+    private static int MajorVersion(string? targetFramework) =>
+        targetFramework is { Length: > 3 } tfm && tfm.StartsWith("net", StringComparison.OrdinalIgnoreCase)
+        && int.TryParse(tfm[3..].Split('.')[0], out var major) ? major : 0;
+
     public IReadOnlyList<ConnectionParam> Params { get; } =
     [
-        new(File, "Database file", Required: true, Example: "data/shop.db",
+        new(File, "Database file", ConnectionParamType.File, Required: true, Example: "data/shop.db",
             Description: "A relative path is read from the script's folder. The file must exist."),
         new(ReadOnly, "Read only", ConnectionParamType.Boolean, Default: "false",
             Description: "Opens the file for reading only, so the script can't change it."),
@@ -133,6 +146,9 @@ public sealed class SqliteConnectionDriver : IConnectionSchemaDriver
                 if (column.Column.Generated)
                     sb.Append("            e.Property(x => x.").Append(column.PropertyName).Append(").ValueGeneratedOnAddOrUpdate();\n");
             }
+            foreach (var relation in entity.Relations)
+                sb.Append("            e.HasOne(x => x.").Append(relation.ReferenceName).Append(").WithMany(x => x.").Append(relation.CollectionName)
+                    .Append(").HasForeignKey(").Append(Key(relation.ForeignKey)).Append(").HasPrincipalKey(").Append(Key(relation.PrincipalKey)).Append(");\n");
             sb.Append("        });\n");
         }
         sb.Append("    }\n");
@@ -150,11 +166,23 @@ public sealed class SqliteConnectionDriver : IConnectionSchemaDriver
                 if (!column.Nullable && !column.IsValueType) sb.Append(" = null!;");
                 sb.Append('\n');
             }
+            foreach (var relation in entity.Relations)
+                sb.Append("        /// <summary>The row of the table ").Append(ConnectionCodeContext.Doc(relation.Principal.Table.Name)).Append(" this row points to.</summary>\n")
+                    .Append("        public ").Append(relation.Principal.ClassName).Append("? ").Append(relation.ReferenceName).Append(" { get; set; }\n");
+            foreach (var relation in model.SelectMany(e => e.Relations.Select(r => (Dependent: e, Relation: r))).Where(x => x.Relation.Principal == entity))
+                sb.Append("        /// <summary>The rows of the table ").Append(ConnectionCodeContext.Doc(relation.Dependent.Table.Name)).Append(" that point to this row.</summary>\n")
+                    .Append("        public global::System.Collections.Generic.ICollection<").Append(relation.Dependent.ClassName).Append("> ").Append(relation.Relation.CollectionName)
+                    .Append(" { get; set; } = new global::System.Collections.Generic.List<").Append(relation.Dependent.ClassName).Append(">();\n");
             sb.Append("    }\n");
         }
         sb.Append('}');
         return new ConnectionClientCode(sb.ToString());
     }
+
+    // One property of the row, or the properties of a key of several columns.
+    private static string Key(List<SqliteProperty> properties) => properties.Count == 1
+        ? "x => x." + properties[0].PropertyName
+        : "x => new { " + string.Join(", ", properties.Select(p => "x." + p.PropertyName)) + " }";
 
     private static string Summary(IReadOnlyList<SqliteTable> tables)
     {
@@ -168,6 +196,27 @@ public sealed class SqliteConnectionDriver : IConnectionSchemaDriver
         }.OfType<string>());
         const int shown = 10;
         return $"{counts}: {string.Join(", ", tables.Take(shown).Select(t => t.Name))}{(tables.Count > shown ? ", …" : "")}.";
+    }
+
+    private static async Task ReadForeignKeysAsync(SqliteConnection connection, SqliteTable table, CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT id, \"table\", \"from\", \"to\" FROM pragma_foreign_key_list($table) ORDER BY id DESC, seq"; // SQLite numbers them last declared first; the first declared gets the plain names
+        command.Parameters.AddWithValue("$table", table.Name);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        var byId = new Dictionary<long, SqliteForeignKey>();
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            var id = reader.GetInt64(0);
+            if (!byId.TryGetValue(id, out var key))
+            {
+                key = new SqliteForeignKey(reader.GetString(1), [], []);
+                byId[id] = key;
+                table.ForeignKeys.Add(key);
+            }
+            key.Columns.Add(reader.GetString(2));
+            if (!reader.IsDBNull(3)) key.ReferencedColumns.Add(reader.GetString(3));
+        }
     }
 
     // Reads the tables and views of the file the parameters name, opened for reading only so that
@@ -203,6 +252,7 @@ public sealed class SqliteConnectionDriver : IConnectionSchemaDriver
             }
             foreach (var table in tables)
             {
+                if (!table.IsView) await ReadForeignKeysAsync(connection, table, cancellationToken).ConfigureAwait(false);
                 // A true INTEGER PRIMARY KEY aliases rowid and has no separate primary-key index.
                 // INTEGER PRIMARY KEY DESC is a notable exception and can contain NULL.
                 await using var indexes = connection.CreateCommand();
@@ -232,11 +282,18 @@ public sealed class SqliteConnectionDriver : IConnectionSchemaDriver
     }
 }
 
+/// <summary>A foreign key as SQLite describes it: columns of this table and the columns they point to (none: the primary key).</summary>
+internal sealed record SqliteForeignKey(string Table, List<string> Columns, List<string> ReferencedColumns);
+
 /// <summary>A failure to read the database, in words for the user.</summary>
 internal sealed class SqliteConnectionException(string message) : Exception(message);
 
 /// <summary>A table or view as SQLite describes it.</summary>
-internal sealed record SqliteTable(string Name, bool IsView, List<SqliteColumn> Columns);
+internal sealed record SqliteTable(string Name, bool IsView, List<SqliteColumn> Columns)
+{
+    // A schema read before foreign keys were kept has none.
+    public List<SqliteForeignKey> ForeignKeys { get; init; } = [];
+}
 
 /// <param name="Type">The declared type, which SQLite only uses as a hint (its type affinity).</param>
 /// <param name="PrimaryKey">Its position in the primary key, from 1; 0 when it isn't part of it.</param>

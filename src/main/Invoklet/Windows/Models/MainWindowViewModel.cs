@@ -8,6 +8,7 @@ using Invoklet.Format.MdRun;
 using Invoklet.Services;
 using Invoklet.Services.Examples;
 using Invoklet.Services.Preferences;
+using Invoklet.Services.QuickOpen;
 using Invoklet.Services.Recovery;
 using Invoklet.Shared;
 using Invoklet.UserControls.Models;
@@ -322,9 +323,81 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     public bool HasRecentFiles => RecentFiles.Count > 0;
     public ReactiveCommand<Unit, Unit> OpenFileCommand { get; }
     public ReactiveCommand<string, Unit> OpenRecentFileCommand { get; }
+    public ReactiveCommand<Unit, Unit> QuickOpenCommand { get; }
     public ReactiveCommand<Unit, Unit> ClearRecentFilesCommand { get; }
 
     private Task OpenFileAsync() => TrackWorkspaceOperation(OpenFileCoreAsync);
+
+    private Task QuickOpenAsync() => TrackWorkspaceOperation(QuickOpenCoreAsync);
+
+    // The scripts folder as the tree shows it, the recent files wherever they are and the bundled samples; the files of other types
+    // and the text of the scripts are read only if the user asks for them in the box.
+    private async Task QuickOpenCoreAsync()
+    {
+        if (_disposed) return;
+        var tree = await _fileSystemService.GetFilesTreeAsync();
+        var root = _fileSystemService.Folder;
+        var scripts = QuickOpenCatalog.Scripts(tree, root, _recentFiles.Paths, File.Exists, FilePathComparer, LastWrite);
+        var content = new QuickOpenContent(
+            [.. scripts, .. QuickOpenCatalog.Samples(Examples)],
+            ct => Task.Run(() => QuickOpenCatalog.OtherFiles(EnumerateOtherFiles(root, ct), root, LastWrite), ct),
+            ReadQuickOpenTextAsync,
+            _prefs.Keyboard.KeyFor(KeyCommands.QuickOpen));
+        if (await _windowService.ShowQuickOpenAsync(content) is not { } chosen) return;
+
+        switch (chosen.Kind)
+        {
+            case QuickOpenKind.Sample:
+                if (Examples.FirstOrDefault(e => e.Id == chosen.Target) is { } example) OpenExample(example);
+                break;
+            case QuickOpenKind.OtherFile:
+                await _windowService.ShowTextEditorAsync(chosen.Target);
+                break;
+            default:
+                await OpenScriptAsync(chosen.Target);
+                break;
+        }
+    }
+
+    private static DateTime? LastWrite(string path)
+    {
+        try
+        {
+            return File.Exists(path) ? File.GetLastWriteTime(path) : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    // Files of the scripts folder that are not scripts, without the folders that build and source control keep.
+    private static IEnumerable<string> EnumerateOtherFiles(string root, CancellationToken ct)
+    {
+        var options = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.Hidden | FileAttributes.System };
+        foreach (var path in Directory.EnumerateFiles(root, "*", options))
+        {
+            ct.ThrowIfCancellationRequested();
+            var relative = Path.GetRelativePath(root, path).Split(Path.DirectorySeparatorChar);
+            if (relative.Any(part => part is "bin" or "obj" or ".git" or "node_modules")) continue;
+            yield return path;
+        }
+    }
+
+    // A script or a file is read up to a megabyte; a sample is already in memory.
+    private async Task<string?> ReadQuickOpenTextAsync(QuickOpenEntry entry, CancellationToken ct)
+    {
+        if (entry.Kind == QuickOpenKind.Sample) return Examples.FirstOrDefault(e => e.Id == entry.Target)?.Text;
+        try
+        {
+            if (new FileInfo(entry.Target).Length > 1_048_576) return null;
+            return await File.ReadAllTextAsync(entry.Target, ct);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
 
     private async Task OpenFileCoreAsync()
     {
@@ -1081,6 +1154,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         FileTree = new FileTreeViewModel(_prefs, languageRegistry);
         OpenFileCommand = ReactiveCommand.CreateFromTask(OpenFileAsync);
         OpenRecentFileCommand = ReactiveCommand.CreateFromTask<string>(OpenScriptAsync);
+        QuickOpenCommand = ReactiveCommand.CreateFromTask(QuickOpenAsync);
+        QuickOpenCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Quick Open failed"));
         ClearRecentFilesCommand = ReactiveCommand.Create(() =>
         {
             _recentFiles.Clear();

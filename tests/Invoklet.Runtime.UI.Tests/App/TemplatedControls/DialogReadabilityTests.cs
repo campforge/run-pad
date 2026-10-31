@@ -133,6 +133,27 @@ public class DialogReadabilityTests
         }
     }
 
+    // Util.Highlight is drawn with the theme's marker: its text reads on it, and it stands out from the results background.
+    [AvaloniaTheory]
+    [MemberData(nameof(AllThemes))]
+    public void TheHighlightOfDump_Should_BeReadable_AndVisibleOnTheOutputBackground(string themeName)
+    {
+        var variant = (ThemeVariant)typeof(InvokletThemeVariants).GetField(themeName)!.GetValue(null)!;
+        var theme = new InvokletTheme();
+        Color Get(string key)
+        {
+            Assert.True(theme.TryGetResource(key, variant, out var value), $"{key} missing in {themeName}");
+            return ((ISolidColorBrush)value!).Color;
+        }
+
+        var marker = Get("Invoklet.Dump.HighlightBrush");
+        var text = Get("Invoklet.Dump.HighlightForegroundBrush");
+        var output = Get("Invoklet.Output.BackgroundBrush");
+
+        Assert.True(Contrast(text, marker) >= 4.5, $"{themeName}: text {text} on the marker {marker} = {Contrast(text, marker):0.00}");
+        Assert.True(Contrast(marker, output) >= 1.2, $"{themeName}: the marker {marker} on the output {output} = {Contrast(marker, output):0.00}");
+    }
+
     private static double Contrast(Color a, Color b)
     {
         double L(Color c)

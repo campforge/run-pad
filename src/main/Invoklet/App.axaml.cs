@@ -79,6 +79,11 @@ public class App : Application
         var serviceProvider = ConfigureServices();
         _serviceProvider = serviceProvider;
 
+        // Preferences → Logging takes effect at once.
+        var preferences = serviceProvider.GetRequiredService<IPreferencesService>();
+        var logSwitch = serviceProvider.GetRequiredService<LogLevelSwitch>();
+        preferences.Changed += () => logSwitch.Apply(preferences.Logging.Level);
+
         ILogger logger = serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger<App>();
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
             logger.LogCritical(e.ExceptionObject as Exception, "Unhandled exception (IsTerminating: {IsTerminating})", e.IsTerminating);
@@ -253,7 +258,13 @@ public class App : Application
             ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             // A secret a script asked the user for (Util.GetSecret) is kept in the Secret Store.
             var secrets = sp.GetRequiredService<ISecretStore>();
-            LanguageHostRegistry registry = new() { SecretSaver = secrets.Put };
+            // The Secret Store's key goes to a script only when it can ask for a secret (the host decides, from its text), and a store
+            // still in plain text is encrypted then: the keychain, which may ask the user to unlock it, is not opened at start.
+            LanguageHostRegistry registry = new()
+            {
+                SecretSaver = secrets.Put,
+                ExportSecretKey = secrets is FileSecretStore store ? store.PrepareForScripts : null,
+            };
             var runtimeReferences = sp.GetRequiredService<IRuntimeReferenceLocator>();
             registry.Register(new CSharpLanguageHostFactory(loggerFactory, runtimeReferences));
             registry.Register(new VbLanguageHostFactory(loggerFactory, runtimeReferences));
@@ -279,6 +290,7 @@ public class App : Application
         {
             var registry = new ConnectionDriverRegistry();
             registry.Register(new HttpConnectionDriver());
+            registry.Register(new OpenApiConnectionDriver());
             registry.Register(new GrpcConnectionDriver());
             registry.Register(new SqliteConnectionDriver());
             return registry;
@@ -309,10 +321,6 @@ public class App : Application
 
         var provider = services.BuildServiceProvider();
 
-        // Before any script runs: the Secret Store's key goes to the scripts this process starts, and
-        // a store still in plain text is encrypted. The keychain may ask the user to unlock it first.
-        if (provider.GetRequiredService<ISecretStore>() is FileSecretStore secretStore) secretStore.PrepareForScripts();
-
         // ToDo: split this out into a dedicated app warmup service
         // Each language prepares its editor services in the background so the first tab's completion is fast.
         _ = Task.Run(() => provider.GetRequiredService<ILanguageHostRegistry>().WarmUpIntelliSense());
@@ -328,21 +336,13 @@ public class App : Application
         return provider;
     }
 
+    // The level is read from the settings file before anything is logged and then followed while Invoklet runs; see LogLevelSwitch.
+    private static readonly LogLevelSwitch LogSwitch = new(PreferencesService.ReadForStartup().Logging.Level);
+
     private static void AddLogging(ServiceCollection services)
     {
         var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Invoklet", "logs");
-        Directory.CreateDirectory(logDir);
-        services.AddLogging(lb =>
-        {
-            lb.AddConsole();
-            lb.AddProvider(new FileLoggerProvider(Path.Combine(logDir)));
-            // Debug-level logging includes DAP traffic and snippets of the user's own script code —
-            // fine for a debug build, too invasive to write to disk unconditionally in a release one.
-#if DEBUG
-            lb.SetMinimumLevel(LogLevel.Debug);
-#else
-            lb.SetMinimumLevel(LogLevel.Information);
-#endif
-        });
+        services.AddLogging(lb => AppLogging.Configure(lb, LogSwitch, new FileLoggerProvider(logDir)));
+        services.AddSingleton(LogSwitch);
     }
 }

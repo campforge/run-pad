@@ -118,12 +118,15 @@ public sealed class HttpConnectionDriver : IConnectionDriver
 
     // An HttpClient with the base address, headers and timeout set, so the script calls
     // Connections.Billing.GetStringAsync("invoices") and the like.
-    public ConnectionClientCode CreateClient(MdRunConnection connection, ConnectionCodeContext context)
+    public ConnectionClientCode CreateClient(MdRunConnection connection, ConnectionCodeContext context) => BuildClient(connection, context, "", "HTTP connection");
+
+    // The same client with members of its own added, for the connection types built on this one.
+    internal static ConnectionClientCode BuildClient(MdRunConnection connection, ConnectionCodeContext context, string members, string kind)
     {
         var parameters = connection.Params;
         var address = parameters[BaseAddress].Text!;
         var sb = new StringBuilder()
-            .Append("/// <summary>The HTTP connection '").Append(ConnectionCodeContext.Doc(connection.Name)).Append("': an HttpClient for ")
+            .Append("/// <summary>The ").Append(kind).Append(" '").Append(ConnectionCodeContext.Doc(connection.Name)).Append("': an HttpClient for ")
             .Append(ConnectionCodeContext.Doc(address)).Append(".</summary>\n")
             .Append("public sealed class ").Append(context.ClassName).Append(" : global::System.Net.Http.HttpClient\n{\n")
             .Append("    internal ").Append(context.ClassName).Append("()\n    {\n")
@@ -134,13 +137,15 @@ public sealed class HttpConnectionDriver : IConnectionDriver
         foreach (var (name, value) in parameters.TryGetValue(Headers, out var headers) ? headers.Fields ?? [] : [])
             sb.Append("        DefaultRequestHeaders.TryAddWithoutValidation(").Append(ConnectionCodeContext.Literal(name)).Append(", ")
                 .Append(context.Text(value.Text ?? "")).Append(");\n");
-        sb.Append("    }\n}");
+        sb.Append("    }\n");
+        if (members.Length > 0) sb.Append('\n').Append(members);
+        sb.Append('}');
         return new ConnectionClientCode(sb.ToString());
     }
 
-    private static bool HasPlaceholder(string text) => MdRunPlaceholders.Parse(text).Parts.Any(p => p.Kind != MdRunPlaceholders.Kind.Text);
+    internal static bool HasPlaceholder(string text) => MdRunPlaceholders.Parse(text).Parts.Any(p => p.Kind != MdRunPlaceholders.Kind.Text);
 
-    private static bool IsHttpAddress(string text) =>
+    internal static bool IsHttpAddress(string text) =>
         Uri.TryCreate(text, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 
     private static bool IsRequestHeader(string name)

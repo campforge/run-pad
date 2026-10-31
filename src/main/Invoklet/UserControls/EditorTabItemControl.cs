@@ -62,6 +62,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private CancellationTokenSource? _navigationCts;
     private RefactoringRequests? _refactoringRequests;
     private EventHandler? _refactoringCaretHandler;
+    private EditorFormatting? _formatting;
+    private ResultsExporter? _resultsExporter;
+    private EventHandler<TextInputEventArgs>? _textEnteredHandler;
     private EventHandler? _intelliSenseTextChangedHandler;
     private EventHandler<VisualTreeAttachmentEventArgs>? _editorAttachedHandler;
     private EventHandler<PointerEventArgs>? _quickInfoPointerMovedHandler;
@@ -189,6 +192,17 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _InvokletAnalyzers = prefs.Experimental?.InvokletAnalyzers == true;
         intelliSense?.UpdateInvokletAnalyzers(_InvokletAnalyzers);
         SetupEditor(editor, intelliSense);
+
+        _resultsExporter = new ResultsExporter(_windowService, () => State.Output.Css, () => State.Output.Content, () => _vm.FilePath,
+            () => Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
+
+        // Format Selection, and formatting after a ';' or a '}' as it is typed.
+        _formatting = new EditorFormatting(() => _intelliSense, new EditorFormattingTarget(editor), () => _prefs.Editor.FormatOnType);
+        _textEnteredHandler = (_, e) =>
+        {
+            if (e.Text is { Length: 1 } typed && _formatting is { } formatting) _ = formatting.FormatOnTypeAsync(typed[0]);
+        };
+        editor.TextArea.TextEntered += _textEnteredHandler;
 
         _selectedKindSub = _vm.WhenAnyValue(x => x.SelectedKind).Subscribe(OnSelectedKindChanged);
         _filePath = _vm.FilePath;
@@ -795,6 +809,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _editorInteractionSubscriptions = null;
         if (_refactoringCaretHandler is { } refactoringCaret)
             State.Editor.TextArea.Caret.PositionChanged -= refactoringCaret;
+        if (_textEnteredHandler is { } textEntered)
+            State.Editor.TextArea.TextEntered -= textEntered;
+        _textEnteredHandler = null;
+        _formatting?.Dispose();
+        _formatting = null;
         if (_intelliSenseTextChangedHandler is { } intelliSenseTextChanged)
             State.Editor.TextChanged -= intelliSenseTextChanged;
         if (_quickInfoPointerMovedHandler is { } quickInfoMoved)
@@ -988,6 +1007,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     }
 
     // ── Format / navigation ────────────────────────────────────────────────────
+
+    internal Task ExportResultsAsync() => _resultsExporter?.ExportAsync() ?? Task.CompletedTask;
 
     internal async Task FormatAsync()
     {
@@ -1690,6 +1711,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // The output settings menu's check box: saved like any preference, so every open tab follows it
     // (OnPreferencesChanged); this tab's results reflow at once.
+    private async void ExportResultsButton_Click(object? sender, RoutedEventArgs e)
+    {
+        OutputSettingsButton.Flyout?.Hide();
+        await ExportResultsAsync();
+    }
+
     private void OnResultsWrapCheckBoxChanged(object? sender, RoutedEventArgs e)
     {
         var wrap = ResultsWrapCheckBox.IsChecked == true;

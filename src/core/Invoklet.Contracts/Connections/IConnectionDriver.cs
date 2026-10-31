@@ -27,6 +27,15 @@ public enum ConnectionParamType
 
     /// <summary>A list of texts.</summary>
     List,
+
+    /// <summary>
+    /// A server's host and port, as people write them; the form asks for the protocol with a checkbox and the file keeps all of it as one text,
+    /// <c>https://host:port</c> or <c>http://host:port</c>. A text with no protocol is read as secure.
+    /// </summary>
+    Endpoint,
+
+    /// <summary>The path of a file, as text with placeholders allowed; the form can browse for it.</summary>
+    File,
 }
 
 /// <summary>
@@ -74,6 +83,12 @@ public interface IConnectionDriver
     /// they are restored, shown and updated like any other, and a build without them fails.
     /// </summary>
     IReadOnlyDictionary<string, string> Packages { get; }
+
+    /// <summary>
+    /// The packages with the versions that fit a script's target framework (<c>net8.0</c>, <c>latest</c>); a driver whose packages work on every
+    /// framework gives <see cref="Packages"/>.
+    /// </summary>
+    IReadOnlyDictionary<string, string> PackagesFor(string? targetFramework) => Packages;
 
     /// <summary>
     /// Problems with the connection's parameters, one message each; empty when it is fine. Text

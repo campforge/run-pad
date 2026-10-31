@@ -3,6 +3,49 @@
 Notable changes in each Invoklet release. Downloads are on the
 [releases page](https://github.com/tervforge/invoklet/releases).
 
+## [0.11.0] — 2026-10-31
+
+### Added
+
+- Export Results as HTML (File menu, or "Save results as HTML..." in the output settings of the results panel) saves the results of a script as
+  one page that opens in any browser, with the colours of the theme they were drawn in.
+- `Util.Highlight`, `Util.HighlightIf`, `Util.WithStyle` and `Util.WithHeading` (LINQPad-compatible) dress a value in the output of
+  `.Dump()`: a highlight, CSS declarations, or a heading above it. They work on their own and inside what is dumped, such as a
+  column of a table.
+- SQLite connections: foreign keys become navigation properties (`order.Customer`, `customer.Orders`), and the connection form has a **Browse...**
+  button for the database file.
+- A new connection type, **OpenAPI/Swagger**, has the settings of an HTTP connection (base address, headers, timeout) and finds the API's OpenAPI or Swagger
+  document (JSON) at the usual addresses under the base address. The script gets a typed method for each operation and a class for each schema
+  (`await Connections.Pets.GetPetAsync(7)`), and Tools → Connections lists the operations by tag, with their parameters, bodies, answers and models.
+- gRPC connections: the address is entered as host and port with a **Use SSL** checkbox, as gRPC addresses usually are; the script file keeps the same
+  single text as before (`https://host:port`), and a bare `host:port` in a file is read as secure.
+- Tools → Connections: connections show the icon of their type and the outcome of the last test as an icon (passed, failed, running) instead of text, and
+  the reload button of the browser is an icon.
+- Tools → Connections: the resource browser of a gRPC connection lists the methods of each service with their request and response messages and
+  whether they stream. Test Connection no longer prints the list of services: it loads the contract into the browser.
+- Tools → Connections: the resource browser of a database shows the tables, their columns with types, `null`/`not null`, primary keys and foreign keys
+  right in the tree, reads the database as soon as the connection is selected, and a path relative to a script's folder can be browsed by choosing
+  that folder.
+- A SQLite connection adds the Entity Framework Core release that fits the script's target framework (8.0 for net8.0, 9.0 for net9.0), not always 10.
+- Run → Clear Results (Ctrl+Shift+L, Cmd+Shift+L on macOS) empties the results panel of the tab.
+- `Util.WithCssClass` (LINQPad-compatible) dumps a value inside an element with a CSS class of your own, and `Util.HtmlHead.AddStyles` adds the
+  rules for it to the output.
+- Format Selection (Edit → Format Selection, Ctrl+Shift+F, or Cmd+Shift+F on macOS) reformats the lines of the selection, or the
+  line of the caret, and leaves the rest of the script alone. Invoklet also formats as you type: after a `;` the statement, after a
+  `}` the block with its header. Preferences → Editor → "Format the statement after ; and the block after } as you type" turns it off.
+- Quick Open (File → Quick Open…, Ctrl+,) opens a script by name. Type part of the name or the first letters of its words;
+  the list shows each script with its folder and when it was last changed, the recent ones first. It searches your scripts and
+  the bundled samples (each can be switched off), and with "Search inside" it also finds scripts by their text; "Include
+  other file types" adds the other files of the scripts folder, which open in the text editor.
+- Logging can be turned down or off in Preferences → Logging: Off, Fatal errors only (crashes of Invoklet itself), Errors,
+  Warnings, Information (as before) or Debug. The change takes effect at once, and with logging off no log file is made.
+
+### Fixed
+
+- The system keychain (macOS Keychain, Linux Secret Service) is no longer asked to unlock the Secret Store's key when Invoklet starts or when a
+  script runs that does not ask for a secret. Only a script that mentions `Util.GetSecret` or `Util.SetSecret`, or whose connections use a
+  secret, reads the key, and listing the names of the secrets (in the connections panel and windows) does not need it.
+
 ## [0.10.5] — 2026-10-30
 
 ### Fixed
@@ -929,5 +972,6 @@ better choice. RunPad began as DotPad two days after the last commit to the fork
 [0.10.2]: https://github.com/tervforge/invoklet/releases/tag/v0.10.2
 [0.10.3]: https://github.com/tervforge/invoklet/releases/tag/v0.10.3
 [0.10.5]: https://github.com/tervforge/invoklet/releases/tag/v0.10.5
+[0.11.0]: https://github.com/tervforge/invoklet/releases/tag/v0.11.0
 [0.10.4]: https://github.com/tervforge/invoklet/releases/tag/v0.10.4
 [0.9.5]: https://github.com/tervforge/invoklet/releases/tag/v0.9.5

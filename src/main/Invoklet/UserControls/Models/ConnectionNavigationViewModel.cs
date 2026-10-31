@@ -192,7 +192,7 @@ public sealed class ConnectionNavigationNode : ReactiveObject
 
     internal static string DriverIconKey(string driverId) => driverId.ToLowerInvariant() switch
     {
-        "http" or "https" or "rest" => "Icon.DriverHttp",
+        "http" or "https" or "rest" or "openapi" => "Icon.DriverHttp",
         "grpc" => "Icon.DriverGrpc",
         _ => "Icon.DriverDatabase",
     };
@@ -350,7 +350,7 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject, IDisposable
         HashSet<string>? secretNames = null;
         if (_secrets is not null)
         {
-            try { secretNames = _secrets.LoadSnapshot().Secrets.Select(s => s.Name).ToHashSet(StringComparer.Ordinal); }
+            try { secretNames = _secrets.LoadNames().ToHashSet(StringComparer.Ordinal); }
             catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { }
         }
         var statuses = new Dictionary<string, ConnectionStatus>(StringComparer.Ordinal);
@@ -648,7 +648,8 @@ public sealed class ConnectionNavigationViewModel : ReactiveObject, IDisposable
         var packages = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (id, package) in frontMatter.Packages ?? []) packages[id] = package.Version;
         var script = new ScriptConnectionsViewModel(_store, _secrets, _drivers, _schemas);
-        script.UsePackages(() => packages.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase), (id, version) => packages[id] = version);
+        script.UsePackages(() => packages.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase), (id, version) => packages[id] = version,
+            targetFramework: () => frontMatter.TargetSdk.ToString());
         script.SetScriptPath(scriptPath);
         script.Load(frontMatter);
         if (script.ReadError is { } readError) { Notice = readError; return false; }

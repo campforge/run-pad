@@ -184,6 +184,12 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     public Task<string?> FormatDocumentAsync(string code, CancellationToken ct = default) => _formatter.FormatDocumentAsync(code, ct);
 
+    public Task<IReadOnlyList<TextEdit>?> FormatRangeAsync(string code, int start, int length, CancellationToken ct = default)
+        => _formatter.FormatRangeAsync(code, start, length, ct);
+
+    public Task<IReadOnlyList<TextEdit>?> FormatOnTypeAsync(string code, int caret, char typed, CancellationToken ct = default)
+        => _formatter.FormatOnTypeAsync(code, caret, typed, ct);
+
     public Task<bool> IsEmptyTypeBodyPositionAsync(string code, int position, CancellationToken cancellationToken = default)
         => Task.Run(() => CSharpMemberPosition.IsInEmptyTypeBody(code, position, cancellationToken), cancellationToken);
 
@@ -299,10 +305,21 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // checks its token shouldn't be able to hang Dispose (or, in production, a tab close) forever.
     public void Dispose()
     {
-        _analysis.Stop();
-        _scheduler.Stop();
-        _session.Workspace.Dispose();
+        // Once: a second call (a tab that disposes what the creation also disposes) finds nothing left to do.
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        try
+        {
+            _analysis.Stop();
+            _scheduler.Stop();
+        }
+        finally
+        {
+            // The workspace goes even if stopping a pass threw.
+            _session.Dispose();
+        }
     }
+
+    private int _disposed;
 
     // ── Private model types ────────────────────────────────────────────────────
 

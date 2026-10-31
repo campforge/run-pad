@@ -16,7 +16,7 @@ using Invoklet.Runtime;
 /// EditorTabItemControl wire both directions up on the host side. Only meaningful under
 /// <c>RunAsync</c> (the plain, non-debug run) — a debug session's stdin isn't currently piped through.
 /// </summary>
-public static class Util
+public static partial class Util
 {
     internal const char InputRequestPrefixChar = '\x1f'; // ASCII Unit Separator — distinct from ObjectExtensions.DumpLinePrefixChar
 

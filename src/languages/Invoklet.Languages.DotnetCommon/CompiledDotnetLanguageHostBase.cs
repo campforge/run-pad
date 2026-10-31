@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Invoklet.Build.Core.Models;
 using Invoklet.Build.Core.ProcessRunners;
+using Invoklet.Build.Core.Secrets;
 using Invoklet.Contracts;
 using Invoklet.Contracts.Debugging;
 using Invoklet.Contracts.Models;
@@ -241,6 +242,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
 
         try
         {
+            await ExportSecretKeyIfNeededAsync(code);
             await using var process = _executionProcessFactory(
                 _options.ExecutionOptions,
                 binaryPath,
@@ -278,6 +280,11 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
             _currentInputStream = null;
         }
     }
+
+    // The key of the Secret Store is read from the system keychain, which may ask the user to unlock it, only for a script that can ask for a
+    // secret; off the calling thread, as reading it starts a process.
+    private Task ExportSecretKeyIfNeededAsync(string code)
+        => ExportSecretKey is { } export && SecretKeys.ScriptMayUseSecrets(code, _options.ConnectionSource) ? Task.Run(export) : Task.CompletedTask;
 
     // Stop: a script that listens for it (Util.CancellationToken) is asked to finish and given
     // StopGracePeriod to exit; then — or at once, for any other script — the run is ended.
@@ -323,6 +330,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
 
         try
         {
+            await ExportSecretKeyIfNeededAsync(code);
             await using var process = _debuggerProcessFactory(_options.ExecutionOptions);
             var sessionOptions = new DapSessionOptions(
                 ProgramPath: binaryPath,

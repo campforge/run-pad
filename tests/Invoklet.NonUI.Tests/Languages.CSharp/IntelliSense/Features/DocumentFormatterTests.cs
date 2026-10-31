@@ -1,3 +1,4 @@
+using Invoklet.Contracts.IntelliSense;
 using Invoklet.NonUI.Tests.Languages.CSharp.IntelliSense.Features.Fixtures;
 using Xunit;
 
@@ -63,6 +64,123 @@ public sealed class DocumentFormatterTests
 
         // Assert: a cancelled format is not an error to log and swallow; the caller sees null or the cancellation
         Assert.True(result is null or OperationCanceledException);
+    }
+
+    private static string Apply(string code, IReadOnlyList<TextEdit> edits)
+    {
+        foreach (var edit in edits.OrderByDescending(e => e.Start))
+            code = code[..edit.Start] + edit.NewText + code[(edit.Start + edit.Length)..];
+        return code;
+    }
+
+    [Fact]
+    public async Task FormatRangeAsync_ASelectionOfCrampedLines_FormatsThoseLinesAndLeavesTheOthers()
+    {
+        // Arrange
+        using var fixture = new DocumentFormatterFixture();
+        var sut = fixture.CreateSut();
+        const string code = "var a=1;\nvar b=2;\nvar c=3;";
+        var start = code.IndexOf("b=2", StringComparison.Ordinal);
+
+        // Act
+        var edits = await sut.FormatRangeAsync(code, start, 3, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal("var a=1;\nvar b = 2;\nvar c=3;", Apply(code, edits!));
+    }
+
+    [Fact]
+    public async Task FormatRangeAsync_NothingSelected_FormatsTheLineOfTheCaret()
+    {
+        // Arrange
+        using var fixture = new DocumentFormatterFixture();
+        var sut = fixture.CreateSut();
+        const string code = "var a=1;\nvar b=2;";
+
+        // Act
+        var edits = await sut.FormatRangeAsync(code, 3, 0, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal("var a = 1;\nvar b=2;", Apply(code, edits!));
+    }
+
+    [Fact]
+    public async Task FormatRangeAsync_AlreadyFormatted_HasNoEdits()
+    {
+        // Arrange
+        using var fixture = new DocumentFormatterFixture();
+        var sut = fixture.CreateSut();
+        const string code = "var a = 1;\nvar b = 2;";
+
+        // Act
+        var edits = await sut.FormatRangeAsync(code, 0, code.Length, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Empty(edits!);
+    }
+
+    [Fact]
+    public async Task FormatRangeAsync_APositionPastTheEnd_IsClampedToTheCode()
+    {
+        // Arrange
+        using var fixture = new DocumentFormatterFixture();
+        var sut = fixture.CreateSut();
+
+        // Act
+        var edits = await sut.FormatRangeAsync("var a=1;", 50, 10, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal("var a = 1;", Apply("var a=1;", edits!));
+    }
+
+    [Fact]
+    public async Task FormatOnTypeAsync_ASemicolon_FormatsThatStatementOnly()
+    {
+        // Arrange
+        using var fixture = new DocumentFormatterFixture();
+        var sut = fixture.CreateSut();
+        const string code = "var a=1;\nvar b=2;";
+        var caret = code.IndexOf(';', StringComparison.Ordinal) + 1;
+
+        // Act
+        var edits = await sut.FormatOnTypeAsync(code, caret, ';', TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal("var a = 1;\nvar b=2;", Apply(code, edits!));
+    }
+
+    [Fact]
+    public async Task FormatOnTypeAsync_ACloseBrace_FormatsTheBlockWithItsHeader()
+    {
+        // Arrange
+        using var fixture = new DocumentFormatterFixture();
+        var sut = fixture.CreateSut();
+        const string code = "if(true){\nvar a=1;\n}";
+
+        // Act
+        var edits = await sut.FormatOnTypeAsync(code, code.Length, '}', TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal("if (true)\n{\n    var a = 1;\n}", Apply(code, edits!));
+    }
+
+    [Theory]
+    [InlineData("var s = \"a;\";", 11, ';')]
+    [InlineData("// a;", 5, ';')]
+    [InlineData("var a=1", 7, ';')]
+    [InlineData("var a=1;", 8, 'x')]
+    [InlineData("var a=1;", 0, ';')]
+    public async Task FormatOnTypeAsync_NotATokenToFormatAfter_IsNull(string code, int caret, char typed)
+    {
+        // Arrange
+        using var fixture = new DocumentFormatterFixture();
+        var sut = fixture.CreateSut();
+
+        // Act
+        var edits = await sut.FormatOnTypeAsync(code, caret, typed, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Null(edits);
     }
 }
 

@@ -125,6 +125,8 @@
                     <SolidColorBrush x:Key="Invoklet.Dump.NumberBrush"                Color="#098658" />
                     <SolidColorBrush x:Key="Invoklet.Dump.BoolBrush"                  Color="#0000CC" />
                     <SolidColorBrush x:Key="Invoklet.Dump.EnumBrush"                  Color="#267F99" />
+                    <SolidColorBrush x:Key="Invoklet.Dump.HighlightBrush"             Color="#FFE169" />
+                    <SolidColorBrush x:Key="Invoklet.Dump.HighlightForegroundBrush"   Color="#1F1F1F" />
                     <SolidColorBrush x:Key="Invoklet.Dump.DateTimeBrush"              Color="#7B3FA0" />
                     <SolidColorBrush x:Key="Invoklet.Dump.PropertyNameBrush"          Color="#0F4A8A" />
                 </ResourceDictionary>

@@ -124,20 +124,22 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         var driver = new GrpcConnectionDriver();
         Assert.Empty(driver.Validate(Inventory("https://${env:INVENTORY_HOST}")));
         Assert.Equal(["The address is missing."], driver.Validate(new MdRunConnection { Name = "a", Driver = "grpc" }));
+        // Host and port, as people write them for gRPC, is an address: the protocol is secure unless it says otherwise.
+        Assert.Empty(driver.Validate(new MdRunConnection { Name = "a", Driver = "grpc", Params = new(StringComparer.Ordinal) { ["address"] = MdRunValue.Of("localhost:5001") } }));
         var bad = new MdRunConnection
         {
             Name = "a",
             Driver = "grpc",
             Params = new(StringComparer.Ordinal)
             {
-                ["address"] = MdRunValue.Of("localhost:5001"),
+                ["address"] = MdRunValue.Of("ftp://localhost:5001"),
                 ["metadata"] = MdRunValue.Map([new("token-bin", MdRunValue.Of("x"))]),
                 ["skipCertificateCheck"] = MdRunValue.Of("yes"),
             },
         };
         Assert.Equal(
         [
-            "The address 'localhost:5001' is not an http:// or https:// address.",
+            "The address 'ftp://localhost:5001' is not a host and port, or an http:// or https:// address.",
             "'token-bin' can't be a metadata name: use letters, digits, '-', '_' and '.', and no '-bin' ending.",
             "Skip the certificate check must be true or false, not 'yes'.",
         ], driver.Validate(bad));
@@ -287,7 +289,7 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         var driver = new GrpcConnectionDriver();
         drivers.Register(driver);
         var now = new ConnectionSchemaCache(folder, drivers);
-        Assert.Equal("2", driver.SchemaVersion);
+        Assert.Equal("3", driver.SchemaVersion);
         Assert.NotEqual(beforeTheChange.KeyOf(connection), now.KeyOf(connection));
         Assert.Null(now.Get(connection));
 

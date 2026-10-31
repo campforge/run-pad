@@ -33,6 +33,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     private static readonly SettingsNode EditorNode = new("editor", "Editor");
     private static readonly SettingsNode KeyboardNode = new("keyboard", "Keyboard");
     private static readonly SettingsNode SystemNode = new("system", "System");
+    private static readonly SettingsNode LoggingNode = new("logging", "Logging");
     private static readonly SettingsNode ExperimentalNode = new("experimental", "Experimental");
 
     private readonly IThemeService _themeService;
@@ -87,7 +88,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         // Interface → System holds only the OS integration's settings, so it is left out where none apply.
         SystemSettings = [.. _desktop.Settings.Where(s => s.IsAvailable()).Select(s => new SystemSettingViewModel(s, prefs))];
         _interfaceNode = new SettingsNode("interface", "Interface", SystemSettings.Count > 0 ? [SystemNode] : null);
-        _fullTree = [_interfaceNode, EditorNode, KeyboardNode, _languagesNode, ExperimentalNode];
+        _fullTree = [_interfaceNode, EditorNode, KeyboardNode, _languagesNode, LoggingNode, ExperimentalNode];
 
         // Initialize directly — no bindings exist yet, so no RaisePropertyChanged needed
         var theme = themeService.CurrentTheme;
@@ -129,6 +130,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
             this.RaisePropertyChanged(nameof(IsDotnetSelected));
             this.RaisePropertyChanged(nameof(IsKeyboardSelected));
             this.RaisePropertyChanged(nameof(IsSystemSelected));
+            this.RaisePropertyChanged(nameof(IsLoggingSelected));
             this.RaisePropertyChanged(nameof(IsExperimentalSelected));
             this.RaisePropertyChanged(nameof(IsLanguagesSelected));
             this.RaisePropertyChanged(nameof(IsLanguageNodeSelected));
@@ -143,6 +145,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     public bool IsDotnetSelected => _selectedNode?.Id == DotnetNodeId;
     public bool IsKeyboardSelected => _selectedNode?.Id == "keyboard";
     public bool IsSystemSelected => _selectedNode?.Id == "system";
+    public bool IsLoggingSelected => _selectedNode?.Id == "logging";
     public bool IsExperimentalSelected => _selectedNode?.Id == "experimental";
     public bool IsLanguagesSelected => _selectedNode?.Id == "languages";
 
@@ -352,6 +355,12 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set => SetPref(_prefs.Editor.WordWrap, value, v => _prefs.Editor.WordWrap = v);
     }
 
+    public bool FormatOnType
+    {
+        get => _prefs.Editor.FormatOnType;
+        set => SetPref(_prefs.Editor.FormatOnType, value, v => _prefs.Editor.FormatOnType = v);
+    }
+
     public bool CommitCharactersEnabled
     {
         get => _prefs.Editor.CommitCharactersEnabled;
@@ -474,6 +483,24 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         get => _prefs.Debugger.DebuggerPath;
         set => SetPref(_prefs.Debugger.DebuggerPath, value, v => _prefs.Debugger.DebuggerPath = v);
     }
+
+    // ── Logging ───────────────────────────────────────────────────────────────
+
+    public IReadOnlyList<LogVerbosityChoice> LogVerbosityChoices { get; } = LogVerbosityChoice.All;
+
+    public LogVerbosityChoice SelectedLogVerbosity
+    {
+        get => LogVerbosityChoices.First(c => c.Value == _prefs.Logging.Level);
+        set
+        {
+            if (value is null) return;
+            SetPref(_prefs.Logging.Level, value.Value, v => _prefs.Logging.Level = v);
+        }
+    }
+
+    /// <summary>Where the log files are.</summary>
+    public string LogFolder { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Invoklet", "logs");
 
     // ── Experimental ──────────────────────────────────────────────────────────
 

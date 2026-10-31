@@ -10,6 +10,7 @@ public interface IPreferencesService
     LayoutSettings Layout { get; }
     SessionSettings Session { get; }
     ExperimentalSettings Experimental { get; }
+    LoggingSettings Logging { get; }
 
     /// <summary>Values of the OS integration's settings (Interface → System), by setting id.</summary>
     Dictionary<string, bool> System { get; }

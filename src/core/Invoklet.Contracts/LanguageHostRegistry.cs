@@ -62,6 +62,9 @@ public sealed class LanguageHostRegistry : ILanguageHostRegistry
     /// <summary>Given to every host this registry creates (see <see cref="LanguageHostBase.SecretSaver"/>).</summary>
     public Action<string, string>? SecretSaver { get; set; }
 
+    /// <summary>Given to every host this registry creates (see <see cref="LanguageHostBase.ExportSecretKey"/>).</summary>
+    public Action? ExportSecretKey { get; set; }
+
     public ILanguageHost Create(string language, ILanguageHostOptions? options = null) =>
         WithSecretSaver(GetFactory(language).Create(options));
 
@@ -70,7 +73,11 @@ public sealed class LanguageHostRegistry : ILanguageHostRegistry
 
     private ILanguageHost WithSecretSaver(ILanguageHost host)
     {
-        if (host is LanguageHostBase hostBase) hostBase.SecretSaver = SecretSaver;
+        if (host is LanguageHostBase hostBase)
+        {
+            hostBase.SecretSaver = SecretSaver;
+            hostBase.ExportSecretKey = ExportSecretKey;
+        }
         return host;
     }
 

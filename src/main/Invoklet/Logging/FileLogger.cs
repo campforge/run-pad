@@ -52,6 +52,8 @@ internal sealed class FileLogger(string outDir, string category) : ILogger
 
         lock (_lock)
         {
+            // Made here, not at start-up: with logging off nothing is ever created.
+            Directory.CreateDirectory(outDir);
             RotateIfTooLarge(file);
             File.AppendAllText(file, logLine + Environment.NewLine);
         }
