@@ -14,6 +14,8 @@ Notable changes in each Invoklet release. Downloads are on the
   column of a table.
 - SQLite connections: foreign keys become navigation properties (`order.Customer`, `customer.Orders`), and the connection form has a **Browse...**
   button for the database file.
+- Tools → Connections: the resource browser of a gRPC connection lists the methods of each service with their request and response messages and
+  whether they stream. Test Connection no longer prints the list of services: it loads the contract into the browser.
 - Tools → Connections: the resource browser of a database shows the tables, their columns with types, `null`/`not null`, primary keys and foreign keys
   right in the tree, reads the database as soon as the connection is selected, and a path relative to a script's folder can be browsed by choosing
   that folder.

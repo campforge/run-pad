@@ -287,7 +287,7 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         var driver = new GrpcConnectionDriver();
         drivers.Register(driver);
         var now = new ConnectionSchemaCache(folder, drivers);
-        Assert.Equal("2", driver.SchemaVersion);
+        Assert.Equal("3", driver.SchemaVersion);
         Assert.NotEqual(beforeTheChange.KeyOf(connection), now.KeyOf(connection));
         Assert.Null(now.Get(connection));
 

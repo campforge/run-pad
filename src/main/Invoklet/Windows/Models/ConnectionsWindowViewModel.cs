@@ -307,7 +307,7 @@ public sealed class ConnectionItemViewModel : ReactiveObject
 public sealed class ConnectionResourceViewModel(string name, string kind, string details = "")
 {
     // A column or a key says what it is in the tree itself; a table or a service is only a name there.
-    public bool ShowsDetailsInTree => Kind is "Column" or "Foreign key";
+    public bool ShowsDetailsInTree => Kind is "Column" or "Foreign key" or "Method";
     public string Name { get; } = name;
     public string Kind { get; } = kind;
     public string Details { get; } = details;
@@ -586,15 +586,19 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
             var result = await driver.TestAsync(resolved.Params, token);
             if (token.IsCancellationRequested || Edited()) return;
             item.TestResult = (result.Succeeded ? "Success: " : "Failed: ") + result.Message;
-            // A server that answers is read again, so scripts get its current classes.
+            // A server that answers is read again, so scripts get its current classes; what it offers is shown in the browser, not in the answer.
             if (result.Succeeded && driver is IConnectionSchemaDriver && _schemas is not null)
             {
-                item.TestResult += "\nReading its description…";
+                item.TestResult = "Success: connected. Reading its description…";
                 await _schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.All, token);
                 if (token.IsCancellationRequested || Edited()) return;
-                item.TestResult = "Success: " + result.Message + "\n" + (_schemas.Cache.ErrorFor(connection) is { } error
-                    ? "Failed: its description couldn't be read: " + error
-                    : "Scripts get its classes on their next build.");
+                if (_schemas.Cache.ErrorFor(connection) is { } error)
+                    item.TestResult = "Success: " + result.Message + "\nFailed: its description couldn't be read: " + error;
+                else
+                {
+                    item.TestResult = "Success: connected. Its contract is in the browser; scripts get its classes on their next build.";
+                    if (ReferenceEquals(SelectedConnection, item)) RefreshResources();
+                }
             }
         }
         // A driver is free to throw for an unreachable or misconfigured server; that is the test's
@@ -789,6 +793,21 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
                 var property = ReadString(service, "Property") ?? "";
                 var clientType = ReadString(service, "ClientType") ?? "";
                 var node = new ConnectionResourceViewModel(name, "gRPC service", "Client: Connections." + property);
+                if (service.TryGetProperty("Methods", out var methods) && methods.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var method in methods.EnumerateArray())
+                    {
+                        var kind = (ReadBoolean(method, "ClientStreaming"), ReadBoolean(method, "ServerStreaming")) switch
+                        {
+                            (false, false) => "unary",
+                            (false, true) => "server streaming",
+                            (true, false) => "client streaming",
+                            _ => "bidirectional streaming",
+                        };
+                        node.Children.Add(new ConnectionResourceViewModel(ReadString(method, "Name") ?? "(unnamed method)", "Method",
+                            $"{ShortName(ReadString(method, "Input"))} → {ShortName(ReadString(method, "Output"))} · {kind}"));
+                    }
+                }
                 node.Children.Add(new ConnectionResourceViewModel(property, "Client property", clientType));
                 Resources.Add(node);
             }
@@ -817,6 +836,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
 
     private static string? ReadString(JsonElement element, string property) =>
         element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+    private static string ShortName(string? fullName) => fullName is null ? "?" : fullName[(fullName.LastIndexOf('.') + 1)..];
     private static List<string> ReadStrings(JsonElement element, string property) =>
         element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.Array
             ? [.. value.EnumerateArray().Where(e => e.ValueKind == JsonValueKind.String).Select(e => e.GetString()!)] : [];

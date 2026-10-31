@@ -22,10 +22,10 @@ namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 public class ConnectionsWindowTests
 {
-    private sealed class SchemaDriver(bool relative = false) : IConnectionSchemaDriver
+    private sealed class SchemaDriver(bool relative = false, string id = "sqlite") : IConnectionSchemaDriver
     {
         public bool UsesScriptDirectory(MdRunConnection connection) => relative;
-        public string Id => "sqlite";
+        public string Id => id;
         public string DisplayName => "SQLite";
         public ConnectionCategory Category => ConnectionCategory.Database;
         public IReadOnlyList<ConnectionParam> Params => [];
@@ -81,6 +81,39 @@ public class ConnectionsWindowTests
     }
 
     // A relative path waits for the folder it is relative to, then shows the schema read for that folder.
+    // The methods of a gRPC service are in the tree with their messages and whether they stream.
+    [AvaloniaFact]
+    public void ForGrpc_Should_ListTheMethodsOfEachService()
+    {
+        var connection = new MdRunConnection { Name = "hello", Driver = "grpc" };
+        var store = new Mock<IConnectionStore>();
+        store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot([connection], null));
+        store.Setup(s => s.FilePath).Returns("/data/connections.json");
+        var secrets = new Mock<ISecretStore>();
+        secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([], null));
+        var drivers = new ConnectionDriverRegistry();
+        drivers.Register(new SchemaDriver(id: "grpc"));
+        var schemaRoot = Directory.CreateTempSubdirectory("Invoklet-connection-browser");
+        try
+        {
+            var schemas = new ConnectionSchemas(drivers, schemaRoot.FullName,
+                new ConnectionTools { GetPackageFolderAsync = (_, _, _) => Task.FromResult("") }, _ => null);
+            schemas.Cache.Put(connection, new ConnectionSchema("1 service", [],
+                "[{\"Service\":\"hello.HelloService\",\"ClientType\":\"global::Hello.HelloService.HelloServiceClient\",\"Property\":\"HelloService\",\"Methods\":["
+                + "{\"Name\":\"SayHello\",\"Input\":\"hello.HelloRequest\",\"Output\":\"hello.HelloReply\",\"ClientStreaming\":false,\"ServerStreaming\":false},"
+                + "{\"Name\":\"Chat\",\"Input\":\"hello.Msg\",\"Output\":\"hello.Msg\",\"ClientStreaming\":true,\"ServerStreaming\":true}]}]"));
+            using var vm = new ConnectionsWindowViewModel(store.Object, drivers, secrets.Object, schemas);
+
+            var service = Assert.Single(vm.Resources);
+            Assert.Equal("hello.HelloService", service.Name);
+            Assert.Equal(["SayHello", "Chat", "HelloService"], service.Children.Select(c => c.Name));
+            Assert.Equal("HelloRequest → HelloReply · unary", service.Children[0].Details);
+            Assert.Equal("Msg → Msg · bidirectional streaming", service.Children[1].Details);
+            Assert.True(service.Children[0].ShowsDetailsInTree);
+        }
+        finally { schemaRoot.Delete(true); }
+    }
+
     [AvaloniaFact]
     public void ARelativePath_Should_NeedAFolderFirst_ThenShowItsSchema()
     {

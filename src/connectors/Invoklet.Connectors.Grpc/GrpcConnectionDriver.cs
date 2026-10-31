@@ -66,7 +66,7 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
     /// files switched to a nullable-annotations-only context, so schemas holding the older
     /// <c>#nullable enable</c> text are read from the server again instead of being reused.
     /// </summary>
-    public string SchemaVersion => "2";
+    public string SchemaVersion => "3";
 
     public IReadOnlyList<string> Validate(MdRunConnection connection)
     {
@@ -147,8 +147,17 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
         var missing = services.Where(s => clients.All(c => c.Service != s)).ToList();
         if (missing.Count > 0)
             throw new GrpcConnectionException($"protoc wrote no client for {string.Join(", ", missing)}.");
-        return new ConnectionSchema(Summary(services), generated, JsonSerializer.Serialize(GrpcClientParser.WithProperties(clients)));
+        var withMethods = clients.Select(c => c with { Methods = MethodsOf(files, c.Service) }).ToList();
+        return new ConnectionSchema(Summary(services), generated, JsonSerializer.Serialize(GrpcClientParser.WithProperties(withMethods)));
     }
+
+    private static List<GrpcMethodInfo> MethodsOf(IReadOnlyList<FileDescriptorProto> files, string service) =>
+    [
+        .. files.SelectMany(f => f.Service.Select(s => (Name: f.Package.Length == 0 ? s.Name : f.Package + "." + s.Name, Service: s)))
+            .Where(x => x.Name == service)
+            .SelectMany(x => x.Service.Method)
+            .Select(m => new GrpcMethodInfo(m.Name, m.InputType.TrimStart('.'), m.OutputType.TrimStart('.'), m.ClientStreaming, m.ServerStreaming)),
+    ];
 
     // A client with the channel, an invoker that adds the metadata to every call, and a client per
     // service, created on first use.
@@ -449,7 +458,15 @@ internal sealed class GrpcConnectionException(string message) : Exception(messag
 /// <param name="Service">Its full name: <c>inventory.v1.Stock</c>.</param>
 /// <param name="ClientType">The client class: <c>global::Inventory.V1.Stock.StockClient</c>.</param>
 /// <param name="Property">The connection's property for it: <c>Stock</c>.</param>
-internal sealed record GrpcServiceClient(string Service, string ClientType, string Property);
+internal sealed record GrpcServiceClient(string Service, string ClientType, string Property)
+{
+    // What the server's description says the service offers; a description read before methods were kept has none.
+    public List<GrpcMethodInfo> Methods { get; init; } = [];
+}
+
+/// <param name="Input">The request message, by its full name.</param>
+/// <param name="Output">The response message, by its full name.</param>
+internal sealed record GrpcMethodInfo(string Name, string Input, string Output, bool ClientStreaming, bool ServerStreaming);
 
 /// <summary>Server reflection, in the v1 protocol or the older v1alpha one the server may offer instead.</summary>
 internal sealed partial class GrpcReflection(CallInvoker invoker, Metadata headers)
