@@ -14,6 +14,8 @@ Notable changes in each Invoklet release. Downloads are on the
   column of a table.
 - SQLite connections: foreign keys become navigation properties (`order.Customer`, `customer.Orders`), and the connection form has a **Browse...**
   button for the database file.
+- HTTP connections can name an OpenAPI (Swagger) document in JSON, absolute or relative to the base address; Tools → Connections lists its operations,
+  grouped by tag, with their parameters, request bodies and answers. Without one an HTTP connection is as before.
 - Tools → Connections: connections show the icon of their type and the outcome of the last test as an icon (passed, failed, running) instead of text, and
   the reload button of the browser is an icon.
 - Tools → Connections: the resource browser of a gRPC connection lists the methods of each service with their request and response messages and

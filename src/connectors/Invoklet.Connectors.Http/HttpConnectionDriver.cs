@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using Invoklet.Contracts.Connections;
 using Invoklet.Format.MdRun;
 
@@ -10,13 +11,14 @@ namespace Invoklet.Connectors.Http;
 /// An HTTP API: a base address the script's requests are relative to, headers sent with every
 /// request (an <c>Authorization</c> header with <c>${secret:…}</c>, for instance) and a timeout.
 /// </summary>
-public sealed class HttpConnectionDriver : IConnectionDriver
+public sealed class HttpConnectionDriver : IConnectionContractDriver
 {
     public const string DriverId = "http";
 
     private const string BaseAddress = "baseAddress";
     private const string Headers = "headers";
     private const string Timeout = "timeout";
+    private const string OpenApi = "openApi";
     private const int DefaultTimeoutSeconds = 100;
 
     // HttpClient.Timeout takes a whole number of milliseconds up to int.MaxValue, more than 24 days.
@@ -46,9 +48,45 @@ public sealed class HttpConnectionDriver : IConnectionDriver
             Description: "Requests are relative to it. End it with / to keep its path."),
         new(Headers, "Headers", ConnectionParamType.Map,
             Description: "Sent with every request, for example Authorization: Bearer ${secret:api-token}."),
+        new(OpenApi, "OpenAPI document", Example: "openapi.json",
+            Description: "Optional. The address of the API's OpenAPI (Swagger) description in JSON, absolute or relative to the base address; Tools → Connections then lists its operations."),
         new(Timeout, "Timeout (seconds)", ConnectionParamType.Number, Default: DefaultTimeoutSeconds.ToString(CultureInfo.InvariantCulture),
             Advanced: true),
     ];
+
+    // The description is the API's own document, fetched with the connection's headers; without one there is nothing to describe, and no request is made.
+    public async Task<ConnectionSchema> FetchContractAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken)
+    {
+        if (!resolvedParams.TryGetValue(OpenApi, out var documentValue) || string.IsNullOrWhiteSpace(documentValue.Text))
+            return new ConnectionSchema("No OpenAPI document is set for this connection.", [], "[]");
+        if (!resolvedParams.TryGetValue(BaseAddress, out var addressValue) || addressValue.Text is not { } address || !IsHttpAddress(address))
+            throw new OpenApiException("The base address is not an http:// or https:// address.");
+        if (!Uri.TryCreate(new Uri(address), documentValue.Text.Trim(), out var documentUri) || documentUri.Scheme is not ("http" or "https"))
+            throw new OpenApiException($"The OpenAPI document address '{documentValue.Text}' is not an http:// or https:// address.");
+
+        using var client = new HttpClient(_handler(), disposeHandler: true) { Timeout = TimeSpan.FromSeconds(30) };
+        using var request = new HttpRequestMessage(HttpMethod.Get, documentUri);
+        foreach (var (name, value) in resolvedParams.TryGetValue(Headers, out var h) ? h.Fields ?? [] : [])
+            if (value.Text is { } headerValue) request.Headers.TryAddWithoutValidation(name, headerValue);
+        string json;
+        try
+        {
+            using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+                throw new OpenApiException($"The server answered {(int)response.StatusCode} {response.ReasonPhrase} for {documentUri}.".Replace("  ", " "));
+            json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new OpenApiException($"Could not read {documentUri}: {ex.Message}");
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new OpenApiException($"{documentUri} did not answer in time.");
+        }
+        var operations = OpenApiReader.Read(json);
+        return new ConnectionSchema(operations.Count == 1 ? "1 operation." : $"{operations.Count} operations.", [], JsonSerializer.Serialize(operations));
+    }
 
     public IReadOnlyList<string> Validate(MdRunConnection connection)
     {

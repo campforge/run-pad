@@ -1,3 +1,4 @@
+using System.Reactive.Linq;
 using System.Reflection;
 using System.Windows.Input;
 using Avalonia.Automation;
@@ -114,6 +115,50 @@ public class ConnectionsWindowTests
         finally { schemaRoot.Delete(true); }
     }
 
+    private sealed class ContractDriver(string contract) : IConnectionContractDriver
+    {
+        public string Id => "http";
+        public string DisplayName => "HTTP";
+        public ConnectionCategory Category => ConnectionCategory.Http;
+        public IReadOnlyList<ConnectionParam> Params => [];
+        public IReadOnlyDictionary<string, string> Packages => new Dictionary<string, string>();
+        public IReadOnlyList<string> Validate(MdRunConnection connection) => [];
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken) =>
+            Task.FromResult(new ConnectionTestResult(true, "The server answered 200 OK."));
+        public ConnectionClientCode CreateClient(MdRunConnection connection, ConnectionCodeContext context) => new("");
+        public Task<ConnectionSchema> FetchContractAsync(IReadOnlyDictionary<string, MdRunValue> resolvedParams, CancellationToken cancellationToken) =>
+            Task.FromResult(new ConnectionSchema("1 operation.", [], contract));
+    }
+
+    // The operations of an OpenAPI document are grouped by tag, each with its parameters, body and answers.
+    [AvaloniaFact]
+    public async Task ForHttp_Should_ListTheOperationsOfTheOpenApiDocument()
+    {
+        var connection = new MdRunConnection { Name = "pets", Driver = "http" };
+        var store = new Mock<IConnectionStore>();
+        store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot([connection], null));
+        store.Setup(s => s.FilePath).Returns("/data/connections.json");
+        var secrets = new Mock<ISecretStore>();
+        secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([], null));
+        var drivers = new ConnectionDriverRegistry();
+        drivers.Register(new ContractDriver(
+            "[{\"Method\":\"GET\",\"Path\":\"/pets/{id}\",\"Tag\":\"pets\",\"Summary\":\"One pet\","
+            + "\"Parameters\":[{\"Name\":\"id\",\"In\":\"path\",\"Type\":\"string\",\"Required\":true}],\"RequestBody\":null,\"Responses\":[\"200: Pet\",\"404\"]}]"));
+        using var vm = new ConnectionsWindowViewModel(store.Object, drivers, secrets.Object);
+
+        Assert.Equal("Not loaded yet. Use the reload button to read the contract.", vm.BrowserStatus);
+        await vm.BrowseCommand.Execute();
+
+        var group = Assert.Single(vm.Resources);
+        Assert.Equal("pets", group.Name);
+        var operation = Assert.Single(group.Children);
+        Assert.Equal("GET /pets/{id}", operation.Name);
+        Assert.Equal("One pet", operation.Details);
+        Assert.Equal(["id", "200", "404"], operation.Children.Select(c => c.Name));
+        Assert.Equal("path · string · required", operation.Children[0].Details);
+        Assert.Equal("Pet", operation.Children[1].Details);
+    }
+
     [AvaloniaFact]
     public void ARelativePath_Should_NeedAFolderFirst_ThenShowItsSchema()
     {
@@ -181,9 +226,9 @@ public class ConnectionsWindowTests
         var menu = (MenuFlyout)window.FindControl<DropDownButton>("AddButton")!.Flyout!;
         Assert.Equal(["HTTP"], menu.Items.Cast<MenuItem>().Select(i => i.Header));
 
-        // Base address, headers and timeout, each with its own editor.
+        // Base address, headers, OpenAPI document and timeout, each with its own editor.
         var fields = window.FindControl<ItemsControl>("FieldList")!;
-        Assert.Equal(3, fields.ItemCount);
+        Assert.Equal(4, fields.ItemCount);
         var addressBox = fields.GetVisualDescendants().OfType<TextBox>().First(t => t.Classes.Contains("field"));
         Assert.Equal("https://billing.local/", addressBox.Text);
         addressBox.Text = "https://billing.example/";

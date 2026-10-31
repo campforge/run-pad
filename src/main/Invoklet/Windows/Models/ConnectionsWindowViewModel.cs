@@ -319,7 +319,7 @@ public sealed class ConnectionItemViewModel : ReactiveObject
 public sealed class ConnectionResourceViewModel(string name, string kind, string details = "")
 {
     // A column or a key says what it is in the tree itself; a table or a service is only a name there.
-    public bool ShowsDetailsInTree => Kind is "Column" or "Foreign key" or "Method";
+    public bool ShowsDetailsInTree => Kind is "Column" or "Foreign key" or "Method" or "Parameter" or "Request body" or "Response";
     public string Name { get; } = name;
     public string Kind { get; } = kind;
     public string Details { get; } = details;
@@ -380,8 +380,12 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public bool CanBrowse => _schemas is not null && SelectedConnection is { Driver: IConnectionSchemaDriver driver, HasProblems: false } item
+    public bool CanBrowse => SelectedConnection is { Driver: IConnectionContractDriver, HasProblems: false }
+        || _schemas is not null && SelectedConnection is { Driver: IConnectionSchemaDriver driver, HasProblems: false } item
         && (!driver.UsesScriptDirectory(item.ToConnection()) || HasBaseFolder);
+
+    // What a contract driver described, kept while the window is open: nothing is cached on disk for these.
+    private readonly Dictionary<ConnectionItemViewModel, ConnectionSchema> _contracts = [];
 
     // A relative database path is read from a folder: the one of the script it belongs to, which this window doesn't know.
     public string BaseFolder
@@ -599,6 +603,19 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
             if (token.IsCancellationRequested || Edited()) return;
             item.TestResult = (result.Succeeded ? "Success: " : "Failed: ") + result.Message;
             // A server that answers is read again, so scripts get its current classes; what it offers is shown in the browser, not in the answer.
+            if (result.Succeeded && driver is IConnectionContractDriver contractDriver)
+            {
+                var (contract, contractError) = await ReadContractAsync(item, contractDriver, token);
+                if (token.IsCancellationRequested || Edited()) return;
+                if (contract is null)
+                    item.TestResult = "Success: " + result.Message + "\nFailed: its contract couldn't be read: " + contractError;
+                else
+                {
+                    _contracts[item] = contract;
+                    item.TestResult = "Success: " + result.Message;
+                    if (ReferenceEquals(SelectedConnection, item)) RefreshResources();
+                }
+            }
             if (result.Succeeded && driver is IConnectionSchemaDriver && _schemas is not null)
             {
                 await _schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.All, token);
@@ -649,6 +666,13 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
             BrowserStatus = "Select a connection to browse its resources.";
             return;
         }
+        if (item.Driver is IConnectionContractDriver)
+        {
+            if (item.HasProblems) BrowserStatus = "Fix the connection settings before browsing its contract.";
+            else if (_contracts.TryGetValue(item, out var contract)) ShowContract(item, contract);
+            else BrowserStatus = "Not loaded yet. Use the reload button to read the contract.";
+            return;
+        }
         if (item.Driver is not IConnectionSchemaDriver driver)
         {
             BrowserStatus = item.Driver is null
@@ -695,8 +719,75 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private void ShowContract(ConnectionItemViewModel item, ConnectionSchema contract)
+    {
+        try
+        {
+            PopulateResources(item.DriverId, contract);
+            BrowserStatus = contract.Summary;
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+        {
+            BrowserStatus = "The contract could not be shown. Use the reload button to read it again.";
+        }
+    }
+
+    // Reads what a contract driver describes, with the placeholders replaced; null and a reason when it can't.
+    private async Task<(ConnectionSchema? Contract, string? Error)> ReadContractAsync(ConnectionItemViewModel item, IConnectionContractDriver driver,
+        CancellationToken token)
+    {
+        var secrets = SecretValues();
+        var resolved = ConnectionPlaceholderResolver.Resolve(item.ToConnection().Params,
+            name => secrets.GetValueOrDefault(name), Environment.GetEnvironmentVariable);
+        if (resolved.Errors.Count > 0) return (null, string.Join(" ", resolved.Errors));
+        try
+        {
+            return (await driver.FetchContractAsync(resolved.Params, token), null);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+        catch (Exception ex) { return (null, ex.Message); }
+    }
+
+    private async Task BrowseContractAsync(ConnectionItemViewModel item, IConnectionContractDriver driver)
+    {
+        _browseCancellation?.Cancel();
+        var cts = new CancellationTokenSource();
+        _browseCancellation = cts;
+        IsBrowsing = true;
+        BrowserStatus = "Loading the contract…";
+        Resources.Clear();
+        ResourceDetails.Clear();
+        try
+        {
+            var (contract, error) = await ReadContractAsync(item, driver, cts.Token);
+            if (cts.IsCancellationRequested || !ReferenceEquals(SelectedConnection, item)) return;
+            if (contract is null)
+            {
+                BrowserStatus = error ?? "The connection returned no contract.";
+                return;
+            }
+            _contracts[item] = contract;
+            ShowContract(item, contract);
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
+        finally
+        {
+            if (ReferenceEquals(_browseCancellation, cts))
+            {
+                _browseCancellation = null;
+                IsBrowsing = false;
+            }
+            cts.Dispose();
+        }
+    }
+
     private async Task BrowseSelectedAsync()
     {
+        if (SelectedConnection is { Driver: IConnectionContractDriver contractDriver, HasProblems: false } selected)
+        {
+            await BrowseContractAsync(selected, contractDriver);
+            return;
+        }
         if (_schemas is null || SelectedConnection is not { Driver: IConnectionSchemaDriver driver, HasProblems: false } item)
             return;
         if (driver.UsesScriptDirectory(item.ToConnection()) && !HasBaseFolder)
@@ -825,6 +916,26 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
             foreach (var file in schema.Files)
                 Resources.Add(new ConnectionResourceViewModel(file.Name, "Generated protobuf type", "Generated C# source"));
         }
+        else if (driverId.Equals("http", StringComparison.OrdinalIgnoreCase) && data.RootElement.ValueKind == JsonValueKind.Array)
+        {
+            var groups = new Dictionary<string, ConnectionResourceViewModel>(StringComparer.Ordinal);
+            foreach (var operation in data.RootElement.EnumerateArray())
+            {
+                var tag = ReadString(operation, "Tag") ?? "Operations";
+                if (!groups.TryGetValue(tag, out var group))
+                    Resources.Add(groups[tag] = new ConnectionResourceViewModel(tag, "Group", "Operations with this tag"));
+                var node = new ConnectionResourceViewModel($"{ReadString(operation, "Method")} {ReadString(operation, "Path")}", "Operation",
+                    ReadString(operation, "Summary") ?? ReadString(operation, "OperationId") ?? "");
+                if (operation.TryGetProperty("Parameters", out var parameters) && parameters.ValueKind == JsonValueKind.Array)
+                    foreach (var parameter in parameters.EnumerateArray())
+                        node.Children.Add(new ConnectionResourceViewModel(ReadString(parameter, "Name") ?? "(unnamed)", "Parameter",
+                            $"{ReadString(parameter, "In")} · {ReadString(parameter, "Type")}" + (ReadBoolean(parameter, "Required") ? " · required" : "")));
+                if (ReadString(operation, "RequestBody") is { } body) node.Children.Add(new ConnectionResourceViewModel("Body", "Request body", body));
+                foreach (var response in ReadStrings(operation, "Responses"))
+                    node.Children.Add(new ConnectionResourceViewModel(response.Split(':')[0], "Response", response.Contains(':') ? response[(response.IndexOf(':') + 1)..].Trim() : ""));
+                (groups.TryGetValue(tag, out var owner) ? owner : Resources[^1]).Children.Add(node);
+            }
+        }
         else
         {
             Resources.Add(new ConnectionResourceViewModel("Connection contract", "Resources", schema.Summary));
@@ -887,6 +998,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
         this.RaisePropertyChanged(nameof(CanBrowse));
         if (SelectedConnection is { } selected)
         {
+            _contracts.Remove(selected);
             _browseCancellation?.Cancel();
             Resources.Clear();
             ResourceDetails.Clear();
