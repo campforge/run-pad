@@ -16,6 +16,9 @@ internal sealed record OpenApiOperation(string Method, string Path, string? Oper
     /// <summary>The type of the body a request sends as JSON; null for none.</summary>
     public string? BodyType { get; init; }
 
+    /// <summary>Whether the request must have its body: a body is optional unless the description says <c>required</c>.</summary>
+    public bool BodyRequired { get; init; }
+
     /// <summary>The answers, as "status: type" (or just the status when it has no body), for showing.</summary>
     public List<string> Responses { get; init; } = [];
 
@@ -68,8 +71,8 @@ internal static class OpenApiReader
                     var parameters = shared.Where(s => !own.Any(o => o.Name == s.Name && o.In == s.In)).Concat(own).ToList();
                     var body = parameters.FirstOrDefault(p => p.In == "body");
                     parameters.RemoveAll(p => p.In == "body");
-                    var (requestBody, bodyType) = RequestBody(root, operation);
-                    if (requestBody is null && body is not null) (requestBody, bodyType) = ("body: " + body.Type, body.Type);
+                    var (requestBody, bodyType, bodyRequired) = RequestBody(root, operation);
+                    if (requestBody is null && body is not null) (requestBody, bodyType, bodyRequired) = ("body: " + body.Type, body.Type, body.Required);
                     var (responses, responseType) = Responses(operation);
                     operations.Add(new OpenApiOperation(method.ToUpperInvariant(), path.Name, Text(operation, "operationId"), Text(operation, "summary") ?? Text(operation, "description"),
                         operation.TryGetProperty("tags", out var tags) && tags.ValueKind == JsonValueKind.Array && tags.GetArrayLength() > 0 ? tags[0].GetString() : null)
@@ -77,6 +80,7 @@ internal static class OpenApiReader
                         Parameters = parameters,
                         RequestBody = requestBody,
                         BodyType = bodyType,
+                        BodyRequired = bodyRequired,
                         Responses = responses,
                         ResponseType = responseType,
                     });
@@ -135,17 +139,18 @@ internal static class OpenApiReader
         }
     }
 
-    private static (string? Shown, string? Type) RequestBody(JsonElement root, JsonElement operation)
+    private static (string? Shown, string? Type, bool Required) RequestBody(JsonElement root, JsonElement operation)
     {
-        if (!operation.TryGetProperty("requestBody", out var body)) return (null, null);
+        if (!operation.TryGetProperty("requestBody", out var body)) return (null, null, false);
         body = Resolve(root, body);
-        if (!body.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Object) return (null, null);
+        if (!body.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Object) return (null, null, false);
+        var required = body.TryGetProperty("required", out var flag) && flag.ValueKind == JsonValueKind.True;
         foreach (var media in content.EnumerateObject())
         {
             var type = media.Value.TryGetProperty("schema", out var schema) ? TypeOf(schema) : null;
-            return (media.Name + (type is null ? "" : ": " + type), media.Name.Contains("json", StringComparison.OrdinalIgnoreCase) ? type : null);
+            return (media.Name + (type is null ? "" : ": " + type), media.Name.Contains("json", StringComparison.OrdinalIgnoreCase) ? type : null, required);
         }
-        return (null, null);
+        return (null, null, false);
     }
 
     private static (List<string> Shown, string? SuccessType) Responses(JsonElement operation)

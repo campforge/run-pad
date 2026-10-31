@@ -75,4 +75,29 @@ public class OpenApiReaderTests
 
         Assert.Equal(message, thrown.Message);
     }
+
+    [Theory]
+    [InlineData("\"required\": true,", true)]
+    [InlineData("\"required\": false,", false)]
+    [InlineData("", false)]
+    public void Read_ARequestBody_IsRequiredOnlyWhenTheDescriptionSaysSo(string required, bool expected)
+    {
+        var document = "{ \"paths\": { \"/pets\": { \"post\": { \"requestBody\": { " + required
+            + " \"content\": { \"application/json\": { \"schema\": { \"type\": \"object\" } } } }, \"responses\": { } } } } }";
+
+        var operation = Assert.Single(OpenApiReader.Read(document).Operations);
+
+        Assert.Equal("object", operation.BodyType);
+        Assert.Equal(expected, operation.BodyRequired);
+    }
+
+    [Fact]
+    public void Read_ASwagger2BodyParameter_IsRequiredAsItsParameterSays()
+    {
+        const string swagger = """
+            { "paths": { "/pets": { "post": { "parameters": [ { "name": "pet", "in": "body", "required": true, "schema": { "type": "object" } } ], "responses": { } } } } }
+            """;
+
+        Assert.True(Assert.Single(OpenApiReader.Read(swagger).Operations).BodyRequired);
+    }
 }

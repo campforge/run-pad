@@ -113,7 +113,7 @@ public class OpenApiConnectionDriverTests
         Assert.Contains("public async global::System.Threading.Tasks.Task<global::System.Collections.Generic.List<Pet>> ListPetsAsync(int? limit = default, string? xTrace = default, global::System.Threading.CancellationToken cancellationToken = default)", code, StringComparison.Ordinal);
         Assert.Contains("AddQuery(query, \"limit\", limit);", code);
         Assert.Contains("headers[\"X-Trace\"] = Fmt(xTrace);", code);
-        Assert.Contains("Task<Pet> AddPetAsync(Pet body, global::System.Threading.CancellationToken cancellationToken = default)", code);
+        Assert.Contains("Task<Pet> AddPetAsync(Pet? body = default, global::System.Threading.CancellationToken cancellationToken = default)", code);
         Assert.Contains("public async global::System.Threading.Tasks.Task RemovePetAsync(long id, ", code);
         Assert.Contains("\"pets/\" + global::System.Uri.EscapeDataString(Fmt(id) ?? \"\")", code);
         Assert.Contains("public sealed class Pet", code);
@@ -121,5 +121,42 @@ public class OpenApiConnectionDriverTests
         Assert.Contains("public string? Kind { get; set; }", code);
         Assert.Contains("public global::System.DateTimeOffset? Born { get; set; }", code);
         Assert.DoesNotContain("class Kind", code);
+    }
+
+    // A body the description does not require is optional, and a cookie parameter travels in the Cookie header.
+    [Fact]
+    public void Members_AnOptionalBodyAndACookie_AreOptionalArgumentsAndOneCookieHeader()
+    {
+        // Arrange
+        const string document = """
+            { "paths": { "/pets": { "post": { "operationId": "addPet",
+                "parameters": [ { "name": "session", "in": "cookie", "required": true, "schema": { "type": "string" } },
+                                { "name": "theme", "in": "cookie", "schema": { "type": "string" } } ],
+                "requestBody": { "content": { "application/json": { "schema": { "type": "object" } } } },
+                "responses": { "204": { } } } } } }
+            """;
+
+        // Act
+        var code = OpenApiClientCode.Members(OpenApiReader.Read(document), "PetsClient");
+
+        // Assert
+        Assert.Contains("AddPetAsync(string session, string? theme = default, global::System.Text.Json.JsonElement? body = default, global::System.Threading.CancellationToken cancellationToken = default)", code);
+        Assert.Contains("AddCookie(cookies, \"session\", session);", code);
+        Assert.Contains("AddCookie(cookies, \"theme\", theme);", code);
+        Assert.Contains("headers[\"Cookie\"] = string.Join(\"; \", cookies);", code);
+    }
+
+    [Fact]
+    public void Members_ARequiredBody_StaysARequiredArgument()
+    {
+        const string document = """
+            { "paths": { "/pets": { "post": { "operationId": "addPet",
+                "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object" } } } },
+                "responses": { "204": { } } } } } }
+            """;
+
+        var code = OpenApiClientCode.Members(OpenApiReader.Read(document), "PetsClient");
+
+        Assert.Contains("AddPetAsync(global::System.Text.Json.JsonElement body, global::System.Threading.CancellationToken cancellationToken = default)", code);
     }
 }
