@@ -306,6 +306,8 @@ public sealed class ConnectionItemViewModel : ReactiveObject
 
 public sealed class ConnectionResourceViewModel(string name, string kind, string details = "")
 {
+    // A column or a key says what it is in the tree itself; a table or a service is only a name there.
+    public bool ShowsDetailsInTree => Kind is "Column" or "Foreign key";
     public string Name { get; } = name;
     public string Kind { get; } = kind;
     public string Details { get; } = details;
@@ -367,7 +369,26 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
     }
 
     public bool CanBrowse => _schemas is not null && SelectedConnection is { Driver: IConnectionSchemaDriver driver, HasProblems: false } item
-        && !driver.UsesScriptDirectory(item.ToConnection());
+        && (!driver.UsesScriptDirectory(item.ToConnection()) || HasBaseFolder);
+
+    // A relative database path is read from a folder: the one of the script it belongs to, which this window doesn't know.
+    public string BaseFolder
+    {
+        get;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref field, value ?? "");
+            this.RaisePropertyChanged(nameof(HasBaseFolder));
+            this.RaisePropertyChanged(nameof(CanBrowse));
+            RefreshResources();
+        }
+    } = "";
+
+    public bool HasBaseFolder => BaseFolder.Trim().Length > 0;
+
+    public bool NeedsBaseFolder => SelectedConnection is { Driver: IConnectionSchemaDriver driver } item && driver.UsesScriptDirectory(item.ToConnection());
+
+    private string? Folder => HasBaseFolder ? BaseFolder.Trim() : null;
     public bool IsBrowsing { get; private set => this.RaiseAndSetIfChanged(ref field, value); }
     public string BrowserStatus
     {
@@ -607,6 +628,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
         ResourceDetails.Clear();
         SelectedResource = null;
         this.RaisePropertyChanged(nameof(CanBrowse));
+        this.RaisePropertyChanged(nameof(NeedsBaseFolder));
         if (SelectedConnection is not { } item)
         {
             BrowserStatus = "Select a connection to browse its resources.";
@@ -624,9 +646,9 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
             BrowserStatus = "Fix the connection settings before browsing its resources.";
             return;
         }
-        if (driver.UsesScriptDirectory(item.ToConnection()))
+        if (driver.UsesScriptDirectory(item.ToConnection()) && !HasBaseFolder)
         {
-            BrowserStatus = "This database path is relative to a script. Open its Dependencies window to browse the schema in that script's folder.";
+            BrowserStatus = "This database path is relative to a script's folder: choose that folder below.";
             return;
         }
         if (_schemas is null)
@@ -634,9 +656,16 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
             BrowserStatus = "Resource browsing is unavailable because the schema service is not configured.";
             return;
         }
-        var schema = _schemas.Cache.TryGetLoaded(item.ToConnection());
+        var schema = _schemas.Cache.TryGetLoaded(item.ToConnection(), Folder);
         if (schema is null)
         {
+            // A database is read from where it is, at no cost; a server is asked only when the user says so.
+            if (driver.Category == ConnectionCategory.Database && CanBrowse)
+            {
+                BrowserStatus = "Loading resources…";
+                _ = BrowseSelectedAsync();
+                return;
+            }
             BrowserStatus = "Resources are not loaded in this window. Choose Load / refresh to read the saved schema or connect.";
             return;
         }
@@ -655,9 +684,9 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
     {
         if (_schemas is null || SelectedConnection is not { Driver: IConnectionSchemaDriver driver, HasProblems: false } item)
             return;
-        if (driver.UsesScriptDirectory(item.ToConnection()))
+        if (driver.UsesScriptDirectory(item.ToConnection()) && !HasBaseFolder)
         {
-            BrowserStatus = "This database path is relative to a script. Open its Dependencies window to browse the schema in that script's folder.";
+            BrowserStatus = "This database path is relative to a script's folder: choose that folder below.";
             return;
         }
 
@@ -679,13 +708,13 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
                 BrowserStatus = "A secret or environment variable used by this connection is missing or invalid.";
                 return;
             }
-            await _schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.All, cts.Token);
+            await _schemas.EnsureAsync([connection], Folder, ConnectionSchemaRefresh.All, cts.Token);
             if (cts.IsCancellationRequested || !ReferenceEquals(SelectedConnection, item)) return;
-            var schema = _schemas.Cache.Get(connection);
-            var error = _schemas.Cache.ErrorFor(connection);
+            var schema = _schemas.Cache.Get(connection, Folder);
+            var error = _schemas.Cache.ErrorFor(connection, Folder);
             if (schema is null)
             {
-                BrowserStatus = error is null ? "The connection returned no resources." : "Could not load resources. Check the connection settings and network access.";
+                BrowserStatus = error ?? "The connection returned no resources.";
                 return;
             }
             PopulateResources(item.DriverId, schema);
@@ -736,7 +765,17 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
                         var nullable = !ReadBoolean(column, "NotNull");
                         var primaryKey = ReadInt(column, "PrimaryKey") > 0;
                         node.Children.Add(new ConnectionResourceViewModel(columnName, "Column",
-                            string.Join(" · ", new[] { type, nullable ? "nullable" : "not null", primaryKey ? "primary key" : "" }.Where(s => s.Length > 0))));
+                            string.Join(" · ", new[] { type.Length == 0 ? "no type" : type, nullable ? "nullable" : "not null", primaryKey ? "primary key" : "" }.Where(s => s.Length > 0))));
+                    }
+                }
+                if (table.TryGetProperty("ForeignKeys", out var keys) && keys.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var key in keys.EnumerateArray())
+                    {
+                        var from = ReadStrings(key, "Columns");
+                        var to = ReadStrings(key, "ReferencedColumns");
+                        node.Children.Add(new ConnectionResourceViewModel(string.Join(", ", from), "Foreign key",
+                            $"→ {ReadString(key, "Table")}" + (to.Count == 0 ? "" : $" ({string.Join(", ", to)})")));
                     }
                 }
                 Resources.Add(node);
@@ -778,6 +817,9 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase, IDisposable
 
     private static string? ReadString(JsonElement element, string property) =>
         element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+    private static List<string> ReadStrings(JsonElement element, string property) =>
+        element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.Array
+            ? [.. value.EnumerateArray().Where(e => e.ValueKind == JsonValueKind.String).Select(e => e.GetString()!)] : [];
     private static bool ReadBoolean(JsonElement element, string property) =>
         element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.True;
     private static int ReadInt(JsonElement element, string property) =>

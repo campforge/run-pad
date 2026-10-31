@@ -24,6 +24,13 @@ public partial class ConnectionsWindow : Window
     public ConnectionsWindow() => InitializeComponent();
 
     // The path comes back whole: the form keeps what the user types, and a placeholder or a relative path is typed by hand.
+    private async void ChooseFolderButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is not { } viewModel) return;
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = "Select the script's folder", AllowMultiple = false });
+        if (folders.FirstOrDefault()?.TryGetLocalPath() is { } path) viewModel.BaseFolder = path;
+    }
+
     private async void BrowseButton_Click(object? sender, RoutedEventArgs e)
     {
         if ((sender as Control)?.DataContext is not ConnectionFieldViewModel field) return;

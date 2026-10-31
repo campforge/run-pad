@@ -22,8 +22,9 @@ namespace Invoklet.Runtime.UI.Tests.App.Windows;
 
 public class ConnectionsWindowTests
 {
-    private sealed class SchemaDriver : IConnectionSchemaDriver
+    private sealed class SchemaDriver(bool relative = false) : IConnectionSchemaDriver
     {
+        public bool UsesScriptDirectory(MdRunConnection connection) => relative;
         public string Id => "sqlite";
         public string DisplayName => "SQLite";
         public ConnectionCategory Category => ConnectionCategory.Database;
@@ -54,7 +55,7 @@ public class ConnectionsWindowTests
             var schemas = new ConnectionSchemas(drivers, schemaRoot.FullName,
                 new ConnectionTools { GetPackageFolderAsync = (_, _, _) => Task.FromResult("") }, _ => null);
             schemas.Cache.Put(connection, new ConnectionSchema("1 table", [],
-                "[{\"Name\":\"Orders\",\"IsView\":false,\"Columns\":[{\"Name\":\"OrderId\",\"Type\":\"INTEGER\",\"NotNull\":true,\"PrimaryKey\":1}]}]"));
+                "[{\"Name\":\"Orders\",\"IsView\":false,\"Columns\":[{\"Name\":\"OrderId\",\"Type\":\"INTEGER\",\"NotNull\":true,\"PrimaryKey\":1}],\"ForeignKeys\":[{\"Table\":\"Customers\",\"Columns\":[\"CustomerId\"],\"ReferencedColumns\":[]}]}]"));
             var vm = new ConnectionsWindowViewModel(store.Object, drivers, secrets.Object, schemas);
             var owner = new Window();
             owner.Show();
@@ -65,12 +66,49 @@ public class ConnectionsWindowTests
             var tree = window.FindControl<TreeView>("ResourceTree")!;
             Assert.Single(vm.Resources);
             Assert.Equal("Orders", vm.Resources[0].Name);
-            Assert.Equal("OrderId", Assert.Single(vm.Resources[0].Children).Name);
+            Assert.Equal(["OrderId", "CustomerId"], vm.Resources[0].Children.Select(c => c.Name));
+            Assert.Equal("Foreign key", vm.Resources[0].Children[1].Kind);
+            Assert.Equal("→ Customers", vm.Resources[0].Children[1].Details);
+            Assert.True(vm.Resources[0].Children[0].ShowsDetailsInTree);
+            Assert.False(vm.Resources[0].ShowsDetailsInTree);
             Assert.Equal("Database table", vm.ResourceDetails[2].Value);
             Assert.Equal("INTEGER · not null · primary key", vm.Resources[0].Children[0].Details);
             Assert.NotNull(tree);
             window.Close();
             owner.Close();
+        }
+        finally { schemaRoot.Delete(true); }
+    }
+
+    // A relative path waits for the folder it is relative to, then shows the schema read for that folder.
+    [AvaloniaFact]
+    public void ARelativePath_Should_NeedAFolderFirst_ThenShowItsSchema()
+    {
+        var connection = new MdRunConnection { Name = "warehouse", Driver = "sqlite" };
+        var store = new Mock<IConnectionStore>();
+        store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot([connection], null));
+        store.Setup(s => s.FilePath).Returns("/data/connections.json");
+        var secrets = new Mock<ISecretStore>();
+        secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([], null));
+        var drivers = new ConnectionDriverRegistry();
+        drivers.Register(new SchemaDriver(relative: true));
+        var schemaRoot = Directory.CreateTempSubdirectory("Invoklet-connection-browser");
+        try
+        {
+            var schemas = new ConnectionSchemas(drivers, schemaRoot.FullName,
+                new ConnectionTools { GetPackageFolderAsync = (_, _, _) => Task.FromResult("") }, _ => null);
+            using var vm = new ConnectionsWindowViewModel(store.Object, drivers, secrets.Object, schemas);
+
+            Assert.True(vm.NeedsBaseFolder);
+            Assert.False(vm.CanBrowse);
+            Assert.Equal("This database path is relative to a script's folder: choose that folder below.", vm.BrowserStatus);
+
+            schemas.Cache.Put(connection, new ConnectionSchema("1 table", [], "[{\"Name\":\"Orders\",\"IsView\":false,\"Columns\":[]}]"), schemaRoot.FullName);
+            vm.BaseFolder = schemaRoot.FullName;
+
+            Assert.True(vm.CanBrowse);
+            Assert.Equal("1 table", vm.BrowserStatus);
+            Assert.Equal("Orders", Assert.Single(vm.Resources).Name);
         }
         finally { schemaRoot.Delete(true); }
     }
